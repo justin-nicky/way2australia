@@ -1,0 +1,43 @@
+knowledge_release_id: "seed-v1"
+evaluation_suite_id: "public-eval-v1"
+
+name: day1_recursive_dense_public_baseline
+
+corpus:
+  manifest: data/document_manifest.jsonl
+  required_access_scope: public
+
+chunking:
+  strategy: recursive
+  target_tokens: 600
+  overlap_tokens: 60
+
+embedding:
+  provider: local
+  model: BAAI/bge-m3
+
+retrieval:
+  strategy: dense
+  top_k: 5
+  filters:
+    access_scope: public
+
+reranker:
+  enabled: false
+
+query_rewrite:
+  enabled: false
+
+generation:
+  provider: amazon_bedrock
+  prompt_version: answer-v1
+
+evaluation:
+  answerable_dataset: evaluation/golden_public.jsonl
+  unanswerable_dataset: evaluation/unanswerable_public.jsonl
+  metrics:
+    - recall_at_5
+    - hit_rate_at_5
+    - mrr
+    - retrieval_latency_ms
+    - end_to_end_latency_ms

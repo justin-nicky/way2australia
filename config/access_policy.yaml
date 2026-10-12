@@ -1,0 +1,24 @@
+schema_version: "1.0"
+
+roles:
+  guest:
+    allowed_scopes: [public]
+  staff:
+    allowed_scopes: [public, staff]
+  subscriber:
+    allowed_scopes: [public, subscriber]
+  registered_user:
+    allowed_scopes: [public, subscriber, user_private]
+  admin:
+    allowed_scopes: [public, staff, subscriber, user_private, admin]
+
+current_release:
+  implemented_roles: [guest]
+  default_role: guest
+
+rules:
+  - Authorization is resolved in server code, never by the LLM.
+  - Access filtering must happen during retrieval before context construction.
+  - Fallback retrieval must enforce the same access filter.
+  - Language metadata never grants or denies authorization.
+  - owner_user_id is only relevant to user_private documents.

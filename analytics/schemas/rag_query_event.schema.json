@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rag_query_event.schema.json",
+  "title": "Way2Australia RAG Query Event",
+  "description": "Phase-2 analytics contract only. No analytics pipeline is implemented in the initial project.",
+  "type": "object",
+  "properties": {
+    "request_id": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "role": {
+      "type": "string"
+    },
+    "query_language": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "detected_lote": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "knowledge_domain": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "retrieval_strategy": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "retrieved_document_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "answer_status": {
+      "type": "string",
+      "enum": [
+        "answered",
+        "insufficient_evidence",
+        "blocked",
+        "error"
+      ]
+    },
+    "fallback_used": {
+      "type": "boolean"
+    },
+    "latency_ms": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "prompt_version": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "knowledge_release_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "evaluation_suite_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "request_id",
+    "timestamp",
+    "role",
+    "answer_status",
+    "fallback_used"
+  ],
+  "additionalProperties": true
+}

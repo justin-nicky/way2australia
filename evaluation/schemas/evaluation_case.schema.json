@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "evaluation_case.schema.json",
+  "title": "Way2Australia Evaluation Case",
+  "type": "object",
+  "required": [
+    "case_id",
+    "case_version",
+    "status",
+    "introduced_in_release",
+    "evaluation_suite_id"
+  ],
+  "properties": {
+    "case_id": {
+      "type": "string"
+    },
+    "case_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "review_required",
+        "potentially_obsolete",
+        "deprecated",
+        "replaced",
+        "suggested"
+      ]
+    },
+    "introduced_in_release": {
+      "type": "string"
+    },
+    "evaluation_suite_id": {
+      "type": "string"
+    },
+    "query": {
+      "type": "string"
+    },
+    "answerable": {
+      "type": "boolean"
+    },
+    "relevant_document_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "relevant_section_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "expected_facts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "query_language": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

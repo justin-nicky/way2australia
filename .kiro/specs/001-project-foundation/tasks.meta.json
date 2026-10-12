@@ -1,0 +1,395 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "Set Python version to 3.12.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797188753
+      },
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797198169
+      }
+    ],
+    "Create root `pyproject.toml`.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797188878
+      }
+    ],
+    "Configure `uv`.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797188955
+      }
+    ],
+    "Add runtime dependencies required by this spec.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797188991
+      }
+    ],
+    "Add development dependencies.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189035
+      }
+    ],
+    "Create `.python-version`.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189070
+      }
+    ],
+    "Create `.gitignore`.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189121
+      }
+    ],
+    "Create safe `.env.example`.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189155
+      }
+    ],
+    "Create `apps/api/`.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189189
+      }
+    ],
+    "Reserve `apps/web/`.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189222
+      }
+    ],
+    "Create `packages/core/`.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189256
+      }
+    ],
+    "Create `packages/rag/`.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189290
+      }
+    ],
+    "Create `packages/observability/`.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189323
+      }
+    ],
+    "Add Python package/import configuration.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189356
+      }
+    ],
+    "Preserve existing knowledge/evaluation/docs seed folders.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189391
+      }
+    ],
+    "Create application entry point.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189423
+      }
+    ],
+    "Create health router.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189456
+      }
+    ],
+    "Implement `GET /health`.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189505
+      }
+    ],
+    "Keep route logic independent of Qdrant/RAG services.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189538
+      }
+    ],
+    "Create Pydantic Settings model.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189575
+      }
+    ],
+    "Wire settings into application startup/dependencies.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189628
+      }
+    ],
+    "Avoid scattered direct environment access.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189686
+      }
+    ],
+    "Add configuration tests.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189717
+      }
+    ],
+    "Keep settings limited to what this spec uses.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189756
+      }
+    ],
+    "Configure pytest.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189789
+      }
+    ],
+    "Add API health test.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189822
+      }
+    ],
+    "Add basic application/config tests.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189856
+      }
+    ],
+    "Prepare unit/integration test layout.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189889
+      }
+    ],
+    "Configure Ruff formatting.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189922
+      }
+    ],
+    "Configure Ruff linting.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189958
+      }
+    ],
+    "Configure Pyright.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797189990
+      }
+    ],
+    "Create root `Makefile`.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797190024
+      }
+    ],
+    "Implement `make setup`.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797190056
+      }
+    ],
+    "Implement `make format`.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797190087
+      }
+    ],
+    "Implement `make lint`.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797190123
+      }
+    ],
+    "Implement `make typecheck`.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797190161
+      }
+    ],
+    "Implement `make test`.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797190196
+      }
+    ],
+    "Implement `make test-unit`.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797190234
+      }
+    ],
+    "Implement `make test-integration`.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797190269
+      }
+    ],
+    "Implement `make verify`.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797190305
+      }
+    ],
+    "Add Qdrant to `docker-compose.yml`.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797190358
+      }
+    ],
+    "Pin an appropriate image version.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797190420
+      }
+    ],
+    "Configure local port.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797190455
+      }
+    ],
+    "Configure persistent local volume.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797190489
+      }
+    ],
+    "Add health check where practical.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797190523
+      }
+    ],
+    "Ensure generated Qdrant data is ignored by Git.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797190556
+      }
+    ],
+    "Run `make verify`.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797190605
+      }
+    ],
+    "Confirm the API starts.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797190638
+      }
+    ],
+    "Confirm `/health`.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797190672
+      }
+    ],
+    "Confirm Qdrant starts locally.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797190704
+      }
+    ],
+    "Confirm no secrets/generated local state are tracked.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797190738
+      }
+    ],
+    "Confirm no out-of-scope RAG functionality was added.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797190772
+      }
+    ],
+    "Update `docs/project/CURRENT_STATE.md`.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797190805
+      }
+    ],
+    "Record durable implementation decisions in `docs/project/DECISIONS.md`.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797190838
+      }
+    ],
+    "Mark tasks accurately.": [
+      {
+        "executionId": "33ab0a18-59d7-47d3-9c9e-d5cfed18f740",
+        "chatSessionId": "sess_f3774157-71cb-4668-926a-9074b1a65a16",
+        "timestamp": 1791797190872
+      }
+    ]
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "schema_version": "1.0",
+  "last_verified_at": "2026-10-09",
+  "product_support": {
+    "malayalam": {
+      "internal_code": "ml",
+      "status": "active",
+      "display_name": "Malayalam",
+      "translation_pair": [
+        "en",
+        "ml"
+      ]
+    }
+  },
+  "future_language_architecture": {
+    "enabled": true,
+    "rule": "Language support is data/config driven. Do not hard-code Malayalam in retrieval, document schemas, prompts, or evaluation runners.",
+    "document_fields": [
+      "content_language",
+      "language_scope",
+      "lote_languages"
+    ],
+    "candidate_languages_source": "NAATI downloadable CCL practice materials by language",
+    "candidate_languages_source_url": "https://www.naati.com.au/migration-assessments/ccl/downloadable-ccl-practice-materials-by-language/",
+    "candidate_languages_note": "This official practice-material list is a discovery/reference list, not a promise that Way2Australia currently offers each language or that a test slot is currently available.",
+    "candidate_languages": [
+      "Afrikaans",
+      "Arabic",
+      "Bangla",
+      "Bosnian",
+      "Bulgarian",
+      "Burmese",
+      "Cantonese",
+      "Croatian",
+      "Czech",
+      "Dari",
+      "Dutch",
+      "Dzongkha",
+      "Filipino",
+      "Finnish",
+      "French",
+      "German",
+      "Greek",
+      "Gujarati",
+      "Hazaragi",
+      "Hindi",
+      "Igbo",
+      "Indonesian",
+      "Italian",
+      "Japanese",
+      "Kannada",
+      "Khmer",
+      "Korean",
+      "Macedonian",
+      "Malay",
+      "Malayalam",
+      "Mandarin",
+      "Marathi",
+      "Nepali",
+      "Odia",
+      "Pashto",
+      "Persian",
+      "Polish",
+      "Portuguese",
+      "Punjabi",
+      "Romanian",
+      "Russian",
+      "Serbian",
+      "Sinhalese",
+      "Somali",
+      "Spanish",
+      "Swahili",
+      "Tamil",
+      "Telugu",
+      "Thai",
+      "Turkish",
+      "Ukrainian",
+      "Urdu",
+      "Vietnamese",
+      "Yoruba"
+    ]
+  }
+}

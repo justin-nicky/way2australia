@@ -1,0 +1,22 @@
+{
+  "evaluation_suite_id": "public-eval-v1",
+  "version": 1,
+  "status": "active",
+  "introduced_in_release": "seed-v1",
+  "datasets": [
+    {
+      "type": "golden_answerable",
+      "path": "evaluation/datasets/golden_public.jsonl"
+    },
+    {
+      "type": "unanswerable_refusal",
+      "path": "evaluation/datasets/unanswerable_public.jsonl"
+    },
+    {
+      "type": "security",
+      "path": "evaluation/datasets/security_public.jsonl"
+    }
+  ],
+  "case_count": 85,
+  "notes": "Initial Phase-1 evaluation suite. Cases are versioned and human-governed. Phase 2 will add impact analysis, review statuses and LLM suggestions."
+}

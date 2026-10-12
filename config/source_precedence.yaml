@@ -1,0 +1,21 @@
+schema_version: "1.0"
+last_reviewed_at: "2026-10-09"
+
+precedence:
+  business_information:
+    - owner_approved
+    - way2australia_public_website
+  official_exam_rules:
+    - naati
+  language_specific_exam_policy:
+    - naati_language_policy
+  migration_points_and_visa_rules:
+    - home_affairs
+
+rules:
+  - Owner-approved business answers override older website wording where they conflict.
+  - Current NAATI pages override Way2Australia summaries for official CCL format, rules, fees, booking, results and validity.
+  - Current NAATI language-specific policy overrides generic language guidance for that LOTE.
+  - Current Home Affairs sources override all other sources for migration points and visa eligibility.
+  - Synthetic security fixtures are never business truth.
+  - If a time-sensitive fact cannot be verified from an approved indexed source, return insufficient evidence or direct the user to the authoritative live source.
