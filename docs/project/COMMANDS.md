@@ -2,7 +2,7 @@
 
 This file defines the intended stable command surface for humans and coding agents.
 
-The commands below are the target interface. The first foundation spec should create the supporting Makefile/scripts.
+The commands below are the target interface. Implemented today: `setup`, `format`, `lint`, `typecheck`, `test`, `test-unit`, `test-integration`, `verify`, `skills-sync`, `skills-check`. The other targets are created by the spec that needs them.
 
 ## Environment
 
@@ -28,6 +28,16 @@ make test
 make test-unit
 make test-integration
 ```
+
+## Agent skills
+
+```bash
+make skills-sync
+make skills-check
+```
+
+- `skills-sync` regenerates `.claude/skills/`, `.agents/skills/` and `.kiro/skills/` from `agent-skills/`.
+- `skills-check` fails if any mirror differs; it is part of `make verify`.
 
 ## Knowledge
 
