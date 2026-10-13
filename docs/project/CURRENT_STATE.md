@@ -93,11 +93,11 @@ Not yet implemented:
 | Spec | Status |
 |---|---|
 | 001 — project foundation | implemented; completed before the review process existed (no `review.md`) |
-| 002 — document model and repository | **approved (2026-10-13)**: requirements, design and tasks approved; implementation not started |
+| 002 — document model and repository | **implementing** (base `5bbb333`): T1 done (`KnowledgeDocument` model in `way2australia_core.documents`); T2–T9 pending |
 
 ## Next step
 
-1. Run `spec-implementer` on `002-document-model-and-repository` (tasks T1–T9).
+1. Continue `spec-implementer` on `002-document-model-and-repository` from T2.
 2. Run `spec-reviewer` on it in a fresh session.
 
 Spec 002 decisions made before approval:
