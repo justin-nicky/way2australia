@@ -69,11 +69,11 @@ Implemented:
 - pytest foundation with health and configuration tests;
 - `make test`, `make test-unit` and `make test-integration` commands;
 - Ruff, Pyright and `make verify` quality command surface;
+- local Qdrant Docker Compose service with persistent named volume;
 - reusable package skeletons for `packages/core`, `packages/rag` and `packages/observability`;
 - repository hygiene for local environment files, Python caches, local uv state and generated OS noise.
 
 Not yet implemented:
-- local Qdrant Docker Compose service;
 - final Spec 001 verification/handoff;
 - Pydantic domain models;
 - DocumentRepository;

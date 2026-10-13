@@ -89,12 +89,12 @@ make verify
 
 ## T7 — Add local Qdrant service
 
-- [ ] Add Qdrant to `docker-compose.yml`.
-- [ ] Pin an appropriate image version.
-- [ ] Configure local port.
-- [ ] Configure persistent local volume.
-- [ ] Add health check where practical.
-- [ ] Ensure generated Qdrant data is ignored by Git.
+- [x] Add Qdrant to `docker-compose.yml`.
+- [x] Pin an appropriate image version.
+- [x] Configure local port.
+- [x] Configure persistent local volume.
+- [x] Add health check where practical.
+- [x] Ensure generated Qdrant data is ignored by Git.
 
 ### Verification
 
