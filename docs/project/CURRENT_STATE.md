@@ -1,14 +1,14 @@
 # Current State
 
-Last updated: 2026-10-11
+Last updated: 2026-10-12
 
 ## Current phase
 
-Pre-implementation / implementation bootstrap.
+Implementation bootstrap.
 
 Architecture, initial public knowledge seed, evaluation seed and Phase 1/Phase 2 boundaries have been designed.
 
-Application code has not yet been implemented in this context.
+Spec 001 project foundation is partially implemented.
 
 ## Current goal
 
@@ -59,13 +59,23 @@ Latest seed design includes:
 
 ## Current implementation status
 
+Implemented:
+- Python 3.12 workspace metadata using `uv`;
+- reproducible dependency lockfile (`uv.lock`);
+- root `make setup` command;
+- FastAPI application package skeleton;
+- reusable package skeletons for `packages/core`, `packages/rag` and `packages/observability`;
+- repository hygiene for local environment files, Python caches, local uv state and generated OS noise.
+
 Not yet implemented:
-- Python workspace;
-- FastAPI app;
+- typed runtime configuration;
+- automated API/config tests;
+- full quality command surface;
+- local Qdrant Docker Compose service;
+- final Spec 001 verification/handoff;
 - Pydantic domain models;
 - DocumentRepository;
 - ingestion;
-- Qdrant;
 - embeddings;
 - retrieval;
 - generation;

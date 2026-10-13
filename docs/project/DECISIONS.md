@@ -71,3 +71,8 @@ Plan for:
 
 ## D018 — Phase 2 analytics only
 Define stable analytics event contracts in Phase 1; do not implement product analytics pipelines/dashboard yet.
+
+## D019 — Local uv-managed Python for setup
+Use `uv` for Python environment setup and dependency locking.
+
+The root `make setup` command keeps uv cache and uv-managed Python installs in ignored repo-local directories so setup works in restricted coding-agent environments without writing hidden state under the user home directory.

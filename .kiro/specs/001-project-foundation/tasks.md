@@ -2,14 +2,14 @@
 
 ## T1 — Initialize Python project
 
-- [ ] Set Python version to 3.12.
-- [ ] Create root `pyproject.toml`.
-- [ ] Configure `uv`.
-- [ ] Add runtime dependencies required by this spec.
-- [ ] Add development dependencies.
-- [ ] Create `.python-version`.
-- [ ] Create `.gitignore`.
-- [ ] Create safe `.env.example`.
+- [x] Set Python version to 3.12.
+- [x] Create root `pyproject.toml`.
+- [x] Configure `uv`.
+- [x] Add runtime dependencies required by this spec.
+- [x] Add development dependencies.
+- [x] Create `.python-version`.
+- [x] Create `.gitignore`.
+- [x] Create safe `.env.example`.
 
 ### Verification
 
@@ -19,13 +19,13 @@ make setup
 
 ## T2 — Create repository/package skeleton
 
-- [ ] Create `apps/api/`.
-- [ ] Reserve `apps/web/`.
-- [ ] Create `packages/core/`.
-- [ ] Create `packages/rag/`.
-- [ ] Create `packages/observability/`.
-- [ ] Add Python package/import configuration.
-- [ ] Preserve existing knowledge/evaluation/docs seed folders.
+- [x] Create `apps/api/`.
+- [x] Reserve `apps/web/`.
+- [x] Create `packages/core/`.
+- [x] Create `packages/rag/`.
+- [x] Create `packages/observability/`.
+- [x] Add Python package/import configuration.
+- [x] Preserve existing knowledge/evaluation/docs seed folders.
 
 ### Verification
 
@@ -34,9 +34,9 @@ make setup
 
 ## T3 — Implement FastAPI skeleton
 
-- [ ] Create application entry point.
-- [ ] Create health router.
-- [ ] Implement `GET /health`.
+- [x] Create application entry point.
+- [x] Create health router.
+- [-] Implement `GET /health`.
 - [ ] Keep route logic independent of Qdrant/RAG services.
 
 ### Verification
@@ -71,8 +71,8 @@ make test
 - [ ] Configure Ruff formatting.
 - [ ] Configure Ruff linting.
 - [ ] Configure Pyright.
-- [ ] Create root `Makefile`.
-- [ ] Implement `make setup`.
+- [x] Create root `Makefile`.
+- [x] Implement `make setup`.
 - [ ] Implement `make format`.
 - [ ] Implement `make lint`.
 - [ ] Implement `make typecheck`.
