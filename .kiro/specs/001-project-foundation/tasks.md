@@ -47,18 +47,18 @@ make setup
 
 ## T4 — Add typed configuration
 
-- [ ] Create Pydantic Settings model.
-- [ ] Wire settings into application startup/dependencies.
-- [ ] Avoid scattered direct environment access.
-- [ ] Add configuration tests.
-- [ ] Keep settings limited to what this spec uses.
+- [x] Create Pydantic Settings model.
+- [x] Wire settings into application startup/dependencies.
+- [x] Avoid scattered direct environment access.
+- [x] Add configuration tests.
+- [x] Keep settings limited to what this spec uses.
 
 ## T5 — Configure tests
 
-- [ ] Configure pytest.
-- [ ] Add API health test.
-- [ ] Add basic application/config tests.
-- [ ] Prepare unit/integration test layout.
+- [x] Configure pytest.
+- [x] Add API health test.
+- [x] Add basic application/config tests.
+- [x] Prepare unit/integration test layout.
 
 ### Verification
 
@@ -76,9 +76,9 @@ make test
 - [ ] Implement `make format`.
 - [ ] Implement `make lint`.
 - [ ] Implement `make typecheck`.
-- [ ] Implement `make test`.
-- [ ] Implement `make test-unit`.
-- [ ] Implement `make test-integration`.
+- [x] Implement `make test`.
+- [x] Implement `make test-unit`.
+- [x] Implement `make test-integration`.
 - [ ] Implement `make verify`.
 
 ### Verification

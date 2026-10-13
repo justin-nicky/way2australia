@@ -65,12 +65,13 @@ Implemented:
 - root `make setup` command;
 - FastAPI application package skeleton;
 - minimal `GET /health` endpoint that starts locally and does not depend on RAG/Qdrant services;
+- typed runtime settings for foundation API configuration;
+- pytest foundation with health and configuration tests;
+- `make test`, `make test-unit` and `make test-integration` commands;
 - reusable package skeletons for `packages/core`, `packages/rag` and `packages/observability`;
 - repository hygiene for local environment files, Python caches, local uv state and generated OS noise.
 
 Not yet implemented:
-- typed runtime configuration;
-- automated API/config tests;
 - full quality command surface;
 - local Qdrant Docker Compose service;
 - final Spec 001 verification/handoff;
