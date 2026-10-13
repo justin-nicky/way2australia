@@ -1,10 +1,11 @@
-UV ?= python3 -m uv
+# Prefer a standalone uv binary; fall back to the pip-installed module.
+UV ?= $(shell command -v uv >/dev/null 2>&1 && echo uv || echo python3 -m uv)
 UV_CACHE_DIR ?= $(CURDIR)/.uv-cache
 UV_PYTHON_INSTALL_DIR ?= $(CURDIR)/.uv-python
 UV_ENV = UV_CACHE_DIR=$(UV_CACHE_DIR) UV_PYTHON_INSTALL_DIR=$(UV_PYTHON_INSTALL_DIR)
-PYTHON_TARGETS ?= apps packages tests
+PYTHON_TARGETS ?= apps packages tests scripts
 
-.PHONY: setup format lint typecheck test test-unit test-integration verify
+.PHONY: setup format lint typecheck test test-unit test-integration verify skills-sync skills-check
 
 setup:
 	$(UV_ENV) $(UV) sync --all-packages --group dev
@@ -27,4 +28,10 @@ test-unit:
 test-integration:
 	$(UV_ENV) $(UV) run pytest -m integration; code=$$?; if [ $$code -eq 5 ]; then exit 0; else exit $$code; fi
 
-verify: lint typecheck test
+skills-sync:
+	$(UV_ENV) $(UV) run python scripts/sync_agent_skills.py
+
+skills-check:
+	$(UV_ENV) $(UV) run python scripts/sync_agent_skills.py --check
+
+verify: lint typecheck skills-check test

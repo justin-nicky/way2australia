@@ -71,6 +71,7 @@ include = [
   "apps",
   "packages",
   "tests",
+  "scripts",
 ]
 exclude = [
   "**/__pycache__",
