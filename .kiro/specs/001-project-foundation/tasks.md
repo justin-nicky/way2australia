@@ -1,5 +1,7 @@
 # 001 — Project Foundation Tasks
 
+Status: implemented (2026-10-13) — completed before the spec review process existed; no review.md.
+
 ## T1 — Initialize Python project
 
 - [x] Set Python version to 3.12.
