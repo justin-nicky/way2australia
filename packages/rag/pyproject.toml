@@ -6,7 +6,13 @@ build-backend = "uv_build"
 name = "way2australia-rag"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+  "pydantic>=2.10.0",
+  "way2australia-core",
+]
 
 [tool.uv]
 package = true
+
+[tool.uv.sources]
+way2australia-core = { workspace = true }

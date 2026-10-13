@@ -21,11 +21,11 @@ Unit tests cover valid and invalid model construction.
 
 **Requirements:** R3, R10
 
-- [ ] Create `DocumentRepository` Protocol.
-- [ ] Define repository query/filter object if needed.
-- [ ] Define repository-safe error types.
-- [ ] Ensure the interface does not expose local filesystem paths.
-- [ ] Document future S3 compatibility.
+- [x] Create `DocumentRepository` Protocol.
+- [x] Define repository query/filter object if needed.
+- [x] Define repository-safe error types.
+- [x] Ensure the interface does not expose local filesystem paths.
+- [x] Document future S3 compatibility.
 
 ### Verification
 

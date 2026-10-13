@@ -1576,6 +1576,16 @@ source = { editable = "packages/observability" }
 name = "way2australia-rag"
 version = "0.1.0"
 source = { editable = "packages/rag" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "way2australia-core" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2.10.0" },
+    { name = "way2australia-core", editable = "packages/core" },
+]
 
 [[package]]
 name = "websockets"
