@@ -1,17 +1,17 @@
 # 002 — Document Model and DocumentRepository Tasks
 
-Status: approved (2026-10-13)
+Status: implementing (base 5bbb333)
 
 ## T1 — Implement document domain model
 
 **Requirements:** R1, R2, R9
 
-- [ ] Create document enums/value models under `packages/core`.
-- [ ] Implement `KnowledgeDocument`.
-- [ ] Validate stable identity/version fields.
-- [ ] Validate language metadata.
-- [ ] Validate source/governance metadata.
-- [ ] Keep chunk/index fields out of the source document model.
+- [x] Create document enums/value models under `packages/core`.
+- [x] Implement `KnowledgeDocument`.
+- [x] Validate stable identity/version fields.
+- [x] Validate language metadata.
+- [x] Validate source/governance metadata.
+- [x] Keep chunk/index fields out of the source document model.
 
 ### Verification
 
