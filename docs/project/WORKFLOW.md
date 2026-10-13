@@ -9,26 +9,26 @@ Canonical flow:
 ```text
 idea
   ↓
-requirements
+Decision Brief            ─┐
+  ↓ human approval          │
+requirements (approved)     │ spec-planner
+  ↓ human approval          │
+design (approved)           │
+  ↓ human approval          │
+tasks (approved)          ─┘
   ↓
-human review
+implementation + tests    ── spec-implementer (commits per task)
   ↓
-design
+implemented, pending review
   ↓
-human review
+independent review        ── spec-reviewer (fresh context, writes review.md)
   ↓
-tasks
-  ↓
-implementation
-  ↓
-tests/evaluation
-  ↓
-spec verification
-  ↓
-commit
+verified  ──or──  review failed → remediation tasks → implementer → re-review
   ↓
 CURRENT_STATE update
 ```
+
+The three skills live in `agent-skills/` and are mirrored to `.claude/skills/`, `.agents/skills/` (Codex) and `.kiro/skills/`. See `agent-skills/README.md`. Contributors not using the skills follow the same steps and status lines.
 
 The specification is part of the implementation contract.
 
@@ -63,6 +63,28 @@ Recommended initial sequence:
 16. recruiter demo/RAG Lab.
 
 Create specs progressively.
+
+## Spec status
+
+Approval and review state are recorded in the repository, never only in chat.
+
+Each spec file starts with a `Status:` line under its title.
+
+| File | Allowed values |
+|---|---|
+| `requirements.md`, `design.md` | `draft` · `approved (YYYY-MM-DD)` |
+| `tasks.md` | `draft` · `approved (YYYY-MM-DD)` · `implementing (base <sha>)` · `implemented — pending review (YYYY-MM-DD, base <sha>)` · `review failed — round N (YYYY-MM-DD)` · `verified (YYYY-MM-DD, review round N)` |
+
+Rules:
+- A spec is ready for implementation only when all three files are `approved`.
+- Only a human approves. Agents set `approved` only after explicit approval and record the date.
+- The base SHA is the commit implementation started from. The reviewer diffs from it.
+- The reviewer appends a `## Round N` section to `.kiro/specs/<spec>/review.md` on every review.
+- On FAIL, the reviewer appends `## Review remediation — round N` to `tasks.md` with unchecked `RM<N>.<k>` tasks. Spec defects go back to the planner instead.
+- After two consecutive FAILs, or any spec defect, escalate to the user.
+- Approved amendments are recorded as dated lines in `## Change log` at the end of `requirements.md`.
+- `CURRENT_STATE.md` says "implemented, pending review" until the reviewer records "verified".
+- Specs completed before this lifecycle existed (001) carry only a `tasks.md` status explaining that.
 
 ## Requirements
 
@@ -100,11 +122,20 @@ Examples:
 If implementation reveals a problem with approved requirements/design:
 
 1. stop expanding implementation;
-2. update the spec;
-3. review the change;
-4. continue only after the spec is correct.
+2. note it under the affected task in `tasks.md` as `> BLOCKED: spec issue — ...`;
+3. revise the spec (`spec-planner` → "revise an approved spec") and get human approval;
+4. record the amendment in the spec's `## Change log`;
+5. continue only after the spec is correct.
 
 Do not silently change architecture.
+
+## Protected source-of-truth data
+
+Implementation work must not create, edit, re-version or delete files under `evaluation/`, `knowledge/` or `config/` unless an approved task explicitly requires it.
+
+Never change evaluation cases or knowledge to make tests or metrics pass. Agent-written evaluation cases start as `status: suggested` and need human approval (Constitution C6).
+
+Do not edit Kiro's `tasks.meta.json`. It is keyed by exact task text, so avoid rewording completed tasks.
 
 ## Verification layers
 
@@ -156,7 +187,7 @@ Another coding agent should be able to continue from:
 
 ## Git practices
 
-Prefer small commits aligned with spec tasks.
+Prefer small commits aligned with spec tasks. Commit spec status changes and `review.md` with the work they describe.
 
 Do not commit:
 - secrets;
