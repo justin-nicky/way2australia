@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-10-12
+Last updated: 2026-10-13
 
 ## Current phase
 
@@ -64,6 +64,7 @@ Implemented:
 - reproducible dependency lockfile (`uv.lock`);
 - root `make setup` command;
 - FastAPI application package skeleton;
+- minimal `GET /health` endpoint that starts locally and does not depend on RAG/Qdrant services;
 - reusable package skeletons for `packages/core`, `packages/rag` and `packages/observability`;
 - repository hygiene for local environment files, Python caches, local uv state and generated OS noise.
 

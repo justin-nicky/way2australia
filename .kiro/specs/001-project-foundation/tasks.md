@@ -36,8 +36,8 @@ make setup
 
 - [x] Create application entry point.
 - [x] Create health router.
-- [-] Implement `GET /health`.
-- [ ] Keep route logic independent of Qdrant/RAG services.
+- [x] Implement `GET /health`.
+- [x] Keep route logic independent of Qdrant/RAG services.
 
 ### Verification
 
