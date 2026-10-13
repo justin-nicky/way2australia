@@ -106,15 +106,15 @@ docker compose down
 
 ## T8 — Final verification and handoff
 
-- [ ] Run `make verify`.
-- [ ] Confirm the API starts.
-- [ ] Confirm `/health`.
-- [ ] Confirm Qdrant starts locally.
-- [ ] Confirm no secrets/generated local state are tracked.
-- [ ] Confirm no out-of-scope RAG functionality was added.
-- [ ] Update `docs/project/CURRENT_STATE.md`.
-- [ ] Record durable implementation decisions in `docs/project/DECISIONS.md`.
-- [ ] Mark tasks accurately.
+- [x] Run `make verify`.
+- [x] Confirm the API starts.
+- [x] Confirm `/health`.
+- [x] Confirm Qdrant starts locally.
+- [x] Confirm no secrets/generated local state are tracked.
+- [x] Confirm no out-of-scope RAG functionality was added.
+- [x] Update `docs/project/CURRENT_STATE.md`.
+- [x] Record durable implementation decisions in `docs/project/DECISIONS.md`.
+- [x] Mark tasks accurately.
 
 ## Completion gate
 

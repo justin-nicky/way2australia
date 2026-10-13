@@ -4,15 +4,15 @@ Last updated: 2026-10-13
 
 ## Current phase
 
-Implementation bootstrap.
+Phase 1 foundation complete.
 
 Architecture, initial public knowledge seed, evaluation seed and Phase 1/Phase 2 boundaries have been designed.
 
-Spec 001 project foundation is partially implemented.
+Spec 001 project foundation is complete.
 
 ## Current goal
 
-Start implementation using specification-driven development and repository-based shared context so Codex, Claude Code and Kiro can be used interchangeably.
+Begin Spec 002 using specification-driven development and repository-based shared context so Codex, Claude Code and Kiro can be used interchangeably.
 
 ## Finalized high-level decisions
 
@@ -71,10 +71,10 @@ Implemented:
 - Ruff, Pyright and `make verify` quality command surface;
 - local Qdrant Docker Compose service with persistent named volume;
 - reusable package skeletons for `packages/core`, `packages/rag` and `packages/observability`;
-- repository hygiene for local environment files, Python caches, local uv state and generated OS noise.
+- repository hygiene for local environment files, Python caches, local uv state and generated OS noise;
+- final Spec 001 verification and handoff.
 
 Not yet implemented:
-- final Spec 001 verification/handoff;
 - Pydantic domain models;
 - DocumentRepository;
 - ingestion;
