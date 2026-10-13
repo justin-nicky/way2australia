@@ -81,3 +81,29 @@ The root `make setup` command keeps uv cache and uv-managed Python installs in i
 Use the official `qdrant/qdrant:v1.19.2` Docker image for the Phase 1 local Qdrant dependency.
 
 Local Qdrant data lives in a named Docker volume, keeping derived index state outside committed source files.
+
+## D021 — Portable spec-driven agent skills
+The SDD workflow is encoded as three Agent Skills: `spec-planner`, `spec-implementer` and `spec-reviewer`.
+
+`agent-skills/` is the only editable source. `scripts/sync_agent_skills.py` generates the committed mirrors:
+- `.claude/skills/` (Claude Code);
+- `.agents/skills/` (Codex, documented repo-scope path; `.codex/skills/` is not used, to avoid duplicate listings);
+- `.kiro/skills/` (Kiro).
+
+Canonical frontmatter stays portable (`name`, `description`). Claude-only fields are injected into the Claude mirror:
+- the implementer and reviewer are explicit-invocation only;
+- the reviewer runs as a forked subagent with no implementer context.
+
+Codex explicit-only invocation uses `agents/openai.yaml`. Model tiers are advisory; the model actually used is recorded in handoffs and reviews.
+
+## D022 — Spec approval and review state live in the repository
+Each spec file carries a `Status:` line. Approval is recorded there by date, never only in chat.
+
+Independent review results are appended to `.kiro/specs/<spec>/review.md`. A failed review adds `RM<N>.<k>` remediation tasks to `tasks.md`.
+
+Approved amendments are recorded in `## Change log` in `requirements.md`.
+
+Implementation must not change `evaluation/`, `knowledge/` or `config/` unless an approved task requires it.
+
+See `docs/project/WORKFLOW.md` → "Spec status".
+

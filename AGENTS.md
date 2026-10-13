@@ -130,13 +130,17 @@ For non-trivial work:
 1. Locate the active spec under `.kiro/specs/<feature>/`.
 2. Read `requirements.md`.
 3. Read `design.md`.
-4. Implement only approved tasks from `tasks.md`.
+4. Implement only approved tasks from `tasks.md`. Approval is the `Status:` line in each spec file.
 5. If implementation reveals a requirements/design problem, update the spec first.
 6. Run required verification.
 7. Update task state.
 8. Update `docs/project/CURRENT_STATE.md`.
+9. Hand off for independent review; a spec is verified only after `review.md` records a PASS.
 
 Do not silently expand scope.
+
+Spec status values, review records and remediation rounds are defined in `docs/project/WORKFLOW.md` ("Spec status").
+The `spec-planner`, `spec-implementer` and `spec-reviewer` skills (`agent-skills/`) automate this flow.
 
 ## Development principles
 
