@@ -19,7 +19,7 @@ Fill these in with exact model IDs. Leave a placeholder unset if you have no pre
 | Tool | BEST | BEST_MINUS_ONE |
 |---|---|---|
 | Codex | `<CODEX_BEST_MODEL>` | `<CODEX_BEST_MINUS_ONE_MODEL>` |
-| Claude Code | `<CLAUDE_BEST_MODEL>` | `<CLAUDE_BEST_MINUS_ONE_MODEL>` |
+| Claude Code | `Opus` | `Sonnet` |
 | Kiro | `<KIRO_BEST_MODEL>` | `<KIRO_BEST_MINUS_ONE_MODEL>` |
 
 ## Runtime rule
