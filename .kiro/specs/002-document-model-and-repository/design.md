@@ -1,6 +1,6 @@
 # 002 — Document Model and DocumentRepository Design
 
-Status: draft
+Status: approved (2026-10-13)
 
 ## Design summary
 
@@ -52,7 +52,8 @@ packages/
             ├── base.py
             ├── local.py
             ├── manifest.py
-            └── errors.py
+            ├── errors.py
+            └── validate.py
 ```
 
 ## Domain model
@@ -215,26 +216,59 @@ Pydantic validates the in-code domain model.
 
 ## Content hashing
 
-Hash a normalized representation, not absolute path.
+Hash a normalized representation, not absolute path. Use SHA-256 throughout.
 
-Recommended initial definition:
+There are three hashes. Each has one job:
+
+| Hash | Stored in | Job |
+|---|---|---|
+| `sha256` | manifest (existing) | file integrity only: the raw file bytes, frontmatter included |
+| `body_sha256` | manifest (existing) | the document text alone |
+| `content_hash` | `KnowledgeDocument` (computed) | **the only change-detection signal for Spec 003 ingestion** |
+
+### `body_sha256` (existing, reused)
 
 ```text
-hash input =
-canonical selected metadata
-+
-normalized document body
+body_sha256 = sha256( utf8( strip( normalize_line_endings( body ) ) ) )
 ```
 
-Use SHA-256.
+- `body` is the text after the closing frontmatter delimiter.
+- `normalize_line_endings` converts CRLF and CR to LF.
+- `strip` removes leading and trailing whitespace.
 
-Canonicalization should:
-- use deterministic field ordering;
-- normalize line endings;
-- exclude absolute paths;
-- exclude volatile derived fields where appropriate.
+This reproduces the values already in the manifest. The loader recomputes it and raises `ManifestValidationError` when it differs from the manifest value.
 
-The chosen hash contract must be documented/tested because Spec 003 will depend on it.
+### `content_hash` (new)
+
+```text
+content_hash = sha256( utf8( canonical_json( {
+    "hash_contract": "content-hash-v1",
+    "body_sha256": <body_sha256>,
+    "metadata": { <retrieval-affecting fields> }
+} ) ) )
+```
+
+`canonical_json` means sorted keys, no insignificant whitespace (`separators=(",", ":")`), `ensure_ascii=False`, dates as ISO `YYYY-MM-DD`, and `null` for absent optional values. `lote_languages` keeps its stored order.
+
+Retrieval-affecting fields included in `metadata`:
+- `title`, `knowledge_domain`, `tenant_id`;
+- `access_scope`, `owner_user_id`;
+- `content_language`, `language_scope`, `lote_languages`;
+- `source_authority`, `source_type`, `source_url`;
+- `approval_status`, `lifecycle_status`, `retrieval_enabled`, `synthetic`;
+- `effective_from`, `effective_to`.
+
+Excluded on purpose:
+- `document_id`, `document_version`: identity, not content;
+- `last_reviewed_at`, `introduced_in_release`: they change without changing what is retrieved;
+- `path`, `sha256`, `schema_version`: storage and bookkeeping details.
+
+Consequences:
+- a body edit or a change to who can see the document, or which language it applies to, changes `content_hash`;
+- a review-date bump or a file move does not change it;
+- changing the field list or the recipe requires a new `hash_contract` value, which forces Spec 003 to treat every document as changed.
+
+The raw `sha256` stays an integrity check only. A mismatch is a validation error, but it is never used to decide whether to re-index.
 
 ## Eligibility policy
 
@@ -267,6 +301,32 @@ lote_languages: ["ml"]
 ```
 
 No Malayalam-specific branch belongs in repository infrastructure.
+
+## Security fixtures
+
+Files under `tests/fixtures/security/` carry complete, schema-valid metadata. They are **valid but ineligible** documents:
+- `approval_status: test_only` and `synthetic: true` exclude them from the production corpus;
+- the staff canary is additionally excluded for guest/public by `access_scope: staff`;
+- `introduced_in_release: security-fixtures` marks that they belong to no knowledge release;
+- `retrieval_enabled: true` is deliberate, so exclusion is proven by authorization and governance checks, not by a disabled flag.
+
+They are not listed in the knowledge manifest. They are never loaded from the production roots. Tests may load them only through an explicitly configured, isolated test repository.
+
+## `make validate-knowledge`
+
+A thin command-line entry point, `python -m way2australia_rag.repositories.validate`, wrapped by `make validate-knowledge`.
+
+It builds a `LocalDocumentRepository` from explicit repository-relative paths and:
+1. loads and validates the manifest (structure, duplicates, missing files);
+2. validates each document's frontmatter against the JSON Schema and the Pydantic model;
+3. checks manifest/frontmatter metadata and the `sha256` and `body_sha256` hashes;
+4. lists the eligible public corpus and fails if any eligible document is synthetic, not approved or not public;
+5. prints one line per problem (document ID, field, reason) and a summary count;
+6. exits `0` when valid and `1` on any problem.
+
+All logic lives in the repository and validation modules. The command only wires configuration and formats output.
+
+`make verify` runs `validate-knowledge`, because it is deterministic and fast.
 
 ## Error model
 

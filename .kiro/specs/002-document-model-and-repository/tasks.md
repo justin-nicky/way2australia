@@ -1,6 +1,6 @@
 # 002 — Document Model and DocumentRepository Tasks
 
-Status: draft
+Status: approved (2026-10-13)
 
 ## T1 — Implement document domain model
 
@@ -73,18 +73,22 @@ Integration tests load the expected local seed corpus through the repository abs
 
 **Requirements:** R7
 
-- [ ] Define canonical hash input.
-- [ ] Normalize line endings/selected metadata deterministically.
-- [ ] Use SHA-256.
-- [ ] Exclude absolute local path.
+- [ ] Compute `body_sha256` exactly as defined in design ("Content hashing").
+- [ ] Verify computed `body_sha256` and raw `sha256` against the manifest; raise `ManifestValidationError` on mismatch.
+- [ ] Compute `content_hash` (`content-hash-v1`) from `body_sha256` plus the listed retrieval-affecting metadata using canonical JSON.
+- [ ] Exclude absolute local path, identity/version, review date and release fields from `content_hash`.
 - [ ] Document the hash contract.
 
 ### Verification
 
 Tests prove:
-- identical logical content → identical hash;
-- content change → changed hash;
-- path change alone → unchanged hash.
+- computed `body_sha256` matches the manifest for every seed document;
+- identical logical content → identical `content_hash`, including CRLF vs LF bodies;
+- body change → changed `content_hash`;
+- `access_scope` or `lote_languages` change → changed `content_hash`;
+- `last_reviewed_at` change alone → unchanged `content_hash`;
+- path change alone → unchanged `content_hash`;
+- a manifest `sha256`/`body_sha256` mismatch raises `ManifestValidationError`.
 
 ## T6 — Implement retrieval eligibility filtering
 
@@ -106,7 +110,23 @@ Tests cover:
 - non-public excluded for guest/public;
 - language metadata does not broaden access.
 
-## T7 — Add complete automated tests
+## T7 — Add `make validate-knowledge`
+
+**Requirements:** R5, R6, R8, R11
+
+- [ ] Implement `way2australia_rag.repositories.validate` as a thin entry point over the repository and validation modules.
+- [ ] Report every problem with document ID, field and reason, then a summary count.
+- [ ] Fail if any eligible public document is synthetic, not approved or not public.
+- [ ] Exit `0` when valid and `1` on any problem.
+- [ ] Add the `validate-knowledge` Makefile target and include it in `make verify`.
+- [ ] Update `docs/project/COMMANDS.md` if the behavior differs from what it documents.
+
+### Verification
+
+- `make validate-knowledge` exits `0` on the current seed corpus.
+- Tests run the entry point against temporary broken repositories (duplicate ID, missing file, schema violation, hash mismatch) and assert exit code `1` with the document ID in the output.
+
+## T8 — Add complete automated tests
 
 **Requirements:** R11
 
@@ -117,6 +137,7 @@ Tests cover:
 - [ ] Add repository integration tests.
 - [ ] Verify real seed corpus IDs/versions are unique.
 - [ ] Assert `tests/fixtures/security/` is not in the production corpus.
+- [ ] Assert both security fixtures parse as valid documents and are ineligible for guest/public (valid-but-ineligible, see design "Security fixtures").
 
 ### Verification
 
@@ -124,7 +145,7 @@ Tests cover:
 make verify
 ```
 
-## T8 — Documentation and handoff
+## T9 — Documentation and handoff
 
 **Requirements:** Definition of Done
 

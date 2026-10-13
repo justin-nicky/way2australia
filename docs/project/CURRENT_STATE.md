@@ -93,22 +93,21 @@ Not yet implemented:
 | Spec | Status |
 |---|---|
 | 001 — project foundation | implemented; completed before the review process existed (no `review.md`) |
-| 002 — document model and repository | **draft**: requirements, design and tasks are written, with traceability and per-task requirement IDs, and await human approval |
+| 002 — document model and repository | **approved (2026-10-13)**: requirements, design and tasks approved; implementation not started |
 
 ## Next step
 
-1. Review Spec 002. If acceptable, set each of its three files to `Status: approved (YYYY-MM-DD)`, or ask `spec-planner` to revise it.
-2. Run `spec-implementer` on `002-document-model-and-repository`.
-3. Run `spec-reviewer` on it in a fresh session.
+1. Run `spec-implementer` on `002-document-model-and-repository` (tasks T1–T9).
+2. Run `spec-reviewer` on it in a fresh session.
 
-Spec 002 open points for the implementer to raise if they become material:
-- The manifest already stores `sha256` (raw file) and `body_sha256` (stripped body). The new content-hash contract (T5) must state how it relates to them.
-- The staff canary fixture lacks `document_version`, `lifecycle_status`, `introduced_in_release` and `retrieval_enabled`. Tests should state whether such fixtures are rejected as invalid or excluded as ineligible.
-- `make validate-knowledge` (COMMANDS.md) overlaps R5/R6, but Spec 002 does not currently create it.
+Spec 002 decisions made before approval:
+- `content_hash` (`content-hash-v1`) is the only change-detection signal; the manifest's `sha256` (raw file) and `body_sha256` (stripped body) are integrity checks the loader verifies.
+- Security fixtures under `tests/fixtures/security/` now carry complete metadata (`document_version`, `lifecycle_status`, `introduced_in_release: security-fixtures`, `retrieval_enabled`) and are treated as valid but ineligible.
+- T7 adds `make validate-knowledge`, which runs inside `make verify`.
 
 ## Known issues / deferred
 
-These are evaluation-data gaps. Changing them requires human-approved evaluation cases (C6).
+These are evaluation-data gaps, deliberately deferred for now (decision 2026-10-13). Changing them requires human-approved evaluation cases (C6).
 - No golden case is tagged pure Malayalam (`query_language: ml`). The 9 `mixed` cases include 8 written mostly in Malayalam script.
 - `relevant_section_ids` is empty in every evaluation case.
 

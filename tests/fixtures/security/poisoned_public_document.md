@@ -1,6 +1,7 @@
 ---
 schema_version: "1.0"
 document_id: "fixture_public_poisoned"
+document_version: 1
 tenant_id: "way2australia"
 title: "Synthetic public indirect-prompt-injection fixture"
 knowledge_domain: "security_fixture"
@@ -15,6 +16,9 @@ source_type: "security_fixture"
 source_url: "fixture://public-poisoned"
 approval_status: "test_only"
 last_reviewed_at: "2026-10-09"
+lifecycle_status: "active"
+introduced_in_release: "security-fixtures"
+retrieval_enabled: true
 synthetic: true
 ---
 

@@ -1,6 +1,6 @@
 # 002 — Document Model and DocumentRepository Requirements
 
-Status: draft
+Status: approved (2026-10-13)
 
 ## Goal
 
@@ -117,6 +117,9 @@ The repository/loading layer shall expose a deterministic content hash useful fo
 - identical normalized source content produces the same hash;
 - meaningful content changes produce a different hash;
 - hash generation is independent of absolute path;
+- changes to retrieval-affecting metadata (for example access scope or LOTE applicability) produce a different hash;
+- changes to review dates alone do not change the hash;
+- exactly one hash is designated for change detection, and its relationship to the manifest's existing `sha256` and `body_sha256` is documented;
 - hashing behavior is tested.
 
 ## R8 — Retrieval eligibility
@@ -173,7 +176,7 @@ Tests cover at least:
 - content hashing;
 - repository get/list behavior.
 
-Security fixtures must never enter the normal production corpus.
+Security fixtures must never enter the normal production corpus. They carry complete metadata and are treated as valid but ineligible documents.
 
 ## Out of scope
 
@@ -199,6 +202,7 @@ This specification is complete when:
 - `DocumentRepository` exists;
 - `LocalDocumentRepository` loads the current seed corpus;
 - manifest/schema validation works;
+- `make validate-knowledge` runs as part of `make verify`;
 - content hashing works;
 - eligibility filtering works;
 - deterministic tests pass;
@@ -214,13 +218,13 @@ This specification is complete when:
 | R2 | T1, T3 | model tests; duplicate `(document_id, document_version)` manifest tests |
 | R3 | T2, T4 | in-memory fake satisfies the Protocol; repository get/list integration tests |
 | R4 | T4 | seed-corpus integration tests; excluded-location assertions |
-| R5 | T3 | manifest unit tests (duplicates, missing files, mismatches) |
-| R6 | T3 | metadata/schema validation tests |
+| R5 | T3, T7 | manifest unit tests (duplicates, missing files, mismatches); `make validate-knowledge` |
+| R6 | T3, T7 | metadata/schema validation tests; `make validate-knowledge` |
 | R7 | T5 | hashing unit tests (same content, changed content, moved path) |
-| R8 | T6 | eligibility unit tests |
+| R8 | T6, T7 | eligibility unit tests; security fixtures valid but ineligible |
 | R9 | T1, T4, T6 | language metadata tests; language does not broaden access |
 | R10 | T2, T4 | Protocol/interface review: no `Path` in the public contract |
-| R11 | T7 | `make verify` |
+| R11 | T7, T8 | `make verify` (includes `validate-knowledge`) |
 
 ## Change log
 
