@@ -1,5 +1,7 @@
 # 002 — Document Model and DocumentRepository Requirements
 
+Status: draft
+
 ## Goal
 
 Introduce the stable knowledge-document domain model and repository abstraction that all later ingestion code will use.
@@ -203,3 +205,23 @@ This specification is complete when:
 - RAG/application code does not need direct filesystem access for source knowledge;
 - `make verify` passes;
 - `CURRENT_STATE.md` is updated.
+
+## Traceability
+
+| Requirement | Task(s) | Verification |
+|---|---|---|
+| R1 | T1 | model unit tests (valid/invalid construction) |
+| R2 | T1, T3 | model tests; duplicate `(document_id, document_version)` manifest tests |
+| R3 | T2, T4 | in-memory fake satisfies the Protocol; repository get/list integration tests |
+| R4 | T4 | seed-corpus integration tests; excluded-location assertions |
+| R5 | T3 | manifest unit tests (duplicates, missing files, mismatches) |
+| R6 | T3 | metadata/schema validation tests |
+| R7 | T5 | hashing unit tests (same content, changed content, moved path) |
+| R8 | T6 | eligibility unit tests |
+| R9 | T1, T4, T6 | language metadata tests; language does not broaden access |
+| R10 | T2, T4 | Protocol/interface review: no `Path` in the public contract |
+| R11 | T7 | `make verify` |
+
+## Change log
+
+<!-- Approved amendments only, one dated line each. -->

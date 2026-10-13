@@ -1,5 +1,7 @@
 # 002 — Document Model and DocumentRepository Design
 
+Status: draft
+
 ## Design summary
 
 Introduce a storage-independent knowledge domain model in `packages/core` and a repository abstraction/implementation in `packages/rag`.

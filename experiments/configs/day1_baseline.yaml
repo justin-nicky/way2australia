@@ -4,7 +4,7 @@ evaluation_suite_id: "public-eval-v1"
 name: day1_recursive_dense_public_baseline
 
 corpus:
-  manifest: data/document_manifest.jsonl
+  manifest: knowledge/manifest/document_manifest.jsonl
   required_access_scope: public
 
 chunking:
@@ -33,8 +33,8 @@ generation:
   prompt_version: answer-v1
 
 evaluation:
-  answerable_dataset: evaluation/golden_public.jsonl
-  unanswerable_dataset: evaluation/unanswerable_public.jsonl
+  answerable_dataset: evaluation/datasets/golden_public.jsonl
+  unanswerable_dataset: evaluation/datasets/unanswerable_public.jsonl
   metrics:
     - recall_at_5
     - hit_rate_at_5
