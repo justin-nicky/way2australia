@@ -68,18 +68,18 @@ make test
 
 ## T6 — Configure quality tooling and stable commands
 
-- [ ] Configure Ruff formatting.
-- [ ] Configure Ruff linting.
-- [ ] Configure Pyright.
+- [x] Configure Ruff formatting.
+- [x] Configure Ruff linting.
+- [x] Configure Pyright.
 - [x] Create root `Makefile`.
 - [x] Implement `make setup`.
-- [ ] Implement `make format`.
-- [ ] Implement `make lint`.
-- [ ] Implement `make typecheck`.
+- [x] Implement `make format`.
+- [x] Implement `make lint`.
+- [x] Implement `make typecheck`.
 - [x] Implement `make test`.
 - [x] Implement `make test-unit`.
 - [x] Implement `make test-integration`.
-- [ ] Implement `make verify`.
+- [x] Implement `make verify`.
 
 ### Verification
 

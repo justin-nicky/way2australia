@@ -68,11 +68,11 @@ Implemented:
 - typed runtime settings for foundation API configuration;
 - pytest foundation with health and configuration tests;
 - `make test`, `make test-unit` and `make test-integration` commands;
+- Ruff, Pyright and `make verify` quality command surface;
 - reusable package skeletons for `packages/core`, `packages/rag` and `packages/observability`;
 - repository hygiene for local environment files, Python caches, local uv state and generated OS noise.
 
 Not yet implemented:
-- full quality command surface;
 - local Qdrant Docker Compose service;
 - final Spec 001 verification/handoff;
 - Pydantic domain models;

@@ -41,11 +41,14 @@ members = [
 
 # ---------------------------------------------------------------------------
 # Ruff — formatting and linting
-# Full rule selection will be configured in T6.
 # ---------------------------------------------------------------------------
 [tool.ruff]
 line-length = 88
 target-version = "py312"
+extend-exclude = [
+  ".uv-cache",
+  ".uv-python",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
@@ -58,17 +61,26 @@ indent-style = "space"
 # ---------------------------------------------------------------------------
 # Pyright — static type checking
 # venvPath/venv tell Pyright where to find the workspace packages.
-# Full strictness settings will be configured in T6.
 # ---------------------------------------------------------------------------
 [tool.pyright]
 pythonVersion = "3.12"
 typeCheckingMode = "basic"
 venvPath = "."
 venv = ".venv"
+include = [
+  "apps",
+  "packages",
+  "tests",
+]
+exclude = [
+  "**/__pycache__",
+  ".uv-cache",
+  ".uv-python",
+  ".venv",
+]
 
 # ---------------------------------------------------------------------------
 # pytest
-# Test paths and options will be expanded in T5.
 # ---------------------------------------------------------------------------
 [tool.pytest.ini_options]
 addopts = ["--strict-markers"]
