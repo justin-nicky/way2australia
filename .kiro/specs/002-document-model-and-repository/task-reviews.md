@@ -46,3 +46,16 @@ Append-only; newest at the bottom.
   - T3 finding F2 fixed (in `manifest.py`, a T4-touched file): `load_schema` wraps `SchemaError` in `ManifestValidationError`; new `describe_error` replaces `str(exc)` for OS/JSON errors so messages carry no absolute paths. Tests added. F1 (record deps) stays for T9; F3 (nested `required` path prefix) not fixed, no effect with the current schema, deferred to T7.
   - No files under `knowledge/`, `evaluation/` or `config/` touched.
   - Not done: real `content_hash`, sha256/body_sha256 verification (T5), eligibility policy (T6), CLI (T7).
+
+### Review
+- Model: claude-opus-5-5
+- Verdict: PASS
+- Commands: `make verify` → pass (ruff clean, pyright 0 errors, skills mirrors match, 101 tests passed); `make test-integration` → pass (8 passed, 93 deselected; the 8 load the real seed corpus through `DocumentRepository`); `make test-unit` → 93 passed; `git diff --stat 42b9775^ 42b9775 -- evaluation/ knowledge/ config/` → empty
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R7] `content_hash` is a provisional body-only SHA-256 (`_provisional_content_hash`), not `content-hash-v1` → T5 replaces it; until then the value must not be relied on for change detection.
+  - F2 [MINOR, IMPLEMENTATION, R5] Manifest entries outside the approved roots are dropped silently, and files under the roots that are not in the manifest are ignored silently → have T7's `validate-knowledge` report both so a misplaced or unlisted document is visible.
+  - F3 [MINOR, IMPLEMENTATION, R6] On a Pydantic `ValidationError`, `_build` reports only the first error → acceptable (JSON Schema problems are already listed in full first); consider listing all in T7.
+- Summary for user (PASS only):
+  - Changed: new `packages/rag/.../repositories/local.py` (`LocalDocumentRepository`, `LocalRepositoryConfig` with explicit `repo_root` and repo-relative manifest/schema/approved-root paths, `DEFAULT_APPROVED_ROOTS` = business, official, languages); `manifest.py` errors no longer leak absolute paths and an invalid schema raises `ManifestValidationError` (T3 F2 fixed); 11 tests in `test_local_repository.py`.
+  - Verified by: `make verify` (101 tests), `make test-integration` (8 seed-corpus tests: all 13 seed documents load, get/list by ID and version, language filter is data-driven and never widens access, entries pointing at security fixtures/evaluation/docs/raw/releases are never loaded, no CWD dependence).
+  - Worth your attention: (1) `content_hash` is a placeholder until T5; (2) loading is manifest-driven and filtered by approved roots; entries outside them are skipped rather than reported (T7 should surface them); (3) any invalid document fails the whole load, not just that document.

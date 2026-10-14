@@ -56,7 +56,7 @@ Unit tests prove:
 - a schema violation produces an actionable error naming the document and field.
 
 ## T4 — Implement LocalDocumentRepository
-**State:** in task review (round 1)
+**State:** awaiting user review (round 1)
 
 **Requirements:** R3, R4, R9, R10
 
