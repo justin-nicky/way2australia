@@ -37,17 +37,17 @@ Bootstrap: this spec is implemented under the pre-003 flow, directly on `main` (
 
 ## T3 — Update spec-implementer for one task per run
 
-**State:** not started
+**State:** in task review (round 1)
 **Requirements:** R1, R2, R9, R10
 
-- [ ] Accept `<NNN-spec> [task-id]`; without a task ID, take the first task whose state needs implementation.
-- [ ] Work on `spec/<NNN>`; refuse to commit task work on `main`.
-- [ ] Add the `Spec-Task` trailer to every commit; never rebase, amend or force-push.
-- [ ] Set `implementing (round N)` at start and `in task review (round N)` at end; write the Implementation block in `task-reviews.md`, with the model used.
-- [ ] On round > 1, implement only the latest round's findings or user feedback.
-- [ ] Stop after one task; do not merge or push.
-- [ ] Replace the whole-spec completion section with the per-task handoff; keep the material-decision, protected-path and `> BLOCKED:` rules.
-- [ ] Replace the reading list with the design's minimal list.
+- [x] Accept `<NNN-spec> [task-id]`; without a task ID, take the first task whose state needs implementation.
+- [x] Work on `spec/<NNN>`; refuse to commit task work on `main`.
+- [x] Add the `Spec-Task` trailer to every commit; never rebase, amend or force-push.
+- [x] Set `implementing (round N)` at start and `in task review (round N)` at end; write the Implementation block in `task-reviews.md`, with the model used.
+- [x] On round > 1, implement only the latest round's findings or user feedback.
+- [x] Stop after one task; do not merge or push.
+- [x] Replace the whole-spec completion section with the per-task handoff; keep the material-decision, protected-path and `> BLOCKED:` rules.
+- [x] Replace the reading list with the design's minimal list.
 
 ### Verification
 
