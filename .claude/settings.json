@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make verify)",
+      "Bash(make test)",
+      "Bash(make test-unit)",
+      "Bash(make test-integration)",
+      "Bash(make lint)",
+      "Bash(make typecheck)",
+      "Bash(make format)",
+      "Bash(make skills-sync)",
+      "Bash(make skills-check)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git switch *)",
+      "Bash(git merge --no-ff *)",
+      "Bash(git merge --abort)"
+    ]
+  }
+}

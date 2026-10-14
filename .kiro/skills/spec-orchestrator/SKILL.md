@@ -27,17 +27,20 @@ Never read or edit product code or diffs. Never write spec content (requirements
 ## Procedure
 
 1. Check `git status` and the current branch. Dirty tree, or a branch the state does not imply: stop and ask. Never stash or discard.
-2. Follow the table in `state-machine.md` for the first task whose State is not `approved`. Do exactly one action.
+2. Follow the table in `state-machine.md` for the first task whose State is not `approved`. Do the action, re-read the State lines, and repeat until the table says to ask the user (user review, escalation, spec issue, material decision, missing permission) or the spec is complete.
 3. Keep `CURRENT_STATE.md` accurate at each transition.
 
 ## Starting roles
 
 One writer at a time per checkout: never start a role while another role on the same spec is running.
 
-- Host can start a session with a chosen model (Claude desktop app `start_session`): start a fresh session on the role's model tier, same checkout, with a brief of at most ~10 lines: spec, task ID, round, "follow the skill".
-- Otherwise print the exact command and intended model, e.g. `New session on Sonnet: /spec-implementer 002 T3`.
+Invoking this skill is the user's request to run the loop; do not ask permission to start roles.
 
-Do not wait or poll. Resume from repository state when the user or host returns.
+1. **Subagent (preferred, Claude Code and desktop app):** spawn the role with the Agent tool, `model` set from the tier (`sonnet` for BEST_MINUS_ONE, `opus` for BEST per `MODEL_PREFERENCES.md`), `run_in_background: false`, and a brief of at most ~10 lines: spec, task ID, round, "read `agent-skills/<role>/SKILL.md` and follow it". Explicit-only skills cannot be called through the Skill tool, so the brief points at the file. A subagent starts with fresh context, so the task reviewer stays independent of the implementer. Spawn the reviewer only after the implementer returns.
+2. **Separate session:** if subagents are unavailable but the host can start sessions with a model, start one with the same brief.
+3. **Otherwise** print the exact command and intended model, e.g. `New session on Sonnet: /spec-implementer 002 T3`, and stop.
+
+After a role returns, trust only the repository (State lines, `task-reviews.md`), not its message. If the State did not change as expected, treat the role as interrupted.
 
 ## User interaction
 

@@ -144,6 +144,10 @@ Bootstrap: this spec is implemented under the pre-003 flow, directly on `main` (
 - [ ] The orchestrator shows the user the summary; the user's decision is recorded and `spec/002` is pushed on approval.
 - [ ] Fix every workflow defect found during the run in the skills/docs on `main`, and note it in this task.
 
+### Dry-run defects
+
+- 2026-10-14 — orchestrator printed the implementer command instead of starting it (session starts disabled in the app) and the user had to ferry between roles. Fix: orchestrator spawns roles as subagents with a per-role `model` and loops until a user gate; `.claude/settings.json` pre-allows routine `make`/`git` commands.
+
 ### Verification
 
 - 002 T3 state is `approved (YYYY-MM-DD)`.
