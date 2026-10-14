@@ -88,3 +88,6 @@ Append-only; newest at the bottom.
   - Changed: new `packages/rag/.../repositories/hashing.py` (the `content-hash-v1` contract: body normalization, `body_sha256`, canonical JSON, the 17 hashed metadata fields, documented in the module docstring); `local.py` now sets `content_hash` with it (T4's placeholder is gone); `manifest.py` checks the manifest's `sha256` and `body_sha256` against each file and reports mismatches as `ManifestValidationError`; 25 tests in `test_content_hash.py`.
   - Verified by: `make verify` (126 tests), `make test-integration` (9). Tests cover every T5 verification item: seed hashes match the manifest, CRLF/LF give the same hash, body/`access_scope`/`lote_languages` changes alter it, review date/path/release/id/version do not, hash mismatches raise without leaking absolute paths, and moving a file keeps every hash.
   - Worth your attention: (1) any edit to a knowledge file, even whitespace, now fails loading until the manifest hashes are updated. This is intended integrity behavior, but editors will need a way to refresh hashes. (2) F1: date strings are hashed as written; harmless for the current seed.
+
+### User decision
+- 2026-10-14 — approved
