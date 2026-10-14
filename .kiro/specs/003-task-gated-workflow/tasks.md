@@ -120,13 +120,13 @@ Bootstrap: this spec is implemented under the pre-003 flow, directly on `main` (
 
 ## T8 — Migrate Spec 002 to the new state format
 
-**State:** not started
+**State:** in task review (round 1)
 **Requirements:** R7, R12
 
-- [ ] Set Spec 002 `tasks.md` status to `implementing (branch spec/002, base 5bbb333)`.
-- [ ] Add `**State:** approved (2026-10-14)` to T1 and T2, with a note that they predate task review.
-- [ ] Add `**State:** not started` to T3–T9 without changing checkbox text.
-- [ ] Update `docs/project/CURRENT_STATE.md`: Spec 002 paused after T2, resuming under the new flow; Spec 003 in progress.
+- [x] Set Spec 002 `tasks.md` status to `implementing (branch spec/002, base 5bbb333)`.
+- [x] Add `**State:** in task review (round 1)
+- [x] Add `**State:** in task review (round 1)
+- [x] Update `docs/project/CURRENT_STATE.md`: Spec 002 paused after T2, resuming under the new flow; Spec 003 in progress.
 
 ### Verification
 

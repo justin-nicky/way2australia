@@ -1,8 +1,9 @@
 # 002 — Document Model and DocumentRepository Tasks
 
-Status: implementing (base 5bbb333)
+Status: implementing (branch spec/002, base 5bbb333)
 
 ## T1 — Implement document domain model
+**State:** approved (2026-10-14) — predates task review
 
 **Requirements:** R1, R2, R9
 
@@ -18,6 +19,7 @@ Status: implementing (base 5bbb333)
 Unit tests cover valid and invalid model construction.
 
 ## T2 — Define repository contract
+**State:** approved (2026-10-14) — predates task review
 
 **Requirements:** R3, R10
 
@@ -32,6 +34,7 @@ Unit tests cover valid and invalid model construction.
 A fake/in-memory repository can satisfy the interface without local files.
 
 ## T3 — Implement manifest and metadata validation
+**State:** not started
 
 **Requirements:** R2, R5, R6
 
@@ -53,6 +56,7 @@ Unit tests prove:
 - a schema violation produces an actionable error naming the document and field.
 
 ## T4 — Implement LocalDocumentRepository
+**State:** not started
 
 **Requirements:** R3, R4, R9, R10
 
@@ -70,6 +74,7 @@ Unit tests prove:
 Integration tests load the expected local seed corpus through the repository abstraction.
 
 ## T5 — Implement deterministic content hashing
+**State:** not started
 
 **Requirements:** R7
 
@@ -91,6 +96,7 @@ Tests prove:
 - a manifest `sha256`/`body_sha256` mismatch raises `ManifestValidationError`.
 
 ## T6 — Implement retrieval eligibility filtering
+**State:** not started
 
 **Requirements:** R8, R9
 
@@ -111,6 +117,7 @@ Tests cover:
 - language metadata does not broaden access.
 
 ## T7 — Add `make validate-knowledge`
+**State:** not started
 
 **Requirements:** R5, R6, R8, R11
 
@@ -127,6 +134,7 @@ Tests cover:
 - Tests run the entry point against temporary broken repositories (duplicate ID, missing file, schema violation, hash mismatch) and assert exit code `1` with the document ID in the output.
 
 ## T8 — Add complete automated tests
+**State:** not started
 
 **Requirements:** R11
 
@@ -146,6 +154,7 @@ make verify
 ```
 
 ## T9 — Documentation and handoff
+**State:** not started
 
 **Requirements:** Definition of Done
 

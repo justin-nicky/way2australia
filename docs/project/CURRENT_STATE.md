@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-10-13
+Last updated: 2026-10-14
 
 ## Current phase
 
@@ -12,7 +12,7 @@ Spec 001 project foundation is complete.
 
 ## Current goal
 
-Approve and implement Spec 002 using the spec-driven skills (`spec-planner`, `spec-implementer`, `spec-reviewer`) and repository-based shared context so Codex, Claude Code and Kiro can be used interchangeably.
+Finish Spec 003 (task-gated agent workflow: T1–T8 implemented, T9 dry run and T10 pending), then resume Spec 002 from T3 under the new flow. T3 is the Spec 003 dry run (T9). Repository-based shared context keeps Codex, Claude Code and Kiro interchangeable.
 
 ## Finalized high-level decisions
 
@@ -73,8 +73,9 @@ Implemented:
 - reusable package skeletons for `packages/core`, `packages/rag` and `packages/observability`;
 - repository hygiene for local environment files, Python caches, local uv state and generated OS noise;
 - final Spec 001 verification and handoff;
-- spec-driven development skills (`spec-planner`, `spec-implementer`, `spec-reviewer`), with canonical source in `agent-skills/`, mirrored to `.claude/skills/`, `.agents/skills/` (Codex) and `.kiro/skills/` by `make skills-sync`, and checked by `make skills-check` (part of `make verify`);
-- spec status lifecycle (`Status:` lines, `review.md`, remediation rounds) defined in `docs/project/WORKFLOW.md`;
+- task-gated spec-driven skills (`spec-orchestrator`, `spec-planner`, `spec-implementer`, `task-reviewer`, optional `spec-reviewer`), with canonical source in `agent-skills/`, mirrored to `.claude/skills/`, `.agents/skills/` (Codex) and `.kiro/skills/` by `make skills-sync`, and checked by `make skills-check` (part of `make verify`); not yet exercised on real work (dry run is Spec 003 T9);
+- task state lifecycle (`**State:**` lines, `task-reviews.md`, `spec/<NNN>` branches, `Spec-Task` trailers) and spec `Status:` values defined in `docs/project/WORKFLOW.md`, decision D023;
+- `CLAUDE.md` imports only `AGENTS.md` and this file; other docs are read per role;
 - `Makefile` uses a standalone `uv` binary when available and falls back to `python3 -m uv`.
 
 Not yet implemented:
@@ -93,12 +94,14 @@ Not yet implemented:
 | Spec | Status |
 |---|---|
 | 001 — project foundation | implemented; completed before the review process existed (no `review.md`) |
-| 002 — document model and repository | **implementing** (base `5bbb333`): T1–T2 done (`KnowledgeDocument` model in `way2australia_core.documents`; `DocumentRepository` Protocol, `DocumentQuery` and error types in `way2australia_rag.repositories`); T3–T9 pending |
+| 002 — document model and repository | **paused** after T2 (base `5bbb333`; T1–T2 on `main`, approved without task review). Resumes on branch `spec/002` from T3 under the new flow (T3 = Spec 003 T9 dry run); T3–T9 `not started` |
+| 003 — task-gated agent workflow | **implementing** (bootstrap exception: directly on `main`, base `9e95cfe`): T1–T8 done, in task review; T9 dry run (needs the user) and T10 pending |
 
 ## Next step
 
-1. Continue `spec-implementer` on `002-document-model-and-repository` from T3.
-2. Run `spec-reviewer` on it in a fresh session.
+1. Review Spec 003 T1–T8, then run Spec 003 T9: `spec-orchestrator` creates `spec/002` and runs Spec 002 T3 through implementer → task-reviewer → user approval.
+2. Fix any workflow defects found, then T10 and mark Spec 003 verified.
+3. Continue Spec 002 T4–T9 with `spec-orchestrator`.
 
 Spec 002 decisions made before approval:
 - `content_hash` (`content-hash-v1`) is the only change-detection signal; the manifest's `sha256` (raw file) and `body_sha256` (stripped body) are integrity checks the loader verifies.
