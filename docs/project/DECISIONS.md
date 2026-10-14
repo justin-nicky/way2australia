@@ -107,3 +107,18 @@ Implementation must not change `evaluation/`, `knowledge/` or `config/` unless a
 
 See `docs/project/WORKFLOW.md` → "Spec status".
 
+## D023 — Task-gated agent workflow
+Replace the whole-spec implement-then-review flow with a per-task loop: `spec-orchestrator` routes, `spec-implementer` does one task per run on branch `spec/<NNN>`, `task-reviewer` verifies it and summarizes it for the user, the user approves each task. `spec-reviewer` becomes an optional retrospective. Specified in Spec 003; lifecycle in `docs/project/WORKFLOW.md`.
+
+Supersedes from D022:
+- the `implemented — pending review`, `review failed — round N` and `verified (…, review round N)` statuses (retired);
+- `review.md` as the required gate for "verified" (a spec is verified when every task is approved and the branch is merged);
+- the forked, isolated-context reviewer (`context: fork`): independence now comes from a fresh session, because a fork inherits the caller's model.
+
+Remains from D022:
+- `Status:` lines and dated approvals live in the spec files;
+- `## Change log` records approved amendments;
+- implementation must not change `evaluation/`, `knowledge/` or `config/` unless an approved task requires it;
+- `review.md` and `RM<N>.<k>` tasks, now only for the optional retrospective.
+
+Model tiers stay advisory and apply when a session starts. Spec 003 itself was implemented under the old flow directly on `main` (bootstrap exception). The roadmap's ingestion spec is renumbered 004.

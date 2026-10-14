@@ -1,19 +1,19 @@
 # 003 — Task-Gated Agent Workflow Tasks
 
-Status: approved (2026-10-14)
+Status: implementing (base 9e95cfe)
 
 Bootstrap: this spec is implemented under the pre-003 flow, directly on `main` (design → "Bootstrap"). The `State:` lines below follow the new format from the start.
 
 ## T1 — Define the lifecycle in WORKFLOW.md and record D023
 
-**State:** not started
+**State:** in task review (round 1)
 **Requirements:** R1, R7, R12
 
-- [ ] Rewrite the canonical flow in `docs/project/WORKFLOW.md` to the task-gated loop (design → "Design summary").
-- [ ] Define task `State:` values, owners and next actions, and the new `tasks.md` spec `Status:` values (design → "Interfaces / models").
-- [ ] Document branching: `spec/<NNN>`, `Spec-Task` / `Spec-Review` / `Spec-Decision` trailers, no history rewrite, final `--no-ff` merge.
-- [ ] Document the `task-reviews.md` format and the redefined "verified".
-- [ ] Add D023 to `docs/project/DECISIONS.md`, stating which D022 rules it supersedes and which remain.
+- [x] Rewrite the canonical flow in `docs/project/WORKFLOW.md` to the task-gated loop (design → "Design summary").
+- [x] Define task `State:` values, owners and next actions, and the new `tasks.md` spec `Status:` values (design → "Interfaces / models").
+- [x] Document branching: `spec/<NNN>`, `Spec-Task` / `Spec-Review` / `Spec-Decision` trailers, no history rewrite, final `--no-ff` merge.
+- [x] Document the `task-reviews.md` format and the redefined "verified".
+- [x] Add D023 to `docs/project/DECISIONS.md`, stating which D022 rules it supersedes and which remain.
 
 ### Verification
 
