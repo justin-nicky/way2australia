@@ -2,9 +2,7 @@
 name: spec-reviewer
 description: Optional end-of-spec retrospective for one Way2Australia AI spec under .kiro/specs/, named by the user, whose tasks are all approved. Reviews cross-task concerns (Definition of Done, consistency, scope drift) on main...spec/<NNN>, appends a round to review.md with "Notes for the next spec", and turns code-level findings into RM tasks.
 disable-model-invocation: true
-argument-hint: <NNN-spec-name>
-context: fork
-background: false
+argument-hint: <NNN-spec>
 ---
 
 # Spec Reviewer (optional retrospective)

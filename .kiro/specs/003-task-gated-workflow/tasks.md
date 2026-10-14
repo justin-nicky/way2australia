@@ -90,13 +90,13 @@ Bootstrap: this spec is implemented under the pre-003 flow, directly on `main` (
 
 ## T6 — Model preferences, sync script and skills README
 
-**State:** not started
+**State:** in task review (round 1)
 **Requirements:** R9, R11
 
-- [ ] Add `spec-orchestrator` (BEST_MINUS_ONE) and `task-reviewer` (BEST) to `agent-skills/MODEL_PREFERENCES.md`; state that no skill switches models mid-session.
-- [ ] Update `HOST_FRONTMATTER` in `scripts/sync_agent_skills.py` per design → "Host frontmatter"; remove `context: fork` / `background: false` from `spec-reviewer`.
-- [ ] Rewrite `agent-skills/README.md` for five skills, the loop and per-host usage.
-- [ ] Regenerate the mirrors.
+- [x] Add `spec-orchestrator` (BEST_MINUS_ONE) and `task-reviewer` (BEST) to `agent-skills/MODEL_PREFERENCES.md`; state that no skill switches models mid-session.
+- [x] Update `HOST_FRONTMATTER` in `scripts/sync_agent_skills.py` per design → "Host frontmatter"; remove `context: fork` / `background: false` from `spec-reviewer`.
+- [x] Rewrite `agent-skills/README.md` for five skills, the loop and per-host usage.
+- [x] Regenerate the mirrors.
 
 ### Verification
 

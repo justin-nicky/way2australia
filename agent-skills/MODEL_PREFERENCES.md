@@ -4,13 +4,17 @@ Model tiers are **advisory**. No supported host lets a skill pin a model across 
 - Claude Code's per-skill `model:` lasts for one turn only, except inside a forked subagent.
 - Codex skill metadata has no model field.
 
-Choose the model before invoking a skill, and record the model actually used in the implementer handoff and in `review.md`.
+Choose the model when a role's session starts. **No skill switches models inside a running session**: the prompt cache is per model, so a switch re-bills the whole conversation. No skill frontmatter pins a model.
+
+Record the model actually used in every implementer run, every task review and every `review.md` round.
 
 ## Capability policy
 
+- `spec-orchestrator` → **BEST_MINUS_ONE**
 - `spec-planner` → **BEST**
 - `spec-implementer` → **BEST_MINUS_ONE**
-- `spec-reviewer` → **BEST** (ideally a different session, and optionally a different model, from the implementer)
+- `task-reviewer` → **BEST** (fresh session, ideally a different model from the implementer)
+- `spec-reviewer` → **BEST** (optional retrospective, fresh session)
 
 ## Preferred models
 
@@ -24,7 +28,7 @@ Fill these in with exact model IDs. Leave a placeholder unset if you have no pre
 
 ## Runtime rule
 
-1. Read the tier for the active skill.
-2. If an exact model is configured and the host can switch, use it.
-3. If the host cannot switch, tell the user which configured model is intended.
+1. Read the tier for the role being started.
+2. If an exact model is configured and the host can start a session with it, start the role's fresh session on that model.
+3. Otherwise tell the user which configured model is intended and continue.
 4. If the placeholder is unset, do not invent a model name and do not block the workflow.

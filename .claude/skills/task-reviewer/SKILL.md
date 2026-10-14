@@ -1,6 +1,8 @@
 ---
 name: task-reviewer
 description: Verify exactly one implemented task of a Way2Australia AI spec (e.g. 002-document-model-and-repository T3) whose State is "in task review". Read-only for code, tests, specs and data; checks the task's diff against its requirements, runs verification, records PASS or FAIL in task-reviews.md and, on PASS, writes a short change summary for the user.
+disable-model-invocation: true
+argument-hint: <NNN-spec> <task-id>
 ---
 
 # Task Reviewer

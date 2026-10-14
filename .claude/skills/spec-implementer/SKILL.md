@@ -2,7 +2,7 @@
 name: spec-implementer
 description: Implement exactly ONE task of an approved Way2Australia AI spec under .kiro/specs/ (e.g. "002-document-model-and-repository T3") on branch spec/<NNN>, then stop for task review. Use only when the spec's three files are approved and the task's State needs implementation.
 disable-model-invocation: true
-argument-hint: <NNN-spec-name>
+argument-hint: <NNN-spec> [task-id]
 ---
 
 # Spec Implementer

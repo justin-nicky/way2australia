@@ -34,13 +34,19 @@ HOST_FRONTMATTER = {
     "claude": {
         "spec-implementer": [
             "disable-model-invocation: true",
-            "argument-hint: <NNN-spec-name>",
+            "argument-hint: <NNN-spec> [task-id]",
+        ],
+        "task-reviewer": [
+            "disable-model-invocation: true",
+            "argument-hint: <NNN-spec> <task-id>",
         ],
         "spec-reviewer": [
             "disable-model-invocation: true",
-            "argument-hint: <NNN-spec-name>",
-            "context: fork",
-            "background: false",
+            "argument-hint: <NNN-spec>",
+        ],
+        "spec-orchestrator": [
+            "disable-model-invocation: true",
+            "argument-hint: [NNN-spec]",
         ],
     },
 }

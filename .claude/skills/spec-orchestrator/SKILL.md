@@ -1,6 +1,8 @@
 ---
 name: spec-orchestrator
 description: Decide and start the next step of the Way2Australia AI task-gated spec workflow (plan, implement one task, task review, user approval, merge) from repository state alone. Use to start or resume work on a spec, or after any role finishes. Never reads code or diffs.
+disable-model-invocation: true
+argument-hint: [NNN-spec]
 ---
 
 # Spec Orchestrator
