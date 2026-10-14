@@ -59,3 +59,6 @@ Append-only; newest at the bottom.
   - Changed: new `packages/rag/.../repositories/local.py` (`LocalDocumentRepository`, `LocalRepositoryConfig` with explicit `repo_root` and repo-relative manifest/schema/approved-root paths, `DEFAULT_APPROVED_ROOTS` = business, official, languages); `manifest.py` errors no longer leak absolute paths and an invalid schema raises `ManifestValidationError` (T3 F2 fixed); 11 tests in `test_local_repository.py`.
   - Verified by: `make verify` (101 tests), `make test-integration` (8 seed-corpus tests: all 13 seed documents load, get/list by ID and version, language filter is data-driven and never widens access, entries pointing at security fixtures/evaluation/docs/raw/releases are never loaded, no CWD dependence).
   - Worth your attention: (1) `content_hash` is a placeholder until T5; (2) loading is manifest-driven and filtered by approved roots; entries outside them are skipped rather than reported (T7 should surface them); (3) any invalid document fails the whole load, not just that document.
+
+### User decision
+- 2026-10-14 — approved
