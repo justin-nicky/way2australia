@@ -8,6 +8,12 @@ from way2australia_rag.repositories.errors import (
     DuplicateDocumentError,
     ManifestValidationError,
 )
+from way2australia_rag.repositories.manifest import (
+    ManifestEntry,
+    ValidationProblem,
+    load_manifest,
+    validate_manifest,
+)
 
 __all__ = [
     "DocumentNotFoundError",
@@ -16,5 +22,9 @@ __all__ = [
     "DocumentRepositoryError",
     "DocumentValidationError",
     "DuplicateDocumentError",
+    "ManifestEntry",
     "ManifestValidationError",
+    "ValidationProblem",
+    "load_manifest",
+    "validate_manifest",
 ]

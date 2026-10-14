@@ -34,17 +34,17 @@ Unit tests cover valid and invalid model construction.
 A fake/in-memory repository can satisfy the interface without local files.
 
 ## T3 — Implement manifest and metadata validation
-**State:** not started
+**State:** in task review (round 1)
 
 **Requirements:** R2, R5, R6
 
-- [ ] Load `knowledge/manifest/document_manifest.jsonl`.
-- [ ] Validate manifest record structure.
-- [ ] Reject duplicate `document_id`/version identities.
-- [ ] Detect missing referenced files.
-- [ ] Validate frontmatter against required metadata.
-- [ ] Use `knowledge/schemas/document_metadata.schema.json` where appropriate.
-- [ ] Surface actionable validation errors.
+- [x] Load `knowledge/manifest/document_manifest.jsonl`.
+- [x] Validate manifest record structure.
+- [x] Reject duplicate `document_id`/version identities.
+- [x] Detect missing referenced files.
+- [x] Validate frontmatter against required metadata.
+- [x] Use `knowledge/schemas/document_metadata.schema.json` where appropriate.
+- [x] Surface actionable validation errors.
 
 ### Verification
 
