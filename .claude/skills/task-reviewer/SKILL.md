@@ -27,18 +27,20 @@ The Implementation block in `task-reviews.md` is orientation only. Never treat t
 
 ## Task diff
 
+The task's work is uncommitted until the user approves it. Review the working tree on `spec/<NNN>`:
+
 ```bash
-git log --format=%H --reverse --grep='^Spec-Task: <NNN>/<task-id>$' main..spec/<NNN>
-git diff <first>^ <last> -- . ':(exclude).kiro/specs/*/task-reviews.md'
+git status --porcelain
+git diff HEAD -- . ':(exclude).kiro/specs/*/task-reviews.md'
 ```
 
-If no commits match, FAIL with an `IMPLEMENTATION` finding.
+Read untracked files listed by `git status` as part of the diff. If there are no task changes, FAIL with an `IMPLEMENTATION` finding.
 
 ## Checks
 
 1. Every checked box is backed by code and tests in the diff; unchecked boxes are findings.
 2. The diff stays inside the task's scope: no other task's work, no Phase 2 drift, no unapproved dependency.
-3. Protected paths untouched unless the task requires them: `git diff --stat <first>^ <last> -- evaluation/ knowledge/ config/`. Unrequired change is BLOCKING.
+3. Protected paths untouched unless the task requires them: `git status --porcelain -- evaluation/ knowledge/ config/`. Unrequired change is BLOCKING.
 4. `AGENTS.md` architecture/security rules hold (authorization, `DocumentRepository`, language vs. authorization, no secrets, retrieved text untrusted).
 5. Run the task's verification block and `make verify`. Record each exact command, result and collected test counts. `make test-integration` exits 0 when nothing is collected; report the count.
 6. A command you cannot run is a `NOT_VERIFIED` finding and the verdict is FAIL. Never PASS on unrun checks.
@@ -67,7 +69,7 @@ Append the Review block to the task's current round using [task-review-template.
 | FAIL, only `IMPLEMENTATION` findings | `task review failed — round N` |
 | FAIL with any `SPEC_DEFECT` | `blocked — spec issue` and add `> BLOCKED: spec issue — <why>` under the task |
 
-Commit both files with trailer `Spec-Review: <NNN>/<task-id>` on `spec/<NNN>`. Do not push or merge.
+Do not commit, push or merge. The orchestrator commits everything after the user approves.
 
 PASS summary: for the user, not for reviewers. Say what changed and where, how it was verified, and decisions or risks worth their attention. No raw diff, at most ~10 lines.
 

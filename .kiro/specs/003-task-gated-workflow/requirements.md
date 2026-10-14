@@ -44,9 +44,9 @@ Implementation work for a spec happens on one branch per spec, not directly on `
 ### Acceptance criteria
 
 - the branch name is derived deterministically from the spec number (for example `spec/002`);
-- every implementation commit carries a `Spec-Task: <NNN>/<task-id>` trailer (task IDs include `T#` and remediation IDs);
-- the commits for any task can be found from git history alone, without commit-message wording conventions;
-- rework is added as new commits; history on a pushed spec branch is never rewritten and never force-pushed.
+- task work is committed and pushed only after the user approves the task, as one commit carrying a `Spec-Task: <NNN>/<task-id>` trailer (task IDs include `T#` and remediation IDs);
+- the commit for any approved task can be found from git history alone, without commit-message wording conventions;
+- history on a pushed spec branch is never rewritten and never force-pushed.
 
 ## R2 — One task per implementer run
 
@@ -56,7 +56,7 @@ Implementation work for a spec happens on one branch per spec, not directly on `
 
 - the run is invoked with a spec and a task ID, or the orchestrator supplies the next unchecked task;
 - a run never starts a second task;
-- at the end of a run the task is committed on the spec branch and its state is "in task review";
+- at the end of a run the task's changes are left uncommitted on the spec branch and its state is "in task review";
 - the implementer records the model it used in the task's handoff note;
 - the existing rules still apply: approved spec required, material-decision rule, protected paths, `> BLOCKED:` spec-issue notes.
 
@@ -66,7 +66,7 @@ A new `task-reviewer` skill verifies one implemented task before the user sees i
 
 ### Acceptance criteria
 
-- reads only what the task needs: its requirement IDs and their acceptance criteria, the referenced design sections, the task's checklist and verification block, and the task's diff (from its `Spec-Task` commits);
+- reads only what the task needs: its requirement IDs and their acceptance criteria, the referenced design sections, the task's checklist and verification block, and the task's uncommitted changes;
 - runs the task's verification commands and `make verify`, and records each command with its result and collected test counts;
 - checks that every checked box is backed by code and tests, that the diff stays inside the task's scope, that protected paths (`evaluation/`, `knowledge/`, `config/`) are untouched unless the task requires them, and that the `AGENTS.md` architecture/security rules hold;
 - is read-only for code, tests, specs and data: it writes only to `task-reviews.md` and the task's state line;
@@ -230,6 +230,8 @@ The full loop is exercised once on real work before this spec is complete.
 | R13 | T9 | dry run evidence (state, `task-reviews.md`, `git ls-remote`) |
 
 ## Change log
+
+- 2026-10-14 — R1, R2, R3, R5, R6: task work stays uncommitted through implementation and review; the orchestrator commits it (one `Spec-Task` commit) and pushes only after user approval. Implemented directly in skills/docs; no task re-opened.
 
 <!-- Approved amendments only, one dated line each:
 - YYYY-MM-DD — <R#/T#>: <what changed and why>. Re-opened <T#>. -->

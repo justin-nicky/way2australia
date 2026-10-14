@@ -107,17 +107,10 @@ Rounds count implementer runs for a task. The automatic limit counts consecutive
 ### Branching and commits
 
 - One branch per spec: `spec/<NNN>` (e.g. `spec/002`), created from up-to-date `main` by the orchestrator before the first task.
-- Every implementer commit ends with the trailer `Spec-Task: <NNN>/<task-id>` (`T3`, `RM1.2`).
-- Reviewer and orchestrator bookkeeping commits use `Spec-Review: <NNN>/<task-id>` and `Spec-Decision: <NNN>/<task-id>`, so they never count as task changes.
-- Task diff:
-
-  ```bash
-  git log --format=%H --reverse --grep='^Spec-Task: 002/T3$' main..spec/002
-  git diff <first>^ <last> -- . ':(exclude).kiro/specs/*/task-reviews.md'
-  ```
-
-- Rework is new commits. Never rebase, amend or force-push a pushed spec branch.
-- The orchestrator pushes `spec/<NNN>` after each recorded user approval.
+- **Task work is committed and pushed only after the user approves it.** The implementer and task reviewer never commit; the task's changes (and its `tasks.md` / `task-reviews.md` updates) stay uncommitted through every round.
+- Task diff for review: `git status --porcelain` and `git diff HEAD -- . ':(exclude).kiro/specs/*/task-reviews.md'`, plus untracked files.
+- On approval the orchestrator makes one commit for the task, ending with the trailer `Spec-Task: <NNN>/<task-id>` (`T3`, `RM1.2`), and pushes `spec/<NNN>`. Find it later with `git log --grep='^Spec-Task: 002/T3$'`.
+- While a task is in progress nobody stashes, resets or switches branches. Never rebase, amend or force-push a pushed spec branch.
 - Completion: `git merge --no-ff spec/<NNN>` into up-to-date `main`, `make verify`, push `main`. Conflicts or failures abort the merge and go to the user.
 - Specs predating this flow (001, 002 T1–T2) stay on `main`.
 
@@ -130,7 +123,7 @@ Rounds count implementer runs for a task. The automatic limit counts consecutive
 
 ### Implementation
 - Model: <model id>
-- Commits: <short shas>
+- Files changed: <paths>
 - Verification run: `make verify` → pass (N tests)
 - Notes: <decisions, deviations, open questions>
 
@@ -255,7 +248,7 @@ Another coding agent should be able to continue from:
 
 ## Git practices
 
-Prefer small commits aligned with spec tasks; see "Branching and commits" for branches and trailers. Commit state changes and `task-reviews.md` with the work they describe.
+One commit per approved task; see "Branching and commits". State changes and `task-reviews.md` are committed with the work they describe.
 
 Do not commit:
 - secrets;

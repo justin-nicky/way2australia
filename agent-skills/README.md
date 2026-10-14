@@ -16,7 +16,7 @@ all tasks approved → [optional] spec-reviewer → orchestrator merges spec/<NN
 | `task-reviewer` | Verify one task, PASS/FAIL, user summary (read-only for code and specs) | BEST | explicit only |
 | `spec-reviewer` | Optional end-of-spec retrospective, writes `review.md` | BEST | explicit only |
 
-Each role runs in a fresh session and hands off through repository files (`tasks.md` states, `task-reviews.md`, `Spec-Task` commit trailers), not chat. Lifecycle, states, branching and file formats are in `docs/project/WORKFLOW.md`.
+Each role runs in a fresh session and hands off through repository files (`tasks.md` states, `task-reviews.md`, uncommitted changes until the user approves, then one `Spec-Task` commit per task), not chat. Lifecycle, states, branching and file formats are in `docs/project/WORKFLOW.md`.
 
 ## Editing and syncing
 

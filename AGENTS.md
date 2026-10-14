@@ -132,10 +132,10 @@ Do not implement Phase 2 workflow features during Phase 1 unless the active spec
 For non-trivial work, use the task-gated loop (`docs/project/WORKFLOW.md`):
 
 1. Locate the active spec under `.kiro/specs/<feature>/`; read its `requirements.md`, `design.md` and `tasks.md`. Approval is the `Status:` line in each spec file.
-2. Work on branch `spec/<NNN>`, one task at a time; each task has a `**State:**` line and commits carry a `Spec-Task: <NNN>/<task-id>` trailer.
+2. Work on branch `spec/<NNN>`, one task at a time; each task has a `**State:**` line. Task work stays uncommitted until the user approves it; it is then committed once with a `Spec-Task: <NNN>/<task-id>` trailer and pushed.
 3. Implement only approved tasks from `tasks.md`. If implementation reveals a requirements/design problem, update the spec first (`> BLOCKED: spec issue`).
 4. Run the task's verification, then hand off for task review (`task-reviewer`, recorded in `task-reviews.md`).
-5. The user approves each task; after approval the branch is pushed.
+5. The user approves each task; only then is it committed and the branch pushed.
 6. When every task is approved the branch is merged into `main`; the spec is then verified. A final `spec-reviewer` retrospective is optional.
 7. Update `docs/project/CURRENT_STATE.md` at each transition.
 

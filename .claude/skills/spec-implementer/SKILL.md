@@ -30,7 +30,7 @@ Read `CONVENTIONS.md`, `DECISIONS.md`, `COMMANDS.md` only when needed.
 Proceed only if:
 - `requirements.md`, `design.md` and `tasks.md` are `Status: approved (…)` or `tasks.md` is `implementing (…)`;
 - the task's State allows a run (above) and it has no `> BLOCKED:` note;
-- you are on `spec/<NNN>` (`git branch --show-current`) with a clean tree. Never commit task work on `main`; the orchestrator creates the branch. Otherwise stop and report.
+- you are on `spec/<NNN>` (`git branch --show-current`); the orchestrator creates the branch. The tree is clean for round 1; on rework it holds this task's uncommitted earlier rounds. Otherwise stop and report.
 
 Round N is 1 for `not started`; for rework it is the previous round + 1. Set `**State:** implementing (round N)` before editing.
 
@@ -48,7 +48,7 @@ If implementation reveals a contradiction, missing decision or incorrect require
 
 1. stop expanding implementation in the affected area;
 2. add `> BLOCKED: spec issue — <what and why>` under the task and set `**State:** blocked — spec issue`;
-3. commit that note and tell the user to take it to `spec-planner` ("revise an approved spec").
+3. tell the user to take it to `spec-planner` ("revise an approved spec").
 
 Never silently make code and spec agree after the fact.
 
@@ -66,17 +66,11 @@ A checked box means implemented and verified. Never tick with failing tests, unm
 
 ## 4. Finish
 
-1. Append the Implementation block for this round to `<spec>/task-reviews.md` (create the file if missing; format in `WORKFLOW.md` → "`task-reviews.md`"): model, commit shas, verification run with test counts, notes on decisions/deviations.
+1. Append the Implementation block for this round to `<spec>/task-reviews.md` (create the file if missing; format in `WORKFLOW.md` → "`task-reviews.md`"): model, files changed, verification run with test counts, notes on decisions/deviations.
 2. Set `**State:** in task review (round N)`.
-3. Commit code, tests, `tasks.md` and `task-reviews.md`. Every commit ends with:
-
-   ```text
-   Spec-Task: <NNN>/<task-id>
-   ```
-
-   Rework is new commits. Never rebase, amend or force-push. Never commit secrets, `.env`, local indexes, model caches or generated artifacts.
-4. Update `docs/project/CURRENT_STATE.md` only if the task says so. Do not merge or push.
+3. Do not commit, push or merge. Leave all changes uncommitted; the orchestrator commits and pushes them only after the user approves. Never stash, reset or switch branches.
+4. Update `docs/project/CURRENT_STATE.md` only if the task says so.
 
 ## Final message
 
-Task and round, commits, verification commands and results, what was not verified, decisions, deferred items, host and model used. Say that `task-reviewer` runs next, in a fresh session. Do not review your own work.
+Task and round, files changed, verification commands and results, what was not verified, decisions, deferred items, host and model used. Say that `task-reviewer` runs next, in a fresh session. Do not review your own work.
