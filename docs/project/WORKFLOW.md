@@ -28,7 +28,7 @@ orchestrator merges spec/<NNN> into main (--no-ff) → verified
 
 Skills live in `agent-skills/` and are mirrored to `.claude/skills/`, `.agents/skills/` (Codex) and `.kiro/skills/`. See `agent-skills/README.md`. Contributors not using the skills follow the same steps, states and trailers.
 
-Roles run in fresh sessions and hand off through repository files (`tasks.md`, `task-reviews.md`, commit trailers), not chat. Model tiers are advisory and applied when a session starts, never switched mid-session (`agent-skills/MODEL_PREFERENCES.md`).
+Roles run in fresh contexts (the orchestrator spawns them as subagents where the host allows, otherwise the user starts them) and hand off through repository files (`tasks.md`, `task-reviews.md`, commit trailers), not chat. Model tiers are advisory and applied when a session starts, never switched mid-session (`agent-skills/MODEL_PREFERENCES.md`).
 
 The specification is part of the implementation contract.
 

@@ -46,7 +46,7 @@ Canonical `SKILL.md` frontmatter contains only portable Agent Skills fields (`na
 - **Codex:** `$spec-orchestrator`, `$spec-planner`, `$spec-implementer <NNN-spec> [task-id]`, `$task-reviewer <NNN-spec> <task-id>`, `$spec-reviewer <NNN-spec>` (or `/skills`). Run each role in a new session.
 - **Kiro:** `/spec-orchestrator`, `/spec-planner`, `/spec-implementer`, `/task-reviewer`, `/spec-reviewer`. Start planning from a Vibe session. **Do not use Quick Spec** or auto-generated specs: they skip the approval gates. Prefer `/spec-implementer` over "Run all tasks". Do not edit `tasks.meta.json`. Custom Kiro agents need `skill://.kiro/skills/*/SKILL.md` in `resources`.
 
-Hosts that cannot start sessions: the orchestrator prints the exact command and intended model (e.g. `New session on Sonnet: /spec-implementer 002 T3`); run it by hand.
+The orchestrator runs the whole loop itself: it spawns the implementer (Sonnet) and task reviewer (Opus) as subagents with fresh context, and stops only for user review, escalation, a spec issue, a material decision or a permission prompt. Hosts without subagents or session starts: it prints the exact command and intended model (e.g. `New session on Sonnet: /spec-implementer 002 T3`); run it by hand.
 
 ## Model tiers
 
