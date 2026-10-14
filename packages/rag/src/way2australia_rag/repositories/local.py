@@ -9,7 +9,6 @@ access scope comes from validated metadata.
 """
 
 import asyncio
-import hashlib
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -24,6 +23,7 @@ from way2australia_rag.repositories.errors import (
     ManifestValidationError,
 )
 from way2australia_rag.repositories.frontmatter import split_frontmatter
+from way2australia_rag.repositories.hashing import compute_content_hash, normalize_body
 from way2australia_rag.repositories.manifest import (
     ManifestEntry,
     ValidationProblem,
@@ -53,16 +53,6 @@ class LocalRepositoryConfig:
     manifest_path: str = "knowledge/manifest/document_manifest.jsonl"
     schema_path: str = "knowledge/schemas/document_metadata.schema.json"
     approved_roots: tuple[str, ...] = DEFAULT_APPROVED_ROOTS
-
-
-def _normalized_body(body: str) -> str:
-    return body.replace("\r\n", "\n").replace("\r", "\n").strip()
-
-
-def _provisional_content_hash(body: str) -> str:
-    # Placeholder until Spec 002 T5 implements `content-hash-v1`: hashes the
-    # normalized body only. T5 replaces this call.
-    return hashlib.sha256(_normalized_body(body).encode("utf-8")).hexdigest()
 
 
 def _under_root(path: str, roots: Sequence[str]) -> bool:
@@ -165,8 +155,8 @@ class LocalDocumentRepository:
             for name in KnowledgeDocument.model_fields
             if name in metadata
         }
-        fields["content"] = _normalized_body(body)
-        fields["content_hash"] = _provisional_content_hash(body)
+        fields["content"] = normalize_body(body)
+        fields["content_hash"] = compute_content_hash(body, metadata)
         try:
             return KnowledgeDocument.model_validate(fields)
         except ValidationError as exc:

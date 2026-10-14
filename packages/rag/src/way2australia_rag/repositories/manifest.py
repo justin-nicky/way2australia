@@ -19,6 +19,7 @@ from way2australia_rag.repositories.errors import (
     ManifestValidationError,
 )
 from way2australia_rag.repositories.frontmatter import split_frontmatter
+from way2australia_rag.repositories.hashing import compute_body_sha256, sha256_hex
 
 # Manifest-only bookkeeping: not expected to match frontmatter.
 MANIFEST_ONLY_FIELDS = frozenset({"path", "sha256", "body_sha256"})
@@ -196,7 +197,8 @@ def check_manifest_documents(
             )
             continue
         try:
-            metadata, _body = split_frontmatter(file_path.read_text(encoding="utf-8"))
+            raw = file_path.read_bytes()
+            metadata, body = split_frontmatter(raw.decode("utf-8"))
         except (OSError, UnicodeDecodeError, ValueError) as exc:
             reason = str(exc) if type(exc) is ValueError else describe_error(exc)
             problems.append(ValidationProblem(entry.document_id, "frontmatter", reason))
@@ -205,6 +207,25 @@ def check_manifest_documents(
         problems.extend(found)
         if not found:
             problems.extend(compare_manifest_to_metadata(entry, metadata))
+            problems.extend(check_integrity_hashes(entry, raw, body))
+    return problems
+
+
+def check_integrity_hashes(
+    entry: ManifestEntry, raw: bytes, body: str
+) -> list[ValidationProblem]:
+    """Compare the manifest's `sha256` (raw file) and `body_sha256` (body)."""
+    problems: list[ValidationProblem] = []
+    checks = (("sha256", sha256_hex(raw)), ("body_sha256", compute_body_sha256(body)))
+    for name, actual in checks:
+        if entry.record.get(name) != actual:
+            problems.append(
+                ValidationProblem(
+                    entry.document_id,
+                    name,
+                    "manifest hash does not match the file content",
+                )
+            )
     return problems
 
 

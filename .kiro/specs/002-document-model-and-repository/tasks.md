@@ -74,15 +74,15 @@ Unit tests prove:
 Integration tests load the expected local seed corpus through the repository abstraction.
 
 ## T5 — Implement deterministic content hashing
-**State:** not started
+**State:** in task review (round 1)
 
 **Requirements:** R7
 
-- [ ] Compute `body_sha256` exactly as defined in design ("Content hashing").
-- [ ] Verify computed `body_sha256` and raw `sha256` against the manifest; raise `ManifestValidationError` on mismatch.
-- [ ] Compute `content_hash` (`content-hash-v1`) from `body_sha256` plus the listed retrieval-affecting metadata using canonical JSON.
-- [ ] Exclude absolute local path, identity/version, review date and release fields from `content_hash`.
-- [ ] Document the hash contract.
+- [x] Compute `body_sha256` exactly as defined in design ("Content hashing").
+- [x] Verify computed `body_sha256` and raw `sha256` against the manifest; raise `ManifestValidationError` on mismatch.
+- [x] Compute `content_hash` (`content-hash-v1`) from `body_sha256` plus the listed retrieval-affecting metadata using canonical JSON.
+- [x] Exclude absolute local path, identity/version, review date and release fields from `content_hash`.
+- [x] Document the hash contract.
 
 ### Verification
 

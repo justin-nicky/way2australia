@@ -10,6 +10,7 @@ from way2australia_rag.repositories import (
     validate_manifest,
 )
 from way2australia_rag.repositories.frontmatter import split_frontmatter
+from way2australia_rag.repositories.hashing import compute_body_sha256, sha256_hex
 from way2australia_rag.repositories.manifest import load_schema
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -49,8 +50,14 @@ def write_manifest(root: Path, records: list[dict[str, Any]]) -> Path:
     return path
 
 
-def record(**overrides: Any) -> dict[str, Any]:
-    rec = metadata(path="knowledge/a.md", sha256="0" * 64, body_sha256="1" * 64)
+def record(root: Path | None = None, **overrides: Any) -> dict[str, Any]:
+    """Manifest record; hashes are real when the file already exists under `root`."""
+    sha, body_sha = "0" * 64, "1" * 64
+    if root is not None and (root / "knowledge/a.md").is_file():
+        raw = (root / "knowledge/a.md").read_bytes()
+        sha = sha256_hex(raw)
+        body_sha = compute_body_sha256(split_frontmatter(raw.decode("utf-8"))[1])
+    rec = metadata(path="knowledge/a.md", sha256=sha, body_sha256=body_sha)
     rec.update(overrides)
     return rec
 
@@ -68,7 +75,7 @@ def test_seed_manifest_loads_and_validates() -> None:
 
 def test_valid_manifest_loads(tmp_path: Path) -> None:
     write_doc(tmp_path, metadata())
-    assert run(tmp_path, [record()]) == []
+    assert run(tmp_path, [record(tmp_path)]) == []
 
 
 def test_duplicate_document_id_rejected(tmp_path: Path) -> None:
@@ -95,7 +102,7 @@ def test_missing_referenced_file_detected(tmp_path: Path) -> None:
 
 def test_manifest_frontmatter_mismatch_reported(tmp_path: Path) -> None:
     write_doc(tmp_path, metadata(access_scope="staff"))
-    problems = run(tmp_path, [record()])
+    problems = run(tmp_path, [record(tmp_path)])
     assert problems == [
         "doc_a: access_scope: manifest has 'public' but frontmatter has 'staff'"
     ]

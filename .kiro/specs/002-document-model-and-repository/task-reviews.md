@@ -62,3 +62,18 @@ Append-only; newest at the bottom.
 
 ### User decision
 - 2026-10-14 — approved
+
+## T5 — round 1
+
+### Implementation
+- Model: claude-sonnet-5-5
+- Commits: see `git log --grep "Spec-Task: 002/T5"`
+- Verification run: `make verify` -> pass (126 tests, ruff and pyright clean; 25 new in `test_content_hash.py`); `make test-integration` -> 9 passed (seed corpus through the repository)
+- Notes:
+  - New `repositories/hashing.py` owns the hash contract (documented in its module docstring and mirrored in design "Content hashing"): `normalize_body`, `compute_body_sha256`, `sha256_hex`, `canonical_json`, `compute_content_hash`, `HASH_CONTRACT = "content-hash-v1"`, `CONTENT_HASH_METADATA_FIELDS` (the 17 fields from the design). Absent optional fields hash as `null`; `lote_languages` keeps stored order.
+  - `local.py`: `_provisional_content_hash` and `_normalized_body` removed; `_build` now calls `compute_content_hash(body, frontmatter)` and `normalize_body`. The hash is computed from the validated frontmatter (ISO date strings), not from absolute path.
+  - Integrity checks: `manifest.check_manifest_documents` now also calls new `check_integrity_hashes`, comparing the manifest `sha256` (raw bytes) and `body_sha256` to recomputed values. Mismatches are `ValidationProblem`s (document and field only), so the loader raises `ManifestValidationError` and T7's `validate-knowledge` reports them. They run only after schema and manifest/frontmatter checks pass, so other problems are not drowned by hash noise.
+  - Existing test helper `record()` in `test_manifest_validation.py` used placeholder hashes; it now computes real hashes when the document file exists (the missing-file test keeps placeholders). No production behavior change beyond the new check.
+  - Tests: every seed document's `body_sha256` and `sha256` match the manifest; CRLF/LF/padding equivalence; body change; `access_scope`, `lote_languages` and other retrieval-affecting fields change the hash; `last_reviewed_at`, path, release, id and version do not; recipe re-stated independently in the test; repository hash equals `compute_content_hash`; body edit and raw-only edit raise `ManifestValidationError` without absolute paths; moving a file leaves every `content_hash` unchanged.
+  - T4 review F1 resolved (provisional hash replaced). F2/F3 (T7 reporting) untouched.
+  - No files under `knowledge/`, `evaluation/` or `config/` touched. No new dependencies.
