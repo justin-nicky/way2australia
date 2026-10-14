@@ -66,16 +66,9 @@ One writer at a time per checkout: the orchestrator never starts a role while an
 ## Branching and commits
 
 - Branch: `spec/<NNN>` (e.g. `spec/002`), created from up-to-date `main` by the orchestrator before the first task, if missing.
-- Every implementer commit ends with the trailer `Spec-Task: <NNN>/<task-id>` (`T3`, `RM1.2`).
-- Reviewer and orchestrator bookkeeping commits use `Spec-Review: <NNN>/<task-id>` and `Spec-Decision: <NNN>/<task-id>` respectively, so they never count as task changes.
-- Task diff for review: the task's `Spec-Task` commits, found with
-
-  ```bash
-  git log --format=%H --reverse --grep='^Spec-Task: 002/T3$' main..spec/002
-  ```
-
-  then `git diff <first>^ <last> -- . ':(exclude).kiro/specs/*/task-reviews.md'`.
-- Rework is new commits on the same branch. No rebase, amend or force-push on a pushed spec branch.
+- Task work is committed and pushed only after user approval (change log 2026-10-14). The implementer and task reviewer never commit; the task diff for review is the uncommitted working tree (`git diff HEAD` plus untracked files, excluding `task-reviews.md`).
+- On approval the orchestrator makes one commit for the task with the trailer `Spec-Task: <NNN>/<task-id>` (`T3`, `RM1.2`) and pushes `spec/<NNN>`.
+- While a task is in progress nobody stashes, resets or switches branches. No rebase, amend or force-push on a pushed spec branch.
 - Final merge: `git merge --no-ff spec/<NNN>` into up-to-date `main`, `make verify`, push `main`. Merge conflicts stop the orchestrator and go to the user.
 
 ## Interfaces / models
@@ -127,7 +120,7 @@ One file per spec, append-only, newest at the bottom. Per task and round:
 
 ### Implementation
 - Model: <model id>
-- Commits: <short shas>
+- Files changed: <paths>
 - Verification run: `make verify` → pass (N tests)
 - Notes: <decisions, deviations, open questions>
 
@@ -153,7 +146,7 @@ Remediation for a failed round lives in that round's Findings, not in `tasks.md`
 
 Stated as a table in `spec-orchestrator/references/state-machine.md`:
 
-1. Working tree dirty, or the checked-out branch is not what the state implies → stop and ask the user.
+1. Uncommitted changes with no task in progress, or the checked-out branch is not what the state implies → stop and ask the user.
 2. No approved spec in progress → offer `spec-planner` (pass the latest "Notes for the next spec", if any).
 3. Spec approved, no branch → create `spec/<NNN>` from `main`, set `implementing (branch …, base …)`.
 4. Otherwise, take the first task whose state is not `approved` and act on its state (table above).
@@ -168,7 +161,7 @@ Stated as a table in `spec-orchestrator/references/state-machine.md`:
 ## Data flow
 
 ```text
-implementer ──commits (Spec-Task)──► spec/<NNN>
+implementer ──uncommitted changes──► spec/<NNN> working tree (committed by the orchestrator on approval)
      └─ task-reviews.md: Implementation block; State → in task review
 task-reviewer ── reads task slice of spec + task diff, runs checks
      └─ task-reviews.md: Review block; State → awaiting user review | failed
@@ -210,7 +203,7 @@ Codex: `agents/openai.yaml` with `allow_implicit_invocation: false` for orchestr
 | Situation | Behavior |
 |---|---|
 | Role interrupted mid-run (state `implementing` / `in task review` without its block) | orchestrator restarts the same role for the same round |
-| Dirty working tree at orchestrator start | stop; ask the user (never stash or discard) |
+| Uncommitted changes with no task in progress | stop; ask the user (never stash or discard) |
 | Reviewer cannot run a verification command | verdict `FAIL` with a `NOT_VERIFIED` finding; never PASS on unrun checks |
 | Second consecutive reviewer FAIL | state stays `task review failed — round 2`; orchestrator escalates to the user |
 | `SPEC_DEFECT` finding or user spec feedback | `blocked — spec issue`; planner revise flow; the task re-opens per its change log |

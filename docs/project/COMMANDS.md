@@ -47,7 +47,7 @@ Run a role (each in a fresh session; the orchestrator is the usual entry point):
 | Codex | `$spec-orchestrator`, `$spec-planner`, `$spec-implementer <NNN> [task]`, `$task-reviewer <NNN> <task>`, `$spec-reviewer <NNN>` |
 | Kiro | `/spec-orchestrator`, `/spec-planner`, `/spec-implementer`, `/task-reviewer`, `/spec-reviewer` |
 
-Find a task's commits: `git log --format=%H --reverse --grep='^Spec-Task: <NNN>/<task>$' main..spec/<NNN>`.
+Find an approved task's commit: `git log --grep='^Spec-Task: <NNN>/<task>$' spec/<NNN>`.
 
 ## Knowledge
 

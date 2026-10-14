@@ -26,7 +26,7 @@ Never read or edit product code or diffs. Never write spec content (requirements
 
 ## Procedure
 
-1. Check `git status` and the current branch. Dirty tree, or a branch the state does not imply: stop and ask. Never stash or discard.
+1. Check `git status` and the current branch. Uncommitted changes are expected while a task is in progress (any State other than `not started` / `approved`): that is the task's work awaiting approval. Uncommitted changes with no task in progress, or a branch the state does not imply: stop and ask. Never stash, reset or discard.
 2. Follow the table in `state-machine.md` for the first task whose State is not `approved`. Do the action, re-read the State lines, and repeat until the table says to ask the user (user review, escalation, spec issue, material decision, missing permission) or the spec is complete.
 3. Keep `CURRENT_STATE.md` accurate at each transition.
 
@@ -47,9 +47,9 @@ After a role returns, trust only the repository (State lines, `task-reviews.md`)
 When a task is `awaiting user review (round N)`, show the reviewer's "Summary for user" from `task-reviews.md`, not a diff, and ask: approve, or feedback?
 
 Record the answer verbatim and dated in the task's "User decision" block, then:
-- **approved:** `**State:** approved (YYYY-MM-DD)`; commit with trailer `Spec-Decision: <NNN>/<task-id>`; push `spec/<NNN>` (never force); then the next task.
-- **implementation feedback:** `changes requested — round N`; commit; start `spec-implementer` (the consecutive-FAIL count resets).
-- **spec feedback / `SPEC_DEFECT`:** `blocked — spec issue`; add `> BLOCKED: spec issue — <why>` under the task if missing; commit; tell the user to run `spec-planner` ("revise an approved spec"). Resume after the change log records it.
+- **approved:** `**State:** approved (YYYY-MM-DD)`; commit all the task's changes (code, tests, `tasks.md`, `task-reviews.md`) in one commit ending with the trailer `Spec-Task: <NNN>/<task-id>`; push `spec/<NNN>` (never force); then the next task. This is the only point where task work is committed.
+- **implementation feedback:** `changes requested — round N`; do not commit; start `spec-implementer` (the consecutive-FAIL count resets).
+- **spec feedback / `SPEC_DEFECT`:** `blocked — spec issue`; add `> BLOCKED: spec issue — <why>` under the task if missing; do not commit; tell the user to run `spec-planner` ("revise an approved spec"). Resume after the change log records it.
 
 Never show a task as ready while its latest review is `FAIL`. After a second consecutive `FAIL` (`task review failed — round 2`), escalate to the user with the findings.
 

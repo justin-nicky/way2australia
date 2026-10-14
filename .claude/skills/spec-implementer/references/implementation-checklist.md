@@ -22,4 +22,4 @@
 - Checkboxes ticked only for verified work; text unchanged.
 - Implementation block appended to `task-reviews.md` with the model used.
 - State set to `in task review (round N)`.
-- Commits carry `Spec-Task: <NNN>/<task-id>`; nothing pushed or merged.
+- Nothing committed, pushed or merged; changes left uncommitted for user approval.
