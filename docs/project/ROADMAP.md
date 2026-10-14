@@ -9,7 +9,7 @@ Includes:
 - `AGENTS.md`
 - Claude adapter
 - project context files
-- SDD workflow
+- SDD workflow (Spec 003: task-gated agent workflow)
 - stable command interface
 - initial specs
 

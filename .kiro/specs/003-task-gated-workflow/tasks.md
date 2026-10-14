@@ -105,13 +105,13 @@ Bootstrap: this spec is implemented under the pre-003 flow, directly on `main` (
 
 ## T7 — Token-efficient context and project docs
 
-**State:** not started
+**State:** in task review (round 1)
 **Requirements:** R10, R12
 
-- [ ] Trim `CLAUDE.md` to import only `@AGENTS.md` and `@docs/project/CURRENT_STATE.md`, keeping a pointer to the other docs.
-- [ ] Make `AGENTS.md` "Read first" role-based and update its spec-driven steps to the new loop.
-- [ ] Update `docs/project/COMMANDS.md` with the per-host skill commands.
-- [ ] Renumber specs in `docs/project/ROADMAP.md`/`WORKFLOW.md` so ingestion is 004, and add 003 to Phase 0.
+- [x] Trim `CLAUDE.md` to import only `@AGENTS.md` and `@docs/project/CURRENT_STATE.md`, keeping a pointer to the other docs.
+- [x] Make `AGENTS.md` "Read first" role-based and update its spec-driven steps to the new loop.
+- [x] Update `docs/project/COMMANDS.md` with the per-host skill commands.
+- [x] Renumber specs in `docs/project/ROADMAP.md`/`WORKFLOW.md` so ingestion is 004, and add 003 to Phase 0.
 
 ### Verification
 

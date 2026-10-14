@@ -39,6 +39,16 @@ make skills-check
 - `skills-sync` regenerates `.claude/skills/`, `.agents/skills/` and `.kiro/skills/` from `agent-skills/`.
 - `skills-check` fails if any mirror differs; it is part of `make verify`.
 
+Run a role (each in a fresh session; the orchestrator is the usual entry point):
+
+| Host | Commands |
+|---|---|
+| Claude Code | `/spec-orchestrator [NNN]`, `/spec-planner`, `/spec-implementer <NNN> [task]`, `/task-reviewer <NNN> <task>`, `/spec-reviewer <NNN>` |
+| Codex | `$spec-orchestrator`, `$spec-planner`, `$spec-implementer <NNN> [task]`, `$task-reviewer <NNN> <task>`, `$spec-reviewer <NNN>` |
+| Kiro | `/spec-orchestrator`, `/spec-planner`, `/spec-implementer`, `/task-reviewer`, `/spec-reviewer` |
+
+Find a task's commits: `git log --format=%H --reverse --grep='^Spec-Task: <NNN>/<task>$' main..spec/<NNN>`.
+
 ## Knowledge
 
 ```bash

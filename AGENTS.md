@@ -18,7 +18,11 @@ The architecture must remain ready for:
 
 ## Read first
 
-Before non-trivial implementation work, first read the fast-orientation layer:
+`CLAUDE.md` auto-loads only this file and `docs/project/CURRENT_STATE.md`.
+
+When a spec skill (`spec-orchestrator`, `spec-planner`, `spec-implementer`, `task-reviewer`, `spec-reviewer`) is in use, follow its own reading list; it names the minimum files for that role.
+
+For non-trivial work done without a skill, read:
 
 1. `docs/project/MISSION.md`
 2. `docs/project/CONSTITUTION.md`
@@ -125,22 +129,20 @@ Do not implement Phase 2 workflow features during Phase 1 unless the active spec
 
 ## Spec-driven development
 
-For non-trivial work:
+For non-trivial work, use the task-gated loop (`docs/project/WORKFLOW.md`):
 
-1. Locate the active spec under `.kiro/specs/<feature>/`.
-2. Read `requirements.md`.
-3. Read `design.md`.
-4. Implement only approved tasks from `tasks.md`. Approval is the `Status:` line in each spec file.
-5. If implementation reveals a requirements/design problem, update the spec first.
-6. Run required verification.
-7. Update task state.
-8. Update `docs/project/CURRENT_STATE.md`.
-9. Hand off for independent review; a spec is verified only after `review.md` records a PASS.
+1. Locate the active spec under `.kiro/specs/<feature>/`; read its `requirements.md`, `design.md` and `tasks.md`. Approval is the `Status:` line in each spec file.
+2. Work on branch `spec/<NNN>`, one task at a time; each task has a `**State:**` line and commits carry a `Spec-Task: <NNN>/<task-id>` trailer.
+3. Implement only approved tasks from `tasks.md`. If implementation reveals a requirements/design problem, update the spec first (`> BLOCKED: spec issue`).
+4. Run the task's verification, then hand off for task review (`task-reviewer`, recorded in `task-reviews.md`).
+5. The user approves each task; after approval the branch is pushed.
+6. When every task is approved the branch is merged into `main`; the spec is then verified. A final `spec-reviewer` retrospective is optional.
+7. Update `docs/project/CURRENT_STATE.md` at each transition.
 
 Do not silently expand scope.
 
-Spec status values, review records and remediation rounds are defined in `docs/project/WORKFLOW.md` ("Spec status").
-The `spec-planner`, `spec-implementer` and `spec-reviewer` skills (`agent-skills/`) automate this flow.
+Spec status values, task states, branching and `task-reviews.md` are defined in `docs/project/WORKFLOW.md` ("Spec status").
+The `spec-orchestrator`, `spec-planner`, `spec-implementer`, `task-reviewer` and `spec-reviewer` skills (`agent-skills/`) automate this flow.
 
 ## Development principles
 
