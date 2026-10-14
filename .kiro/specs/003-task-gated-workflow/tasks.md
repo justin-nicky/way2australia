@@ -22,13 +22,13 @@ Bootstrap: this spec is implemented under the pre-003 flow, directly on `main` (
 
 ## T2 — Create the task-reviewer skill
 
-**State:** not started
+**State:** in task review (round 1)
 **Requirements:** R3, R4, R9, R10, R11
 
-- [ ] Add `agent-skills/task-reviewer/SKILL.md`: inputs, minimal reading list, task-diff command, checks, read-only rule, verdicts, finding severity/classification, user summary, model recording.
-- [ ] Add `assets/task-review-template.md` matching design → "`task-reviews.md`".
-- [ ] Add `agents/openai.yaml` (explicit-only).
-- [ ] Specify state transitions the reviewer sets (`awaiting user review`, `task review failed — round N`, `blocked — spec issue`) and its `Spec-Review` commit.
+- [x] Add `agent-skills/task-reviewer/SKILL.md`: inputs, minimal reading list, task-diff command, checks, read-only rule, verdicts, finding severity/classification, user summary, model recording.
+- [x] Add `assets/task-review-template.md` matching design → "`task-reviews.md`".
+- [x] Add `agents/openai.yaml` (explicit-only).
+- [x] Specify state transitions the reviewer sets (`awaiting user review`, `task review failed — round N`, `blocked — spec issue`) and its `Spec-Review` commit.
 
 ### Verification
 
