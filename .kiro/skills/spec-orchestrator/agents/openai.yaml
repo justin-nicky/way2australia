@@ -1,0 +1,3 @@
+# Codex skill metadata: invoke this skill explicitly only ($skill-name or /skills).
+policy:
+  allow_implicit_invocation: false

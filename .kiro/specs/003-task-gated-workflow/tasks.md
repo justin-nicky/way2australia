@@ -56,17 +56,17 @@ Bootstrap: this spec is implemented under the pre-003 flow, directly on `main` (
 
 ## T4 — Create the spec-orchestrator skill
 
-**State:** not started
+**State:** in task review (round 1)
 **Requirements:** R4, R5, R6, R9, R10, R11
 
-- [ ] Add `agent-skills/spec-orchestrator/SKILL.md`: minimal reading list, never reads code or diffs, never writes spec content.
-- [ ] Add `references/state-machine.md` with the decision procedure (design → "Orchestrator decision procedure") and the state table.
-- [ ] Define how to start roles: a fresh session on the preferred model where the host supports it; otherwise print the exact command and intended model.
-- [ ] Define user interaction: relay the reviewer's summary, record approval/feedback verbatim in `task-reviews.md` and the `State:` line, `Spec-Decision` commit, push `spec/<NNN>` after approval.
-- [ ] Define routing: implementation feedback → implementer; spec feedback / `SPEC_DEFECT` → `blocked — spec issue` + planner; 2 consecutive FAILs → escalate.
-- [ ] Define spec completion: `all tasks approved`, optional retrospective offer, `--no-ff` merge, `make verify`, push, `verified (…, merged <sha>)`, `CURRENT_STATE.md` update.
-- [ ] Define the failure behaviors in design → "Error and failure behavior" (dirty tree, interrupted roles, conflicts, push rejection).
-- [ ] Add `agents/openai.yaml` (explicit-only).
+- [x] Add `agent-skills/spec-orchestrator/SKILL.md`: minimal reading list, never reads code or diffs, never writes spec content.
+- [x] Add `references/state-machine.md` with the decision procedure (design → "Orchestrator decision procedure") and the state table.
+- [x] Define how to start roles: a fresh session on the preferred model where the host supports it; otherwise print the exact command and intended model.
+- [x] Define user interaction: relay the reviewer's summary, record approval/feedback verbatim in `task-reviews.md` and the `State:` line, `Spec-Decision` commit, push `spec/<NNN>` after approval.
+- [x] Define routing: implementation feedback → implementer; spec feedback / `SPEC_DEFECT` → `blocked — spec issue` + planner; 2 consecutive FAILs → escalate.
+- [x] Define spec completion: `all tasks approved`, optional retrospective offer, `--no-ff` merge, `make verify`, push, `verified (…, merged <sha>)`, `CURRENT_STATE.md` update.
+- [x] Define the failure behaviors in design → "Error and failure behavior" (dirty tree, interrupted roles, conflicts, push rejection).
+- [x] Add `agents/openai.yaml` (explicit-only).
 
 ### Verification
 
