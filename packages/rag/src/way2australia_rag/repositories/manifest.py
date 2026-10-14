@@ -12,6 +12,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from jsonschema import Draft202012Validator
+from jsonschema.exceptions import SchemaError
 
 from way2australia_rag.repositories.errors import (
     DuplicateDocumentError,
@@ -47,12 +48,28 @@ class ManifestEntry:
     record: dict[str, Any]
 
 
+def describe_error(exc: Exception) -> str:
+    """Describe a read/parse failure without leaking absolute filesystem paths."""
+    if isinstance(exc, OSError):
+        return exc.strerror or type(exc).__name__
+    if isinstance(exc, json.JSONDecodeError):
+        return f"invalid JSON ({exc.msg} at line {exc.lineno})"
+    return type(exc).__name__
+
+
 def load_schema(schema_path: Path) -> Draft202012Validator:
     try:
         schema = json.loads(schema_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise ManifestValidationError(f"cannot load metadata schema: {exc}") from exc
-    Draft202012Validator.check_schema(schema)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ManifestValidationError(
+            f"cannot load metadata schema: {describe_error(exc)}"
+        ) from exc
+    try:
+        Draft202012Validator.check_schema(schema)
+    except SchemaError as exc:
+        raise ManifestValidationError(
+            f"metadata schema is invalid: {exc.message}"
+        ) from exc
     return Draft202012Validator(schema)
 
 
@@ -98,8 +115,10 @@ def load_manifest(
     """
     try:
         lines = manifest_path.read_text(encoding="utf-8").splitlines()
-    except OSError as exc:
-        raise ManifestValidationError(f"cannot read manifest: {exc}") from exc
+    except (OSError, UnicodeDecodeError) as exc:
+        raise ManifestValidationError(
+            f"cannot read manifest: {describe_error(exc)}"
+        ) from exc
 
     problems: list[ValidationProblem] = []
     entries: list[ManifestEntry] = []
@@ -109,7 +128,9 @@ def load_manifest(
         try:
             record = json.loads(line)
         except json.JSONDecodeError as exc:
-            problems.append(ValidationProblem(None, None, f"line {number}: {exc}"))
+            problems.append(
+                ValidationProblem(None, None, f"line {number}: {describe_error(exc)}")
+            )
             continue
         if not isinstance(record, dict):
             problems.append(
@@ -177,9 +198,8 @@ def check_manifest_documents(
         try:
             metadata, _body = split_frontmatter(file_path.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError, ValueError) as exc:
-            problems.append(
-                ValidationProblem(entry.document_id, "frontmatter", str(exc))
-            )
+            reason = str(exc) if type(exc) is ValueError else describe_error(exc)
+            problems.append(ValidationProblem(entry.document_id, "frontmatter", reason))
             continue
         found = schema_problems(validator, metadata, entry.document_id)
         problems.extend(found)

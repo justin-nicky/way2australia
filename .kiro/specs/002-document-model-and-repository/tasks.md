@@ -56,18 +56,18 @@ Unit tests prove:
 - a schema violation produces an actionable error naming the document and field.
 
 ## T4 — Implement LocalDocumentRepository
-**State:** not started
+**State:** in task review (round 1)
 
 **Requirements:** R3, R4, R9, R10
 
-- [ ] Implement explicit repository root configuration.
-- [ ] Parse Markdown frontmatter + body.
-- [ ] Load only approved production knowledge locations.
-- [ ] Build `KnowledgeDocument` instances.
-- [ ] Implement `get_document`.
-- [ ] Implement `list_documents`.
-- [ ] Exclude raw sources, evaluations, docs, release manifests and security fixtures.
-- [ ] Avoid hard-coded Malayalam-only behavior.
+- [x] Implement explicit repository root configuration.
+- [x] Parse Markdown frontmatter + body.
+- [x] Load only approved production knowledge locations.
+- [x] Build `KnowledgeDocument` instances.
+- [x] Implement `get_document`.
+- [x] Implement `list_documents`.
+- [x] Exclude raw sources, evaluations, docs, release manifests and security fixtures.
+- [x] Avoid hard-coded Malayalam-only behavior.
 
 ### Verification
 

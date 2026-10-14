@@ -31,3 +31,18 @@ Append-only; newest at the bottom.
 
 ### User decision
 - 2026-10-14 — approved
+
+## T4 — round 1
+
+### Implementation
+- Model: claude-sonnet-5-5
+- Commits: see `git log --grep "Spec-Task: 002/T4"`
+- Verification run: `make verify` -> pass (101 tests; 11 new in `test_local_repository.py`, 8 marked `integration`); `make test-integration` -> 8 passed (seed corpus loaded through the repository abstraction)
+- Notes:
+  - New `repositories/local.py`: `LocalDocumentRepository`, `LocalRepositoryConfig` (explicit `repo_root`; manifest path, schema path and approved roots are repo-relative, no CWD dependence; a test runs from a different CWD) and `DEFAULT_APPROVED_ROOTS` (business, official, languages). Async methods wrap a one-time cached load run via `asyncio.to_thread`.
+  - Loading is manifest-driven (per design): entries whose path is not under an approved root are skipped, so raw sources, evaluation, docs, config, releases and security fixtures are never read even if listed (tested with a manifest listing each). Validation reuses T3 (`check_manifest_documents`); any problem fails the whole load with `ManifestValidationError` naming document and field.
+  - `get_document` returns latest version unless pinned; `list_documents` sorts by `(document_id, version)` and applies all `DocumentQuery` filters. `lote_language` matches explicit codes or `*`; it never touches access scope. No Malayalam-specific code; directory placement is not used for authorization.
+  - **Interim `content_hash`**: T5 owns `content-hash-v1`, but `KnowledgeDocument` requires a hash now. `_provisional_content_hash` hashes the normalized body only; T5 must replace that single call. Not the final contract.
+  - T3 finding F2 fixed (in `manifest.py`, a T4-touched file): `load_schema` wraps `SchemaError` in `ManifestValidationError`; new `describe_error` replaces `str(exc)` for OS/JSON errors so messages carry no absolute paths. Tests added. F1 (record deps) stays for T9; F3 (nested `required` path prefix) not fixed, no effect with the current schema, deferred to T7.
+  - No files under `knowledge/`, `evaluation/` or `config/` touched.
+  - Not done: real `content_hash`, sha256/body_sha256 verification (T5), eligibility policy (T6), CLI (T7).
