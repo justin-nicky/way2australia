@@ -75,13 +75,13 @@ Bootstrap: this spec is implemented under the pre-003 flow, directly on `main` (
 
 ## T5 — Adjust spec-reviewer and spec-planner
 
-**State:** not started
+**State:** in task review (round 1)
 **Requirements:** R7, R8, R10
 
-- [ ] `spec-reviewer`: optional retrospective on `main...spec/<NNN>` and `task-reviews.md`; focus on cross-task concerns; write a "Notes for the next spec" section; no longer sets `verified`; findings that need code become `RM` tasks that run through the task loop.
-- [ ] Update `spec-reviewer/assets/review-report-template.md` and `references/review-checklist.md` to match.
-- [ ] `spec-planner`: read the previous spec's latest "Notes for the next spec"; write `**State:** not started` under every task; use the new `tasks.md` status values.
-- [ ] Update `spec-planner/assets/tasks-template.md` to include the `State:` line.
+- [x] `spec-reviewer`: optional retrospective on `main...spec/<NNN>` and `task-reviews.md`; focus on cross-task concerns; write a "Notes for the next spec" section; no longer sets `verified`; findings that need code become `RM` tasks that run through the task loop.
+- [x] Update `spec-reviewer/assets/review-report-template.md` and `references/review-checklist.md` to match.
+- [x] `spec-planner`: read the previous spec's latest "Notes for the next spec"; write `**State:** in task review (round 1)
+- [x] Update `spec-planner/assets/tasks-template.md` to include the `State:` line.
 
 ### Verification
 

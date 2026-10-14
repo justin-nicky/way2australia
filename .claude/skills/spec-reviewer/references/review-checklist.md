@@ -1,16 +1,15 @@
-# Review Checklist
+# Retrospective Checklist
 
-- Working from repository evidence only, in a fresh session/context.
-- Contract read before code; `## Change log` read.
-- Every requirement/DoD/out-of-scope item extracted.
-- Implementation delta inspected from the recorded base SHA.
-- Every requirement has implementation and verification evidence/status.
-- Package boundaries/security invariants/scope checked.
-- Protected paths (`evaluation/`, `knowledge/`, `config/`) diffed; unrequested changes are BLOCKING.
-- Required tests/evals/security checks actually run and recorded (including collected counts).
-- Only TRIVIAL issues fixed directly, each mapped to a category.
-- Relevant checks rerun after trivial fixes.
-- Findings classified IMPLEMENTATION or SPEC_DEFECT.
-- `review.md` round appended; `tasks.md` status and CURRENT_STATE updated.
-- On FAIL: RM tasks appended to `tasks.md`.
+- Only runs when the spec is `all tasks approved`; works from repository evidence in a fresh session.
+- Per-task checks not repeated; focus is cross-task.
+- Contract and `## Change log` read; `task-reviews.md` read.
+- Definition of Done and every requirement have evidence/status.
+- Cross-task consistency, docs vs. code, duplicated logic checked.
+- Scope drift and unrecorded spec edits checked over `main...spec/<NNN>`.
+- Package boundaries and security invariants checked.
+- Protected paths (`evaluation/`, `knowledge/`, `config/`) diffed; unrequired changes are BLOCKING.
+- `make verify` and spec-level checks actually run and recorded.
+- Nothing fixed by the reviewer; findings classified IMPLEMENTATION or SPEC_DEFECT.
+- `review.md` round appended with "Notes for the next spec".
+- RM tasks (with `State: not started`) added for code findings; `Status:` set back to `implementing (…)` if so.
 - Verdict reflects evidence, not confidence.

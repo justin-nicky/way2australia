@@ -1,9 +1,9 @@
 ## Round <N> — <YYYY-MM-DD>
 
 - **Spec:** `<NNN-feature-name>`
-- **Commits reviewed:** `<base-sha>..<head-sha>`
+- **Diff reviewed:** `main...spec/<NNN>` (head `<sha>`)
 - **Reviewer host / model:** <e.g. Claude Code / model id>
-- **Verdict:** `PASS | PASS WITH TRIVIAL FIXES | FAIL`
+- **Outcome:** `CLEAN | RM TASKS ADDED | SPEC_DEFECTS FOUND` (advisory; does not gate verification)
 
 ### Verification run
 
@@ -17,7 +17,7 @@
 
 ### Protected-data check
 
-`git diff --stat <base>..HEAD -- evaluation/ knowledge/ config/` → <result and justification per changed file>
+`git diff --stat main...spec/<NNN> -- evaluation/ knowledge/ config/` → <result and justification per changed file>
 
 ### Findings
 
@@ -25,15 +25,16 @@
 |---|---|---|---|---|
 | F1 | BLOCKING / MAJOR / MINOR | IMPLEMENTATION / SPEC_DEFECT | R# / T# | ... |
 
-### Trivial fixes applied
-
-| File | Category | Change |
-|---|---|---|
+### Cross-task consistency
 
 ### Scope-drift review
 
 ### Remediation required
 
-<!-- FAIL only: RM<N>.<k> tasks appended to tasks.md; SPEC_DEFECT items for spec-planner. -->
+<!-- RM<N>.<k> tasks appended to tasks.md; SPEC_DEFECT items for spec-planner. -->
+
+### Notes for the next spec
+
+<!-- Lessons, deferred items, risks, decisions affecting upcoming specs. -->
 
 ### Final handoff

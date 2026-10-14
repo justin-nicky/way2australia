@@ -22,7 +22,7 @@ Create or revise one coherent major spec:
 
 Do not implement production code while using this skill.
 
-Spec status values and the review/remediation lifecycle are defined in `docs/project/WORKFLOW.md` → "Spec status". Follow them exactly; do not invent new states.
+Spec status values, task `State:` values and the task-gated loop are defined in `docs/project/WORKFLOW.md` → "Spec status". Follow them exactly; do not invent new states.
 
 ## Spec sizing
 
@@ -43,7 +43,7 @@ Before asking questions, read enough context to avoid making the user repeat dec
 
 - the `AGENTS.md` "Read first" list (mission, constitution, tech stack, roadmap, current state) plus `docs/project/DECISIONS.md` and `docs/project/ARCHITECTURE.md`;
 - relevant `docs/knowledge/*`;
-- existing `.kiro/specs/*`;
+- existing `.kiro/specs/*`, and the latest "Notes for the next spec" in the previous spec's `review.md`, when present;
 - relevant code/tests/config.
 
 Do not rely on private chat history as required project context.
@@ -109,7 +109,8 @@ Each task:
 - is a meaningful implementation unit;
 - is dependency ordered;
 - lists the requirement IDs it satisfies (`**Requirements:** R1, R3`);
-- has subtasks and a verification block that names real commands or checks.
+- has subtasks and a verification block that names real commands or checks;
+- carries `**State:** not started` directly under its heading (above `**Requirements:**`).
 
 Include final spec-wide verification, documentation and handoff work. Explicitly prevent work that belongs to the next spec.
 
@@ -123,13 +124,13 @@ Verification commands must exist in the `Makefile` or be created by a task in th
 
 Use this when an implementer or reviewer reports a spec defect, or the user requests a change. Skip the Decision Brief for small amendments; use the full new-spec flow if the change alters the spec's objective or scope boundary.
 
-1. Read the current spec files, `tasks.md` status, and any `review.md` or `> BLOCKED:` notes.
+1. Read the current spec files, `tasks.md` status, task `State:` lines, and any `review.md`, `task-reviews.md` findings or `> BLOCKED:` notes.
 2. Present a change note: what changes, why, affected `R#`/`T#`, which checked tasks must be re-opened.
 3. Get explicit approval.
 4. Edit only the affected sections.
 5. Append one dated line to `## Change log` in `requirements.md` (e.g. `- 2026-10-14 — R5: manifest mismatch is an error, not a warning (found during T3). Re-opened T3.`).
-6. Set each edited file to `Status: approved (YYYY-MM-DD)` with the new date. Uncheck tasks whose acceptance criteria changed and remove any `> BLOCKED:` note you resolved.
-7. Hand back to `spec-implementer`.
+6. Set each edited file to `Status: approved (YYYY-MM-DD)` with the new date. Uncheck tasks whose acceptance criteria changed, set their `**State:**` to `not started`, and remove any `> BLOCKED:` note you resolved.
+7. Hand back to `spec-orchestrator` (or `spec-implementer` for the re-opened task).
 
 Never rewrite requirements/design merely so that existing code passes.
 
@@ -151,4 +152,4 @@ Report:
 - number of tasks;
 - prerequisites;
 - expected implementation tier: **BEST_MINUS_ONE**;
-- readiness for `spec-implementer`.
+- readiness for `spec-orchestrator` / `spec-implementer`.
