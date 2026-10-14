@@ -80,7 +80,7 @@ Bootstrap: this spec is implemented under the pre-003 flow, directly on `main` (
 
 - [x] `spec-reviewer`: optional retrospective on `main...spec/<NNN>` and `task-reviews.md`; focus on cross-task concerns; write a "Notes for the next spec" section; no longer sets `verified`; findings that need code become `RM` tasks that run through the task loop.
 - [x] Update `spec-reviewer/assets/review-report-template.md` and `references/review-checklist.md` to match.
-- [x] `spec-planner`: read the previous spec's latest "Notes for the next spec"; write `**State:** in task review (round 1)
+- [x] `spec-planner`: read the previous spec's latest "Notes for the next spec"; write `**State:** not started` under every task; use the new `tasks.md` status values.
 - [x] Update `spec-planner/assets/tasks-template.md` to include the `State:` line.
 
 ### Verification
@@ -124,8 +124,8 @@ Bootstrap: this spec is implemented under the pre-003 flow, directly on `main` (
 **Requirements:** R7, R12
 
 - [x] Set Spec 002 `tasks.md` status to `implementing (branch spec/002, base 5bbb333)`.
-- [x] Add `**State:** in task review (round 1)
-- [x] Add `**State:** in task review (round 1)
+- [x] Add `**State:** approved (2026-10-14)` to T1 and T2, with a note that they predate task review.
+- [x] Add `**State:** not started` to T3–T9 without changing checkbox text.
 - [x] Update `docs/project/CURRENT_STATE.md`: Spec 002 paused after T2, resuming under the new flow; Spec 003 in progress.
 
 ### Verification
