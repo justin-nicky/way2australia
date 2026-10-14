@@ -76,7 +76,8 @@ Implemented:
 - task-gated spec-driven skills (`spec-orchestrator`, `spec-planner`, `spec-implementer`, `task-reviewer`, optional `spec-reviewer`), with canonical source in `agent-skills/`, mirrored to `.claude/skills/`, `.agents/skills/` (Codex) and `.kiro/skills/` by `make skills-sync`, and checked by `make skills-check` (part of `make verify`); not yet exercised on real work (dry run is Spec 003 T9);
 - task state lifecycle (`**State:**` lines, `task-reviews.md`, `spec/<NNN>` branches, `Spec-Task` trailers) and spec `Status:` values defined in `docs/project/WORKFLOW.md`, decision D023;
 - `CLAUDE.md` imports only `AGENTS.md` and this file; other docs are read per role;
-- `Makefile` uses a standalone `uv` binary when available and falls back to `python3 -m uv`.
+- `Makefile` uses a standalone `uv` binary when available and falls back to `python3 -m uv`;
+- on branch `spec/002` (not yet on `main`): knowledge manifest loading and validation (schema, duplicate identity, missing files, manifest/frontmatter mismatch) — Spec 002 T3.
 
 Not yet implemented:
 - Pydantic domain models;
@@ -94,12 +95,12 @@ Not yet implemented:
 | Spec | Status |
 |---|---|
 | 001 — project foundation | implemented; completed before the review process existed (no `review.md`) |
-| 002 — document model and repository | **implementing** on branch `spec/002` (base `869c37f`; T1–T2 on `main`, approved without task review). T3 is the Spec 003 T9 dry run; T3–T9 `not started` |
+| 002 — document model and repository | **implementing** on branch `spec/002` (base `869c37f`; T1–T2 on `main`, approved without task review). T3 (the Spec 003 T9 dry run) approved 2026-10-14 after task review round 1 PASS: manifest loading and metadata validation in `packages/rag/.../repositories/manifest.py` and `frontmatter.py`, new deps `jsonschema` and `pyyaml`. T4–T9 `not started` |
 | 003 — task-gated agent workflow | **implementing** (bootstrap exception: directly on `main`, base `9e95cfe`): T1–T8 done, in task review; T9 dry run (needs the user) and T10 pending |
 
 ## Next step
 
-1. Review Spec 003 T1–T8, then run Spec 003 T9: `spec-orchestrator` creates `spec/002` and runs Spec 002 T3 through implementer → task-reviewer → user approval.
+1. Spec 003 T9 dry run done: Spec 002 T3 went implementer → task-reviewer → user approval on `spec/002`. Record any workflow defects it showed.
 2. Fix any workflow defects found, then T10 and mark Spec 003 verified.
 3. Continue Spec 002 T4–T9 with `spec-orchestrator`.
 

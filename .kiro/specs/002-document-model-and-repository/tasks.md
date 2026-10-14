@@ -34,7 +34,7 @@ Unit tests cover valid and invalid model construction.
 A fake/in-memory repository can satisfy the interface without local files.
 
 ## T3 — Implement manifest and metadata validation
-**State:** awaiting user review (round 1)
+**State:** approved (2026-10-14)
 
 **Requirements:** R2, R5, R6
 

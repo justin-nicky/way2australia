@@ -28,3 +28,6 @@ Append-only; newest at the bottom.
   - Changed: new `packages/rag/.../repositories/manifest.py` (load manifest, schema-check records and frontmatter, reject duplicate `document_id` and `(document_id, document_version)`, detect missing files, compare manifest to frontmatter) and `frontmatter.py` (YAML frontmatter split, dates kept as strings); 16 unit tests; `jsonschema` + `pyyaml` added to `packages/rag`.
   - Verified by: `make verify` (90 tests, ruff, pyright), the T3 test file (all five required verification cases, plus the real seed manifest validating with 0 problems); no seed/eval/config files touched.
   - Worth your attention: (1) two new dependencies — approve or object; (2) the manifest is treated as a subset of frontmatter: a field only the frontmatter has (e.g. `effective_from`) is not a mismatch, and a `null` manifest value missing from frontmatter is ignored; (3) structural/duplicate errors raise, per-document problems are returned as a list for T7's CLI; (4) a repeated `document_id` with a different version is rejected, so the manifest holds one version per document.
+
+### User decision
+- 2026-10-14 — approved
