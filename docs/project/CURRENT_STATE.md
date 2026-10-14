@@ -94,7 +94,7 @@ Not yet implemented:
 | Spec | Status |
 |---|---|
 | 001 — project foundation | implemented; completed before the review process existed (no `review.md`) |
-| 002 — document model and repository | **paused** after T2 (base `5bbb333`; T1–T2 on `main`, approved without task review). Resumes on branch `spec/002` from T3 under the new flow (T3 = Spec 003 T9 dry run); T3–T9 `not started` |
+| 002 — document model and repository | **implementing** on branch `spec/002` (base `869c37f`; T1–T2 on `main`, approved without task review). T3 is the Spec 003 T9 dry run; T3–T9 `not started` |
 | 003 — task-gated agent workflow | **implementing** (bootstrap exception: directly on `main`, base `9e95cfe`): T1–T8 done, in task review; T9 dry run (needs the user) and T10 pending |
 
 ## Next step

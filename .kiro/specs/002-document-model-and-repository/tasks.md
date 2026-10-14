@@ -1,6 +1,6 @@
 # 002 — Document Model and DocumentRepository Tasks
 
-Status: implementing (branch spec/002, base 5bbb333)
+Status: implementing (branch spec/002, base 869c37f)
 
 ## T1 — Implement document domain model
 **State:** approved (2026-10-14) — predates task review
