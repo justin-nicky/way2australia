@@ -74,7 +74,7 @@ Unit tests prove:
 Integration tests load the expected local seed corpus through the repository abstraction.
 
 ## T5 — Implement deterministic content hashing
-**State:** in task review (round 1)
+**State:** awaiting user review (round 1)
 
 **Requirements:** R7
 
