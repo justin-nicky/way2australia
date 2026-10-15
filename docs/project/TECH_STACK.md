@@ -7,6 +7,8 @@ This file records the currently selected implementation stack and intentional no
 - Language: Python
 - API framework: FastAPI
 - Data validation/settings: Pydantic / Pydantic Settings
+- Manifest schema validation: `jsonschema` (JSON Schema validation of the document manifest, `packages/rag`)
+- Frontmatter parsing: `pyyaml` (YAML frontmatter of knowledge documents, `packages/rag`)
 - HTTP client: httpx
 - Testing: pytest
 - Data analysis/evaluation support: Pandas where useful

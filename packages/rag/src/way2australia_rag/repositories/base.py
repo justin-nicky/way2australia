@@ -11,6 +11,7 @@ from typing import Protocol
 
 from pydantic import BaseModel, ConfigDict
 from way2australia_core.documents import (
+    ALL_LOTE_LANGUAGES,
     AccessScope,
     ApprovalStatus,
     KnowledgeDocument,
@@ -38,6 +39,26 @@ class DocumentQuery(BaseModel):
     retrieval_enabled: bool | None = None
     synthetic: bool | None = None
     lote_language: str | None = None
+
+    def matches(self, document: KnowledgeDocument) -> bool:
+        """True when `document` satisfies every set filter (the one shared rule).
+
+        A document applies to a language when it is global (`*`) or lists the
+        code. Language only narrows; it is independent of access scope.
+        """
+        scopes = self.allowed_access_scopes
+        return (
+            (scopes is None or document.access_scope in scopes)
+            and self.approval_status in (None, document.approval_status)
+            and self.lifecycle_status in (None, document.lifecycle_status)
+            and self.retrieval_enabled in (None, document.retrieval_enabled)
+            and self.synthetic in (None, document.synthetic)
+            and (
+                self.lote_language is None
+                or ALL_LOTE_LANGUAGES in document.lote_languages
+                or self.lote_language in document.lote_languages
+            )
+        )
 
 
 class DocumentRepository(Protocol):

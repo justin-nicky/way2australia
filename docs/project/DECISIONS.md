@@ -122,3 +122,11 @@ Remains from D022:
 - `review.md` and `RM<N>.<k>` tasks, now only for the optional retrospective.
 
 Model tiers stay advisory and apply when a session starts. Spec 003 itself was implemented under the old flow directly on `main` (bootstrap exception). The roadmap's ingestion spec is renumbered 004.
+
+## D024 — Document repository, hashing and eligibility (Spec 002)
+- `DocumentRepository` is a `Protocol` in `packages/rag`; `LocalDocumentRepository` reads the validated manifest and never exposes physical paths to callers.
+- `content_hash` (`content-hash-v1`) is the only change-detection signal for ingestion. It covers the normalized body hash plus retrieval-affecting metadata; identity, review dates, release and path fields are excluded. Changing the recipe requires a new `HASH_CONTRACT` value. Manifest `sha256` (raw file) and `body_sha256` (body) are integrity checks the loader verifies.
+- Production eligibility is one explicit `EligibilityPolicy`: approved AND active AND `retrieval_enabled` AND not synthetic AND `access_scope` in server-owned allowed scopes (Phase 1: `guest` -> `public`). Never inferred from directory; language metadata never widens access. Security fixtures are valid but ineligible and are tested through an isolated repository.
+- The language rule lives only in `DocumentQuery.matches`.
+- `make validate-knowledge` checks the seed corpus and runs inside `make verify`.
+- New runtime dependencies in `packages/rag`: `jsonschema` (manifest JSON Schema validation, required by the design) and `pyyaml` (frontmatter parsing). Both are small, widely used and pinned in `uv.lock`.
