@@ -15,7 +15,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from pydantic import ValidationError
-from way2australia_core.documents import ALL_LOTE_LANGUAGES, KnowledgeDocument
+from way2australia_core.documents import KnowledgeDocument
 
 from way2australia_rag.repositories.base import DocumentQuery
 from way2australia_rag.repositories.errors import (
@@ -59,28 +59,6 @@ class LocalRepositoryConfig:
 def under_root(path: str, roots: Sequence[str]) -> bool:
     parts = PurePosixPath(path).parts
     return any(parts[: len(r)] == r for r in (PurePosixPath(x).parts for x in roots))
-
-
-def _applies_to_language(document: KnowledgeDocument, language: str) -> bool:
-    return (
-        ALL_LOTE_LANGUAGES in document.lote_languages
-        or language in document.lote_languages
-    )
-
-
-def _matches(document: KnowledgeDocument, query: DocumentQuery) -> bool:
-    scopes = query.allowed_access_scopes
-    return (
-        (scopes is None or document.access_scope in scopes)
-        and query.approval_status in (None, document.approval_status)
-        and query.lifecycle_status in (None, document.lifecycle_status)
-        and query.retrieval_enabled in (None, document.retrieval_enabled)
-        and query.synthetic in (None, document.synthetic)
-        and (
-            query.lote_language is None
-            or _applies_to_language(document, query.lote_language)
-        )
-    )
 
 
 def document_fields(body: str, metadata: dict[str, Any]) -> dict[str, Any]:
@@ -128,7 +106,7 @@ class LocalDocumentRepository:
         documents = await self._load()
         if query is None:
             return list(documents)
-        return [d for d in documents if _matches(d, query)]
+        return [d for d in documents if query.matches(d)]
 
     async def _load(self) -> list[KnowledgeDocument]:
         async with self._lock:

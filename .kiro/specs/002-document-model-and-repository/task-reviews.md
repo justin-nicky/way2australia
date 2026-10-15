@@ -157,3 +157,33 @@ Append-only; newest at the bottom.
 
 ### User decision
 - 2026-10-15 — approved
+
+## T8 — round 1
+
+### Implementation
+- Model: claude-sonnet-5-5
+- Commits: none yet (changes left uncommitted for task review)
+- Files changed: `packages/rag/src/way2australia_rag/repositories/base.py` (new `DocumentQuery.matches`); `repositories/local.py` (private `_matches`/`_applies_to_language` removed); `repositories/eligibility.py` (uses `DocumentQuery.matches`); new `packages/rag/tests/conftest.py`; new `packages/rag/tests/test_seed_corpus.py` (3 integration tests); `packages/rag/tests/test_eligibility.py`; `packages/rag/tests/test_repository_contract.py` (+1 test); `tasks.md` (T8 ticks and State)
+- Verification run: `make verify` -> pass (170 tests, ruff and pyright clean, skills mirrors match, validate-knowledge OK); `make test-integration` -> 13 passed
+- Notes:
+  - T6 F1: new `security_repository` fixture (`conftest.py`) copies the schema and the two security fixtures into `tmp_path` under an isolated approved root, generates a manifest (sha256, body_sha256), and returns a `LocalDocumentRepository`. `test_eligibility.py` loads fixtures through it, so they are schema- and hash-validated, and also asserts `list_eligible_documents` over that repository returns nothing.
+  - T6 F2: the language rule now lives only in `DocumentQuery.matches` (public method; same behavior). `LocalDocumentRepository` and `list_eligible_documents` both call it; tests no longer import a private helper. This adds a public method to `DocumentQuery`; no field or Protocol change.
+  - T6 F3: no eligibility/fixture tests were copied. Existing tests from T1-T7 already cover models, manifest loading, hashing, eligibility, repository get/list; T8 added only the missing checks: seed (id) and (id, version) uniqueness, fixtures absent from manifest/production roots/guest-eligible set, and a `matches` contract test.
+  - Seed uniqueness is also enforced by the loader; the test asserts it on the real corpus explicitly.
+  - Not touched: T3 F1 (deps, T9); T7 F1-F3 (accepted/deferred). No files under `knowledge/`, `evaluation/` or `config/` touched. No new dependencies. Unrelated formatter churn in `test_content_hash.py` reverted.
+
+### Review
+- Model: claude-opus-5-5
+- Verdict: PASS
+- Commands: `make verify` → pass (ruff clean; pyright 0 errors; skill mirrors match (5 skills); `validate-knowledge: OK, 0 problems`; 170 tests passed); `make test-integration` → pass (13 passed, 157 deselected); `git status --porcelain -- evaluation/ knowledge/ config/` → empty
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R11] Tests import shared constants with `from conftest import ...` (`test_eligibility.py`, `test_seed_corpus.py`). This relies on pytest's default `prepend` import mode putting `packages/rag/tests` on `sys.path`; a second `conftest.py` elsewhere (e.g. `apps/api/tests/`) or a switch to `importlib` mode would break or shadow it → optionally move the constants into a small helper module and keep only the fixture in `conftest.py`.
+  - F2 [MINOR, IMPLEMENTATION, R10] T8 adds a public `DocumentQuery.matches` to the T2 contract module (`base.py`). It resolves T6 F2 without changing fields or the Protocol and is covered by a contract test, but it is a source change inside a tests task → note only.
+  - F3 [MINOR, IMPLEMENTATION, R11] `test_no_fixture_file_sits_under_a_production_root` matches by file name only; a renamed copy of a fixture under `knowledge/public/` would pass it. The ID-based checks in `test_security_fixtures_are_not_in_the_production_corpus` and `validate-knowledge` cover that case → no action needed.
+- Summary for user (PASS only):
+  - Changed: new `packages/rag/tests/conftest.py` (isolated `security_repository` fixture: copies the schema and both security fixtures to `tmp_path` with a generated manifest) and `packages/rag/tests/test_seed_corpus.py` (seed ID/version uniqueness, security fixtures absent from manifest, production roots and guest-eligible set). `test_eligibility.py` now loads the fixtures through that repository (schema- and hash-validated) and asserts they are ineligible. The language/scope filter rule moved into one public `DocumentQuery.matches` (`base.py`), used by `local.py` and `eligibility.py`; private helpers removed.
+  - Verified by: `make verify` (170 tests, lint, types, skills check, validate-knowledge) and `make test-integration` (13 tests). All R11 acceptance items are covered across the T1–T8 test files.
+  - Worth your attention: `DocumentQuery` gained a public `matches` method (behaviour unchanged; closes T6 F2). Tests import constants from `conftest.py`, which works but is fragile (F1). No protected data touched, no new dependencies.
+
+### User decision
+- 2026-10-15 — approved

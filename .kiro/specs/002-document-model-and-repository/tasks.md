@@ -134,18 +134,18 @@ Tests cover:
 - Tests run the entry point against temporary broken repositories (duplicate ID, missing file, schema violation, hash mismatch) and assert exit code `1` with the document ID in the output.
 
 ## T8 — Add complete automated tests
-**State:** not started
+**State:** approved (2026-10-15)
 
 **Requirements:** R11
 
-- [ ] Add unit tests for models.
-- [ ] Add unit tests for manifest loading.
-- [ ] Add unit tests for hashing.
-- [ ] Add unit tests for eligibility.
-- [ ] Add repository integration tests.
-- [ ] Verify real seed corpus IDs/versions are unique.
-- [ ] Assert `tests/fixtures/security/` is not in the production corpus.
-- [ ] Assert both security fixtures parse as valid documents and are ineligible for guest/public (valid-but-ineligible, see design "Security fixtures").
+- [x] Add unit tests for models.
+- [x] Add unit tests for manifest loading.
+- [x] Add unit tests for hashing.
+- [x] Add unit tests for eligibility.
+- [x] Add repository integration tests.
+- [x] Verify real seed corpus IDs/versions are unique.
+- [x] Assert `tests/fixtures/security/` is not in the production corpus.
+- [x] Assert both security fixtures parse as valid documents and are ineligible for guest/public (valid-but-ineligible, see design "Security fixtures").
 
 ### Verification
 

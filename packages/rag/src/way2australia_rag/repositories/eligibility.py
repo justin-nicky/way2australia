@@ -20,7 +20,6 @@ documents apply, it cannot widen access.
 from dataclasses import dataclass
 
 from way2australia_core.documents import (
-    ALL_LOTE_LANGUAGES,
     AccessScope,
     ApprovalStatus,
     KnowledgeDocument,
@@ -85,9 +84,5 @@ async def list_eligible_documents(
         d
         for d in documents
         if policy.is_eligible(d)
-        and (
-            lote_language is None
-            or ALL_LOTE_LANGUAGES in d.lote_languages
-            or lote_language in d.lote_languages
-        )
+        and DocumentQuery(lote_language=lote_language).matches(d)
     ]

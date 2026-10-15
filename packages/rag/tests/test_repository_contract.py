@@ -171,3 +171,20 @@ def test_error_messages_name_document_and_field() -> None:
         "d: sha256: mismatch"
     )
     assert str(ManifestValidationError("empty manifest")) == "empty manifest"
+
+
+def test_query_matches_is_the_single_language_and_scope_rule() -> None:
+    global_doc = make_document()
+    ml_doc = make_document(
+        language_scope="language_specific", lote_languages=["ml"], content_language="ml"
+    )
+    staff_doc = make_document(access_scope="staff")
+
+    assert DocumentQuery().matches(staff_doc)
+    assert DocumentQuery(lote_language="xx").matches(global_doc)
+    assert not DocumentQuery(lote_language="xx").matches(ml_doc)
+    assert DocumentQuery(lote_language="ml").matches(ml_doc)
+    scopes = frozenset({AccessScope.PUBLIC})
+    assert not DocumentQuery(allowed_access_scopes=scopes, lote_language="*").matches(
+        staff_doc
+    )

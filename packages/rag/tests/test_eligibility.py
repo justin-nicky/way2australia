@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from conftest import FIXTURE_IDS
 from way2australia_core.documents import (
     AccessScope,
     ApprovalStatus,
@@ -17,15 +18,8 @@ from way2australia_rag.repositories import (
     LocalRepositoryConfig,
     list_eligible_documents,
 )
-from way2australia_rag.repositories.frontmatter import split_frontmatter
-from way2australia_rag.repositories.hashing import (
-    compute_content_hash,
-    normalize_body,
-)
-from way2australia_rag.repositories.local import _matches
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-SECURITY_FIXTURES = REPO_ROOT / "tests/fixtures/security"
 
 
 def make_document(**overrides: Any) -> KnowledgeDocument:
@@ -210,7 +204,7 @@ def test_local_repository_applies_the_policy_query() -> None:
             self, query: DocumentQuery | None = None
         ) -> list[KnowledgeDocument]:
             assert query is not None
-            return [d for d in self._documents if _matches(d, query)]
+            return [d for d in self._documents if query.matches(d)]
 
     result = asyncio.run(list_eligible_documents(Fixed(documents), GUEST_PUBLIC_POLICY))
 
@@ -228,22 +222,17 @@ def test_seed_corpus_is_entirely_eligible_for_guest() -> None:
     assert {d.document_id for d in eligible} == {d.document_id for d in stored}
 
 
-def load_fixture(name: str) -> KnowledgeDocument:
-    metadata, body = split_frontmatter(
-        (SECURITY_FIXTURES / name).read_text(encoding="utf-8")
-    )
-    fields = {k: v for k, v in metadata.items() if k in KnowledgeDocument.model_fields}
-    fields["content"] = normalize_body(body)
-    fields["content_hash"] = compute_content_hash(body, metadata)
-    return KnowledgeDocument.model_validate(fields)
-
-
-@pytest.mark.parametrize(
-    "name", ["staff_only_canary.md", "poisoned_public_document.md"]
-)
-def test_security_fixtures_are_valid_but_ineligible_for_guest(name: str) -> None:
-    document = load_fixture(name)
+@pytest.mark.parametrize("name", sorted(FIXTURE_IDS))
+def test_security_fixtures_are_valid_but_ineligible_for_guest(
+    security_repository: LocalDocumentRepository, name: str
+) -> None:
+    # Loading through the repository proves the fixture is schema-valid.
+    document = asyncio.run(security_repository.get_document(FIXTURE_IDS[name]))
 
     assert document.retrieval_enabled is True
     assert not GUEST_PUBLIC_POLICY.is_eligible(document)
     assert eligible_ids([document]) == []
+    assert (
+        asyncio.run(list_eligible_documents(security_repository, GUEST_PUBLIC_POLICY))
+        == []
+    )
