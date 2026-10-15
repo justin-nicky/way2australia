@@ -1,6 +1,6 @@
 # 002 — Document Model and DocumentRepository Tasks
 
-Status: all tasks approved (2026-10-15)
+Status: verified (2026-10-15, merged dca6cbd)
 
 ## T1 — Implement document domain model
 **State:** approved (2026-10-14) — predates task review
