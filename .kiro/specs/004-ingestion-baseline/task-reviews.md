@@ -99,3 +99,29 @@
 
 ### User decision (round 3)
 - 2026-10-15 — approved
+
+
+## T3 — round 1
+
+### Implementation
+- Model: claude-sonnet-5-5 (matches BEST_MINUS_ONE tier; no mismatch)
+- Files changed: `packages/rag/src/way2australia_rag/ingestion/embedding.py` (new: frozen `EmbedderInfo`, `Embedder` Protocol with separate `embed_documents`/`embed_query`, `FakeEmbedder`), `packages/rag/tests/ingestion/test_embedding.py` (new), `tasks.md` (T3 boxes ticked, State). Earlier blocks in this file were not modified (append only).
+- Verification run: `make test-unit` -> pass (209 passed, 13 deselected); `make verify` -> exit 0 (ruff, pyright, skills-check, validate-knowledge, 222 passed). No separate integration run beyond `make verify`.
+- Notes: FakeEmbedder expands SHA-256(counter || utf-8 text) blocks to the vector size, maps bytes to [-1, 1], then L2-normalizes; model ID `fake-hash-embedder`, revision `1`, default size 64, `is_fake=True`, `normalize=True`. A vector size below 1 raises `IngestionConfigurationError` (small internal choice). `EmbedderInfo.settings` defaults to `{}`. The no-PyTorch test runs a subprocess and checks `torch`/`sentence_transformers` are not in `sys.modules`. Nothing under `knowledge/`, `config/` or `evaluation/` changed. Not committed.
+- Usage: 79K tokens · 12 tool uses · 4:19
+
+### Review
+- Model: claude-opus-5-5 (matches BEST tier; different model from the implementer)
+- Verdict: PASS
+- Commands: `make test-unit` → pass (209 passed, 13 deselected); `make verify` → exit 0 (ruff clean, pyright 0 errors, skills-check 5 mirrors match, validate-knowledge 0 problems, 222 passed); `make test-integration` → pass (13 collected, 13 passed); `pytest packages/rag/tests/ingestion/test_embedding.py` → 14 passed. Protected paths (`evaluation/ knowledge/ config/`) unchanged.
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R5] `test_info_reports_fake_identity` asserts immutability with `pytest.raises(Exception)`; a narrower `pydantic.ValidationError` would avoid passing on an unrelated error.
+  - F2 [MINOR, IMPLEMENTATION, R5] `test_no_pytorch_import` cannot fail in the current environment because `torch` is not installed; it becomes meaningful once T4's `bge-m3` group is installed. No action needed now.
+- Summary for user (PASS only):
+  - Changed: new `packages/rag/src/way2australia_rag/ingestion/embedding.py` with frozen `EmbedderInfo`, the `Embedder` Protocol (`embed_documents` / `embed_query`) and `FakeEmbedder` (`fake-hash-embedder`, revision `1`, default size 64, SHA-256 counter-expanded, L2-normalized, dense-only); tests in `packages/rag/tests/ingestion/test_embedding.py`.
+  - Verified by: `make test-unit`, `make verify`, `make test-integration`; 14 new tests cover determinism (incl. Malayalam text), sizes 1–1024, normalization, query vs document agreement, fake identity, protocol conformance, invalid size, no PyTorch import.
+  - Worth your attention: vector size below 1 raises `IngestionConfigurationError` (small choice not in the spec); `FakeEmbedder.info.settings` is empty. Two MINOR test-tightness notes above.
+- Usage: 70K tokens · 9 tool uses · 1:56
+
+### User decision
+- 2026-10-15 — approved

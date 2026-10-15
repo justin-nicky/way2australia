@@ -45,12 +45,12 @@ Implement in order; each task depends on the ones before it. New ingestion code 
 
 ## T3 — Embedder interface and deterministic fake
 
-**State:** not started
+**State:** approved (2026-10-15)
 **Requirements:** R5
 
-- [ ] Implement `EmbedderInfo` (frozen: model ID, revision, vector size, normalize, is_fake, settings) and the `Embedder` Protocol with separate `embed_documents()` and `embed_query()` in `embedding.py`.
-- [ ] Implement `FakeEmbedder` (model ID `fake-hash-embedder`, revision `1`, configurable vector size, default 64, `is_fake = True`): SHA-256-derived, expanded to the vector size, L2-normalized, dense-only.
-- [ ] Unit tests: same text gives same vector; declared size; normalization; query vs document methods; `is_fake`; no PyTorch import.
+- [x] Implement `EmbedderInfo` (frozen: model ID, revision, vector size, normalize, is_fake, settings) and the `Embedder` Protocol with separate `embed_documents()` and `embed_query()` in `embedding.py`.
+- [x] Implement `FakeEmbedder` (model ID `fake-hash-embedder`, revision `1`, configurable vector size, default 64, `is_fake = True`): SHA-256-derived, expanded to the vector size, L2-normalized, dense-only.
+- [x] Unit tests: same text gives same vector; declared size; normalization; query vs document methods; `is_fake`; no PyTorch import.
 
 ### Verification
 
