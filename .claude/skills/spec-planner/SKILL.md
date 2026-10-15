@@ -9,6 +9,8 @@ description: Create or revise one major Way2Australia AI project spec under .kir
 
 Intended tier: **BEST**. See `agent-skills/MODEL_PREFERENCES.md` at the repository root. Tiers are advisory: if the host cannot switch models, tell the user which model is intended and continue.
 
+Model check, before anything else: compare the model you are running on (from your system prompt) with the tier's model in `MODEL_PREFERENCES.md`. If they differ, tell the user which model is intended and ask whether to continue or switch first.
+
 ## Purpose
 
 Create or revise one coherent major spec:

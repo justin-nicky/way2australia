@@ -9,6 +9,8 @@ description: Verify exactly one implemented task of a Way2Australia AI spec (e.g
 
 Intended tier: **BEST** (`agent-skills/MODEL_PREFERENCES.md`). Tiers are advisory and applied when a session starts; never switch models mid-session. Record the model actually used. Run in a fresh session, not the implementer's.
 
+Model check, before anything else: compare the model you are running on (from your system prompt) with the tier's model in `MODEL_PREFERENCES.md`. If they differ, tell the user which model is intended and ask whether to continue or switch first; when started as a subagent with no user to ask, note the mismatch in your `task-reviews.md` block and continue.
+
 ## Inputs
 
 `<NNN-spec> <task-id>`. If either is missing or the task's State is not `in task review (round N)`, stop and report. Lifecycle, states and trailers: `docs/project/WORKFLOW.md` → "Spec status".
