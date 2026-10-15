@@ -1,6 +1,6 @@
 # 004 — Ingestion Baseline Tasks
 
-Status: approved (2026-10-15)
+Status: implementing (branch spec/004, base af659da)
 
 Implement in order; each task depends on the ones before it. New ingestion code lives under `packages/rag/src/way2australia_rag/ingestion/` and its tests under `packages/rag/tests/ingestion/` (design "Package / file placement"). `make verify` must never need Docker, PyTorch or a model download.
 
