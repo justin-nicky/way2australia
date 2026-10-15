@@ -1,12 +1,12 @@
 # 003 — Task-Gated Agent Workflow Tasks
 
-Status: implementing (base 9e95cfe)
+Status: all tasks approved (2026-10-15)
 
 Bootstrap: this spec is implemented under the pre-003 flow, directly on `main` (design → "Bootstrap"). The `State:` lines below follow the new format from the start.
 
 ## T1 — Define the lifecycle in WORKFLOW.md and record D023
 
-**State:** in task review (round 1)
+**State:** approved (2026-10-15)
 **Requirements:** R1, R7, R12
 
 - [x] Rewrite the canonical flow in `docs/project/WORKFLOW.md` to the task-gated loop (design → "Design summary").
@@ -22,7 +22,7 @@ Bootstrap: this spec is implemented under the pre-003 flow, directly on `main` (
 
 ## T2 — Create the task-reviewer skill
 
-**State:** in task review (round 1)
+**State:** approved (2026-10-15)
 **Requirements:** R3, R4, R9, R10, R11
 
 - [x] Add `agent-skills/task-reviewer/SKILL.md`: inputs, minimal reading list, task-diff command, checks, read-only rule, verdicts, finding severity/classification, user summary, model recording.
@@ -37,7 +37,7 @@ Bootstrap: this spec is implemented under the pre-003 flow, directly on `main` (
 
 ## T3 — Update spec-implementer for one task per run
 
-**State:** in task review (round 1)
+**State:** approved (2026-10-15)
 **Requirements:** R1, R2, R9, R10
 
 - [x] Accept `<NNN-spec> [task-id]`; without a task ID, take the first task whose state needs implementation.
@@ -56,7 +56,7 @@ Bootstrap: this spec is implemented under the pre-003 flow, directly on `main` (
 
 ## T4 — Create the spec-orchestrator skill
 
-**State:** in task review (round 1)
+**State:** approved (2026-10-15)
 **Requirements:** R4, R5, R6, R9, R10, R11
 
 - [x] Add `agent-skills/spec-orchestrator/SKILL.md`: minimal reading list, never reads code or diffs, never writes spec content.
@@ -75,7 +75,7 @@ Bootstrap: this spec is implemented under the pre-003 flow, directly on `main` (
 
 ## T5 — Adjust spec-reviewer and spec-planner
 
-**State:** in task review (round 1)
+**State:** approved (2026-10-15)
 **Requirements:** R7, R8, R10
 
 - [x] `spec-reviewer`: optional retrospective on `main...spec/<NNN>` and `task-reviews.md`; focus on cross-task concerns; write a "Notes for the next spec" section; no longer sets `verified`; findings that need code become `RM` tasks that run through the task loop.
@@ -90,7 +90,7 @@ Bootstrap: this spec is implemented under the pre-003 flow, directly on `main` (
 
 ## T6 — Model preferences, sync script and skills README
 
-**State:** in task review (round 1)
+**State:** approved (2026-10-15)
 **Requirements:** R9, R11
 
 - [x] Add `spec-orchestrator` (BEST_MINUS_ONE) and `task-reviewer` (BEST) to `agent-skills/MODEL_PREFERENCES.md`; state that no skill switches models mid-session.
@@ -105,7 +105,7 @@ Bootstrap: this spec is implemented under the pre-003 flow, directly on `main` (
 
 ## T7 — Token-efficient context and project docs
 
-**State:** in task review (round 1)
+**State:** approved (2026-10-15)
 **Requirements:** R10, R12
 
 - [x] Trim `CLAUDE.md` to import only `@AGENTS.md` and `@docs/project/CURRENT_STATE.md`, keeping a pointer to the other docs.
@@ -120,7 +120,7 @@ Bootstrap: this spec is implemented under the pre-003 flow, directly on `main` (
 
 ## T8 — Migrate Spec 002 to the new state format
 
-**State:** in task review (round 1)
+**State:** approved (2026-10-15)
 **Requirements:** R7, R12
 
 - [x] Set Spec 002 `tasks.md` status to `implementing (branch spec/002, base 5bbb333)`.
@@ -135,18 +135,23 @@ Bootstrap: this spec is implemented under the pre-003 flow, directly on `main` (
 
 ## T9 — Acceptance dry run on Spec 002 T3
 
-**State:** not started
+**State:** approved (2026-10-15)
 **Requirements:** R13
 
-- [ ] Run `spec-orchestrator`: it creates `spec/002` from `main` and starts `spec-implementer` for 002 T3 on BEST_MINUS_ONE.
-- [ ] `spec-implementer` completes 002 T3 (one or more rounds) with `Spec-Task: 002/T3` commits.
-- [ ] `task-reviewer` reviews 002 T3 on BEST and records the result in `.kiro/specs/002-document-model-and-repository/task-reviews.md`.
-- [ ] The orchestrator shows the user the summary; the user's decision is recorded and `spec/002` is pushed on approval.
-- [ ] Fix every workflow defect found during the run in the skills/docs on `main`, and note it in this task.
+- [x] Run `spec-orchestrator`: it creates `spec/002` from `main` and starts `spec-implementer` for 002 T3 on BEST_MINUS_ONE.
+- [x] `spec-implementer` completes 002 T3 (one or more rounds) with `Spec-Task: 002/T3` commits.
+- [x] `task-reviewer` reviews 002 T3 on BEST and records the result in `.kiro/specs/002-document-model-and-repository/task-reviews.md`.
+- [x] The orchestrator shows the user the summary; the user's decision is recorded and `spec/002` is pushed on approval.
+- [x] Fix every workflow defect found during the run in the skills/docs on `main`, and note it in this task.
 
 ### Dry-run defects
 
 - 2026-10-14 — orchestrator printed the implementer command instead of starting it (session starts disabled in the app) and the user had to ferry between roles. Fix: orchestrator spawns roles as subagents with a per-role `model` and loops until a user gate; `.claude/settings.json` pre-allows routine `make`/`git` commands.
+
+### Additional dry-run findings
+
+- 2026-10-15 — T3 to T9 of Spec 002 all ran through the flow (implementer, task-reviewer, user approval, push). Fixed on `main`: task work is no longer committed per round; the orchestrator commits once on approval with `Spec-Task` and `Spec-Decision` trailers (T3 and T4 were committed by the implementer before this change).
+- 2026-10-15 — Spec 002 T9 failed its first review because the Spec 003 migration left retired status text (`implemented — pending review`) in a Spec 002 checklist item. Lesson: when the workflow changes, search in-flight specs for retired values at migration time. Resolved through the `spec-planner` amendment path (change log in `requirements.md`).
 
 ### Verification
 
@@ -156,13 +161,13 @@ Bootstrap: this spec is implemented under the pre-003 flow, directly on `main` (
 
 ## T10 — Final verification and handoff
 
-**State:** not started
+**State:** approved (2026-10-15)
 **Requirements:** Definition of Done
 
-- [ ] Run `make verify`.
-- [ ] Check that every skill uses the same state/status values as `WORKFLOW.md`.
-- [ ] Update `docs/project/CURRENT_STATE.md` with implemented reality.
-- [ ] Set this file's status to `verified (YYYY-MM-DD, merged <sha>)` after user approval (bootstrap: no spec branch, so `<sha>` is the final commit on `main`).
+- [x] Run `make verify`.
+- [x] Check that every skill uses the same state/status values as `WORKFLOW.md`.
+- [x] Update `docs/project/CURRENT_STATE.md` with implemented reality.
+- [x] Set this file's status to `verified (YYYY-MM-DD, merged <sha>)` after user approval (bootstrap: no spec branch, so `<sha>` is the final commit on `main`).
 
 ### Verification
 
