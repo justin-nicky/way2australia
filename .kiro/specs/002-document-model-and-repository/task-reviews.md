@@ -187,3 +187,58 @@ Append-only; newest at the bottom.
 
 ### User decision
 - 2026-10-15 — approved
+
+## T9 — round 1
+
+### Implementation
+- Model: claude-sonnet-5-5
+- Commits: none yet (changes left uncommitted for task review)
+- Files changed: `docs/project/CURRENT_STATE.md`; `docs/project/DECISIONS.md` (new D024); `docs/project/TECH_STACK.md`; `tasks.md` (T9 ticks and State)
+- Verification run: `make verify` -> pass (170 tests, ruff, pyright, skills check, validate-knowledge)
+- Notes:
+  - T3 F1: `jsonschema` and `pyyaml` recorded in `TECH_STACK.md` and in D024.
+  - D024 records the durable decisions: repository Protocol, `content-hash-v1` as the only change-detection signal, single `EligibilityPolicy`, language rule in `DocumentQuery.matches`, `make validate-knowledge`.
+  - `CURRENT_STATE.md`: Spec 002 implemented reality added, "not yet implemented" list trimmed, status row and next step updated (merge after T9 approval).
+  - `docs/knowledge/SCHEMA_AND_METADATA.md` not edited: no schema difference was found or needed (box ticked as "only if differs" not triggered). Not independently diffed against the schema by this task.
+  - Left unticked: "Hand off to `spec-reviewer` (status `implemented — pending review`)". That status is retired (D023); the task-gated flow replaces it. Needs a spec decision (reword or drop via planner); I did not edit the checkbox text.
+  - Spec status in `tasks.md` header not changed; the orchestrator/user decide on merge and "verified".
+  - No files under `knowledge/`, `evaluation/` or `config/` touched. No new dependencies.
+
+### Review
+- Model: claude-opus-5-5
+- Verdict: FAIL
+- Commands: `make verify` → pass (exit 0: ruff all checks passed; pyright 0 errors; skills check 5 mirrors match; `validate-knowledge: OK, 0 problems`; 170 tests passed); `make test-integration` → pass (13 passed, 157 deselected); `git status --porcelain -- evaluation/ knowledge/ config/` → empty
+- Findings:
+  - F1 [MAJOR, SPEC_DEFECT, DoD] The checklist item "Hand off to `spec-reviewer` (status `implemented — pending review`)" is unticked and cannot be satisfied: that status is retired (D023; `WORKFLOW.md` "Retired values"), and a spec is now verified by all tasks approved + merge. The Spec 003 migration of Spec 002 `tasks.md` kept the old text. → user/`spec-planner`: reword (e.g. "orchestrator sets `all tasks approved`; optional `spec-reviewer` retrospective") or drop, with a `## Change log` line; then re-review T9.
+  - F2 [MAJOR, IMPLEMENTATION, DoD] `CURRENT_STATE.md` does not match reality, which T9's verification requires: "Last updated" is still 2026-10-14; "Current goal" still says to resume Spec 002 from T3 under the new flow, although T3–T8 are approved. → update the date and rewrite "Current goal" to the actual goal (finish Spec 002 T9, merge `spec/002`, then Spec 003 T9/T10).
+  - F3 [MINOR, IMPLEMENTATION, DoD] `CURRENT_STATE.md` contradicts itself on Spec 003: the status row says "T9 dry run (needs the user) and T10 pending" while "Next step" 1 says "Spec 003 T9 dry run done", and Spec 003 `tasks.md` has T9 `not started`. Both lines predate this task, but the handoff file should be consistent → state Spec 003 T9 accurately in `CURRENT_STATE.md` only (do not edit Spec 003 files in this task).
+  - Open items checked: `SCHEMA_AND_METADATA.md` box — reviewer compared the doc against `AccessScope`, `LanguageScope`, `lote_languages`/`["*"]` and `owner_user_id` rules in `packages/core/.../documents`; no difference, so ticking it without a diff is correct (no finding). `make test-integration` — run by reviewer, 13 passed. `TECH_STACK.md` + D024 resolve T3 F1; D024 claims (no paths exposed, `CONTENT_HASH_METADATA_FIELDS` exclusions, `HASH_CONTRACT`, single language rule in `DocumentQuery.matches`) match the code.
+
+### Implementation (round 2)
+- Model: claude-sonnet-5-5
+- Commits: none yet (changes left uncommitted for task review)
+- Files changed: `docs/project/CURRENT_STATE.md`; `tasks.md` (T9 State only)
+- Verification run: `make verify` -> pass (170 tests, ruff, pyright, skills check, validate-knowledge)
+- Notes:
+  - F1 (spec defect): fixed by the planner (reworded last Definition-of-Done item). That item is the orchestrator's action after approval (`all tasks approved`, optional `spec-reviewer`, merge), so it is not the implementer's to perform and its box stays unticked; checkbox text not edited.
+  - F2: `CURRENT_STATE.md` "Last updated" set to 2026-10-15; "Current goal" rewritten (finish Spec 002 T9 and merge `spec/002`, then Spec 003 T9/T10).
+  - F3: `CURRENT_STATE.md` now states Spec 003 T9 accurately in the status row and "Next step": `not started` in its `tasks.md`, dry run performed on Spec 002 T3 but not yet recorded. No Spec 003 files edited.
+  - No files under `knowledge/`, `evaluation/` or `config/` touched. No new dependencies. `make test-integration` not re-run this round (no code changes).
+
+### Review (round 2)
+- Model: claude-opus-5-5
+- Verdict: PASS
+- Commands: `make verify` → pass (exit 0: ruff all checks passed; pyright 0 errors; skills check 5 mirrors match; `validate-knowledge: OK, 0 problems`; 170 tests passed); `make test-integration` → pass (13 passed, 157 deselected); `git status --porcelain -- evaluation/ knowledge/ config/` → empty
+- Findings:
+  - Round 1 F1 resolved: the planner reworded the last DoD item to "Hand off to `spec-orchestrator` for completion (...)", with a dated `## Change log` line and requirements `Status:` re-dated `approved (2026-10-15)`. No remaining reference to `spec-reviewer` handoff / `implemented — pending review` in Spec 002 `tasks.md`.
+  - Round 1 F2 resolved: `CURRENT_STATE.md` "Last updated" is 2026-10-15; "Current goal" now states finish Spec 002 T9 → merge `spec/002` → Spec 003 T9/T10.
+  - Round 1 F3 resolved: status row and "Next step" consistently say Spec 003 T9 is `not started` in its `tasks.md` while the dry run was performed on Spec 002 T3; matches Spec 003 `tasks.md` (T1–T8 `in task review (round 1)`, T9/T10 `not started`). No Spec 003 files edited.
+  - F1 [MINOR, IMPLEMENTATION, DoD] The reworded last item "Hand off to `spec-orchestrator` for completion" is unticked. This is correct: it describes the orchestrator's post-approval actions (`all tasks approved`, optional retrospective, merge), so ticking it now would be inaccurate → the orchestrator ticks it when it performs the completion step; no implementer action.
+  - Observations (no finding): the amendment changed checkbox text, which `WORKFLOW.md` forbids for Kiro's `tasks.meta.json`, but Spec 002 has no `tasks.meta.json`; and the change log keeps T9's round count instead of resetting to `not started` (WORKFLOW rule for re-opened tasks), an explicit, recorded choice. Reviewer cannot verify the user approval behind the re-dated `Status:` line; the orchestrator should confirm it.
+- Summary for user (PASS only):
+  - Changed: `docs/project/CURRENT_STATE.md` (Spec 002 implemented reality, current goal, spec status rows, next steps, date); `docs/project/DECISIONS.md` new D024 (repository Protocol, `content-hash-v1`, single `EligibilityPolicy`, language rule location, `validate-knowledge`, `jsonschema`/`pyyaml`); `docs/project/TECH_STACK.md` records the two dependencies; Spec 002 `tasks.md` T9 ticks; planner rewording of T9's last item plus change-log line in `requirements.md`.
+  - Verified by: `make verify` (170 tests, ruff, pyright, skills mirrors, validate-knowledge), `make test-integration` (13 passed); round 1 findings re-checked against the files; no seed/eval/config changes.
+  - Worth your attention: (1) the last T9 box ("Hand off to `spec-orchestrator`") stays unticked until the orchestrator does completion and merge; (2) confirm you approved the requirements amendment (Status re-dated 2026-10-15); (3) after approval, merge `spec/002` into `main`, then record the Spec 003 T9 dry-run outcome.
+
+### User decision
+- 2026-10-15 — approved

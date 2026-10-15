@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-10-14
+Last updated: 2026-10-15
 
 ## Current phase
 
@@ -12,7 +12,7 @@ Spec 001 project foundation is complete.
 
 ## Current goal
 
-Finish Spec 003 (task-gated agent workflow: T1–T8 implemented, T9 dry run and T10 pending), then resume Spec 002 from T3 under the new flow. T3 is the Spec 003 dry run (T9). Repository-based shared context keeps Codex, Claude Code and Kiro interchangeable.
+Finish Spec 002 (document model and repository): T1–T8 are approved and T9 (documentation and handoff) is in task review; after approval, merge `spec/002` into `main`. Then finish Spec 003 (task-gated agent workflow): record the dry-run outcome (Spec 002 T3 ran through the flow) and close its T9, then T10. Repository-based shared context keeps Codex, Claude Code and Kiro interchangeable.
 
 ## Finalized high-level decisions
 
@@ -77,11 +77,9 @@ Implemented:
 - task state lifecycle (`**State:**` lines, `task-reviews.md`, `spec/<NNN>` branches, `Spec-Task` trailers) and spec `Status:` values defined in `docs/project/WORKFLOW.md`, decision D023;
 - `CLAUDE.md` imports only `AGENTS.md` and this file; other docs are read per role;
 - `Makefile` uses a standalone `uv` binary when available and falls back to `python3 -m uv`;
-- on branch `spec/002` (not yet on `main`): knowledge manifest loading and validation (schema, duplicate identity, missing files, manifest/frontmatter mismatch) — Spec 002 T3.
+- on branch `spec/002` (not yet on `main`; merge after T9 approval), Spec 002: Pydantic document models and enums in `packages/core/documents`; `DocumentRepository` Protocol and `LocalDocumentRepository` with manifest JSON Schema validation, frontmatter parsing and `content-hash-v1` hashing; `EligibilityPolicy` for guest/public retrieval; `make validate-knowledge` (part of `make verify`); repository, hashing, eligibility, seed-corpus and isolated security-fixture tests.
 
 Not yet implemented:
-- Pydantic domain models;
-- DocumentRepository;
 - ingestion;
 - embeddings;
 - retrieval;
@@ -95,14 +93,14 @@ Not yet implemented:
 | Spec | Status |
 |---|---|
 | 001 — project foundation | implemented; completed before the review process existed (no `review.md`) |
-| 002 — document model and repository | **implementing** on branch `spec/002` (base `869c37f`; T1–T2 on `main`, approved without task review). T3 (the Spec 003 T9 dry run) approved 2026-10-14 after task review round 1 PASS: manifest loading and metadata validation in `packages/rag/.../repositories/manifest.py` and `frontmatter.py`, new deps `jsonschema` and `pyyaml`. T4 approved 2026-10-14 (LocalDocumentRepository; placeholder content_hash until T5); T5 approved 2026-10-14 (content-hash-v1 and manifest hash verification); T6 approved 2026-10-15 (eligibility policy); T7 approved 2026-10-15 (`make validate-knowledge`); T8 approved 2026-10-15 (isolated security repository, seed corpus tests); T9 `not started` |
-| 003 — task-gated agent workflow | **implementing** (bootstrap exception: directly on `main`, base `9e95cfe`): T1–T8 done, in task review; T9 dry run (needs the user) and T10 pending |
+| 002 — document model and repository | **implementing** on branch `spec/002` (base `869c37f`; T1–T2 on `main`, approved without task review). T3 (the Spec 003 T9 dry run) approved 2026-10-14 after task review round 1 PASS: manifest loading and metadata validation in `packages/rag/.../repositories/manifest.py` and `frontmatter.py`, new deps `jsonschema` and `pyyaml`. T4 approved 2026-10-14 (LocalDocumentRepository; placeholder content_hash until T5); T5 approved 2026-10-14 (content-hash-v1 and manifest hash verification); T6 approved 2026-10-15 (eligibility policy); T7 approved 2026-10-15 (`make validate-knowledge`); T8 approved 2026-10-15 (isolated security repository, seed corpus tests); T9 (documentation and handoff) in task review; merge to `main` after approval |
+| 003 — task-gated agent workflow | **implementing** (bootstrap exception: directly on `main`, base `9e95cfe`): T1–T8 done, in task review; T9 (acceptance dry run) is `not started` in its `tasks.md` although the dry run itself was performed on Spec 002 T3 (to be recorded and closed after the Spec 002 merge); T10 `not started` |
 
 ## Next step
 
-1. Spec 003 T9 dry run done: Spec 002 T3 went implementer → task-reviewer → user approval on `spec/002`. Record any workflow defects it showed.
-2. Fix any workflow defects found, then T10 and mark Spec 003 verified.
-3. Continue Spec 002 T4–T9 with `spec-orchestrator`.
+1. Review and approve Spec 002 T9, then merge `spec/002` into `main` and mark Spec 002 verified.
+2. Spec 003 T9: the dry run was performed (Spec 002 T3 went implementer → task-reviewer → user approval on `spec/002`) but is not yet recorded in Spec 003; record it, plus any workflow defects it showed.
+3. Fix any workflow defects found, then Spec 003 T10 and mark Spec 003 verified.
 
 Spec 002 decisions made before approval:
 - `content_hash` (`content-hash-v1`) is the only change-detection signal; the manifest's `sha256` (raw file) and `body_sha256` (stripped body) are integrity checks the loader verifies.

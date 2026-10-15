@@ -1,6 +1,6 @@
 # 002 — Document Model and DocumentRepository Requirements
 
-Status: approved (2026-10-13)
+Status: approved (2026-10-15)
 
 ## Goal
 
@@ -227,5 +227,7 @@ This specification is complete when:
 | R11 | T7, T8 | `make verify` (includes `validate-knowledge`) |
 
 ## Change log
+
+- 2026-10-15 — T9: handoff item reworded from `spec-reviewer` / `implemented — pending review` (retired by D023) to `spec-orchestrator` completion (task review round 1 F1). T9 resumes as `task review failed — round 1` so round 2 continues its uncommitted work.
 
 <!-- Approved amendments only, one dated line each. -->

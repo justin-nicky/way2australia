@@ -154,17 +154,17 @@ make verify
 ```
 
 ## T9 — Documentation and handoff
-**State:** not started
+**State:** approved (2026-10-15)
 
 **Requirements:** Definition of Done
 
-- [ ] Update `docs/project/CURRENT_STATE.md`.
-- [ ] Update `docs/project/DECISIONS.md` if durable hash/repository decisions were introduced.
-- [ ] Update `docs/knowledge/SCHEMA_AND_METADATA.md` only if the implemented schema differs from seed documentation.
-- [ ] Keep Spec 003 concerns out of this implementation.
-- [ ] Mark task completion accurately.
+- [x] Update `docs/project/CURRENT_STATE.md`.
+- [x] Update `docs/project/DECISIONS.md` if durable hash/repository decisions were introduced.
+- [x] Update `docs/knowledge/SCHEMA_AND_METADATA.md` only if the implemented schema differs from seed documentation.
+- [x] Keep Spec 003 concerns out of this implementation.
+- [x] Mark task completion accurately.
 
-- [ ] Hand off to `spec-reviewer` (status `implemented — pending review`).
+- [ ] Hand off to `spec-orchestrator` for completion (`all tasks approved`, optional `spec-reviewer`, merge).
 
 ### Verification
 
