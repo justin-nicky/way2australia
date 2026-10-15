@@ -12,7 +12,7 @@ Spec 001 project foundation is complete.
 
 ## Current goal
 
-Plan Spec 004 (ingestion) with `spec-planner`, seeding it with the Spec 002 retrospective's "Notes for the next spec" and findings (`.kiro/specs/002-document-model-and-repository/review.md`), including the `persona_scope` decision (F2). Specs 001–003 are complete. Repository-based shared context keeps Codex, Claude Code and Kiro interchangeable.
+Implement Spec 004 (ingestion baseline, approved 2026-10-15) through `spec-orchestrator`. Specs 001–003 are complete. Repository-based shared context keeps Codex, Claude Code and Kiro interchangeable.
 
 ## Finalized high-level decisions
 
@@ -95,10 +95,11 @@ Not yet implemented:
 | 001 — project foundation | implemented; completed before the review process existed (no `review.md`) |
 | 002 — document model and repository | **verified (2026-10-15, merged dca6cbd)**; branch `spec/002` (base `869c37f`; T1–T2 on `main`, approved without task review). T3 (the Spec 003 T9 dry run) approved 2026-10-14 after task review round 1 PASS: manifest loading and metadata validation in `packages/rag/.../repositories/manifest.py` and `frontmatter.py`, new deps `jsonschema` and `pyyaml`. T4 approved 2026-10-14 (LocalDocumentRepository; placeholder content_hash until T5); T5 approved 2026-10-14 (content-hash-v1 and manifest hash verification); T6 approved 2026-10-15 (eligibility policy); T7 approved 2026-10-15 (`make validate-knowledge`); T8 approved 2026-10-15 (isolated security repository, seed corpus tests); T9 approved 2026-10-15 (documentation and handoff); merged to `main` |
 | 003 — task-gated agent workflow | **verified** (2026-10-15, bootstrap exception: implemented directly on `main`, base `9e95cfe`); dry run on Spec 002 recorded in its T9; T1–T8 closed by the user's instruction to close the spec, without per-task review records |
+| 004 — ingestion baseline | **approved** (requirements, design and tasks approved 2026-10-15); 9 tasks `not started`; branch `spec/004` not yet created. User-owned pre-merge check (not a gate): one real BGE-M3 ingestion of the seed corpus into a throwaway collection, run twice, plus the opt-in smoke test |
 
 ## Next step
 
-1. Plan Spec 004 (ingestion) with `spec-planner`. Read the Spec 002 retrospective notes first (`review.md`): use `list_eligible_documents`, decide `persona_scope` (F2), decide version history (F4) and a manifest-hash refresh tool, and consider the other minor findings (F1, F3, F5, F6).
+1. Run `/spec-orchestrator 004-ingestion-baseline` (creates `spec/004`, runs T1 first). The Spec 002 retrospective notes are already built into the spec.
 
 Spec 002 decisions made before approval:
 - `content_hash` (`content-hash-v1`) is the only change-detection signal; the manifest's `sha256` (raw file) and `body_sha256` (stripped body) are integrity checks the loader verifies.
