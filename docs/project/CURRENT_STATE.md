@@ -113,6 +113,14 @@ These are evaluation-data gaps, deliberately deferred for now (decision 2026-10-
 - No golden case is tagged pure Malayalam (`query_language: ml`). The 9 `mixed` cases include 8 written mostly in Malayalam script.
 - `relevant_section_ids` is empty in every evaluation case.
 
+Spec 002 retrospective (`.kiro/specs/002-document-model-and-repository/review.md`, round 1), MINOR, no remediation tasks:
+- F1: `content_hash` is computed from the raw frontmatter mapping; the `YYYY-MM-DD` date check exists only in `validate-knowledge`, not in `LocalDocumentRepository`.
+- F2 (spec defect, for `spec-planner`): `persona_scope` (schema and all seed docs) is silently dropped from `KnowledgeDocument` and not in `content-hash-v1`; the spec does not decide its treatment.
+- F3: access scopes, source authorities and `GUEST_PUBLIC_POLICY` are hard-coded; nothing cross-checks `config/access_policy.yaml` / `source_precedence.yaml`.
+- F4: the manifest allows one version per `document_id` (docstring says one record per version); version history and the "version increments on change" rule are unenforced.
+- F5: `ARCHITECTURE.md` repository sketch uses `list_documents(status=...)`, not `DocumentQuery`; Spec 002 lines in this file still say "not yet on `main`" and skills "not yet exercised".
+- F6: loader and `validate-knowledge` validate documents on two separate paths (loader reports only the first Pydantic error, no date check).
+
 ## Important constraint
 
 Do not begin implementing Phase 2 S3/admin/release-management functionality during Phase 1.
