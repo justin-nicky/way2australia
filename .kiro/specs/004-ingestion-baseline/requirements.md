@@ -251,3 +251,4 @@ Known deferred gap: evaluation cases have empty `relevant_section_ids`, so only 
 
 <!-- Approved amendments only, one dated line each:
 - YYYY-MM-DD — <R#/T#>: <what changed and why>. Re-opened <T#>. -->
+- 2026-10-15 — R4/T2: design.md HeadingChunker now states the exact `section_id` slug rule (full heading text; NFKC + lower-case; Cf characters dropped; word chars are `isalnum()` or category M*, not `\w`, which splits Indic words at vowel signs; duplicate suffixes; `main` reserved) plus the 16-char minimum cap and chunk-text-only heading truncation, because the rule fixes a stable ID (found during T2 review). Re-opened T2.

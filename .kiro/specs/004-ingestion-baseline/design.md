@@ -81,10 +81,16 @@ class Chunker(Protocol):
 
 1. Parse ATX headings (`#` to `######`) outside fenced code blocks.
 2. Text before the first heading, or the whole body when there are no headings, is the section `main`.
-3. `section_id` is the heading text slugged: Unicode NFKC, lower-cased, runs of non-word characters (Unicode-aware `\w`) replaced by `-`, trimmed. Non-Latin headings keep their letters. An empty slug falls back to `section`.
+3. `section_id` is the slug of the full heading text (never of the possibly truncated chunk text, see 6). Slug rule (`slugify`):
+   1. Unicode NFKC, then lower-case. NFKC includes canonical composition, so NFC and NFD forms of the same heading give the same slug.
+   2. Drop every character of Unicode category `Cf` (format: ZWJ, ZWNJ, zero-width space, BOM, …) before the word pass, so they never split a word.
+   3. Word characters are those where `str.isalnum()` is true or whose Unicode category is `M*` (combining marks). Regex `\w` is not used: it splits Indic words at vowel signs.
+   4. Each run of other characters becomes one `-`; leading and trailing `-` are trimmed.
+   5. An empty slug falls back to `section`.
+   Non-Latin headings keep their letters and marks; there is no script-specific code.
 4. Heading level and nesting are not part of the ID (leaf heading text only).
-5. If two headings in one document produce the same slug, the later ones get `-2`, `-3`, … in document order. This is the only positional element in an ID and exists solely to keep IDs unique. Documents without duplicate headings, including all seed documents, are unaffected.
-6. A section longer than `max_chunk_chars` is split on paragraph boundaries, then on whitespace, so no piece exceeds the cap. Every piece keeps the section's `section_id`; `position` is the piece index. Each piece's text starts with its heading line for embedding context.
+5. If two headings in one document produce the same slug, the later ones get `-2`, `-3`, … in document order. This is the only positional element in an ID and exists solely to keep IDs unique. A suffix already taken by an earlier ID (including a heading whose literal slug is e.g. `foo-2`) is skipped, so the next free number is used; a later heading whose own slug is already taken gets a suffix the same way. When the document has a non-empty preamble, `main` is reserved, so a heading slugging to `main` becomes `main-2`. Documents without duplicate headings, including all seed documents, are unaffected.
+6. A section longer than `max_chunk_chars` is split on paragraph boundaries, then on whitespace (a single word longer than the budget is hard-split), so no piece exceeds the cap. Every piece keeps the section's `section_id`; `position` is the piece index. Each piece's text starts with its heading line for embedding context. `max_chunk_chars` must be at least 16; a smaller cap is rejected with `IngestionConfigurationError`. A heading line longer than half the cap is truncated to `max_chunk_chars // 2` characters in the chunk text only, never in `section_id`, so the body budget stays at least 1.
 7. Output is deterministic and pure: no I/O, no clock, no randomness.
 
 The size cap is measured in characters because token counting would couple the chunker to a tokenizer. It is part of the recorded chunker settings.

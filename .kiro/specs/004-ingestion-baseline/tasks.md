@@ -23,18 +23,20 @@ Implement in order; each task depends on the ones before it. New ingestion code 
 
 ## T2 — Chunker interface, heading baseline and `section_id` rules
 
-**State:** not started
+**State:** approved (2026-10-15)
 **Requirements:** R4
 
-- [ ] Create the `ingestion` package (`__init__.py`, `errors.py` with the `IngestionError` hierarchy).
-- [ ] Implement `Chunk` (frozen) and the `Chunker` Protocol (`name`, `version`, `max_chunk_chars`, `chunk()`) in `chunking.py`.
-- [ ] Implement `HeadingChunker` (name `heading`, version `1`): ATX headings outside fenced code blocks; text before the first heading or a heading-less body is section `main`.
-- [ ] Implement slugging: NFKC, lower-case, Unicode-aware non-word runs to `-`, trimmed, empty slug falls back to `section`; leaf heading text only; duplicate slugs get `-2`, `-3`, … in document order.
-- [ ] Split sections longer than `max_chunk_chars` on paragraph then whitespace boundaries; every piece keeps the `section_id`, `position` is the piece index, each piece starts with its heading line.
-- [ ] Keep the chunker pure and deterministic; no Malayalam-specific code.
-- [ ] Unit tests on synthetic documents: no headings gives `main`/0; slugs stable under section reordering; duplicate headings unique; Malayalam and other non-Latin headings slug without special-casing; long section splits within the cap with same `section_id`; determinism; headings in code fences ignored.
-- [ ] Unit test on the seed corpus: 13 documents, one chunk each, `section_id` `main`, `position` 0 (documented as a baseline, not evidence that heading chunking works).
-- [ ] Do not add headings to any file under `knowledge/`.
+- [x] Create the `ingestion` package (`__init__.py`, `errors.py` with the `IngestionError` hierarchy).
+- [x] Implement `Chunk` (frozen) and the `Chunker` Protocol (`name`, `version`, `max_chunk_chars`, `chunk()`) in `chunking.py`.
+- [x] Implement `HeadingChunker` (name `heading`, version `1`): ATX headings outside fenced code blocks; text before the first heading or a heading-less body is section `main`.
+- [x] Implement slugging: NFKC, lower-case, Unicode-aware non-word runs to `-`, trimmed, empty slug falls back to `section`; leaf heading text only; duplicate slugs get `-2`, `-3`, … in document order.
+- [x] Split sections longer than `max_chunk_chars` on paragraph then whitespace boundaries; every piece keeps the `section_id`, `position` is the piece index, each piece starts with its heading line.
+- [x] Keep the chunker pure and deterministic; no Malayalam-specific code.
+- [x] Unit tests on synthetic documents: no headings gives `main`/0; slugs stable under section reordering; duplicate headings unique; Malayalam and other non-Latin headings slug without special-casing; long section splits within the cap with same `section_id`; determinism; headings in code fences ignored.
+- [x] Unit test on the seed corpus: 13 documents, one chunk each, `section_id` `main`, `position` 0 (documented as a baseline, not evidence that heading chunking works).
+- [x] Do not add headings to any file under `knowledge/`.
+- [x] Unit test: the NFC and NFD forms of the same Malayalam heading give the same slug.
+- [x] Unit test: `section_id` comes from the full heading text even when the chunk text truncates the heading (heading longer than half the cap).
 
 ### Verification
 
