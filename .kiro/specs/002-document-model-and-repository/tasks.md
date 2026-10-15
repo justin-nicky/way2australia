@@ -117,16 +117,16 @@ Tests cover:
 - language metadata does not broaden access.
 
 ## T7 — Add `make validate-knowledge`
-**State:** not started
+**State:** approved (2026-10-15)
 
 **Requirements:** R5, R6, R8, R11
 
-- [ ] Implement `way2australia_rag.repositories.validate` as a thin entry point over the repository and validation modules.
-- [ ] Report every problem with document ID, field and reason, then a summary count.
-- [ ] Fail if any eligible public document is synthetic, not approved or not public.
-- [ ] Exit `0` when valid and `1` on any problem.
-- [ ] Add the `validate-knowledge` Makefile target and include it in `make verify`.
-- [ ] Update `docs/project/COMMANDS.md` if the behavior differs from what it documents.
+- [x] Implement `way2australia_rag.repositories.validate` as a thin entry point over the repository and validation modules.
+- [x] Report every problem with document ID, field and reason, then a summary count.
+- [x] Fail if any eligible public document is synthetic, not approved or not public.
+- [x] Exit `0` when valid and `1` on any problem.
+- [x] Add the `validate-knowledge` Makefile target and include it in `make verify`.
+- [x] Update `docs/project/COMMANDS.md` if the behavior differs from what it documents.
 
 ### Verification
 

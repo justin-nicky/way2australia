@@ -5,7 +5,7 @@ UV_PYTHON_INSTALL_DIR ?= $(CURDIR)/.uv-python
 UV_ENV = UV_CACHE_DIR=$(UV_CACHE_DIR) UV_PYTHON_INSTALL_DIR=$(UV_PYTHON_INSTALL_DIR)
 PYTHON_TARGETS ?= apps packages tests scripts
 
-.PHONY: setup format lint typecheck test test-unit test-integration verify skills-sync skills-check
+.PHONY: setup format lint typecheck test test-unit test-integration verify skills-sync skills-check validate-knowledge
 
 setup:
 	$(UV_ENV) $(UV) sync --all-packages --group dev
@@ -34,4 +34,7 @@ skills-sync:
 skills-check:
 	$(UV_ENV) $(UV) run python scripts/sync_agent_skills.py --check
 
-verify: lint typecheck skills-check test
+validate-knowledge:
+	$(UV_ENV) $(UV) run python -m way2australia_rag.repositories.validate --repo-root $(CURDIR)
+
+verify: lint typecheck skills-check validate-knowledge test

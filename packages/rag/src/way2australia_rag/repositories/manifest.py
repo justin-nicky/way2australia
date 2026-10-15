@@ -84,9 +84,11 @@ def schema_problems(
             missing = [
                 name for name in error.validator_value if name not in error.instance
             ]
+            prefix = ".".join(str(part) for part in error.path)
             for name in missing:
+                field = f"{prefix}.{name}" if prefix else name
                 problems.append(
-                    ValidationProblem(document_id, name, "required field is missing")
+                    ValidationProblem(document_id, field, "required field is missing")
                 )
         else:
             field = ".".join(str(part) for part in error.path) or None

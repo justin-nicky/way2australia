@@ -163,3 +163,19 @@ def test_frontmatter_parsing_keeps_dates_as_strings() -> None:
 def test_frontmatter_errors(text: str) -> None:
     with pytest.raises(ValueError):
         split_frontmatter(text)
+
+
+def test_nested_required_violation_keeps_parent_path() -> None:
+    from jsonschema import Draft202012Validator
+    from way2australia_rag.repositories.manifest import schema_problems
+
+    schema = {
+        "type": "object",
+        "properties": {
+            "outer": {"type": "object", "required": ["inner"]},
+        },
+    }
+    problems = schema_problems(Draft202012Validator(schema), {"outer": {}}, "doc_a")
+    assert [str(p) for p in problems] == [
+        "doc_a: outer.inner: required field is missing"
+    ]

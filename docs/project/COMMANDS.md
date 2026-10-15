@@ -61,6 +61,12 @@ Expected:
 - validate manifests;
 - ensure production corpus excludes test-only fixtures.
 
+Behavior:
+- lists every problem as `ERROR <document_id>: <field>: <reason>` and ends with a summary count;
+- also reports manifest entries outside the approved production roots and markdown files under those roots that the manifest does not list;
+- fails if a retrievable (active, retrieval-enabled) document in the public corpus is synthetic, not approved or not public;
+- exits `0` when valid, `1` on any problem; runs inside `make verify`.
+
 ## Ingestion
 
 ```bash

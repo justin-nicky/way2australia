@@ -124,3 +124,36 @@ Append-only; newest at the bottom.
 
 ### User decision
 - 2026-10-15 — approved
+
+## T7 — round 1
+
+### Implementation
+- Model: claude-sonnet-5-5
+- Commits: none yet (changes left uncommitted for task review)
+- Files changed: new `packages/rag/src/way2australia_rag/repositories/validate.py`; `repositories/local.py` (public `under_root`, new `document_fields` helper shared by the loader and the validator); `repositories/manifest.py` (T3 F3); `Makefile` (`validate-knowledge` target, added to `verify`); `docs/project/COMMANDS.md`; new `packages/rag/tests/test_validate_knowledge.py` (17 tests); `packages/rag/tests/test_manifest_validation.py` (+1 test); `tasks.md` (T7 ticks and State)
+- Verification run: `make validate-knowledge` -> exit 0 ("OK, 0 problems") on the seed corpus; `make verify` -> pass (166 tests, ruff and pyright clean, skills mirrors match, validate-knowledge OK); `make test-integration` -> 10 passed
+- Notes:
+  - `python -m way2australia_rag.repositories.validate --repo-root <path>` (Makefile passes `$(CURDIR)`; default is the current directory). `validate_knowledge(config)` returns all problems; `main` only formats (`ERROR <document_id>: <field>: <reason>` per problem, then a count) and returns 0/1.
+  - Stages: schema and manifest load (structural errors and duplicates are fatal at this stage and reported as problems); manifest entries outside approved roots; markdown files under approved roots not in the manifest; per-document frontmatter/schema/manifest-match/`sha256`/`body_sha256` checks; for documents without earlier problems, the Pydantic model (every error listed) and `effective_from`/`effective_to` format; then, only if everything is clean, the corpus check through `LocalDocumentRepository`.
+  - Corpus check interpretation: any active, `retrieval_enabled` document in the production roots must be approved, not synthetic and `public`; the guest/public eligible set is then re-checked for the same. A synthetic or draft document with `retrieval_enabled: false` or a non-active lifecycle is not retrievable and does not fail. This is slightly broader than "eligible public document" (which is tautologically safe under the policy), so it catches misplaced staff or draft files in the public roots.
+  - Prior findings addressed: T3 F3 (nested `required` now prefixed with the parent path, tested); T4 F2 (outside-root entries and unlisted files are reported); T4 F3 (all Pydantic errors listed); T5 F1 (non-`YYYY-MM-DD` `effective_from`/`effective_to` rejected, so the raw-mapping hash cannot diverge from validated dates). T5 F1's alternative (hash from model values) not taken. T5 F2 is narrative only.
+  - Not touched: T6 F1-F3 (assigned to T8). T3 F1 (record deps) stays for T9. No files under `knowledge/`, `evaluation/` or `config/` touched. No new dependencies.
+  - Unrelated formatter churn in `test_content_hash.py` was reverted.
+  - COMMANDS.md: added a Behavior list under `make validate-knowledge`; the original expectations were unchanged.
+
+### Review
+- Model: claude-opus-5-5
+- Verdict: PASS
+- Commands: `make validate-knowledge` → exit 0 (`validate-knowledge: OK, 0 problems` on the seed corpus); `make verify` → exit 0 (ruff clean, pyright 0 errors, skills mirrors match, validate-knowledge OK, 166 tests passed); `make test-integration` → exit 0 (10 passed, 156 deselected); `uv run pytest packages/rag/tests/test_validate_knowledge.py` (inside `make verify`) → 17 passed; `git status --porcelain -- evaluation/ knowledge/ config/` → empty
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R5] "Report every problem" is partial: `load_manifest` raises on the first duplicate or structural error, so those stop all later checks, and `_corpus_problems` (synthetic / not approved / not public) runs only when no other problem exists. A stray unlisted file or one hash mismatch therefore hides a retrievable synthetic or staff document until it is fixed. Exit code stays correct (1) → acceptable; optionally run the corpus checks per document from frontmatter so they are reported alongside other problems.
+  - F2 [MINOR, IMPLEMENTATION, R6] Design says "All logic lives in the repository and validation modules. The command only wires configuration and formats output." `validate.py` holds the new checks (outside-root entries, unlisted files, date format, all-Pydantic-errors, corpus checks) next to `main`. `main` itself only wires and formats and `validate_knowledge()` is reusable, so the intent holds → consider moving the checks into a validation module if ingestion needs them.
+  - F3 [MINOR, IMPLEMENTATION, R7] The `YYYY-MM-DD` date check (T5 F1) exists only in `validate-knowledge`; `LocalDocumentRepository` still loads a document with `effective_from: 2026-01-01T00:00:00` and hashes the raw string. Gated by `make verify`, so harmless for CI → move the check into the loader if the repository is used outside `make verify`.
+  - F4 [MINOR, IMPLEMENTATION, R11] The CLI tests cover a repeated `document_id`, not a repeated `(document_id, document_version)` pair; the pair case is covered by the T3 manifest tests → no action needed.
+- Summary for user (PASS only):
+  - Changed: new `packages/rag/.../repositories/validate.py` (`python -m way2australia_rag.repositories.validate --repo-root <path>`; prints `ERROR <document_id>: <field>: <reason>` per problem and a count, exits 0/1); `Makefile` adds `validate-knowledge` and runs it in `make verify`; `docs/project/COMMANDS.md` documents the behavior; `local.py` exposes `under_root` and a shared `document_fields` helper; `manifest.py` keeps the parent path for nested `required` errors; 18 new tests.
+  - Verified by: `make validate-knowledge` (seed corpus: 0 problems), `make verify` (166 tests), `make test-integration` (10). Tests run the CLI against temporary broken repositories (duplicate ID, missing file, schema violation, hash mismatch) and check exit 1 with the document ID and no absolute paths; also synthetic, draft and staff documents in the public roots, entries outside approved roots, unlisted files, bad dates and a missing schema.
+  - Worth your attention: (1) the check is broader than the spec's "eligible public document": any active, retrieval-enabled document in the public roots must be approved, public and non-synthetic, so a misplaced staff or draft file fails `make verify`; (2) it also fails on markdown files under the roots that the manifest does not list, and on non-`YYYY-MM-DD` dates (closing earlier review findings); (3) some problems hide others until fixed (F1).
+
+### User decision
+- 2026-10-15 — approved

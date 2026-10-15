@@ -12,6 +12,7 @@ import asyncio
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
+from typing import Any
 
 from pydantic import ValidationError
 from way2australia_core.documents import ALL_LOTE_LANGUAGES, KnowledgeDocument
@@ -55,7 +56,7 @@ class LocalRepositoryConfig:
     approved_roots: tuple[str, ...] = DEFAULT_APPROVED_ROOTS
 
 
-def _under_root(path: str, roots: Sequence[str]) -> bool:
+def under_root(path: str, roots: Sequence[str]) -> bool:
     parts = PurePosixPath(path).parts
     return any(parts[: len(r)] == r for r in (PurePosixPath(x).parts for x in roots))
 
@@ -80,6 +81,18 @@ def _matches(document: KnowledgeDocument, query: DocumentQuery) -> bool:
             or _applies_to_language(document, query.lote_language)
         )
     )
+
+
+def document_fields(body: str, metadata: dict[str, Any]) -> dict[str, Any]:
+    """Model input for one document: known frontmatter fields, content and hash."""
+    fields: dict[str, Any] = {
+        name: metadata[name]
+        for name in KnowledgeDocument.model_fields
+        if name in metadata
+    }
+    fields["content"] = normalize_body(body)
+    fields["content_hash"] = compute_content_hash(body, metadata)
+    return fields
 
 
 class LocalDocumentRepository:
@@ -130,7 +143,7 @@ class LocalDocumentRepository:
         entries = [
             e
             for e in load_manifest(root / config.manifest_path, validator)
-            if _under_root(e.path, config.approved_roots)
+            if under_root(e.path, config.approved_roots)
         ]
         problems: list[ValidationProblem] = check_manifest_documents(
             entries, root, validator
@@ -150,13 +163,7 @@ class LocalDocumentRepository:
                 entry.document_id, "content", describe_error(exc)
             ) from exc
         metadata, body = split_frontmatter(text)
-        fields = {
-            name: metadata[name]
-            for name in KnowledgeDocument.model_fields
-            if name in metadata
-        }
-        fields["content"] = normalize_body(body)
-        fields["content_hash"] = compute_content_hash(body, metadata)
+        fields = document_fields(body, metadata)
         try:
             return KnowledgeDocument.model_validate(fields)
         except ValidationError as exc:
