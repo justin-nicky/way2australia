@@ -1,6 +1,6 @@
 # 002 — Document Model and DocumentRepository Tasks
 
-Status: implementing (branch spec/002, base 869c37f)
+Status: all tasks approved (2026-10-15)
 
 ## T1 — Implement document domain model
 **State:** approved (2026-10-14) — predates task review
@@ -164,7 +164,7 @@ make verify
 - [x] Keep Spec 003 concerns out of this implementation.
 - [x] Mark task completion accurately.
 
-- [ ] Hand off to `spec-orchestrator` for completion (`all tasks approved`, optional `spec-reviewer`, merge).
+- [x] Hand off to `spec-orchestrator` for completion (`all tasks approved`, optional `spec-reviewer`, merge).
 
 ### Verification
 
