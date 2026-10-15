@@ -44,9 +44,19 @@ Invoking this skill is the user's request to run the loop; do not ask permission
 
 After a role returns, trust only the repository (State lines, `task-reviews.md`), not its message. If the State did not change as expected, treat the role as interrupted.
 
+Record usage: the subagent result ends with `<usage>subagent_tokens: N, tool_uses: M, duration_ms: D</usage>`. Add `- Usage: N tokens · M tool uses · <D as m:ss>` to the block that role just wrote (Implementation or Review) for this round. If the role ran in a separate session or by hand, write `- Usage: not measured`. Your own orchestration tokens are not measurable from inside this session; do not estimate them.
+
 ## User interaction
 
-When a task is `awaiting user review (round N)`, show the reviewer's "Summary for user" from `task-reviews.md`, not a diff, and ask: approve, or feedback?
+When a task is `awaiting user review (round N)`, show the reviewer's "Summary for user" from `task-reviews.md`, not a diff, then a usage table built from every round's `Usage:` and `Model:` lines for this task:
+
+| Round | Stage | Model | Tokens |
+|---|---|---|---|
+| 1 | Implementation | claude-sonnet-5-5 | 180,000 |
+| 1 | Review | claude-opus-5-5 | 95,000 |
+| | **Total** | | **275,000** |
+
+Note "orchestrator overhead not included" and any `not measured` rows. Then ask: approve, or feedback?
 
 Record the answer verbatim and dated in the task's "User decision" block, then:
 - **approved:** `**State:** approved (YYYY-MM-DD)`; commit all the task's changes (code, tests, `tasks.md`, `task-reviews.md`) in one commit ending with the trailer `Spec-Task: <NNN>/<task-id>`; push `spec/<NNN>` (never force); then the next task. This is the only point where task work is committed.

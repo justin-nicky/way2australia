@@ -7,3 +7,4 @@
   - Changed: <what and where>
   - Verified by: <commands, tests>
   - Worth your attention: <decisions, risks, deviations; "nothing" if none>
+- Usage: <tokens> tokens · <tool uses> tool uses · <duration> (left for the orchestrator; recorded by the orchestrator; `not measured` if the role ran outside it)

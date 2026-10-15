@@ -1,6 +1,6 @@
 # 003 — Task-Gated Agent Workflow Requirements
 
-Status: approved (2026-10-14)
+Status: approved (2026-10-15)
 
 ## Goal
 
@@ -93,7 +93,7 @@ The user approves each task after it passes task review.
 
 ### Acceptance criteria
 
-- the user sees the reviewer's change summary, not a raw diff, by default;
+- the user sees the reviewer's change summary, not a raw diff, by default, together with the task's total token usage and a per-round, per-stage split with the model used (as measured by the orchestrator);
 - approval is recorded in the repository (task state and `task-reviews.md`) with a date, never only in chat;
 - user feedback is recorded and routed: implementation feedback to `spec-implementer`, spec feedback to `spec-planner` ("revise an approved spec");
 - after approval, the spec branch is pushed to the remote;
@@ -232,6 +232,7 @@ The full loop is exercised once on real work before this spec is complete.
 ## Change log
 
 - 2026-10-14 — R1, R2, R3, R5, R6: task work stays uncommitted through implementation and review; the orchestrator commits it (one `Spec-Task` commit) and pushes only after user approval. Implemented directly in skills/docs; no task re-opened.
+- 2026-10-15 — R5, R9: the orchestrator records each role's token usage in `task-reviews.md` and shows the user a per-task usage table (stage, model, tokens, total) with the review summary. Implemented directly in skills/docs; no task re-opened.
 
 <!-- Approved amendments only, one dated line each:
 - YYYY-MM-DD — <R#/T#>: <what changed and why>. Re-opened <T#>. -->
