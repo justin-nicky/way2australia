@@ -96,15 +96,15 @@ Tests prove:
 - a manifest `sha256`/`body_sha256` mismatch raises `ManifestValidationError`.
 
 ## T6 — Implement retrieval eligibility filtering
-**State:** not started
+**State:** approved (2026-10-15)
 
 **Requirements:** R8, R9
 
-- [ ] Implement production eligibility policy.
-- [ ] Enforce approval/lifecycle/retrieval-enabled conditions.
-- [ ] Exclude synthetic documents.
-- [ ] Enforce allowed access scopes from server-owned policy input.
-- [ ] Keep language metadata independent from authorization.
+- [x] Implement production eligibility policy.
+- [x] Enforce approval/lifecycle/retrieval-enabled conditions.
+- [x] Exclude synthetic documents.
+- [x] Enforce allowed access scopes from server-owned policy input.
+- [x] Keep language metadata independent from authorization.
 
 ### Verification
 

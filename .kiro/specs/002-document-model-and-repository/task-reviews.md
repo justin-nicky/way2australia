@@ -91,3 +91,36 @@ Append-only; newest at the bottom.
 
 ### User decision
 - 2026-10-14 — approved
+
+## T6 — round 1
+
+### Implementation
+- Model: claude-sonnet-5-5
+- Commits: none yet (changes left uncommitted for task review)
+- Files changed: new `packages/rag/src/way2australia_rag/repositories/eligibility.py`; `repositories/__init__.py` (exports); new `packages/rag/tests/test_eligibility.py` (22 tests); `tasks.md` (T6 ticks and State)
+- Verification run: `make verify` -> pass (148 tests, ruff and pyright clean, skills mirrors match); `make test-integration` -> 10 passed (seed corpus through the repository, includes the new seed-eligibility test)
+- Notes:
+  - `EligibilityPolicy` (frozen dataclass) holds the server-owned `allowed_access_scopes` (non-empty). `is_eligible(document)` requires approved AND active AND `retrieval_enabled` AND NOT `synthetic` AND scope in the policy. `GUEST_PUBLIC_POLICY` is the Phase 1 policy (`public` only).
+  - `policy.query(lote_language=None)` builds the equivalent `DocumentQuery`; the language argument only narrows applicability and never touches the scopes.
+  - `list_eligible_documents(repository, policy, lote_language=None)` pushes the query to the repository and then re-applies `is_eligible` and the language check to the result, so a repository that ignores the query still cannot leak ineligible documents (tested with a deliberately leaky repository).
+  - Eligibility does not look at paths or directories. The scopes come from the caller's trusted server code; nothing reads them from documents, requests or LLM output.
+  - Tests cover: active public included; deprecated/archived/draft excluded; non-approved statuses excluded; retrieval-disabled excluded; synthetic excluded; staff/subscriber/admin/user_private excluded for guest; widening only via an explicit server policy; empty policy rejected; language filters (including `*`, `ml`, `en`) never make a staff document eligible; language narrows eligible documents only; both security fixtures parse as valid documents but are ineligible (`retrieval_enabled: true`, so exclusion is by governance and authorization); all 13 seed documents are eligible.
+  - T4 findings F2/F3 (T7 reporting) untouched. No files under `knowledge/`, `evaluation/` or `config/` touched. No new dependencies.
+  - Test-only note: the tests import `_matches` from `local.py` to emulate a filtering repository.
+
+
+### Review
+- Model: claude-opus-5-5
+- Verdict: PASS
+- Commands: `make verify` → pass (exit 0; ruff clean, pyright 0 errors, skills mirrors match, 148 tests passed); `make test-integration` → pass (10 passed, 138 deselected); `make test-unit` → 138 passed; `git status --porcelain -- evaluation/ knowledge/ config/` → empty
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R8] `test_eligibility.py::load_fixture` builds the security fixtures by hand (`split_frontmatter`, keeps only keys in `KnowledgeDocument.model_fields`, skips JSON-schema validation) instead of through "an explicitly configured, isolated test repository" (design "Security fixtures"). It proves ineligibility, but not that the fixtures are schema-valid, and silently drops unknown keys → in T8, load them through an isolated `LocalDocumentRepository`/schema-validated path.
+  - F2 [MINOR, IMPLEMENTATION, R9] The language-applicability rule (`"*"` or exact code) is duplicated in `eligibility.list_eligible_documents` and `local._applies_to_language`, and the tests import the private `local._matches`. Behaviour is consistent today → move the rule to one shared helper (e.g. on the model or the query module) when next touched.
+  - F3 [MINOR, IMPLEMENTATION, R11] The security-fixture and seed-corpus tests partly anticipate T8 checklist items; no conflict, but T8 should reuse rather than duplicate them.
+- Summary for user (PASS only):
+  - Changed: new `packages/rag/src/way2australia_rag/repositories/eligibility.py` with `EligibilityPolicy` (server-supplied, non-empty set of allowed access scopes; eligible = approved AND active AND retrieval-enabled AND not synthetic AND scope allowed), `GUEST_PUBLIC_POLICY` (public only) and `list_eligible_documents`, which pushes the filter to the repository and re-checks every result so a faulty repository cannot leak documents; exports in `repositories/__init__.py`; 22 tests in `packages/rag/tests/test_eligibility.py`.
+  - Verified by: `make verify` (148 tests), `make test-integration` (10). Tests cover every T6 verification item: active public included; deprecated/archived/draft, non-approved, retrieval-disabled and synthetic excluded; staff/subscriber/admin/user_private excluded for guest; language filters (`*`, `ml`, `en`) never make a staff document eligible; both security fixtures ineligible; all 13 seed documents eligible.
+  - Worth your attention: eligibility ignores file location entirely and language only narrows results. Three minor cleanups (F1–F3) are left for T8.
+
+### User decision
+- 2026-10-15 — approved
