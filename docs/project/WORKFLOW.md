@@ -126,7 +126,7 @@ Rounds count implementer runs for a task. The automatic limit counts consecutive
 - Files changed: <paths>
 - Verification run: `make verify` → pass (N tests)
 - Notes: <decisions, deviations, open questions>
-- Usage: <tokens> tokens · <tool uses> tool uses · <duration> (recorded by the orchestrator; `not measured` if the role ran outside it)
+- Usage: <tokens, e.g. 180K or 1.2M> tokens · <tool uses> tool uses · <duration> (recorded by the orchestrator; `not measured` if the role ran outside it)
 
 ### Review
 - Model: <model id>
@@ -137,7 +137,7 @@ Rounds count implementer runs for a task. The automatic limit counts consecutive
   - Changed: ...
   - Verified by: ...
   - Worth your attention: ...
-- Usage: <tokens> tokens · <tool uses> tool uses · <duration> (recorded by the orchestrator; `not measured` if the role ran outside it)
+- Usage: <tokens, e.g. 180K or 1.2M> tokens · <tool uses> tool uses · <duration> (recorded by the orchestrator; `not measured` if the role ran outside it)
 
 ### User decision
 - 2026-10-14 — approved | changes requested: "<feedback verbatim>" | spec issue: "<feedback>"

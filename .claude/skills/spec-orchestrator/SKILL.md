@@ -44,7 +44,7 @@ Invoking this skill is the user's request to run the loop; do not ask permission
 
 After a role returns, trust only the repository (State lines, `task-reviews.md`), not its message. If the State did not change as expected, treat the role as interrupted.
 
-Record usage: the subagent result ends with `<usage>subagent_tokens: N, tool_uses: M, duration_ms: D</usage>`. Add `- Usage: N tokens · M tool uses · <D as m:ss>` to the block that role just wrote (Implementation or Review) for this round. If the role ran in a separate session or by hand, write `- Usage: not measured`. Your own orchestration tokens are not measurable from inside this session; do not estimate them.
+Record usage: the subagent result ends with `<usage>subagent_tokens: N, tool_uses: M, duration_ms: D</usage>`. Add `- Usage: <N rounded> tokens · M tool uses · <D as m:ss>`, where tokens are rounded to K or M (`52K`, `1.2M`; whole K below 1M, one decimal M above) to the block that role just wrote (Implementation or Review) for this round. If the role ran in a separate session or by hand, write `- Usage: not measured`. Your own orchestration tokens are not measurable from inside this session; do not estimate them.
 
 ## User interaction
 
@@ -52,9 +52,9 @@ When a task is `awaiting user review (round N)`, show the reviewer's "Summary fo
 
 | Round | Stage | Model | Tokens |
 |---|---|---|---|
-| 1 | Implementation | claude-sonnet-5-5 | 180,000 |
-| 1 | Review | claude-opus-5-5 | 95,000 |
-| | **Total** | | **275,000** |
+| 1 | Implementation | claude-sonnet-5-5 | 180K |
+| 1 | Review | claude-opus-5-5 | 95K |
+| | **Total** | | **275K** |
 
 Note "orchestrator overhead not included" and any `not measured` rows. Then ask: approve, or feedback?
 
