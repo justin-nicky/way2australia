@@ -1,6 +1,6 @@
 # 003 — Task-Gated Agent Workflow Tasks
 
-Status: all tasks approved (2026-10-15)
+Status: verified (2026-10-15, merged c7b4b59)
 
 Bootstrap: this spec is implemented under the pre-003 flow, directly on `main` (design → "Bootstrap"). The `State:` lines below follow the new format from the start.
 
