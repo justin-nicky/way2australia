@@ -102,7 +102,7 @@ Directly under each task heading in `tasks.md`, above the checkboxes, a `**State
 | `approved (YYYY-MM-DD)` | orchestrator (user approval) | next task, or spec completion |
 | `blocked — spec issue` | any role | user + `spec-planner` revise flow |
 
-Rounds count implementer runs for a task. The automatic limit counts consecutive reviewer `FAIL`s; a user "changes requested" resets it. A task re-opened by a spec amendment returns to `not started`, recorded in the change log.
+Rounds count implementer runs for a task. The automatic limit counts consecutive reviewer `FAIL`s; a user "changes requested" resets it. A task re-opened by a spec amendment returns to `not started`, recorded in the change log. Exception: if the task already has uncommitted work from earlier rounds, set it to `task review failed — round N` (N = its last round) so the next implementer round continues that work.
 
 ### Branching and commits
 

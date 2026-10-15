@@ -129,7 +129,7 @@ Use this when an implementer or reviewer reports a spec defect, or the user requ
 3. Get explicit approval.
 4. Edit only the affected sections.
 5. Append one dated line to `## Change log` in `requirements.md` (e.g. `- 2026-10-14 — R5: manifest mismatch is an error, not a warning (found during T3). Re-opened T3.`).
-6. Set each edited file to `Status: approved (YYYY-MM-DD)` with the new date. Uncheck tasks whose acceptance criteria changed, set their `**State:**` to `not started`, and remove any `> BLOCKED:` note you resolved.
+6. Set each edited file to `Status: approved (YYYY-MM-DD)` with the new date. Uncheck tasks whose acceptance criteria changed, set their `**State:**` to `not started` (or, if the task already has uncommitted work from earlier rounds, `task review failed — round N` with N its last round, so the next round continues it), and remove any `> BLOCKED:` note you resolved.
 7. Hand back to `spec-orchestrator` (or `spec-implementer` for the re-opened task).
 
 Never rewrite requirements/design merely so that existing code passes.
