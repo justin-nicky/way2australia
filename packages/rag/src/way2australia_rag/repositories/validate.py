@@ -8,10 +8,8 @@ repository-relative paths only, never absolute ones.
 
 import argparse
 import asyncio
-import re
 import sys
 from collections.abc import Sequence
-from datetime import date
 from pathlib import Path, PurePosixPath
 
 from pydantic import ValidationError
@@ -47,10 +45,6 @@ from way2australia_rag.repositories.manifest import (
     load_schema,
 )
 
-# Fields that feed `content_hash`; a date must be written one canonical way.
-_DATE_FIELDS = ("effective_from", "effective_to")
-_ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
-
 
 def _error_problems(exc: DocumentRepositoryError) -> list[ValidationProblem]:
     """Turn a repository error into problems (one per listed line when multiline)."""
@@ -72,29 +66,8 @@ def _duplicate_reason(version: int | None) -> str:
     return f"(document_id, document_version) {version} appears more than once"
 
 
-def _date_problems(
-    document_id: str, metadata: dict[str, object]
-) -> list[ValidationProblem]:
-    problems: list[ValidationProblem] = []
-    for name in _DATE_FIELDS:
-        value = metadata.get(name)
-        if value is None:
-            continue
-        valid = isinstance(value, str) and _ISO_DATE.fullmatch(value) is not None
-        if valid:
-            try:
-                date.fromisoformat(str(value))
-            except ValueError:
-                valid = False
-        if not valid:
-            problems.append(
-                ValidationProblem(document_id, name, "must be a YYYY-MM-DD date")
-            )
-    return problems
-
-
 def _model_problems(entry: ManifestEntry, repo_root: Path) -> list[ValidationProblem]:
-    """Check dates and validate the Pydantic model, listing every model error."""
+    """Validate the Pydantic model, listing every model error."""
     document_id = entry.document_id
     try:
         text = (repo_root / entry.path).read_text(encoding="utf-8")
@@ -102,7 +75,7 @@ def _model_problems(entry: ManifestEntry, repo_root: Path) -> list[ValidationPro
     except (OSError, UnicodeDecodeError, ValueError) as exc:
         reason = str(exc) if type(exc) is ValueError else describe_error(exc)
         return [ValidationProblem(document_id, "frontmatter", reason)]
-    problems = _date_problems(document_id, metadata)
+    problems: list[ValidationProblem] = []
     try:
         KnowledgeDocument.model_validate(document_fields(body, metadata))
     except ValidationError as exc:

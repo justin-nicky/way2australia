@@ -6,14 +6,14 @@ Implement in order; each task depends on the ones before it. New ingestion code 
 
 ## T1 — Hardening: loader date validation and policy-vs-config test
 
-**State:** not started
+**State:** approved (2026-10-15)
 **Requirements:** R2, R3
 
-- [ ] Add one strict `YYYY-MM-DD` date helper shared by the loader (`repositories/local.py` / `manifest.py`) and `repositories/validate.py`, so the two cannot diverge.
-- [ ] Make `LocalDocumentRepository` reject a bad value in `last_reviewed_at`, `effective_from`, `effective_to` and any other date field the metadata schema defines, with an error naming the document and field and containing no absolute path.
-- [ ] Add unit tests: a bad value in each date field fails loading; the error names document and field and has no absolute path; the seed corpus still loads with no change to `knowledge/`.
-- [ ] Add a deterministic test that loads `config/access_policy.yaml` and asserts `roles.guest.allowed_scopes == ["public"]`, that it equals the scopes in `GUEST_PUBLIC_POLICY`, and that every scope named in the file is an `AccessScope` member.
-- [ ] Do not edit `config/access_policy.yaml` or anything under `knowledge/`.
+- [x] Add one strict `YYYY-MM-DD` date helper shared by the loader (`repositories/local.py` / `manifest.py`) and `repositories/validate.py`, so the two cannot diverge.
+- [x] Make `LocalDocumentRepository` reject a bad value in `last_reviewed_at`, `effective_from`, `effective_to` and any other date field the metadata schema defines, with an error naming the document and field and containing no absolute path.
+- [x] Add unit tests: a bad value in each date field fails loading; the error names document and field and has no absolute path; the seed corpus still loads with no change to `knowledge/`.
+- [x] Add a deterministic test that loads `config/access_policy.yaml` and asserts `roles.guest.allowed_scopes == ["public"]`, that it equals the scopes in `GUEST_PUBLIC_POLICY`, and that every scope named in the file is an `AccessScope` member.
+- [x] Do not edit `config/access_policy.yaml` or anything under `knowledge/`.
 
 ### Verification
 
