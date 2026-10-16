@@ -71,6 +71,9 @@ Approximately one focused week.
 - structure-aware chunking
 - FAQ-aware retrieval/indexing
 - optional semantic chunking
+- token-based size cap using the embedding model's own tokenizer, instead of Spec 004's character cap (2,000 characters means different token counts per language; Malayalam uses more tokens per character than English)
+- guard against silent truncation: count tokens before embedding and fail when a chunk exceeds the model's maximum sequence length (`sentence-transformers` truncates silently)
+- parent-heading context in chunk text and duplicate-heading `section_id`s that do not depend on order (Spec 004 baseline limitations)
 
 ### 8. Multilingual retrieval
 - English
