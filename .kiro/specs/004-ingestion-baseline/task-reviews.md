@@ -154,3 +154,30 @@
 
 ### User decision
 - 2026-10-16 — approved
+
+
+## T5 — round 1
+
+### Implementation
+- Model: claude-sonnet-5-5 (matches BEST_MINUS_ONE tier; no mismatch)
+- Files changed: `packages/rag/src/way2australia_rag/ingestion/settings.py` (new: frozen `IndexSettings`, `build_index_settings`, `compare`, `mismatch_message`, `collection_name`), `payload.py` (new: frozen `PointPayload`, `build_payload`, `IDENTITY_FIELDS`), `identity.py` (new: `INGESTION_NAMESPACE`, `point_id`), `packages/rag/tests/ingestion/test_index_contract.py` (new), `tasks.md` (T5 boxes ticked, State). Earlier blocks in this file were not modified (append only).
+- Verification run: `make verify` -> exit 0 (ruff, pyright, skills-check, validate-knowledge, 257 passed, 1 skipped; bge-m3 group not installed); `make test-unit` -> 244 passed, 1 skipped, 13 deselected; `make test-integration` -> 13 passed.
+- Notes: T4 F2 decision: `batch_size` and `max_length` are NOT index settings. They do not change vectors, and the design's `IndexSettings` field list does not include them; `EmbedderInfo.settings` stays informational. `IndexSettings` also carries `schema_version` "1.0". `build_index_settings(index_version, embedder_info, chunker, hash_contract=HASH_CONTRACT)` takes the index version directly because `config/ingestion.yaml` does not exist until T8. `collection_name(base, index_version)` is the single derivation. `mismatch_message` is the refusal text (lists each differing field, points to a new `index_version` in `config/ingestion.yaml`) for T6 to raise via `IndexSettingsMismatchError`. `INGESTION_NAMESPACE` = `533d6c5a-5ac2-4dd5-a4e6-5fbb620efba2` (uuid4, generated once); DECISIONS.md entry is left to the task that records decisions (not edited here). `PointPayload` enum fields are stored as strings; `lote_languages` as a list. `make format` reformats the unrelated `packages/rag/tests/test_content_hash.py`; that change was reverted each time. Nothing under `knowledge/`, `config/` or `evaluation/` changed. Not committed.
+- Usage: 94K tokens · 26 tool uses · 34:27
+
+### Review
+- Model: claude-opus-5-5 (matches BEST tier `Opus`; no mismatch; different model from the implementer)
+- Verdict: PASS
+- Commands: `make test-unit` → pass (244 passed, 1 skipped, 13 deselected); `make verify` → exit 0 (ruff clean, pyright 0 errors, skills-check OK, validate-knowledge OK, 257 passed, 1 skipped); `make test-integration` → pass (13 passed, 245 deselected); `git status --porcelain -- evaluation/ knowledge/ config/` → empty.
+- Checks: `PointPayload` fields equal the design's 17-row table exactly (pinned by `test_payload_field_set_equals_design_table`, `extra="forbid"`). Hash-coverage subset test is real: non-identity fields (13) ⊆ `CONTENT_HASH_METADATA_FIELDS` ∪ {`chunk_text`, `content_hash`}, and that set excludes `persona_scope`, `last_reviewed_at`, `introduced_in_release`, so adding any uncovered field fails. `persona_scope`, `last_reviewed_at` and eligibility-only fields absent. `IndexSettings` fields match the design plus `schema_version` "1.0" (required by the task). `compare()` iterates all model fields except `hash_contract`; per-field and exhaustive tests cover it. `collection_name()` is the only `<base>-<index_version>` derivation in the package. `INGESTION_NAMESPACE` documented in `identity.py` and pinned; the DECISIONS.md entry is explicitly listed in T9's checklist, so deferral is acceptable. `batch_size`/`max_length` excluded from `IndexSettings`: consistent with the design's field list and config (no `max_length` in config or code).
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R9] `test_point_id_distinct_across_document_section_and_position` lists `("doc_a", "main1", 0)` twice and asserts `len(ids) == 6` over 7 entries; correct but misleading. → Remove the duplicate and assert 6 over 6 entries (any later round).
+  - F2 [MINOR, IMPLEMENTATION, R7] `settings.py` docstring says `max_length` never changes vectors; that holds only while inputs fit the model's token limit (true today: 2000-char cap, `max_length` not configurable). → If `max_length` ever becomes configurable, revisit whether it belongs in `IndexSettings`.
+- Summary for user (PASS only):
+  - Changed: new `ingestion/settings.py` (frozen `IndexSettings`, `build_index_settings`, `compare` ignoring `hash_contract`, `mismatch_message`, `collection_name`), `ingestion/payload.py` (frozen 17-field `PointPayload`, `build_payload`, `IDENTITY_FIELDS`), `ingestion/identity.py` (`INGESTION_NAMESPACE`, UUIDv5 `point_id`), tests in `packages/rag/tests/ingestion/test_index_contract.py`.
+  - Verified by: `make test-unit`, `make verify`, `make test-integration` (counts above).
+  - Worth your attention: `INGESTION_NAMESPACE` = `533d6c5a-5ac2-4dd5-a4e6-5fbb620efba2` is now fixed forever; its DECISIONS.md entry lands in T9. `batch_size`/`max_length` are not index settings (per design). Two MINOR test/doc nits above.
+- Usage: 86K tokens · 12 tool uses · 1:45
+
+### User decision
+- 2026-10-16 — approved

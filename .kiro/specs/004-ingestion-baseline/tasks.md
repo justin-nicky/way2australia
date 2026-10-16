@@ -79,15 +79,15 @@ Implement in order; each task depends on the ones before it. New ingestion code 
 
 ## T5 — Index settings, payload fields and point identity
 
-**State:** not started
+**State:** approved (2026-10-16)
 **Requirements:** R7, R8, R9
 
-- [ ] Implement `IndexSettings` (frozen, schema_version `1.0`, fields per design incl. `embedder_is_fake`, chunker name/version/`max_chunk_chars`, `hash_contract`) in `settings.py`, plus `build_index_settings(...)`.
-- [ ] Implement `compare(recorded, wanted)` returning differing fields, ignoring `hash_contract`, and the refusal text pointing to a new `index_version` label in `config/ingestion.yaml`.
-- [ ] Implement the collection-name derivation `<collection_base>-<index_version>` in one place.
-- [ ] Implement `PointPayload` (frozen) and `build_payload()` in `payload.py` with exactly the design's field table; define `IDENTITY_FIELDS`; exclude `persona_scope`, `last_reviewed_at` and eligibility-only fields.
-- [ ] Generate the `INGESTION_NAMESPACE` UUID once and implement `point_id(document_id, section_id, position)` (UUIDv5, unit-separator join) in `identity.py`, with a docstring documenting the constant.
-- [ ] Unit tests: `compare` ignores `hash_contract` and reports each other field; collection name derivation; payload field set equals the table; hash-coverage subset test against `CONTENT_HASH_METADATA_FIELDS` plus `chunk_text` and `content_hash`; `persona_scope` and `last_reviewed_at` absent; no Malayalam-specific `lote_languages` in code; `point_id` stable and distinct across section and position; namespace constant pinned by a test.
+- [x] Implement `IndexSettings` (frozen, schema_version `1.0`, fields per design incl. `embedder_is_fake`, chunker name/version/`max_chunk_chars`, `hash_contract`) in `settings.py`, plus `build_index_settings(...)`.
+- [x] Implement `compare(recorded, wanted)` returning differing fields, ignoring `hash_contract`, and the refusal text pointing to a new `index_version` label in `config/ingestion.yaml`.
+- [x] Implement the collection-name derivation `<collection_base>-<index_version>` in one place.
+- [x] Implement `PointPayload` (frozen) and `build_payload()` in `payload.py` with exactly the design's field table; define `IDENTITY_FIELDS`; exclude `persona_scope`, `last_reviewed_at` and eligibility-only fields.
+- [x] Generate the `INGESTION_NAMESPACE` UUID once and implement `point_id(document_id, section_id, position)` (UUIDv5, unit-separator join) in `identity.py`, with a docstring documenting the constant.
+- [x] Unit tests: `compare` ignores `hash_contract` and reports each other field; collection name derivation; payload field set equals the table; hash-coverage subset test against `CONTENT_HASH_METADATA_FIELDS` plus `chunk_text` and `content_hash`; `persona_scope` and `last_reviewed_at` absent; no Malayalam-specific `lote_languages` in code; `point_id` stable and distinct across section and position; namespace constant pinned by a test.
 
 ### Verification
 
