@@ -114,15 +114,15 @@ Implement in order; each task depends on the ones before it. New ingestion code 
 
 ## T7 — Ingestion service: target state, change detection, run summary
 
-**State:** not started
+**State:** approved (2026-10-16)
 **Requirements:** R1, R10, R11, R13
 
-- [ ] Implement `IngestionService(repository, policy, chunker, embedder, store, batch_size)` in `service.py` (async), following design steps 1–7, depending only on Protocols, `DocumentRepository` and `QdrantIndexStore`.
-- [ ] Target state from `list_eligible_documents(repository, GUEST_PUBLIC_POLICY)` only; delete every indexed `document_id` not in the target.
-- [ ] Classify added / updated (hash, version or point-ID set differs) / unchanged; for each changed document embed first, then replace, in its own try/except; record failures and continue.
-- [ ] Implement `RunReport` (index version, collection, embedder model ID, `embedder_is_fake`, added/updated/unchanged/deleted `document_id` lists, failures) with no absolute paths or document text.
-- [ ] Unit tests on in-memory Qdrant, fake embedder and temporary repositories, with counting wrappers: first run adds all; second run zero added/updated/deleted, no embedding calls, no writes; changed body, changed metadata field and bumped `document_version` each update; review-date change does not update; 3-to-2 chunk shrink leaves no orphan; deprecated, retrieval-disabled and removed documents are deleted; security fixtures and non-public documents never reach the index; embedding failure keeps old points, reports and continues; missing points with matching hash/version are repaired.
-- [ ] Unit test: the seed corpus with the fake embedder indexes 13 documents, one chunk each, and a second run is idempotent.
+- [x] Implement `IngestionService(repository, policy, chunker, embedder, store, batch_size)` in `service.py` (async), following design steps 1–7, depending only on Protocols, `DocumentRepository` and `QdrantIndexStore`.
+- [x] Target state from `list_eligible_documents(repository, GUEST_PUBLIC_POLICY)` only; delete every indexed `document_id` not in the target.
+- [x] Classify added / updated (hash, version or point-ID set differs) / unchanged; for each changed document embed first, then replace, in its own try/except; record failures and continue.
+- [x] Implement `RunReport` (index version, collection, embedder model ID, `embedder_is_fake`, added/updated/unchanged/deleted `document_id` lists, failures) with no absolute paths or document text.
+- [x] Unit tests on in-memory Qdrant, fake embedder and temporary repositories, with counting wrappers: first run adds all; second run zero added/updated/deleted, no embedding calls, no writes; changed body, changed metadata field and bumped `document_version` each update; review-date change does not update; 3-to-2 chunk shrink leaves no orphan; deprecated, retrieval-disabled and removed documents are deleted; security fixtures and non-public documents never reach the index; embedding failure keeps old points, reports and continues; missing points with matching hash/version are repaired.
+- [x] Unit test: the seed corpus with the fake embedder indexes 13 documents, one chunk each, and a second run is idempotent.
 
 ### Verification
 

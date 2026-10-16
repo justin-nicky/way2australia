@@ -9,7 +9,7 @@ The store never deletes a collection.
 from collections.abc import Iterable, Sequence
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 from qdrant_client import QdrantClient, models
 
 from way2australia_rag.ingestion.errors import (
@@ -65,6 +65,7 @@ class QdrantIndexStore:
     ) -> None:
         self._client = client
         self._index_version = index_version
+        self.index_version = index_version
         self.collection = collection_name(collection_base, index_version)
         self.settings_collection = self.collection + SETTINGS_COLLECTION_SUFFIX
 
@@ -202,7 +203,17 @@ class QdrantIndexStore:
         )
         if not found or found[0].payload is None:
             return None
-        return IndexSettings.model_validate(found[0].payload)
+        try:
+            return IndexSettings.model_validate(found[0].payload)
+        except ValidationError as error:
+            # Field names only: never echo the payload.
+            fields = sorted({".".join(map(str, e["loc"])) for e in error.errors()})
+            raise IndexSettingsMismatchError(
+                f"recorded index settings for collection '{self.collection}' are "
+                f"malformed or foreign (invalid fields: {', '.join(fields)}); "
+                "set index_version to a new label in config/ingestion.yaml. "
+                "The existing collection is left untouched."
+            ) from error
 
     def _write_settings(self, settings: IndexSettings) -> None:
         if not self._client.collection_exists(self.settings_collection):
