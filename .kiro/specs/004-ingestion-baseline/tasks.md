@@ -96,15 +96,15 @@ Implement in order; each task depends on the ones before it. New ingestion code 
 
 ## T6 — Qdrant writer: collection, settings, replace, delete
 
-**State:** not started
+**State:** approved (2026-10-16)
 **Requirements:** R7, R9, R13
 
-- [ ] Add `qdrant-client` (compatible with Qdrant `v1.19.2`) to `packages/rag/pyproject.toml` and `uv.lock`.
-- [ ] Implement `QdrantIndexStore` in `store.py` on the sync client: named `dense` vector; keyword payload indexes on `access_scope`, `tenant_id`, `document_id`, `content_language`, `lote_languages`.
-- [ ] Implement `ensure_collection(settings)` with the companion `<collection>-settings` collection (one fixed-ID point, 1-dimensional dummy vector, settings as payload) and the design's five-row startup table, raising `IndexSettingsMismatchError` with each differing field; never delete an existing collection.
-- [ ] Implement `read_state()` (payload-only scroll of identity fields and `content_hash`, returning `IndexedDocument` with version, hash and point-ID set), `replace_document()` (delete by `document_id` filter, then one upsert) and `delete_documents()`.
-- [ ] Unit tests on `QdrantClient(":memory:")`: each startup-table row; mismatch per field (model, revision, vector size, normalization, chunker version, size cap, fake vs real) refuses with no writes; `hash_contract` change does not refuse; replace shrinking 3 chunks to 2 leaves no orphan; delete; `read_state` round-trip.
-- [ ] Integration test (marker `integration`) against `http://localhost:6333`: the same settings-storage, replace and delete flows with a unique temporary collection base, removed afterwards; a fixture probes Qdrant and skips with a clear reason when unreachable.
+- [x] Add `qdrant-client` (compatible with Qdrant `v1.19.2`) to `packages/rag/pyproject.toml` and `uv.lock`.
+- [x] Implement `QdrantIndexStore` in `store.py` on the sync client: named `dense` vector; keyword payload indexes on `access_scope`, `tenant_id`, `document_id`, `content_language`, `lote_languages`.
+- [x] Implement `ensure_collection(settings)` with the companion `<collection>-settings` collection (one fixed-ID point, 1-dimensional dummy vector, settings as payload) and the design's five-row startup table, raising `IndexSettingsMismatchError` with each differing field; never delete an existing collection.
+- [x] Implement `read_state()` (payload-only scroll of identity fields and `content_hash`, returning `IndexedDocument` with version, hash and point-ID set), `replace_document()` (delete by `document_id` filter, then one upsert) and `delete_documents()`.
+- [x] Unit tests on `QdrantClient(":memory:")`: each startup-table row; mismatch per field (model, revision, vector size, normalization, chunker version, size cap, fake vs real) refuses with no writes; `hash_contract` change does not refuse; replace shrinking 3 chunks to 2 leaves no orphan; delete; `read_state` round-trip.
+- [x] Integration test (marker `integration`) against `http://localhost:6333`: the same settings-storage, replace and delete flows with a unique temporary collection base, removed afterwards; a fixture probes Qdrant and skips with a clear reason when unreachable.
 
 ### Verification
 

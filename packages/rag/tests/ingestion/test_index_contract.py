@@ -217,7 +217,6 @@ def test_point_id_distinct_across_document_section_and_position() -> None:
         point_id("doc_b", "main", 0),
         point_id("doc_a", "main1", 0),
         point_id("doc_a", "main", 10),
-        point_id("doc_a", "main1", 0),
     }
     assert len(ids) == 6
 
