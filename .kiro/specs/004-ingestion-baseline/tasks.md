@@ -59,17 +59,17 @@ Implement in order; each task depends on the ones before it. New ingestion code 
 
 ## T4 — BGE-M3 adapter as an optional dependency
 
-**State:** not started
+**State:** approved (2026-10-16)
 **Requirements:** R6, R13
 
-- [ ] Add a `bge-m3` optional dependency group (`sentence-transformers`, which brings PyTorch) to `packages/rag/pyproject.toml`; update `uv.lock`; `make setup` must not install it.
-- [ ] Add `make setup-bge-m3` (same `uv sync` as `make setup` plus the `bge-m3` extra), with a Makefile comment that `make setup` removes the group again.
-- [ ] Resolve the current full commit SHA of `BAAI/bge-m3` from the model hub and record it for `config/ingestion.yaml` (created in T8) and in the task handoff; do not invent one.
-- [ ] Implement `BgeM3Embedder` in `bge_m3.py`: model ID `BAAI/bge-m3`, vector size 1024, dense-only, normalized; refuses a missing revision, `main` or `latest`; reports the pinned revision as its own; passes `revision=` to the loader.
-- [ ] Load the model lazily once per instance; `embed_documents` encodes in batches of the configured batch size.
-- [ ] Import `sentence-transformers` only inside the loader method with a targeted `# pyright: ignore[reportMissingImports]`; importing the package without the group works; selecting the adapter without it raises `OptionalDependencyError` naming `make setup-bge-m3`.
-- [ ] Unit tests (no model): revision refusal; `OptionalDependencyError` message when the group is absent (simulated); module import works without the group.
-- [ ] Opt-in smoke test: runs only when `W2A_RUN_BGE_M3_SMOKE=1` and the group is installed, embeds one English and one Malayalam sentence, checks size 1024 and normalization; otherwise reports "skipped" with the reason.
+- [x] Add a `bge-m3` optional dependency group (`sentence-transformers`, which brings PyTorch) to `packages/rag/pyproject.toml`; update `uv.lock`; `make setup` must not install it.
+- [x] Add `make setup-bge-m3` (same `uv sync` as `make setup` plus the `bge-m3` extra), with a Makefile comment that `make setup` removes the group again.
+- [x] Resolve the current full commit SHA of `BAAI/bge-m3` from the model hub and record it for `config/ingestion.yaml` (created in T8) and in the task handoff; do not invent one.
+- [x] Implement `BgeM3Embedder` in `bge_m3.py`: model ID `BAAI/bge-m3`, vector size 1024, dense-only, normalized; refuses a missing revision, `main` or `latest`; reports the pinned revision as its own; passes `revision=` to the loader.
+- [x] Load the model lazily once per instance; `embed_documents` encodes in batches of the configured batch size.
+- [x] Import `sentence-transformers` only inside the loader method with a targeted `# pyright: ignore[reportMissingImports]`; importing the package without the group works; selecting the adapter without it raises `OptionalDependencyError` naming `make setup-bge-m3`.
+- [x] Unit tests (no model): revision refusal; `OptionalDependencyError` message when the group is absent (simulated); module import works without the group.
+- [x] Opt-in smoke test: runs only when `W2A_RUN_BGE_M3_SMOKE=1` and the group is installed, embeds one English and one Malayalam sentence, checks size 1024 and normalization; otherwise reports "skipped" with the reason.
 
 ### Verification
 

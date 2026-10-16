@@ -125,3 +125,32 @@
 
 ### User decision
 - 2026-10-15 — approved
+
+
+## T4 — round 1
+
+### Implementation
+- Model: claude-sonnet-5-5 (matches BEST_MINUS_ONE tier; no mismatch)
+- Files changed: `packages/rag/src/way2australia_rag/ingestion/bge_m3.py` (new: `BgeM3Embedder`), `packages/rag/tests/ingestion/test_bge_m3.py` (new), `packages/rag/pyproject.toml` (`bge-m3` optional group: `sentence-transformers>=3.0.0`), `uv.lock` (additions only; resolves torch 2.14.1, transformers 5.20.0, sentence-transformers), `Makefile` (`setup-bge-m3` target and `.PHONY`), `tasks.md` (T4 boxes ticked, State). Earlier blocks in this file were not modified (append only).
+- Resolved BGE-M3 revision (for `config/ingestion.yaml` in T8): `5617a9f61b028005a4858fdac845db406aefb181`. Source: `https://huggingface.co/api/models/BAAI/bge-m3` and `.../revision/main` both returned this `sha` (lastModified 2024-07-03) on 2026-10-15. Not written to any config file yet (`config/ingestion.yaml` is T8). The smoke test uses it as the default, overridable by `W2A_BGE_M3_REVISION`.
+- Verification run: `make verify` -> exit 0 (ruff, pyright, skills-check, validate-knowledge, 233 passed, 1 skipped); `make test-unit` -> 220 passed, 1 skipped, 13 deselected; skipped test is the BGE-M3 smoke test (reason: smoke not enabled / optional group not installed). `pytest test_bge_m3.py` -> 11 passed, 1 skipped. `uv pip list` confirms torch and sentence-transformers are NOT installed in the default environment. Only `uv lock` was run for the new group (no `make setup-bge-m3`, no model download).
+- Not run: the real-model smoke test and `make setup-bge-m3` (user-owned, per task). Not verified that `uv sync --all-packages --group dev --extra bge-m3` resolves/installs end to end (lock resolves; install not exercised).
+- Notes: revision refusal covers None, empty, whitespace, `main`, `latest` (case-insensitive). Model loaded lazily once per instance via `_load_model` (import inside it with targeted pyright ignore; `ImportError` -> `OptionalDependencyError` naming `make setup-bge-m3`); `encode(..., batch_size, normalize_embeddings=True)`. Batch size is a constructor argument (default 16; config wiring is T8); batch size below 1 raises `IngestionConfigurationError` (small choice). `make format` also reformatted an unrelated file, `packages/rag/tests/test_content_hash.py`; that change was reverted. Nothing under `knowledge/`, `config/` or `evaluation/` changed. Not committed.
+- Usage: 78K tokens · 13 tool uses · 1:43
+
+### Review
+- Model: claude-opus-5-5 (matches BEST tier; different model from the implementer)
+- Verdict: PASS
+- Commands: `make verify` → exit 0 (ruff clean, pyright 0 errors, skills-check, validate-knowledge, 234 collected: 233 passed, 1 skipped); `make test-unit` → pass (220 passed, 1 skipped, 13 deselected); `pytest packages/rag/tests/ingestion/test_bge_m3.py -rs` → 11 passed, 1 skipped (reason: "optional 'bge-m3' group not installed; run `make setup-bge-m3`"); `make test-integration` → pass (13 collected, 13 passed). Independent checks: `find_spec` for `torch`, `sentence_transformers`, `transformers`, `numpy` in `.venv` → all absent, before and after `make verify`; HF hub API `api/models/BAAI/bge-m3`, `.../revision/main` and `.../commits/main` (2026-10-15) all give head `5617a9f61b028005a4858fdac845db406aefb181` (2024-07-03), matching the notes; `uv.lock` parsed old vs new: 0 removed lines, 0 packages removed or changed except `way2australia-rag` gaining the `bge-m3` extra (`sentence-transformers>=3.0.0`, marker `extra == 'bge-m3'`), 41 packages added, lock header unchanged, `uv lock --check` → consistent. Protected paths (`evaluation/ knowledge/ config/`) unchanged. Real-model smoke test and `make setup-bge-m3` not run (user-owned per the task's verification block).
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R6] The smoke test hard-codes the revision SHA as its default; once T8 creates `config/ingestion.yaml` the SHA lives in two places. T8 should read the default from the config.
+  - F2 [MINOR, IMPLEMENTATION, R6/R7] `BgeM3Embedder.info.settings` is empty; the design example lists `batch_size`/`max_length` there. Batch size does not change vectors, so this is harmless unless T5 decides those settings belong in `IndexSettings`.
+  - F3 [MINOR, IMPLEMENTATION, R6] "Loaded once per process" (R6) is met per instance (as the task says); this holds as long as the T8 entry point builds one embedder per run.
+- Summary for user (PASS only):
+  - Changed: new `packages/rag/src/way2australia_rag/ingestion/bge_m3.py` (`BgeM3Embedder`: `BAAI/bge-m3`, 1024, dense, normalized; refuses missing/`main`/`latest` revisions; lazy one-time load with `revision=`; batched `encode`); tests in `packages/rag/tests/ingestion/test_bge_m3.py`; `bge-m3` optional extra in `packages/rag/pyproject.toml`; `make setup-bge-m3` in `Makefile`; `uv.lock` additions only.
+  - Verified by: `make verify`, `make test-unit`, `make test-integration`; confirmed PyTorch/sentence-transformers absent from the default env; confirmed the pinned SHA against the Hugging Face API myself; checked that the lock diff only adds packages.
+  - Worth your attention: pinned revision `5617a9f61b028005a4858fdac845db406aefb181` (goes into `config/ingestion.yaml` in T8). The lock now includes Linux CUDA wheels (torch 2.14.1, nvidia-*), so `make setup-bge-m3` is a large download, and `make setup` removes the group again. The real-model smoke test is yours to run: `make setup-bge-m3`, `W2A_RUN_BGE_M3_SMOKE=1 make test-unit`, then `make setup`. Three MINOR notes above.
+- Usage: 86K tokens · 19 tool uses · 2:06
+
+### User decision
+- 2026-10-16 — approved
