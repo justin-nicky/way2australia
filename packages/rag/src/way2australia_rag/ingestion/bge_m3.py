@@ -5,6 +5,7 @@
 this module never needs it.
 """
 
+import importlib.util
 from collections.abc import Sequence
 from typing import Any
 
@@ -18,6 +19,16 @@ BGE_M3_MODEL_ID = "BAAI/bge-m3"
 BGE_M3_VECTOR_SIZE = 1024
 DEFAULT_BATCH_SIZE = 16
 _FLOATING_REVISIONS = frozenset({"main", "latest"})
+
+
+_MISSING_GROUP_MESSAGE = (
+    "BGE-M3 needs the optional 'bge-m3' dependency group; run `make setup-bge-m3`."
+)
+
+
+def _group_installed() -> bool:
+    """True when sentence-transformers is importable; never loads it or the model."""
+    return importlib.util.find_spec("sentence_transformers") is not None
 
 
 class BgeM3Embedder:
@@ -34,6 +45,8 @@ class BgeM3Embedder:
             )
         if batch_size < 1:
             raise IngestionConfigurationError("BGE-M3 batch size must be at least 1.")
+        if not _group_installed():
+            raise OptionalDependencyError(_MISSING_GROUP_MESSAGE)
         self.info = EmbedderInfo(
             model_id=BGE_M3_MODEL_ID,
             revision=cleaned,
@@ -50,10 +63,7 @@ class BgeM3Embedder:
                 SentenceTransformer,
             )
         except ImportError as exc:
-            raise OptionalDependencyError(
-                "BGE-M3 needs the optional 'bge-m3' dependency group; "
-                "run `make setup-bge-m3`."
-            ) from exc
+            raise OptionalDependencyError(_MISSING_GROUP_MESSAGE) from exc
         return SentenceTransformer(self.info.model_id, revision=self.info.revision)
 
     def _get_model(self) -> Any:

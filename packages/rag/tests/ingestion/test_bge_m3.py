@@ -7,13 +7,22 @@ import os
 import sys
 
 import pytest
+from conftest import REPO_ROOT
+from way2australia_rag.ingestion import bge_m3
 from way2australia_rag.ingestion.bge_m3 import BgeM3Embedder
+from way2australia_rag.ingestion.config import load_ingestion_config
 from way2australia_rag.ingestion.errors import (
     IngestionConfigurationError,
     OptionalDependencyError,
 )
 
 SHA = "0123456789abcdef0123456789abcdef01234567"
+
+
+@pytest.fixture(autouse=True)
+def group_installed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pretend the optional group is present so construction works in any env."""
+    monkeypatch.setattr(bge_m3, "_group_installed", lambda: True)
 
 
 @pytest.mark.parametrize("bad", [None, "", "  ", "main", "latest", "MAIN"])
@@ -32,15 +41,27 @@ def test_reports_pinned_revision_and_identity() -> None:
 
 
 def test_constructing_does_not_load_the_model(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setitem(sys.modules, "sentence_transformers", None)
-    BgeM3Embedder(SHA)  # must not raise: loading is lazy
+    def fail(self: BgeM3Embedder) -> None:
+        raise AssertionError("model must not load at construction")
+
+    monkeypatch.setattr(BgeM3Embedder, "_load_model", fail)
+    BgeM3Embedder(SHA)
 
 
-def test_missing_group_raises_optional_dependency_error(
+def test_missing_group_refused_at_construction(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.undo()  # drop the autouse patch: use the real find_spec check
     monkeypatch.setitem(sys.modules, "sentence_transformers", None)  # simulate absent
-    embedder = BgeM3Embedder(SHA)
+    with pytest.raises(OptionalDependencyError, match="make setup-bge-m3"):
+        BgeM3Embedder(SHA)
+
+
+def test_missing_group_at_load_raises_optional_dependency_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setitem(sys.modules, "sentence_transformers", None)
+    embedder = BgeM3Embedder(SHA)  # find_spec patched True by the fixture
     with pytest.raises(OptionalDependencyError, match="make setup-bge-m3"):
         embedder.embed_documents(["hello"])
 
@@ -90,9 +111,9 @@ def test_model_loaded_once_with_revision_and_batches(
     reason="optional 'bge-m3' group not installed; run `make setup-bge-m3`",
 )
 def test_real_model_smoke() -> None:
-    revision = os.environ.get(
-        "W2A_BGE_M3_REVISION", "5617a9f61b028005a4858fdac845db406aefb181"
-    )
+    revision = load_ingestion_config(
+        REPO_ROOT / "config/ingestion.yaml"
+    ).embedder.revision
     embedder = BgeM3Embedder(revision)
     vectors = embedder.embed_documents(
         [

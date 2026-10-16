@@ -131,15 +131,15 @@ Implement in order; each task depends on the ones before it. New ingestion code 
 
 ## T8 — CLI entry point, `make ingest`, configuration and baseline agreement
 
-**State:** not started
+**State:** approved (2026-10-16)
 **Requirements:** R11, R12
 
-- [ ] Add `config/ingestion.yaml` per the design, with the BGE-M3 revision SHA resolved in T4.
-- [ ] Implement `IngestionConfig` (file loader, validation, refuses missing/`main`/`latest` revision) and `RuntimeSettings` (Pydantic Settings: `QDRANT_URL`, `QDRANT_API_KEY`, `QDRANT_COLLECTION_BASE`) in `config.py`; add `pydantic-settings` to `packages/rag/pyproject.toml` and `uv.lock`.
-- [ ] Implement `cli.py` (`python -m way2australia_rag.ingestion.cli`) with `--repo-root`, `--config`, `--embedder {bge_m3,fake}`; print the summary (index, embedder, fake flag, counts, `document_id`s per category, `ERROR` lines); exit `0` / `1` / `2` as designed; no absolute paths, document text or API key in output.
-- [ ] Add `make ingest` to the `Makefile` (runs the CLI against the configured repository and Qdrant, passing extra options through `INGEST_ARGS`, e.g. `make ingest INGEST_ARGS="--embedder fake"`); the fake embedder is allowed and recorded as fake in the index.
-- [ ] Tests enforcing agreement with `experiments/configs/day1_baseline.yaml`: embedding model equal; corpus manifest path is the repository's manifest path; required access scope matches `GUEST_PUBLIC_POLICY`. Leave `day1_baseline.yaml` unchanged; the chunking divergence is recorded in T9.
-- [ ] CLI tests (in-memory Qdrant, fake embedder): exit codes `0`, `1`, `2` (mismatch, missing optional group, bad config); summary contains no absolute paths; config and settings loading.
+- [x] Add `config/ingestion.yaml` per the design, with the BGE-M3 revision SHA resolved in T4.
+- [x] Implement `IngestionConfig` (file loader, validation, refuses missing/`main`/`latest` revision) and `RuntimeSettings` (Pydantic Settings: `QDRANT_URL`, `QDRANT_API_KEY`, `QDRANT_COLLECTION_BASE`) in `config.py`; add `pydantic-settings` to `packages/rag/pyproject.toml` and `uv.lock`.
+- [x] Implement `cli.py` (`python -m way2australia_rag.ingestion.cli`) with `--repo-root`, `--config`, `--embedder {bge_m3,fake}`; print the summary (index, embedder, fake flag, counts, `document_id`s per category, `ERROR` lines); exit `0` / `1` / `2` as designed; no absolute paths, document text or API key in output.
+- [x] Add `make ingest` to the `Makefile` (runs the CLI against the configured repository and Qdrant, passing extra options through `INGEST_ARGS`, e.g. `make ingest INGEST_ARGS="--embedder fake"`); the fake embedder is allowed and recorded as fake in the index.
+- [x] Tests enforcing agreement with `experiments/configs/day1_baseline.yaml`: embedding model equal; corpus manifest path is the repository's manifest path; required access scope matches `GUEST_PUBLIC_POLICY`. Leave `day1_baseline.yaml` unchanged; the chunking divergence is recorded in T9.
+- [x] CLI tests (in-memory Qdrant, fake embedder): exit codes `0`, `1`, `2` (mismatch, missing optional group, bad config); summary contains no absolute paths; config and settings loading.
 
 ### Verification
 

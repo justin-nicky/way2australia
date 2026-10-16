@@ -16,7 +16,7 @@ from way2australia_core.documents import KnowledgeDocument
 
 from way2australia_rag.ingestion.chunking import Chunk, Chunker
 from way2australia_rag.ingestion.embedding import Embedder
-from way2australia_rag.ingestion.errors import IngestionError
+from way2australia_rag.ingestion.errors import IngestionError, OptionalDependencyError
 from way2australia_rag.ingestion.identity import point_id
 from way2australia_rag.ingestion.payload import build_payload
 from way2australia_rag.ingestion.settings import build_index_settings
@@ -85,8 +85,14 @@ class IngestionService:
             self._store.index_version, self._embedder.info, self._chunker
         )
         self._store.ensure_collection(settings)
+        logger.info("ingestion: collection '%s' ready", self._store.collection)
         target = await list_eligible_documents(self._repository, self._policy)
         state = self._store.read_state()
+        logger.info(
+            "ingestion: %d eligible document(s), %d indexed document(s)",
+            len(target),
+            len(state),
+        )
         target_ids = {d.document_id for d in target}
 
         added: list[str] = []
@@ -125,6 +131,8 @@ class IngestionService:
             try:
                 points = self._embed(document, chunks)
                 self._store.replace_document(document_id, points)
+            except OptionalDependencyError:
+                raise  # a missing group affects every document: refuse the run
             except Exception as error:  # noqa: BLE001 - reported, run continues
                 logger.warning(
                     "ingestion failed for %s: %s", document_id, type(error).__name__
@@ -135,6 +143,14 @@ class IngestionService:
                 continue
             category.append(document_id)
 
+        logger.info(
+            "ingestion: added %d, updated %d, unchanged %d, deleted %d, failed %d",
+            len(added),
+            len(updated),
+            len(unchanged),
+            len(deleted),
+            len(failures),
+        )
         return RunReport(
             index_version=self._store.index_version,
             collection=self._store.collection,

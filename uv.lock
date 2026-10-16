@@ -2707,6 +2707,7 @@ source = { editable = "packages/rag" }
 dependencies = [
     { name = "jsonschema" },
     { name = "pydantic" },
+    { name = "pydantic-settings" },
     { name = "pyyaml" },
     { name = "qdrant-client" },
     { name = "way2australia-core" },
@@ -2721,6 +2722,7 @@ bge-m3 = [
 requires-dist = [
     { name = "jsonschema", specifier = ">=4.23.0" },
     { name = "pydantic", specifier = ">=2.10.0" },
+    { name = "pydantic-settings", specifier = ">=2.6.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "qdrant-client", specifier = ">=1.19.0,<2.0" },
     { name = "sentence-transformers", marker = "extra == 'bge-m3'", specifier = ">=3.0.0" },
