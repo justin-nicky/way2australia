@@ -30,7 +30,7 @@ This file records the currently selected implementation stack and intentional no
 
 ### Embeddings
 - BGE-M3 initially
-- `sentence-transformers` in the optional `bge-m3` dependency group of `packages/rag` (brings PyTorch; install with `make setup-bge-m3`); the model revision is pinned to a commit SHA in `config/ingestion.yaml`
+- `sentence-transformers` in the optional `bge-m3` extra of `packages/rag` (`[project.optional-dependencies]`, installed by `uv sync --extra bge-m3` through `make setup-bge-m3`; brings PyTorch); the model revision is pinned to a commit SHA in `config/ingestion.yaml`; the device is not pinned (`sentence-transformers` picks CUDA, Apple `mps` or CPU)
 - a deterministic fake embedder for tests and CI
 
 Reason:

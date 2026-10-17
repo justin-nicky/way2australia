@@ -158,3 +158,10 @@ Supersedes the "optional retrospective" part of D023.
 - The retrospective reconciles documentation with the code as built: `DECISIONS.md`, `TECH_STACK.md`, `ARCHITECTURE.md`, `COMMANDS.md`, `CURRENT_STATE.md`, other touched docs, and `## As-built notes` in the spec's `design.md`. It edits docs only; code that contradicts the approved spec without a recorded amendment is a finding, not something to document.
 - Its changes stay uncommitted until the user approves; the orchestrator commits them with `Spec-Review: <NNN>/retrospective`, then merges.
 - Numbered D031 because `spec/004` already uses D025–D030.
+
+## D032 — Spec 004 retrospective corrections to D026 and D027
+Corrects wording in D026 and D027 to match the code; neither decision changes.
+
+- D026 identity fields are exactly `document_id`, `document_version`, `section_id` and `chunk_position` (`payload.IDENTITY_FIELDS`). There is no separate "chunk identity" field; point IDs use the same `section_id` and position.
+- D026 decides Spec 002 retrospective F4 (one version per `document_id`; the manifest loader already rejects a second record for a `document_id`). It does not fully close it: the `repositories/manifest.py` module docstring still says "one record per document version" and should be corrected in a later code change.
+- D027's "optional `bge-m3` group" is a `[project.optional-dependencies]` extra of `packages/rag`, installed with `uv sync --extra bge-m3` (`make setup-bge-m3`). It is not a PEP 735 dependency group (`uv sync --group`).

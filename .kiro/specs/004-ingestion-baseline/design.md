@@ -381,3 +381,21 @@ Ingestion of the seed corpus with the fake embedder into in-memory Qdrant is par
 - **Token-based size cap:** deferred; it would couple the chunker to a tokenizer. Characters are enough for a baseline.
 - **Async Qdrant client:** not needed for a batch job.
 - **Recursive, semantic and FAQ-aware chunking, sparse vectors, retrieval, evaluation, fake-index enforcement (flag recorded now, enforced by the evaluation spec), hash-refresh script, version history:** out of scope (see requirements).
+
+## As-built notes
+
+Recorded by the required retrospective (`review.md` round 1, 2026-10-17). The approved design text above is unchanged; these notes list where the code differs from it, why, and where that was approved.
+
+- **Slug rule and chunk caps:** the design text above already carries the amended rule (NFKC, `Cf` dropped, `isalnum()`/`M*` word characters, suffix skipping, `main` reserved, minimum cap 16, heading truncated in chunk text only). Approved: `requirements.md` change log 2026-10-15; T2 rounds 2–3.
+- **Store constructor and point type:** `QdrantIndexStore(client, collection_base, index_version)` derives the collection name itself and raises `IngestionConfigurationError` if the settings' `index_version` differs from its own, so the name and the recorded label cannot disagree. `replace_document` takes `IndexPoint(point_id, vector, payload: PointPayload)` values. Settings point ID is the constant `00000000-0000-0000-0000-000000000001`; the main collection uses Cosine distance. Approved: T6 round 1 review.
+- **Half-written state:** if one document's points disagree on version or hash, `read_state` reports version `0` and an empty hash, so the document is always classified as updated and rewritten. Approved: T6 round 1; tested in T7.
+- **Malformed settings payload:** a settings point that does not validate raises `IndexSettingsMismatchError` naming the invalid fields only (never values), so it exits 2. Approved: T6 F3, fixed in T7 round 1.
+- **Missing optional extra:** detected when `BgeM3Embedder` is constructed (`importlib.util.find_spec("sentence_transformers")`, no model load); the CLI builds the embedder before creating the Qdrant client, so a missing extra exits 2 with no Qdrant call. `service.py` still re-raises `OptionalDependencyError` late, for a broken install. Approved: T8 round 1 user decision, T8 round 2.
+- **Error output:** the CLI prints messages for `IngestionError` and `DocumentRepositoryError` (path-free by contract); any other exception (for example unreachable Qdrant) prints its class name only. Per-document failure reasons include the message only for `IngestionError`. A failed document appears only under failures (retried next run). Approved: T7 round 1, T8 round 2.
+- **Extra refusals:** `build_embedder` refuses `bge_m3` with a `model_id` other than `BAAI/bge-m3` or `normalize: false`; `build_chunker` refuses any chunker other than `heading`/`1`; fake vector size and batch size below 1 are refused. Approved: T3, T4 and T8 round 1 reviews.
+- **Summary format:** the first line is `index: <collection> (index_version <label>; embedder <model> @ <revision>, fake=<bool>)` and the count line includes `unchanged`. Approved: T8 round 1 (the design example was illustrative).
+- **Embedder settings:** `EmbedderInfo.settings` is empty for both embedders; `batch_size` and `max_length` are not index settings because they do not change vectors. Approved: T4 F2, T5 round 1. The BGE-M3 device is not configured or recorded (`sentence-transformers` chooses it); see `review.md` round 1 notes.
+- **`IndexSettings.schema_version`:** present (`"1.0"`) as the task required; `compare` covers every field except `hash_contract`.
+- **Logging:** the CLI logs INFO counts and the collection name to stderr and sets the `httpx` logger to WARNING, because its request lines carry URLs. Approved: T7 F4, done in T8 round 1.
+- **Packaging:** `bge-m3` is a `[project.optional-dependencies]` extra installed with `uv sync --extra bge-m3`, not a PEP 735 dependency group; "optional group" in this design means that extra. Recorded in D032.
+- **Open MINOR findings** (not deviations from this design; listed in `CURRENT_STATE.md`): chunking runs outside the per-document try/except (T7 F1); payload indexes are not re-created on the "exists, empty, no settings" row (T6 F4).

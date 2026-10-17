@@ -11,7 +11,7 @@ make setup
 make setup-bge-m3
 ```
 
-`make setup` installs the dev environment without the optional `bge-m3` group, and removes the group if it was installed. `make setup-bge-m3` adds it (`sentence-transformers`, which brings PyTorch) for real BGE-M3 embeddings. `make verify` never needs it.
+`make setup` installs the dev environment without the optional `bge-m3` extra, and removes the extra if it was installed. `make setup-bge-m3` adds it (`uv sync ... --extra bge-m3`: `sentence-transformers`, which brings PyTorch) for real BGE-M3 embeddings. `make verify` never needs it. The download is large; on a slow connection uv may time out, so raise the timeout, for example `UV_HTTP_TIMEOUT=600 make setup-bge-m3`.
 
 ## Quality
 
@@ -22,7 +22,7 @@ make typecheck
 make verify
 ```
 
-`make verify` should run the fast deterministic verification set.
+`make verify` should run the fast deterministic verification set. It runs `make test`, which includes the `integration`-marked tests: they skip when Qdrant is unreachable, and when a local Qdrant is running they create and remove temporary collections against it.
 
 ## Tests
 
@@ -78,11 +78,13 @@ make ingest INGEST_ARGS="--embedder fake"
 ```
 
 Behavior:
+- options (through `INGEST_ARGS`): `--embedder {bge_m3,fake}` (default `embedder.provider` from the config), `--config` (default `<repo-root>/config/ingestion.yaml`); `make ingest` passes `--repo-root` itself;
 - reads eligible documents through `DocumentRepository` (guest/public policy);
 - chunks, embeds and upserts only added or changed documents, deletes documents that are no longer eligible;
-- a second run on unchanged content reports `added: 0  updated: 0  deleted: 0`;
+- prints `index: <collection> (index_version <label>; embedder <model> @ <revision>, fake=<bool>)`, then `added: N  updated: N  unchanged: N  deleted: N`, the `document_id`s per category and `ERROR <document_id>: <reason>` lines; refusals go to stderr as `ERROR <ClassName>[: message]`;
+- a second run on unchanged content reports `added: 0  updated: 0  unchanged: <all>  deleted: 0`;
 - needs Qdrant (`docker compose up -d qdrant`); `QDRANT_URL`, `QDRANT_API_KEY` and `QDRANT_COLLECTION_BASE` come from the environment, index-defining settings from `config/ingestion.yaml`;
-- real embeddings need `make setup-bge-m3`; without the group the command exits 2 before any write;
+- real embeddings need `make setup-bge-m3`; without the extra the command exits 2 before contacting Qdrant;
 - for `--embedder fake` always set a throwaway `QDRANT_COLLECTION_BASE`; a fake run on the default collection marks it fake and later real runs are refused until `index_version` changes;
 - exit codes: `0` success, `1` any document failed, `2` refusal (settings mismatch, missing group, bad configuration, unreachable Qdrant).
 

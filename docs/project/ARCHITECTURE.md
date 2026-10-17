@@ -141,6 +141,45 @@ Derived artifacts must be reproducible from:
 - embedding model/version;
 - retrieval/index configuration.
 
+## Ingestion (Phase 1 baseline, Spec 004)
+
+Batch pipeline in `packages/rag/src/way2australia_rag/ingestion/`, run by `make ingest` (`python -m way2australia_rag.ingestion.cli`). No HTTP route.
+
+| Module | Role |
+|---|---|
+| `config.py` | `IngestionConfig` from `config/ingestion.yaml` (index-defining: `index_version`, embedder, pinned revision, chunker cap); `RuntimeSettings` from the environment (`QDRANT_URL`, `QDRANT_API_KEY`, `QDRANT_COLLECTION_BASE`) |
+| `chunking.py` | `Chunker` Protocol, `HeadingChunker` (`heading` v1, character cap), stable `section_id` slugs |
+| `embedding.py`, `bge_m3.py` | `Embedder` Protocol, deterministic `FakeEmbedder`, `BgeM3Embedder` (optional `bge-m3` extra, dense only) |
+| `settings.py`, `payload.py`, `identity.py` | `IndexSettings` and mismatch comparison, 17-field `PointPayload`, UUIDv5 `point_id` under `INGESTION_NAMESPACE` |
+| `store.py` | `QdrantIndexStore`: collection `<QDRANT_COLLECTION_BASE>-<index_version>` with a named `dense` vector and keyword payload indexes; companion `<collection>-settings` collection holding the recorded settings |
+| `service.py` | `IngestionService.run()` → `RunReport` |
+| `cli.py` | wiring, summary, exit codes 0/1/2 |
+
+Data flow:
+
+```text
+config/ingestion.yaml + environment
+  ↓
+ensure_collection (create, or refuse if recorded settings differ)
+  ↓
+list_eligible_documents(DocumentRepository, GUEST_PUBLIC_POLICY)   ← target state
+  ↓
+read_state() from Qdrant payloads                                 ← current state
+  ↓
+delete indexed document_ids not in the target
+  ↓
+per document: chunk → expected point IDs → added / updated / unchanged
+  ↓
+changed documents: embed first, then delete the document's points and upsert
+  ↓
+run summary
+```
+
+- Authorization is applied when choosing what to index: only documents that pass `GUEST_PUBLIC_POLICY` are chunked or embedded. The payload also carries `access_scope`, `tenant_id` and `owner_user_id` for retrieval-time filtering, separate from the language fields.
+- Qdrant records what was indexed; there is no other state store. The index holds one version per `document_id`.
+- Changing an index-defining setting means a new `index_version`, which gives a new collection; the store never deletes a collection.
+- Decisions: D025–D030, D032.
+
 ## Current RAG query flow
 
 ```text
