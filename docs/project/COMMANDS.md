@@ -2,13 +2,16 @@
 
 This file defines the intended stable command surface for humans and coding agents.
 
-The commands below are the target interface. Implemented today: `setup`, `format`, `lint`, `typecheck`, `test`, `test-unit`, `test-integration`, `verify`, `skills-sync`, `skills-check`. The other targets are created by the spec that needs them.
+The commands below are the target interface. Implemented today: `setup`, `format`, `lint`, `typecheck`, `test`, `test-unit`, `test-integration`, `verify`, `skills-sync`, `skills-check`, `validate-knowledge`, `setup-bge-m3`, `ingest`. The other targets are created by the spec that needs them.
 
 ## Environment
 
 ```bash
 make setup
+make setup-bge-m3
 ```
+
+`make setup` installs the dev environment without the optional `bge-m3` group, and removes the group if it was installed. `make setup-bge-m3` adds it (`sentence-transformers`, which brings PyTorch) for real BGE-M3 embeddings. `make verify` never needs it.
 
 ## Quality
 
@@ -71,14 +74,17 @@ Behavior:
 
 ```bash
 make ingest
+make ingest INGEST_ARGS="--embedder fake"
 ```
 
-Expected:
-- read through `DocumentRepository`;
-- detect unchanged content;
-- chunk changed documents;
-- embed/upsert;
-- record version metadata.
+Behavior:
+- reads eligible documents through `DocumentRepository` (guest/public policy);
+- chunks, embeds and upserts only added or changed documents, deletes documents that are no longer eligible;
+- a second run on unchanged content reports `added: 0  updated: 0  deleted: 0`;
+- needs Qdrant (`docker compose up -d qdrant`); `QDRANT_URL`, `QDRANT_API_KEY` and `QDRANT_COLLECTION_BASE` come from the environment, index-defining settings from `config/ingestion.yaml`;
+- real embeddings need `make setup-bge-m3`; without the group the command exits 2 before any write;
+- for `--embedder fake` always set a throwaway `QDRANT_COLLECTION_BASE`; a fake run on the default collection marks it fake and later real runs are refused until `index_version` changes;
+- exit codes: `0` success, `1` any document failed, `2` refusal (settings mismatch, missing group, bad configuration, unreachable Qdrant).
 
 ## Evaluation
 

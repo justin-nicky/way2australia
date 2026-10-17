@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-10-15
+Last updated: 2026-10-16
 
 ## Current phase
 
@@ -12,7 +12,7 @@ Spec 001 project foundation is complete.
 
 ## Current goal
 
-Implement Spec 004 (ingestion baseline, approved 2026-10-15) through `spec-orchestrator`. Specs 001–003 are complete. Repository-based shared context keeps Codex, Claude Code and Kiro interchangeable.
+Finish Spec 004 (ingestion baseline): all tasks T1–T9 approved (2026-10-17); the user-owned pre-merge check is done (below); next the optional retrospective and merge via `spec-orchestrator`. Specs 001–003 are complete. Repository-based shared context keeps Codex, Claude Code and Kiro interchangeable.
 
 ## Finalized high-level decisions
 
@@ -79,10 +79,12 @@ Implemented:
 - `Makefile` uses a standalone `uv` binary when available and falls back to `python3 -m uv`;
 - Spec 002 (merged to `main`): Pydantic document models and enums in `packages/core/documents`; `DocumentRepository` Protocol and `LocalDocumentRepository` with manifest JSON Schema validation, frontmatter parsing and `content-hash-v1` hashing; `EligibilityPolicy` for guest/public retrieval; `make validate-knowledge` (part of `make verify`); repository, hashing, eligibility, seed-corpus and isolated security-fixture tests.
 
+- Spec 004 (on branch `spec/004`, not yet merged): ingestion baseline in `packages/rag/src/way2australia_rag/ingestion/`: `HeadingChunker` (`heading` v1, 2000-character cap, stable `section_id` slugs), `Embedder` Protocol with a deterministic fake and a BGE-M3 adapter (optional `bge-m3` dependency group, pinned model revision), `IndexSettings` and a 17-field `PointPayload`, UUIDv5 point IDs, `QdrantIndexStore` (companion `<collection>-settings` collection, refusal on settings mismatch), `IngestionService` (change detection by `content_hash`, document version and point-ID set; stale deletion; per-document failures), `config/ingestion.yaml`, CLI and `make ingest` (`INGEST_ARGS` pass-through, `--embedder fake`), `make setup-bge-m3`; unit tests (no Docker, no PyTorch) and Docker Qdrant integration tests;
+- the seed corpus (13 public documents, one chunk each) ingests into Qdrant; with the fake embedder a second run reports 0 added, updated and deleted.
+
 Not yet implemented:
-- ingestion;
-- embeddings;
-- retrieval;
+- retrieval (dense, BM25, hybrid, reranking);
+- evaluation runs;
 - generation;
 - observability;
 - CI/CD;
@@ -95,11 +97,28 @@ Not yet implemented:
 | 001 — project foundation | implemented; completed before the review process existed (no `review.md`) |
 | 002 — document model and repository | **verified (2026-10-15, merged dca6cbd)**; branch `spec/002` (base `869c37f`; T1–T2 on `main`, approved without task review). T3 (the Spec 003 T9 dry run) approved 2026-10-14 after task review round 1 PASS: manifest loading and metadata validation in `packages/rag/.../repositories/manifest.py` and `frontmatter.py`, new deps `jsonschema` and `pyyaml`. T4 approved 2026-10-14 (LocalDocumentRepository; placeholder content_hash until T5); T5 approved 2026-10-14 (content-hash-v1 and manifest hash verification); T6 approved 2026-10-15 (eligibility policy); T7 approved 2026-10-15 (`make validate-knowledge`); T8 approved 2026-10-15 (isolated security repository, seed corpus tests); T9 approved 2026-10-15 (documentation and handoff); merged to `main` |
 | 003 — task-gated agent workflow | **verified** (2026-10-15, bootstrap exception: implemented directly on `main`, base `9e95cfe`); dry run on Spec 002 recorded in its T9; T1–T8 closed by the user's instruction to close the spec, without per-task review records |
-| 004 — ingestion baseline | **approved** (requirements, design and tasks approved 2026-10-15); 9 tasks `not started`; branch `spec/004` not yet created. User-owned pre-merge check (not a gate): one real BGE-M3 ingestion of the seed corpus into a throwaway collection, run twice, plus the opt-in smoke test |
+| 004 — ingestion baseline | **all tasks approved (2026-10-17)**, awaiting merge; branch `spec/004` (base `af659da`); T1 approved 2026-10-15 (shared strict date check, policy-vs-config test); T2 approved 2026-10-15 (heading chunker, `section_id` slug rule recorded in design); T3 approved 2026-10-15 (`Embedder` Protocol and deterministic fake); T4 approved 2026-10-16 (BGE-M3 adapter, optional `bge-m3` group, pinned revision; real-model smoke test skipped, user-owned); T5 approved 2026-10-16 (index settings, 17-field payload, UUIDv5 point identity); T6 approved 2026-10-16 (`QdrantIndexStore`, companion settings collection, Docker integration test); T7 approved 2026-10-16 (`IngestionService`, change detection, run report); T8 approved 2026-10-16 (`config/ingestion.yaml`, CLI, `make ingest`, day1_baseline agreement tests); T9 approved 2026-10-17 (docs, decisions and handoff). User-owned pre-merge check (not a gate): one real BGE-M3 ingestion of the seed corpus into a throwaway collection, run twice, plus the opt-in smoke test |
 
 ## Next step
 
-1. Run `/spec-orchestrator 004-ingestion-baseline` (creates `spec/004`, runs T1 first). The Spec 002 retrospective notes are already built into the spec.
+1. The optional `spec-reviewer` retrospective, then merge `spec/004` into `main` and mark Spec 004 verified via `/spec-orchestrator 004-ingestion-baseline`.
+2. Next roadmap spec after Spec 004 (retrieval baseline) is planned separately with `spec-planner`.
+
+## One-off: user-owned pre-merge check for Spec 004 (done 2026-10-17)
+
+Not a gate. Run by the user before merging `spec/004` (see "Pre-merge manual check" in `.kiro/specs/004-ingestion-baseline/tasks.md`), reported by the user, not re-run by an agent:
+- `make setup-bge-m3` (needed `UV_HTTP_TIMEOUT=600` on the user's connection);
+- `W2A_RUN_BGE_M3_SMOKE=1 make test-unit`: 303 passed, 0 skipped (the smoke test ran);
+- real ingestion into `w2a-realcheck-idx-v1` (BAAI/bge-m3 @ `5617a9f61b028005a4858fdac845db406aefb181`, fake=false): run 1 added 13; run 2 added 0, updated 0, unchanged 13, deleted 0 (model not loaded on run 2). Collection: 13 points, `dense` vector size 1024, Cosine;
+- `make setup` restored the default environment.
+Observations for later (no task opened): consider `UV_HTTP_TIMEOUT ?= 300` in the `setup-bge-m3` target; the model ran on `mps` (Apple GPU), so device pinning may matter for cross-machine reproducibility.
+
+## Ingestion operating notes
+
+- Use `QDRANT_COLLECTION_BASE` for every fake-embedder run. A fake run without it records the default `way2australia-idx-v1` collection as fake, and a later real run is then refused until a new `index_version` is set in `config/ingestion.yaml`.
+- `make setup` removes the optional `bge-m3` group; use `make setup-bge-m3` before a real-embedding run. A missing group is detected when the embedder is built (exit 2, before any Qdrant write).
+- `INGESTION_NAMESPACE` (`533d6c5a-5ac2-4dd5-a4e6-5fbb620efba2`) is permanent: changing it changes every point ID.
+- Decisions: D025 to D030 in `DECISIONS.md`.
 
 Spec 002 decisions made before approval:
 - `content_hash` (`content-hash-v1`) is the only change-detection signal; the manifest's `sha256` (raw file) and `body_sha256` (stripped body) are integrity checks the loader verifies.
@@ -111,6 +130,17 @@ Spec 002 decisions made before approval:
 These are evaluation-data gaps, deliberately deferred for now (decision 2026-10-13). Changing them requires human-approved evaluation cases (C6).
 - No golden case is tagged pure Malayalam (`query_language: ml`). The 9 `mixed` cases include 8 written mostly in Malayalam script.
 - `relevant_section_ids` is empty in every evaluation case.
+
+Spec 004 review findings still open (all MINOR, no remediation tasks; see `.kiro/specs/004-ingestion-baseline/task-reviews.md`):
+- T5 F2: the `settings.py` docstring says `max_length` never changes vectors; revisit if `max_length` becomes configurable.
+- T6 F2: no integration assertion that the payload indexes and the `dense` vector config exist on the server (verified manually).
+- T6 F4: if collection creation succeeds but payload-index creation or the settings write fails, the next run writes settings without recreating the indexes.
+- T7 F1: chunking and point-ID computation run outside the per-document try/except, so an unexpected chunker exception would abort the run.
+- T7 F2: `QdrantIndexStore` holds both `_index_version` and `index_version`.
+- T7 F3: no test for the "embedder returned a wrong number of vectors" guard.
+- T7 F5: `test_security_fixtures_never_reach_the_index` does not assert the fixtures loaded.
+- T8 round 2 F1: the late `OptionalDependencyError` re-raise in `service.py` (broken installs) has no test.
+- The index is derived from `heading` chunking; none of the 13 seed documents has headings, so heading behavior is covered only by synthetic tests, and the chunking strategy differs from `experiments/configs/day1_baseline.yaml` (recursive, 600 tokens) on purpose (D030).
 
 Spec 002 retrospective (`.kiro/specs/002-document-model-and-repository/review.md`, round 1), MINOR, no remediation tasks:
 - F1: `content_hash` is computed from the raw frontmatter mapping; the `YYYY-MM-DD` date check exists only in `validate-knowledge`, not in `LocalDocumentRepository`.

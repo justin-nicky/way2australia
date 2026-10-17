@@ -7,7 +7,9 @@ are reported by `document_id` and field name, never by absolute path.
 """
 
 import json
+import re
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -20,6 +22,10 @@ from way2australia_rag.repositories.errors import (
 )
 from way2australia_rag.repositories.frontmatter import split_frontmatter
 from way2australia_rag.repositories.hashing import compute_body_sha256, sha256_hex
+
+# Date fields defined by the metadata schema; each must be a real `YYYY-MM-DD`.
+DATE_FIELDS = ("last_reviewed_at", "effective_from", "effective_to")
+_ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 # Manifest-only bookkeeping: not expected to match frontmatter.
 MANIFEST_ONLY_FIELDS = frozenset({"path", "sha256", "body_sha256"})
@@ -93,6 +99,31 @@ def schema_problems(
         else:
             field = ".".join(str(part) for part in error.path) or None
             problems.append(ValidationProblem(document_id, field, error.message))
+    return problems
+
+
+def date_problems(
+    document_id: str | None, metadata: dict[str, Any]
+) -> list[ValidationProblem]:
+    """Strict `YYYY-MM-DD` check of every schema date field.
+
+    Shared by the loader and `make validate-knowledge` so they cannot diverge.
+    """
+    problems: list[ValidationProblem] = []
+    for name in DATE_FIELDS:
+        value = metadata.get(name)
+        if value is None:
+            continue
+        valid = isinstance(value, str) and _ISO_DATE.fullmatch(value) is not None
+        if valid:
+            try:
+                date.fromisoformat(str(value))
+            except ValueError:
+                valid = False
+        if not valid:
+            problems.append(
+                ValidationProblem(document_id, name, "must be a YYYY-MM-DD date")
+            )
     return problems
 
 
@@ -207,6 +238,7 @@ def check_manifest_documents(
             continue
         found = schema_problems(validator, metadata, entry.document_id)
         problems.extend(found)
+        problems.extend(date_problems(entry.document_id, metadata))
         if not found:
             problems.extend(compare_manifest_to_metadata(entry, metadata))
             problems.extend(check_integrity_hashes(entry, raw, body))

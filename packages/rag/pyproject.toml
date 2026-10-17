@@ -9,8 +9,16 @@ requires-python = ">=3.12"
 dependencies = [
   "jsonschema>=4.23.0",
   "pydantic>=2.10.0",
+  "pydantic-settings>=2.6.0",
   "pyyaml>=6.0",
+  "qdrant-client>=1.19.0,<2.0",
   "way2australia-core",
+]
+
+[project.optional-dependencies]
+# Real BGE-M3 embeddings; brings PyTorch. Install with `make setup-bge-m3`.
+bge-m3 = [
+  "sentence-transformers>=3.0.0",
 ]
 
 [tool.uv]

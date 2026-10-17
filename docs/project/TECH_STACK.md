@@ -9,6 +9,8 @@ This file records the currently selected implementation stack and intentional no
 - Data validation/settings: Pydantic / Pydantic Settings
 - Manifest schema validation: `jsonschema` (JSON Schema validation of the document manifest, `packages/rag`)
 - Frontmatter parsing: `pyyaml` (YAML frontmatter of knowledge documents, `packages/rag`)
+- Runtime configuration: `pydantic-settings` (`QDRANT_URL`, `QDRANT_API_KEY`, `QDRANT_COLLECTION_BASE`, `packages/rag`)
+- Qdrant client: `qdrant-client` (`packages/rag`)
 - HTTP client: httpx
 - Testing: pytest
 - Data analysis/evaluation support: Pandas where useful
@@ -28,6 +30,8 @@ This file records the currently selected implementation stack and intentional no
 
 ### Embeddings
 - BGE-M3 initially
+- `sentence-transformers` in the optional `bge-m3` dependency group of `packages/rag` (brings PyTorch; install with `make setup-bge-m3`); the model revision is pinned to a commit SHA in `config/ingestion.yaml`
+- a deterministic fake embedder for tests and CI
 
 Reason:
 - multilingual suitability;
