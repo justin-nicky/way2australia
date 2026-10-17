@@ -69,9 +69,11 @@ Never show a task as ready while its latest review is `FAIL`. After a second con
 
 When every task is `approved`:
 1. set `tasks.md` to `Status: all tasks approved (YYYY-MM-DD)`; update `CURRENT_STATE.md`;
-2. offer the optional `spec-reviewer` retrospective; wait for the user's choice;
-3. on the user's go-ahead: `git switch main`, pull, `git merge --no-ff spec/<NNN>`, `make verify`, push `main`;
-4. set `Status: verified (YYYY-MM-DD, merged <sha>)`, update `CURRENT_STATE.md`, commit, push.
+2. start the required `spec-reviewer` retrospective (BEST tier, same way as other roles) and record its usage in its `review.md` round;
+3. outcome `FAIL`: route the new `RM` tasks through the task loop (or `SPEC_DEFECT`s to the user and `spec-planner`); when they are all `approved`, start the retrospective again;
+4. outcome `PASS`: show the user the round's findings, its "Documentation reconciled" list, "Notes for the next spec" and the usage; ask for approval to merge;
+5. on approval: commit the retrospective's changes (review, docs) in one commit with trailer `Spec-Review: <NNN>/retrospective`, push `spec/<NNN>`; then `git switch main`, pull, `git merge --no-ff spec/<NNN>`, `make verify`, push `main`;
+6. set `Status: verified (YYYY-MM-DD, merged <sha>)`, update `CURRENT_STATE.md`, commit, push.
 
 Conflict or `make verify` failure: `git merge --abort`, report, ask the user.
 

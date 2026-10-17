@@ -22,7 +22,8 @@ task-reviewer (BEST)        verifies that task, PASS/FAIL, writes a user summary
 user                        approves, or gives feedback (implementation → implementer, spec → planner)
   ↓ approved → orchestrator pushes spec/<NNN>; next task
 all tasks approved
-  ↓ [optional] spec-reviewer retrospective (review.md, "Notes for the next spec")
+  ↓ spec-reviewer retrospective (required): cross-task review, docs reconciled with code, review.md, "Notes for the next spec"
+  ↓ FAIL → RM tasks through the task loop → retrospective again;  PASS → user approves
 orchestrator merges spec/<NNN> into main (--no-ff) → verified
 ```
 
@@ -82,8 +83,8 @@ Rules:
 - A spec is ready for implementation only when all three files are `approved`.
 - Only a human approves. Agents set `approved` only after explicit approval and record the date.
 - The base SHA is the commit the spec branch was created from.
-- `all tasks approved` is set by the orchestrator when every task is `approved`; the optional retrospective and the merge follow.
-- A spec is **verified** when every task is approved and `spec/<NNN>` is merged into `main`. A final `spec-reviewer` run is not required.
+- `all tasks approved` is set by the orchestrator when every task is `approved`; the required retrospective and the merge follow.
+- A spec is **verified** when every task is approved, the latest `spec-reviewer` retrospective round is `PASS`, the user has approved it, and `spec/<NNN>` is merged into `main`.
 - Approved amendments are recorded as dated lines in `## Change log` at the end of `requirements.md`.
 - Specs completed before this lifecycle (001) carry only a `tasks.md` status explaining that.
 
@@ -145,9 +146,14 @@ Rounds count implementer runs for a task. The automatic limit counts consecutive
 
 The Implementation block is written by the implementer, Review by the task-reviewer, User decision by the orchestrator. The reviewer may read the Implementation block for orientation but never treats it as evidence. Findings of a failed round are the remediation items; they are not added to `tasks.md`.
 
-### Optional retrospective
+### Retrospective (required)
 
-`spec-reviewer` may run after `all tasks approved`. It reviews cross-task concerns, appends a `## Round N` to `review.md` with "Notes for the next spec", and may add `RM<N>.<k>` tasks to `tasks.md`; those run through the same implement → task review → user loop.
+`spec-reviewer` runs after `all tasks approved`. It:
+- reviews cross-task concerns and deviations from the approved plan;
+- reconciles documentation with the code as built (`DECISIONS.md`, `TECH_STACK.md`, `ARCHITECTURE.md`, `COMMANDS.md`, `CURRENT_STATE.md`, other touched docs, and `## As-built notes` in the spec's `design.md`), so docs and code never say different things. It edits docs only; code that contradicts the approved spec is a finding, not something to document;
+- appends a `## Round N` to `review.md` with "Notes for the next spec".
+
+`FAIL` adds `RM<N>.<k>` tasks that run through the implement → task review → user loop, then the retrospective runs again. On `PASS` the user approves; the orchestrator commits the review and doc changes, then merges.
 
 ## Requirements
 

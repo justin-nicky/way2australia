@@ -3,7 +3,8 @@
 - **Spec:** `<NNN-feature-name>`
 - **Diff reviewed:** `main...spec/<NNN>` (head `<sha>`)
 - **Reviewer host / model:** <e.g. Claude Code / model id>
-- **Outcome:** `CLEAN | RM TASKS ADDED | SPEC_DEFECTS FOUND` (advisory; does not gate verification)
+- **Outcome:** `PASS | FAIL` (required for verification; FAIL = any BLOCKING or MAJOR finding)
+- **Usage:** <tokens, e.g. 180K> (recorded by the orchestrator)
 
 ### Verification run
 
@@ -24,6 +25,16 @@
 | ID | Severity | Class | Requirement/Task | Finding |
 |---|---|---|---|---|
 | F1 | BLOCKING / MAJOR / MINOR | IMPLEMENTATION / SPEC_DEFECT | R# / T# | ... |
+
+### Documentation reconciled
+
+| File | Change | Reason |
+|---|---|---|
+
+### Deviations from the approved plan
+
+| Deviation | Where approved (change log / task-reviews round) or finding ID |
+|---|---|
 
 ### Cross-task consistency
 

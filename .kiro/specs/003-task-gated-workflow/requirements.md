@@ -1,6 +1,6 @@
 # 003 — Task-Gated Agent Workflow Requirements
 
-Status: approved (2026-10-15)
+Status: approved (2026-10-17)
 
 ## Goal
 
@@ -233,6 +233,7 @@ The full loop is exercised once on real work before this spec is complete.
 
 - 2026-10-14 — R1, R2, R3, R5, R6: task work stays uncommitted through implementation and review; the orchestrator commits it (one `Spec-Task` commit) and pushes only after user approval. Implemented directly in skills/docs; no task re-opened.
 - 2026-10-15 — R5, R9: the orchestrator records each role's token usage in `task-reviews.md` and shows the user a per-task usage table (stage, model, tokens, total) with the review summary. Implemented directly in skills/docs; no task re-opened.
+- 2026-10-17 — R8: the retrospective is required, not optional; it also reconciles project documentation with the code as built (D031). Implemented directly in skills/docs; no task re-opened.
 
 <!-- Approved amendments only, one dated line each:
 - YYYY-MM-DD — <R#/T#>: <what changed and why>. Re-opened <T#>. -->

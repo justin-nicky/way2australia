@@ -5,7 +5,7 @@ This folder is the single editable source for the project's spec-driven developm
 ```text
 spec-planner → spec-orchestrator → spec-implementer (one task) → task-reviewer → user approval
                      ↑___________________ repeat per task ___________________|
-all tasks approved → [optional] spec-reviewer → orchestrator merges spec/<NNN> into main
+all tasks approved → spec-reviewer (required; reconciles docs) → user approves → orchestrator merges spec/<NNN> into main
 ```
 
 | Skill | Role | Intended tier | Invocation |
@@ -14,7 +14,7 @@ all tasks approved → [optional] spec-reviewer → orchestrator merges spec/<NN
 | `spec-planner` | Create or revise one spec with staged, recorded approvals | BEST | may auto-trigger |
 | `spec-implementer` | Implement one task on `spec/<NNN>`, then stop | BEST_MINUS_ONE | explicit only |
 | `task-reviewer` | Verify one task, PASS/FAIL, user summary (read-only for code and specs) | BEST | explicit only |
-| `spec-reviewer` | Optional end-of-spec retrospective, writes `review.md` | BEST | explicit only |
+| `spec-reviewer` | Required end-of-spec retrospective; reconciles docs with code, writes `review.md` | BEST | explicit only |
 
 Each role runs in a fresh session and hands off through repository files (`tasks.md` states, `task-reviews.md`, uncommitted changes until the user approves, then one `Spec-Task` commit per task), not chat. Lifecycle, states, branching and file formats are in `docs/project/WORKFLOW.md`.
 

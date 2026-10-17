@@ -136,7 +136,7 @@ For non-trivial work, use the task-gated loop (`docs/project/WORKFLOW.md`):
 3. Implement only approved tasks from `tasks.md`. If implementation reveals a requirements/design problem, update the spec first (`> BLOCKED: spec issue`).
 4. Run the task's verification, then hand off for task review (`task-reviewer`, recorded in `task-reviews.md`).
 5. The user approves each task; only then is it committed and the branch pushed.
-6. When every task is approved the branch is merged into `main`; the spec is then verified. A final `spec-reviewer` retrospective is optional.
+6. When every task is approved, the required `spec-reviewer` retrospective reviews the whole spec and reconciles the docs with the code. After a `PASS` and the user's approval, the branch is merged into `main`; the spec is then verified.
 7. Update `docs/project/CURRENT_STATE.md` at each transition.
 
 Do not silently expand scope.

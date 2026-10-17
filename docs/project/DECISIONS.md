@@ -130,3 +130,11 @@ Model tiers stay advisory and apply when a session starts. Spec 003 itself was i
 - The language rule lives only in `DocumentQuery.matches`.
 - `make validate-knowledge` checks the seed corpus and runs inside `make verify`.
 - New runtime dependencies in `packages/rag`: `jsonschema` (manifest JSON Schema validation, required by the design) and `pyyaml` (frontmatter parsing). Both are small, widely used and pinned in `uv.lock`.
+
+## D031 — Required retrospective that reconciles documentation
+Supersedes the "optional retrospective" part of D023.
+
+- `spec-reviewer` runs for every spec after all tasks are approved. A spec is verified only after a retrospective round with outcome `PASS`, the user's approval and the merge.
+- The retrospective reconciles documentation with the code as built: `DECISIONS.md`, `TECH_STACK.md`, `ARCHITECTURE.md`, `COMMANDS.md`, `CURRENT_STATE.md`, other touched docs, and `## As-built notes` in the spec's `design.md`. It edits docs only; code that contradicts the approved spec without a recorded amendment is a finding, not something to document.
+- Its changes stay uncommitted until the user approves; the orchestrator commits them with `Spec-Review: <NNN>/retrospective`, then merges.
+- Numbered D031 because `spec/004` already uses D025–D030.
