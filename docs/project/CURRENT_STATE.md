@@ -12,7 +12,7 @@ Spec 001 project foundation is complete.
 
 ## Current goal
 
-Finish Spec 004 (ingestion baseline): T1–T8 approved, T9 (documentation and handoff) in task review; then the user-owned pre-merge check below, completion and merge via `spec-orchestrator`. Specs 001–003 are complete. Repository-based shared context keeps Codex, Claude Code and Kiro interchangeable.
+Finish Spec 004 (ingestion baseline): all tasks T1–T9 approved (2026-10-17); then the user-owned pre-merge check below, the optional retrospective, and merge via `spec-orchestrator`. Specs 001–003 are complete. Repository-based shared context keeps Codex, Claude Code and Kiro interchangeable.
 
 ## Finalized high-level decisions
 
