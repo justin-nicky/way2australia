@@ -326,3 +326,7 @@
 
 ### User decision
 - 2026-10-17 — approved
+
+## Pre-merge manual check (one-off, user-owned, not a gate)
+- 2026-10-17 — reported by the user: `make setup-bge-m3` (needed `UV_HTTP_TIMEOUT=600`); `W2A_RUN_BGE_M3_SMOKE=1 make test-unit` → 303 passed, 0 skipped; real ingestion into `w2a-realcheck-idx-v1` (BAAI/bge-m3 @ 5617a9f61b028005a4858fdac845db406aefb181, fake=false): run 1 added 13, run 2 added 0 / updated 0 / unchanged 13 / deleted 0 (model not loaded on run 2); collection 13 points, `dense` 1024, Cosine; `make setup` restored the default environment.
+- Notes from the user: consider `UV_HTTP_TIMEOUT ?= 300` in the `setup-bge-m3` target; the model ran on `mps` (Apple GPU), so device pinning may matter for cross-machine reproducibility later.

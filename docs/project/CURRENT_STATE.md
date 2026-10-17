@@ -12,7 +12,7 @@ Spec 001 project foundation is complete.
 
 ## Current goal
 
-Finish Spec 004 (ingestion baseline): all tasks T1–T9 approved (2026-10-17); then the user-owned pre-merge check below, the optional retrospective, and merge via `spec-orchestrator`. Specs 001–003 are complete. Repository-based shared context keeps Codex, Claude Code and Kiro interchangeable.
+Finish Spec 004 (ingestion baseline): all tasks T1–T9 approved (2026-10-17); the user-owned pre-merge check is done (below); next the optional retrospective and merge via `spec-orchestrator`. Specs 001–003 are complete. Repository-based shared context keeps Codex, Claude Code and Kiro interchangeable.
 
 ## Finalized high-level decisions
 
@@ -101,15 +101,17 @@ Not yet implemented:
 
 ## Next step
 
-1. The user-owned pre-merge check (below), then the optional `spec-reviewer` retrospective, then merge `spec/004` into `main` and mark Spec 004 verified via `/spec-orchestrator 004-ingestion-baseline`.
+1. The optional `spec-reviewer` retrospective, then merge `spec/004` into `main` and mark Spec 004 verified via `/spec-orchestrator 004-ingestion-baseline`.
 2. Next roadmap spec after Spec 004 (retrieval baseline) is planned separately with `spec-planner`.
 
-## Pending: user-owned pre-merge check for Spec 004 (NOT done)
+## One-off: user-owned pre-merge check for Spec 004 (done 2026-10-17)
 
-Not a gate, and not yet run by anyone. Before merging `spec/004` the user runs (see "Pre-merge manual check" in `.kiro/specs/004-ingestion-baseline/tasks.md`):
-- `make setup-bge-m3`, then `W2A_RUN_BGE_M3_SMOKE=1` with the opt-in BGE-M3 smoke test;
-- one real BGE-M3 `make ingest` of the seed corpus into a throwaway collection (set `QDRANT_COLLECTION_BASE`), run twice; the second run must report 0 added, updated and deleted.
-Record the outcome as a one-off here and in `task-reviews.md`. The real BGE-M3 model has never been loaded in this repository's tests; only the fake embedder has been exercised end to end.
+Not a gate. Run by the user before merging `spec/004` (see "Pre-merge manual check" in `.kiro/specs/004-ingestion-baseline/tasks.md`), reported by the user, not re-run by an agent:
+- `make setup-bge-m3` (needed `UV_HTTP_TIMEOUT=600` on the user's connection);
+- `W2A_RUN_BGE_M3_SMOKE=1 make test-unit`: 303 passed, 0 skipped (the smoke test ran);
+- real ingestion into `w2a-realcheck-idx-v1` (BAAI/bge-m3 @ `5617a9f61b028005a4858fdac845db406aefb181`, fake=false): run 1 added 13; run 2 added 0, updated 0, unchanged 13, deleted 0 (model not loaded on run 2). Collection: 13 points, `dense` vector size 1024, Cosine;
+- `make setup` restored the default environment.
+Observations for later (no task opened): consider `UV_HTTP_TIMEOUT ?= 300` in the `setup-bge-m3` target; the model ran on `mps` (Apple GPU), so device pinning may matter for cross-machine reproducibility.
 
 ## Ingestion operating notes
 
