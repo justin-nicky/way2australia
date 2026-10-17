@@ -149,16 +149,16 @@ Implement in order; each task depends on the ones before it. New ingestion code 
 
 ## T9 — Documentation, decisions and handoff
 
-**State:** not started
+**State:** approved (2026-10-17)
 **Requirements:** R14, Definition of Done
 
-- [ ] Add `DECISIONS.md` entries (next free D-number) for: the `persona_scope` decision; the payload rule (non-identity fields hash-covered, identity compared directly, `last_reviewed_at` excluded); the optional BGE-M3 dependency and `make setup-bge-m3`; the one-version-per-`document_id` rule; the settings-mismatch refusal and rebuild-by-new-`index_version` rule (incl. companion settings collection and the `INGESTION_NAMESPACE` constant); the deliberate chunking divergence from `day1_baseline.yaml`.
-- [ ] Update `docs/project/TECH_STACK.md` with `qdrant-client`, `pydantic-settings` and the optional `bge-m3` group (`sentence-transformers`, pinned revision).
-- [ ] Update `docs/project/COMMANDS.md` with `make ingest` and `make setup-bge-m3`, including that `make setup` removes the optional group.
-- [ ] Update `docs/project/CURRENT_STATE.md` to implemented reality only.
-- [ ] Confirm no file under `knowledge/`, `evaluation/` or `config/` changed except the new `config/ingestion.yaml`.
-- [ ] Run spec-wide checks: `make verify`; `make test-integration` with Docker Qdrant; `make ingest` twice on the seed corpus (idempotent second run).
-- [ ] Keep next-spec work out (see Completion gate).
+- [x] Add `DECISIONS.md` entries (next free D-number) for: the `persona_scope` decision; the payload rule (non-identity fields hash-covered, identity compared directly, `last_reviewed_at` excluded); the optional BGE-M3 dependency and `make setup-bge-m3`; the one-version-per-`document_id` rule; the settings-mismatch refusal and rebuild-by-new-`index_version` rule (incl. companion settings collection and the `INGESTION_NAMESPACE` constant); the deliberate chunking divergence from `day1_baseline.yaml`.
+- [x] Update `docs/project/TECH_STACK.md` with `qdrant-client`, `pydantic-settings` and the optional `bge-m3` group (`sentence-transformers`, pinned revision).
+- [x] Update `docs/project/COMMANDS.md` with `make ingest` and `make setup-bge-m3`, including that `make setup` removes the optional group.
+- [x] Update `docs/project/CURRENT_STATE.md` to implemented reality only.
+- [x] Confirm no file under `knowledge/`, `evaluation/` or `config/` changed except the new `config/ingestion.yaml`.
+- [x] Run spec-wide checks: `make verify`; `make test-integration` with Docker Qdrant; `make ingest` twice on the seed corpus (idempotent second run).
+- [x] Keep next-spec work out (see Completion gate).
 - [ ] Hand off to `spec-orchestrator` for completion (`all tasks approved`, optional `spec-reviewer`, merge).
 
 ### Verification
