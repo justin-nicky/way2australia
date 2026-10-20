@@ -290,3 +290,4 @@ Small fixes carried from the Spec 004 retrospective.
 <!-- Approved amendments only, one dated line each:
 - YYYY-MM-DD — <R#/T#>: <what changed and why>. Re-opened <T#>. -->
 - 2026-10-20 — R4/T3: design.md `DenseIndex` may also call the read-only `retrieve` (already used by `read_index_settings`), so the T3 no-writes spy test matches the design. No requirement text changed; no task re-opened.
+- 2026-10-20 — R9/T7: T7 gains a call-order assertion (payload indexes before the settings write) for the T1 spy test, from the T1 review F1. T1 stays approved; no task re-opened.

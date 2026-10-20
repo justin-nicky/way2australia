@@ -244,12 +244,14 @@ Implement the tasks in order; each depends on the ones before it.
   - Spec 004 findings closed by this spec (T6 F2, T6 F4, T1 F1, formatting drift, `UV_HTTP_TIMEOUT`).
 - [ ] Confirm `git diff --stat main -- knowledge evaluation config experiments/configs` is empty.
 - [ ] Run spec-wide checks: `make verify`; `make test-integration` with Docker Qdrant; the T5 and T6 throwaway fake runs.
+- [ ] Extend the T1 spy-client unit test in `packages/rag/tests/ingestion/test_store.py` to assert the recorded call order on the "exists, empty, no settings" row: every `create_payload_index` call precedes the settings write (`_write_settings`). That order is the T6 F4 fix itself (T1 review F1).
 - [ ] Keep next-spec work out (see Completion gate).
 - [ ] Hand off to spec-orchestrator for completion
 
 ### Verification
 
 - `make verify` passes without the `bge-m3` extra installed.
+- `make test-unit`: the extended `packages/rag/tests/ingestion/test_store.py` spy test passes, asserting that payload indexes are created before the settings write on the "exists, empty, no settings" row.
 - `make test-integration` passes with `docker compose up -d qdrant`.
 - The fake `make retrieve` and `make retrieval-baseline --allow-fake` runs from T5/T6 pass on a throwaway base.
 - `git diff --stat main -- knowledge evaluation config` is empty.
