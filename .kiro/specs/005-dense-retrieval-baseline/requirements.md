@@ -272,12 +272,12 @@ Small fixes carried from the Spec 004 retrospective.
 
 | Requirement | Task(s) | Verification |
 |---|---|---|
-| R1 | T2, T4, T5 | `make test-unit` (`core/tests/test_access.py`, `retrieval/test_access.py`, `retrieval/test_retriever.py` filter identity, empty-tenant CLI test) |
+| R1 | T2, T4, T5, T7 | `make test-unit` (`core/tests/test_access.py`, `retrieval/test_access.py`, `retrieval/test_retriever.py` filter identity, empty-tenant CLI test) |
 | R2 | T2, T4 | `retrieval/test_access.py`, `retrieval/test_authorization_isolation.py`, `retrieval/test_retriever.py` |
 | R3 | T2, T4 | `retrieval/test_access.py`, `retrieval/test_authorization_isolation.py` (filter-dropping store raises) |
 | R4 | T3, T5, T7 | `retrieval/test_index.py` (each refusal row, no writes, non-empty spy calls, multi-page `document_count`); retrieval-wording refusal test |
 | R5 | T4, T5 | `retrieval/test_retriever.py`; `make test-integration` (`test_retrieval_integration.py`) |
-| R6 | T5 | `retrieval/test_cli.py`; throwaway fake `make retrieve` |
+| R6 | T5, T6 | `retrieval/test_cli.py` (incl. control-character-safe hit lines); throwaway fake `make retrieve` |
 | R7 | T6 | `retrieval/test_metrics.py` |
 | R8 | T6 | `retrieval/test_goldens.py`, `retrieval/test_baseline.py`; throwaway fake `make retrieval-baseline --allow-fake` |
 | R9 | T1 | `ingestion/test_store.py`; `make test-integration` (`test_store_integration.py`) |
@@ -295,3 +295,4 @@ Small fixes carried from the Spec 004 retrospective.
 - 2026-10-20 — R1/T4/T5: T4 gains the hostile-query filter-identity test and AccessContext blank-tenant rejection; T5 gains the shared settings loader with a tenant-message and never-called-client test (T2 review F1-F4). design.md wording updated to match (`AccessContext` tenant validation, shared settings loader). T2 stays approved; no task re-opened.
 - 2026-10-20 — R4/T5/T7: T5 gains retrieval-side wording for index-binding refusals (and an optional missing-document_id conversion); T7 gains a multi-page document_count test and a non-empty spy-call assertion (T3 review F1-F3). T3 stays approved; no task re-opened.
 - 2026-10-20 — R8/T6/T7: T6 reads the embedder device after the warm-up query and tests it; T7 gains the cosmetic type-annotation fix from the T4 review F1. T4 stays approved; no task re-opened.
+- 2026-10-20 — R6/R8/T6/T7: T6 gains a control-character-safe text helper used by the retrieve CLI and the baseline summary; T7 gains the settings-loader fallback for validation errors without a field location (T5 review F1-F2). T5 stays approved; no task re-opened.

@@ -174,7 +174,7 @@ Implement the tasks in order; each depends on the ones before it.
 ## T6 — Metrics, golden loader and `make retrieval-baseline`
 
 **State:** not started
-**Requirements:** R7, R8, R11
+**Requirements:** R6, R7, R8, R11
 
 - [ ] Implement `retrieval/metrics.py`: `dedupe_documents`, `hit_rate_at_k`, `recall_at_k`, `reciprocal_rank`, `random_hit_rate` (`min(1, k/N)`, N ≥ 1) and `percentile` (nearest-rank). Pure functions; no chunk, point or section IDs.
 - [ ] Implement `retrieval/goldens.py`:
@@ -217,11 +217,15 @@ Implement the tasks in order; each depends on the ones before it.
   - the release mismatch is refused.
 - [ ] Read `embedder.device` after the warm-up query, not before. A real `BgeM3Embedder` reports `None` until the model loads, so reading it earlier would record `device: null`. The result JSON's `device` field is that post-warm-up value. Add a unit test in `packages/rag/tests/retrieval/test_baseline.py` with a stub embedder whose `device` is `None` until its first embed call (then, for example, `"mps"`), asserting that the recorded device is the post-warm-up value, not `None` (T4 review decision).
 - [ ] Tests never write under `experiments/results/`.
+- [ ] Add ONE helper in the retrieval package (for example `safe_text()`; the implementer chooses the name). It strips or escapes control characters, newlines and ANSI escape sequences from payload-derived text (titles etc.) before printing (T5 review F1).
+- [ ] Use that helper both in the baseline summary printer and in the existing `make retrieve` hit lines in `packages/rag/src/way2australia_rag/retrieval/cli.py`, so this task also touches that file.
+- [ ] Unit test: a title containing `\n` and an ANSI escape (for example `"\x1b[31m"`) is printed as a single line with no control characters, both by the retrieve CLI and by the baseline summary.
 
 ### Verification
 
 - `make test-unit`
 - `make test-unit`: the post-warm-up device test passes (the recorded `device` is the stub's value after its first embed call, not `None`).
+- `make test-unit`: the control-character tests pass for the retrieve CLI hit lines and the baseline summary (one line per hit, no control characters or ANSI escapes).
 - `make verify`
 - With Docker Qdrant, after a fake ingest into `QDRANT_COLLECTION_BASE=w2a-t6-throwaway`:
   - `QDRANT_COLLECTION_BASE=w2a-t6-throwaway make retrieval-baseline BASELINE_ARGS="--embedder fake --allow-fake --output <tmp>/baseline.json"` exits 0, and the JSON has `document_count: 13`, `random_hit_rate_formula: "5/13"` and the "not a quality measurement" note;
@@ -259,6 +263,7 @@ Implement the tasks in order; each depends on the ones before it.
 - [ ] Add a multi-page `document_count` test in `packages/rag/tests/retrieval/test_index.py`. Monkeypatch `retrieval.index._SCROLL_PAGE` to a small value, with duplicate `document_id`s spanning more than one scroll page, and assert the distinct count is correct (T3 review F1).
 - [ ] Strengthen the T3 no-writes spy test in `packages/rag/tests/retrieval/test_index.py` to also assert that the recorded calls are non-empty (for example that `query_points` and `scroll` were called), so it cannot pass vacuously (T3 review F2).
 - [ ] In `packages/rag/tests/retrieval/test_authorization_isolation.py`, replace the `# type: ignore[no-untyped-def]` comments on the `client_with_forbidden` fixture and its tests with a proper `QdrantClient` annotation (cosmetic; T4 review F1).
+- [ ] In the shared settings loader (`load_runtime_settings`, `ingestion/config.py`), add a fallback: a validation error with no field location gives a generic configuration error that names no values, instead of an `IndexError`. Add a unit test (T5 review F2).
 - [ ] Keep next-spec work out (see Completion gate).
 - [ ] Hand off to spec-orchestrator for completion
 
@@ -269,6 +274,7 @@ Implement the tasks in order; each depends on the ones before it.
 - `make test-unit`: the multi-page `document_count` test passes with a patched small `_SCROLL_PAGE`.
 - `make test-unit`: the T3 no-writes spy test asserts a non-empty set of recorded calls.
 - `make verify`: pyright is clean on `test_authorization_isolation.py` with no `# type: ignore[no-untyped-def]` comments left.
+- `make test-unit`: the `load_runtime_settings` fallback test passes (a validation error with an empty location gives a configuration error naming no values, never `IndexError`).
 - `make test-integration` passes with `docker compose up -d qdrant`.
 - The fake `make retrieve` and `make retrieval-baseline --allow-fake` runs from T5/T6 pass on a throwaway base.
 - `git diff --stat main -- knowledge evaluation config` is empty.
