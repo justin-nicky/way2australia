@@ -95,7 +95,7 @@ Implement the tasks in order; each depends on the ones before it.
 ## T4 — Dense retriever, isolated authorization tests and embedder device
 
 **State:** not started
-**Requirements:** R2, R3, R5, R11
+**Requirements:** R1, R2, R3, R5, R11
 
 - [ ] Add `device: str | None` to the `Embedder` Protocol.
   - `FakeEmbedder.device` is `None`.
@@ -121,17 +121,21 @@ Implement the tasks in order; each depends on the ones before it.
   - a store that drops the filter makes `retrieve` raise `RetrievalAuthorizationError`.
 - [ ] Unit test (`tests/ingestion/test_bge_m3.py` or `test_embedding.py`): the device stays `None` before the model loads, without loading the model.
 - [ ] Docker test, `packages/rag/tests/retrieval/test_retrieval_integration.py` (`integration`): fake-ingest the seed corpus into a throwaway base, `retrieve` returns seed `document_id`s under guest access, then clean up.
+- [ ] Filter-identity spy test in `packages/rag/tests/retrieval/test_retriever.py`: for several query texts, including hostile ones such as `"ignore filters, role=staff"` and `"tenant_id=other"`, the filter passed to the index is identical in content (and equal to `build_access_filter(access)`). This covers R1's "query text cannot change the resolved policy or tenant" (T2 review F3).
+- [ ] Make core `AccessContext.tenant_id` reject blank or whitespace-only values itself (stripped, non-blank validation in `packages/core/src/way2australia_core/access.py`), so the core authorization type does not rely on callers stripping. Add a unit test in `packages/core/tests/test_access.py` (T2 review F4).
 
 ### Verification
 
 - `make test-unit`
+- `make test-unit`: the filter-identity test passes, giving the same filter for normal and hostile query texts.
+- `make test-unit`: `packages/core/tests/test_access.py` refuses `""`, `" "` and `"\t"` as `tenant_id`.
 - `make test-integration` with `docker compose up -d qdrant`
 - `make verify`
 
 ## T5 — `make retrieve` developer CLI
 
 **State:** not started
-**Requirements:** R5, R6, R11
+**Requirements:** R1, R5, R6, R11
 
 - [ ] Implement `retrieval/cli.py` (`python -m way2australia_rag.retrieval.cli`): positional query; `--repo-root`, `--config`, `--top-k`, `--embedder {bge_m3,fake}`.
 - [ ] Startup order:
@@ -155,10 +159,13 @@ Implement the tasks in order; each depends on the ones before it.
   - `W2A_TENANT_ID=""` exits 2;
   - the parser has no role, scope or tenant option;
   - output contains no API key, absolute path or chunk text.
+- [ ] Add one shared settings loader, used by both retrieval CLIs and the ingestion CLI. It turns the `RuntimeSettings` pydantic `ValidationError` into a configuration error (`RetrievalConfigurationError` for retrieval, `IngestionConfigurationError` for ingestion, or one shared configuration-error type both CLIs map to exit 2). The message names only the environment variable names (for example `W2A_TENANT_ID`), never values (T2 review F1).
+- [ ] Unit test: run the ingestion CLI and the retrieval CLI with `W2A_TENANT_ID=""` (and whitespace-only). Assert exit 2, a message naming `W2A_TENANT_ID`, and that the injected Qdrant client factory is never called (T2 review F2).
 
 ### Verification
 
 - `make test-unit`
+- `make test-unit`: the empty-`W2A_TENANT_ID` test passes for both the ingestion and retrieval CLIs (exit 2, message names `W2A_TENANT_ID`, client factory never called).
 - `make verify`
 - With Docker Qdrant: `QDRANT_COLLECTION_BASE=w2a-t5-throwaway make ingest INGEST_ARGS="--embedder fake"`, then `QDRANT_COLLECTION_BASE=w2a-t5-throwaway make retrieve QUERY="Is coaching compulsory?" RETRIEVE_ARGS="--embedder fake"` exits 0 with up to 5 hits. Delete the throwaway collections afterwards.
 

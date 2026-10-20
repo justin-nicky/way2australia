@@ -68,7 +68,7 @@ Retrieval imports these from `ingestion/` as they are: `Embedder`, `FakeEmbedder
 
 ## Components / boundaries
 
-- **`AccessContext` (core):** a frozen Pydantic model with `role: Role` and `tenant_id: str` (min length 1). It has no language fields and no scopes: scopes are a rag-side policy decision.
+- **`AccessContext` (core):** a frozen Pydantic model with `role: Role` and `tenant_id: str` (stripped, non-blank: empty or whitespace-only is rejected by the model itself). It has no language fields and no scopes: scopes are a rag-side policy decision.
 - **`guest_access(settings: RuntimeSettings) -> AccessContext`:** the only constructor used by the CLIs and the baseline. The tenant comes from `settings.tenant_id`.
 - **`resolve_access(ctx) -> ResolvedAccess`:**
   - `Role.GUEST` returns `ResolvedAccess(policy=GUEST_PUBLIC_POLICY, tenant_id=ctx.tenant_id)`, with the identical object.
@@ -143,7 +143,7 @@ Any exception during the run aborts it with exit 2 and no file is written (all o
 
 **`W2A_TENANT_ID` [R1]:**
 - `RuntimeSettings.tenant_id: str` has `validation_alias="W2A_TENANT_ID"`, default `"way2australia"`, and a validator that strips it and refuses an empty value.
-- `RuntimeSettings()` is built at CLI startup before the client. A `ValidationError` is converted to a `RetrievalConfigurationError` naming the variable only.
+- `RuntimeSettings()` is built at CLI startup before the client, through one shared settings loader used by the ingestion and retrieval CLIs. It turns a `ValidationError` into a configuration error (`RetrievalConfigurationError` or `IngestionConfigurationError`) naming the environment variables only, never values.
 - Ingestion also constructs `RuntimeSettings`, so `make ingest` likewise exits 2 on an empty `W2A_TENANT_ID`. That is acceptable: misconfiguration fails everywhere. Ingestion does not use the tenant.
 
 **Index-store fixes [R9]:**
@@ -162,7 +162,7 @@ class Role(StrEnum):
 
 class AccessContext(BaseModel):          # frozen, extra="forbid"
     role: Role
-    tenant_id: str = Field(min_length=1)
+    tenant_id: str  # stripped, non-blank (validator rejects empty/whitespace)
 
 # retrieval/access.py
 @dataclass(frozen=True, slots=True)
