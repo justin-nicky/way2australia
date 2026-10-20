@@ -32,3 +32,13 @@ def test_roles_match_policy_file() -> None:
     path = Path(__file__).resolve().parents[3] / "config/access_policy.yaml"
     roles = yaml.safe_load(path.read_text(encoding="utf-8"))["roles"]
     assert {r.value for r in Role} == set(roles)
+
+
+@pytest.mark.parametrize("blank", ["", " ", "\t", " \n "])
+def test_blank_tenant_refused(blank: str) -> None:
+    with pytest.raises(ValidationError):
+        AccessContext(role=Role.GUEST, tenant_id=blank)
+
+
+def test_tenant_is_stripped() -> None:
+    assert AccessContext(role=Role.GUEST, tenant_id="  t ").tenant_id == "t"

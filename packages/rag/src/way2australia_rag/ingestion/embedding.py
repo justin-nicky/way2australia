@@ -34,6 +34,11 @@ class EmbedderInfo(BaseModel):
 class Embedder(Protocol):
     info: EmbedderInfo
 
+    @property
+    def device(self) -> str | None:
+        """Device the model ran on, if known; recorded, never configured."""
+        ...
+
     def embed_documents(self, texts: Sequence[str]) -> list[list[float]]: ...
 
     def embed_query(self, text: str) -> list[float]: ...
@@ -54,6 +59,10 @@ class FakeEmbedder:
             normalize=True,
             is_fake=True,
         )
+
+    @property
+    def device(self) -> str | None:
+        return None
 
     def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
         return [self._embed(text) for text in texts]

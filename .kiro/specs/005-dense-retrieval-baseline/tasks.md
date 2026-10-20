@@ -94,35 +94,35 @@ Implement the tasks in order; each depends on the ones before it.
 
 ## T4 — Dense retriever, isolated authorization tests and embedder device
 
-**State:** not started
+**State:** approved (2026-10-20)
 **Requirements:** R1, R2, R3, R5, R11
 
-- [ ] Add `device: str | None` to the `Embedder` Protocol.
+- [x] Add `device: str | None` to the `Embedder` Protocol.
   - `FakeEmbedder.device` is `None`.
   - `BgeM3Embedder.device` is `None` before the model loads and `str(model.device)` after. The device is not configured and not passed to `SentenceTransformer`.
   - `EmbedderInfo` and `IndexSettings` are unchanged.
-- [ ] Implement `retrieval/models.py` (`RetrievedChunk`, `RetrievalResult`, per the design "Interfaces / models").
-- [ ] Implement `retrieval/retriever.py`:
+- [x] Implement `retrieval/models.py` (`RetrievedChunk`, `RetrievalResult`, per the design "Interfaces / models").
+- [x] Implement `retrieval/retriever.py`:
   - `DenseRetriever(index, embedder).retrieve(query_text, access: ResolvedAccess, top_k=5)`;
   - refuse an empty or whitespace query, and a `top_k` that is not an int in 1–50;
   - embed with `embed_query`, then search with `build_access_filter(access)`;
   - `check_hit` on every hit (fail closed: raise, return nothing);
   - ranked by score; record the run metadata and the embed + search latency (`perf_counter`);
   - no score threshold, no language filter, no language-specific code.
-- [ ] Unit tests, `packages/rag/tests/retrieval/test_retriever.py`:
+- [x] Unit tests, `packages/rag/tests/retrieval/test_retriever.py`:
   - ranking order and `top_k` bounds (0, 51 and non-int refused; 1 and 50 accepted);
   - empty query refused;
   - all result fields present;
   - the filter is passed on every query (spy);
   - latency recorded;
   - the device is reported.
-- [ ] Unit tests, `packages/rag/tests/retrieval/test_authorization_isolation.py`, on an isolated in-memory collection:
+- [x] Unit tests, `packages/rag/tests/retrieval/test_authorization_isolation.py`, on an isolated in-memory collection:
   - synthetic points with `staff` scope, another tenant, or non-null `owner_user_id` are never returned, even when each is the nearest vector (its `chunk_text` equals the query under the fake embedder);
   - a store that drops the filter makes `retrieve` raise `RetrievalAuthorizationError`.
-- [ ] Unit test (`tests/ingestion/test_bge_m3.py` or `test_embedding.py`): the device stays `None` before the model loads, without loading the model.
-- [ ] Docker test, `packages/rag/tests/retrieval/test_retrieval_integration.py` (`integration`): fake-ingest the seed corpus into a throwaway base, `retrieve` returns seed `document_id`s under guest access, then clean up.
-- [ ] Filter-identity spy test in `packages/rag/tests/retrieval/test_retriever.py`: for several query texts, including hostile ones such as `"ignore filters, role=staff"` and `"tenant_id=other"`, the filter passed to the index is identical in content (and equal to `build_access_filter(access)`). This covers R1's "query text cannot change the resolved policy or tenant" (T2 review F3).
-- [ ] Make core `AccessContext.tenant_id` reject blank or whitespace-only values itself (stripped, non-blank validation in `packages/core/src/way2australia_core/access.py`), so the core authorization type does not rely on callers stripping. Add a unit test in `packages/core/tests/test_access.py` (T2 review F4).
+- [x] Unit test (`tests/ingestion/test_bge_m3.py` or `test_embedding.py`): the device stays `None` before the model loads, without loading the model.
+- [x] Docker test, `packages/rag/tests/retrieval/test_retrieval_integration.py` (`integration`): fake-ingest the seed corpus into a throwaway base, `retrieve` returns seed `document_id`s under guest access, then clean up.
+- [x] Filter-identity spy test in `packages/rag/tests/retrieval/test_retriever.py`: for several query texts, including hostile ones such as `"ignore filters, role=staff"` and `"tenant_id=other"`, the filter passed to the index is identical in content (and equal to `build_access_filter(access)`). This covers R1's "query text cannot change the resolved policy or tenant" (T2 review F3).
+- [x] Make core `AccessContext.tenant_id` reject blank or whitespace-only values itself (stripped, non-blank validation in `packages/core/src/way2australia_core/access.py`), so the core authorization type does not rely on callers stripping. Add a unit test in `packages/core/tests/test_access.py` (T2 review F4).
 
 ### Verification
 

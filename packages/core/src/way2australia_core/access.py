@@ -7,7 +7,7 @@ and language never grants or denies access.
 
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class Role(StrEnum):
@@ -24,4 +24,12 @@ class AccessContext(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     role: Role
-    tenant_id: str = Field(min_length=1)
+    tenant_id: str
+
+    @field_validator("tenant_id")
+    @classmethod
+    def _tenant_not_blank(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("tenant_id must not be blank")
+        return value

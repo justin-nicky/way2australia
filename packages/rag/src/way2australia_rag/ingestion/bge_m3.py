@@ -57,6 +57,13 @@ class BgeM3Embedder:
         self._batch_size = batch_size
         self._model: Any = None
 
+    @property
+    def device(self) -> str | None:
+        """`None` until the model loads, then the device it runs on."""
+        if self._model is None:
+            return None
+        return str(self._model.device)
+
     def _load_model(self) -> Any:
         try:
             from sentence_transformers import (  # pyright: ignore[reportMissingImports]
