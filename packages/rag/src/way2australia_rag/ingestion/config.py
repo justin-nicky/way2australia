@@ -9,7 +9,14 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SecretStr,
+    ValidationError,
+    field_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from way2australia_rag.ingestion.errors import IngestionConfigurationError
@@ -89,3 +96,12 @@ class RuntimeSettings(BaseSettings):
     collection_base: str = Field(
         default="way2australia", validation_alias="QDRANT_COLLECTION_BASE"
     )
+    tenant_id: str = Field(default="way2australia", validation_alias="W2A_TENANT_ID")
+
+    @field_validator("tenant_id")
+    @classmethod
+    def _tenant_not_empty(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("W2A_TENANT_ID must not be empty")
+        return value

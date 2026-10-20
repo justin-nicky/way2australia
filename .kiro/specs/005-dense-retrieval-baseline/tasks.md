@@ -39,28 +39,28 @@ Implement the tasks in order; each depends on the ones before it.
 
 ## T2 — Access context, guest resolver, filter builder and re-check
 
-**State:** not started
+**State:** approved (2026-10-20)
 **Requirements:** R1, R2, R3, R11
 
-- [ ] Add `packages/core/src/way2australia_core/access.py`:
+- [x] Add `packages/core/src/way2australia_core/access.py`:
   - `Role` StrEnum with the five roles in `config/access_policy.yaml`;
   - `AccessContext(role, tenant_id)`, frozen, `extra="forbid"`, `tenant_id` min length 1, no language fields;
   - re-export it from `way2australia_core`.
-- [ ] Add `RuntimeSettings.tenant_id` in `ingestion/config.py`: `W2A_TENANT_ID`, default `way2australia`, stripped, empty or whitespace refused at startup (exit 2, before any Qdrant call).
-- [ ] Create the `retrieval` package: `__init__.py`, and `errors.py` with `RetrievalError`, `RetrievalConfigurationError`, `IndexBindingError` and `RetrievalAuthorizationError`.
-- [ ] Implement `retrieval/access.py`:
+- [x] Add `RuntimeSettings.tenant_id` in `ingestion/config.py`: `W2A_TENANT_ID`, default `way2australia`, stripped, empty or whitespace refused at startup (exit 2, before any Qdrant call).
+- [x] Create the `retrieval` package: `__init__.py`, and `errors.py` with `RetrievalError`, `RetrievalConfigurationError`, `IndexBindingError` and `RetrievalAuthorizationError`.
+- [x] Implement `retrieval/access.py`:
   - `ResolvedAccess(policy, tenant_id)`;
   - `guest_access(settings)`;
   - `resolve_access(context)`: `guest` returns the identical `GUEST_PUBLIC_POLICY` object; any other role raises `RetrievalConfigurationError`;
   - `build_access_filter(access)`: `must` on `access_scope` `MatchAny` of the policy scopes, `tenant_id` `MatchValue`, and `IsNullCondition(owner_user_id)`;
   - `check_hit(payload, access)`: validates the payload as `PointPayload`, then checks scope, tenant and null owner; raises `RetrievalAuthorizationError` naming `document_id` and field names only.
-- [ ] Unit tests, `packages/core/tests/test_access.py`: empty tenant refused; unknown role refused; the model has no language fields.
-- [ ] Unit tests, `packages/rag/tests/retrieval/test_access.py`:
+- [x] Unit tests, `packages/core/tests/test_access.py`: empty tenant refused; unknown role refused; the model has no language fields.
+- [x] Unit tests, `packages/rag/tests/retrieval/test_access.py`:
   - guest resolves to `is GUEST_PUBLIC_POLICY`, and non-guest roles are refused;
   - the filter is derived from the policy: a test `EligibilityPolicy({public, staff})` changes the scope condition, and the tenant comes from the context;
   - `check_hit` accepts a valid payload and raises on wrong scope, other tenant, non-null owner and malformed payload, with no chunk text in the message;
   - `RuntimeSettings` with `W2A_TENANT_ID=""` or `"  "` is refused, and the default is `way2australia`.
-- [ ] Confirm `make ingest` behavior is otherwise unchanged (existing ingestion tests pass).
+- [x] Confirm `make ingest` behavior is otherwise unchanged (existing ingestion tests pass).
 
 ### Verification
 
