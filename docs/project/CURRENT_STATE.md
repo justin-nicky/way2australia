@@ -12,7 +12,7 @@ Spec 001 project foundation is complete.
 
 ## Current goal
 
-Plan Spec 005 (dense retrieval baseline) with `spec-planner`, starting from the "Notes for the next spec" in `.kiro/specs/004-ingestion-baseline/review.md`. Specs 001–004 are complete. Repository-based shared context keeps Codex, Claude Code and Kiro interchangeable.
+Implement Spec 005 (dense retrieval baseline, approved 2026-10-20; 7 tasks) through `spec-orchestrator`. Specs 001–004 are complete. Repository-based shared context keeps Codex, Claude Code and Kiro interchangeable.
 
 ## Finalized high-level decisions
 
@@ -98,11 +98,11 @@ Not yet implemented:
 | 002 — document model and repository | **verified (2026-10-15, merged dca6cbd)**; branch `spec/002` (base `869c37f`; T1–T2 on `main`, approved without task review). T3 (the Spec 003 T9 dry run) approved 2026-10-14 after task review round 1 PASS: manifest loading and metadata validation in `packages/rag/.../repositories/manifest.py` and `frontmatter.py`, new deps `jsonschema` and `pyyaml`. T4 approved 2026-10-14 (LocalDocumentRepository; placeholder content_hash until T5); T5 approved 2026-10-14 (content-hash-v1 and manifest hash verification); T6 approved 2026-10-15 (eligibility policy); T7 approved 2026-10-15 (`make validate-knowledge`); T8 approved 2026-10-15 (isolated security repository, seed corpus tests); T9 approved 2026-10-15 (documentation and handoff); merged to `main` |
 | 003 — task-gated agent workflow | **verified** (2026-10-15, bootstrap exception: implemented directly on `main`, base `9e95cfe`); dry run on Spec 002 recorded in its T9; T1–T8 closed by the user's instruction to close the spec, without per-task review records |
 | 004 — ingestion baseline | **verified (2026-10-17, merged dde5b35)**; merged at the user's request before the retrospective; required `spec-reviewer` retrospective round 1 `PASS`, approved by the user 2026-10-17; branch `spec/004` (base `af659da`); T1 approved 2026-10-15 (shared strict date check, policy-vs-config test); T2 approved 2026-10-15 (heading chunker, `section_id` slug rule recorded in design); T3 approved 2026-10-15 (`Embedder` Protocol and deterministic fake); T4 approved 2026-10-16 (BGE-M3 adapter, optional `bge-m3` extra, pinned revision; real-model smoke test skipped, user-owned); T5 approved 2026-10-16 (index settings, 17-field payload, UUIDv5 point identity); T6 approved 2026-10-16 (`QdrantIndexStore`, companion settings collection, Docker integration test); T7 approved 2026-10-16 (`IngestionService`, change detection, run report); T8 approved 2026-10-16 (`config/ingestion.yaml`, CLI, `make ingest`, day1_baseline agreement tests); T9 approved 2026-10-17 (docs, decisions and handoff). User-owned pre-merge check (not a gate): one real BGE-M3 ingestion of the seed corpus into a throwaway collection, run twice, plus the opt-in smoke test |
+| 005 — dense retrieval baseline | **approved** (requirements, design and tasks approved 2026-10-20); 7 tasks `not started`; branch `spec/005` not yet created. User-owned post-merge step (not a gate): run the real BGE-M3 `make retrieval-baseline` and commit its result |
 
 ## Next step
 
-1. Plan Spec 005 (dense retrieval baseline) with `spec-planner`. Read the Spec 004 "Notes for the next spec" first: filter on `access_scope` and `tenant_id` with the same policy on every path, refuse a query embedder whose settings don't match the index, add the payload-index assertion and re-create indexes on the exists-empty-no-settings path.
-2. Next roadmap spec after Spec 004 (retrieval baseline) is planned separately with `spec-planner`.
+1. Run `/spec-orchestrator 005-dense-retrieval-baseline` (creates `spec/005`, runs T1 first). The Spec 004 retrospective notes are built into the spec.
 
 ## One-off: user-owned pre-merge check for Spec 004 (done 2026-10-17)
 
