@@ -325,3 +325,13 @@ def test_dense_index_makes_no_write_calls(client: QdrantClient) -> None:
         "scroll",
     }
     assert not called & set(WRITE_CALLS)
+
+
+def test_document_count_missing_document_id_is_a_binding_error(
+    client: QdrantClient,
+) -> None:
+    seed(client, [(1, payload("a"))])
+    index = open_index(client)
+    client.delete_payload(COLLECTION, keys=["document_id"], points=[1])
+    with pytest.raises(IndexBindingError, match="document_id"):
+        index.document_count(models.Filter())

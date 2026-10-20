@@ -105,3 +105,26 @@ class RuntimeSettings(BaseSettings):
         if not value:
             raise ValueError("W2A_TENANT_ID must not be empty")
         return value
+
+
+def load_runtime_settings(
+    error_type: type[Exception] = IngestionConfigurationError,
+) -> RuntimeSettings:
+    """The one place `RuntimeSettings` is built for the CLIs (Spec 005 R1).
+
+    A validation failure becomes `error_type` naming only environment variable
+    names, never their values.
+    """
+    try:
+        return RuntimeSettings()
+    except ValidationError as error:
+        aliases = {
+            name: str(field.validation_alias or name)
+            for name, field in RuntimeSettings.model_fields.items()
+        }
+        names = sorted(
+            {aliases.get(str(e["loc"][0]), str(e["loc"][0])) for e in error.errors()}
+        )
+        raise error_type(
+            f"invalid runtime settings: check {', '.join(names)}."
+        ) from None

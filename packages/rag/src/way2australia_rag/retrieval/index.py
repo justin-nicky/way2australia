@@ -20,6 +20,12 @@ from way2australia_rag.retrieval.errors import IndexBindingError
 
 _SCROLL_PAGE = 256
 
+# Retrieval users cannot edit config/ingestion.yaml to fix a binding problem.
+_ADVICE = (
+    "Re-run ingestion into this index version, or point retrieval at the "
+    "matching index_version and collection."
+)
+
 # (IndexSettings field, EmbedderInfo field) pairs compared at query time.
 _EMBEDDER_FIELDS: tuple[tuple[str, str], ...] = (
     ("embedder_model_id", "model_id"),
@@ -51,18 +57,25 @@ class DenseIndex:
     ) -> "DenseIndex":
         collection = collection_name(collection_base, index_version)
         if not client.collection_exists(collection):
-            raise IndexBindingError(f"collection '{collection}' does not exist.")
+            raise IndexBindingError(
+                f"collection '{collection}' does not exist. {_ADVICE}"
+            )
         if not client.collection_exists(collection + SETTINGS_COLLECTION_SUFFIX):
             raise IndexBindingError(
-                f"settings collection for '{collection}' does not exist."
+                f"settings collection for '{collection}' does not exist. {_ADVICE}"
             )
         try:
             recorded = read_index_settings(client, collection)
         except IndexSettingsMismatchError as error:
-            raise IndexBindingError(str(error)) from error
+            fields = ", ".join(error.invalid_fields)
+            raise IndexBindingError(
+                f"recorded index settings for collection '{collection}' are "
+                f"malformed or foreign (invalid fields: {fields}). {_ADVICE}"
+            ) from error
         if recorded is None:
             raise IndexBindingError(
-                f"no index settings are recorded for collection '{collection}'."
+                f"no index settings are recorded for collection '{collection}'. "
+                f"{_ADVICE}"
             )
         differences: list[str] = []
         if recorded.index_version != index_version:
@@ -80,7 +93,7 @@ class DenseIndex:
         if differences:
             raise IndexBindingError(
                 f"index settings do not match the query embedder for collection "
-                f"'{collection}' ({'; '.join(differences)})."
+                f"'{collection}' ({'; '.join(differences)}). {_ADVICE}"
             )
         cls._check_dense_vector(client, collection, embedder_info.vector_size)
         return cls(client, collection, recorded)
@@ -96,7 +109,7 @@ class DenseIndex:
         if params.size != size:
             raise IndexBindingError(
                 f"'{DENSE_VECTOR_NAME}' vector size: recorded {params.size!r}, "
-                f"wanted {size!r} (collection '{collection}')."
+                f"wanted {size!r} (collection '{collection}'). {_ADVICE}"
             )
 
     def search(
@@ -127,7 +140,13 @@ class DenseIndex:
                 with_vectors=False,
             )
             for record in records:
-                seen.add(str((record.payload or {})["document_id"]))
+                document_id = (record.payload or {}).get("document_id")
+                if document_id is None:
+                    raise IndexBindingError(
+                        f"a point in collection '{self.collection}' has no "
+                        "'document_id'."
+                    )
+                seen.add(str(document_id))
             if offset is None:
                 break
         return len(seen)

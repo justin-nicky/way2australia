@@ -134,34 +134,34 @@ Implement the tasks in order; each depends on the ones before it.
 
 ## T5 — `make retrieve` developer CLI
 
-**State:** not started
+**State:** approved (2026-10-20)
 **Requirements:** R1, R4, R5, R6, R11
 
-- [ ] Implement `retrieval/cli.py` (`python -m way2australia_rag.retrieval.cli`): positional query; `--repo-root`, `--config`, `--top-k`, `--embedder {bge_m3,fake}`.
-- [ ] Startup order:
+- [x] Implement `retrieval/cli.py` (`python -m way2australia_rag.retrieval.cli`): positional query; `--repo-root`, `--config`, `--top-k`, `--embedder {bge_m3,fake}`.
+- [x] Startup order:
   1. config;
   2. `RuntimeSettings` (empty tenant refused);
   3. `build_embedder` from `ingestion/cli.py` (a missing extra exits 2 before any client is created);
   4. client;
   5. `DenseIndex.open`;
   6. `resolve_access(guest_access(settings))`.
-- [ ] No flag for role, scope or tenant.
-- [ ] Output:
+- [x] No flag for role, scope or tenant.
+- [x] Output:
   - a header with collection, `index_version`, embedder @ revision, `fake=` and `device=`;
   - one line per hit: rank, `document_id`, `section_id`, score, title;
   - no absolute paths, API key or document bodies;
   - `httpx` logger at WARNING.
-- [ ] Exit codes per the design error table: `0` (including zero hits) and `2`. `RetrievalError`/`IngestionError` messages are printed; any other exception prints its class name only.
-- [ ] Add a `Makefile` target `retrieve` that runs the CLI with `--repo-root $(CURDIR) $(RETRIEVE_ARGS) "$(QUERY)"`, and add it to `.PHONY`.
-- [ ] Unit tests, `packages/rag/tests/retrieval/test_cli.py`, with the client factory injected:
+- [x] Exit codes per the design error table: `0` (including zero hits) and `2`. `RetrievalError`/`IngestionError` messages are printed; any other exception prints its class name only.
+- [x] Add a `Makefile` target `retrieve` that runs the CLI with `--repo-root $(CURDIR) $(RETRIEVE_ARGS) "$(QUERY)"`, and add it to `.PHONY`.
+- [x] Unit tests, `packages/rag/tests/retrieval/test_cli.py`, with the client factory injected:
   - an exit code for each error-table row the CLI can hit;
   - missing extra exits 2 with no client created;
   - `W2A_TENANT_ID=""` exits 2;
   - the parser has no role, scope or tenant option;
   - output contains no API key, absolute path or chunk text.
-- [ ] Add one shared settings loader, used by both retrieval CLIs and the ingestion CLI. It turns the `RuntimeSettings` pydantic `ValidationError` into a configuration error (`RetrievalConfigurationError` for retrieval, `IngestionConfigurationError` for ingestion, or one shared configuration-error type both CLIs map to exit 2). The message names only the environment variable names (for example `W2A_TENANT_ID`), never values (T2 review F1).
-- [ ] Unit test: run the ingestion CLI and the retrieval CLI with `W2A_TENANT_ID=""` (and whitespace-only). Assert exit 2, a message naming `W2A_TENANT_ID`, and that the injected Qdrant client factory is never called (T2 review F2).
-- [ ] Reword the retrieval-side index-binding refusals (settings mismatch, missing or malformed/foreign settings) so the advice addresses retrieval users. For example: re-run ingestion into this index version, or point retrieval at the matching `index_version`/collection. Do not reuse ingestion's "set index_version to a new label in config/ingestion.yaml" wording. Optional: convert the bare `KeyError` in `DenseIndex.document_count`, for a point lacking `document_id`, into an `IndexBindingError` (T3 review F3).
+- [x] Add one shared settings loader, used by both retrieval CLIs and the ingestion CLI. It turns the `RuntimeSettings` pydantic `ValidationError` into a configuration error (`RetrievalConfigurationError` for retrieval, `IngestionConfigurationError` for ingestion, or one shared configuration-error type both CLIs map to exit 2). The message names only the environment variable names (for example `W2A_TENANT_ID`), never values (T2 review F1).
+- [x] Unit test: run the ingestion CLI and the retrieval CLI with `W2A_TENANT_ID=""` (and whitespace-only). Assert exit 2, a message naming `W2A_TENANT_ID`, and that the injected Qdrant client factory is never called (T2 review F2).
+- [x] Reword the retrieval-side index-binding refusals (settings mismatch, missing or malformed/foreign settings) so the advice addresses retrieval users. For example: re-run ingestion into this index version, or point retrieval at the matching `index_version`/collection. Do not reuse ingestion's "set index_version to a new label in config/ingestion.yaml" wording. Optional: convert the bare `KeyError` in `DenseIndex.document_count`, for a point lacking `document_id`, into an `IndexBindingError` (T3 review F3).
 
 ### Verification
 

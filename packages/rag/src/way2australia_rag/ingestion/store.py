@@ -65,7 +65,8 @@ def read_index_settings(client: QdrantClient, collection: str) -> IndexSettings 
             f"recorded index settings for collection '{collection}' are "
             f"malformed or foreign (invalid fields: {', '.join(fields)}); "
             "set index_version to a new label in config/ingestion.yaml. "
-            "The existing collection is left untouched."
+            "The existing collection is left untouched.",
+            tuple(fields),
         ) from error
 
 

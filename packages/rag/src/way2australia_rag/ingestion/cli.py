@@ -24,6 +24,7 @@ from way2australia_rag.ingestion.config import (
     IngestionConfig,
     RuntimeSettings,
     load_ingestion_config,
+    load_runtime_settings,
 )
 from way2australia_rag.ingestion.embedding import Embedder, FakeEmbedder
 from way2australia_rag.ingestion.errors import (
@@ -133,7 +134,7 @@ def main(
     config_path: Path = args.config or repo_root / DEFAULT_CONFIG_PATH
     try:
         config = load_ingestion_config(config_path)
-        settings = RuntimeSettings()
+        settings = load_runtime_settings(IngestionConfigurationError)
         provider = args.embedder or config.embedder.provider
         embedder = build_embedder(config, provider)  # the run's only embedder
         chunker = build_chunker(config)
