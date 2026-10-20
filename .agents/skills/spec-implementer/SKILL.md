@@ -54,7 +54,7 @@ Never silently make code and spec agree after the fact.
 
 ## 3. Implement the task
 
-1. Inspect existing code before creating abstractions.
+1. Inspect existing code before creating abstractions. Before writing code, check whether existing project code, the standard library or an already-selected dependency covers it; reuse before you write. This never removes validation, authorization or tests the task requires.
 2. Implement the minimum complete solution; add or update tests with the behavior.
 3. Run the narrowest verification as you go, then the task's verification block and `make verify`.
 4. Tick the task's checkboxes only after verification. Never reword checkbox text; never edit `tasks.meta.json`.
