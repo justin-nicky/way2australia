@@ -215,11 +215,13 @@ Implement the tasks in order; each depends on the ones before it.
   - no query text, chunk text or absolute path;
   - an existing output file is refused;
   - the release mismatch is refused.
+- [ ] Read `embedder.device` after the warm-up query, not before. A real `BgeM3Embedder` reports `None` until the model loads, so reading it earlier would record `device: null`. The result JSON's `device` field is that post-warm-up value. Add a unit test in `packages/rag/tests/retrieval/test_baseline.py` with a stub embedder whose `device` is `None` until its first embed call (then, for example, `"mps"`), asserting that the recorded device is the post-warm-up value, not `None` (T4 review decision).
 - [ ] Tests never write under `experiments/results/`.
 
 ### Verification
 
 - `make test-unit`
+- `make test-unit`: the post-warm-up device test passes (the recorded `device` is the stub's value after its first embed call, not `None`).
 - `make verify`
 - With Docker Qdrant, after a fake ingest into `QDRANT_COLLECTION_BASE=w2a-t6-throwaway`:
   - `QDRANT_COLLECTION_BASE=w2a-t6-throwaway make retrieval-baseline BASELINE_ARGS="--embedder fake --allow-fake --output <tmp>/baseline.json"` exits 0, and the JSON has `document_count: 13`, `random_hit_rate_formula: "5/13"` and the "not a quality measurement" note;
@@ -256,6 +258,7 @@ Implement the tasks in order; each depends on the ones before it.
 - [ ] Extend the T1 spy-client unit test in `packages/rag/tests/ingestion/test_store.py` to assert the recorded call order on the "exists, empty, no settings" row: every `create_payload_index` call precedes the settings write (`_write_settings`). That order is the T6 F4 fix itself (T1 review F1).
 - [ ] Add a multi-page `document_count` test in `packages/rag/tests/retrieval/test_index.py`. Monkeypatch `retrieval.index._SCROLL_PAGE` to a small value, with duplicate `document_id`s spanning more than one scroll page, and assert the distinct count is correct (T3 review F1).
 - [ ] Strengthen the T3 no-writes spy test in `packages/rag/tests/retrieval/test_index.py` to also assert that the recorded calls are non-empty (for example that `query_points` and `scroll` were called), so it cannot pass vacuously (T3 review F2).
+- [ ] In `packages/rag/tests/retrieval/test_authorization_isolation.py`, replace the `# type: ignore[no-untyped-def]` comments on the `client_with_forbidden` fixture and its tests with a proper `QdrantClient` annotation (cosmetic; T4 review F1).
 - [ ] Keep next-spec work out (see Completion gate).
 - [ ] Hand off to spec-orchestrator for completion
 
@@ -265,6 +268,7 @@ Implement the tasks in order; each depends on the ones before it.
 - `make test-unit`: the extended `packages/rag/tests/ingestion/test_store.py` spy test passes, asserting that payload indexes are created before the settings write on the "exists, empty, no settings" row.
 - `make test-unit`: the multi-page `document_count` test passes with a patched small `_SCROLL_PAGE`.
 - `make test-unit`: the T3 no-writes spy test asserts a non-empty set of recorded calls.
+- `make verify`: pyright is clean on `test_authorization_isolation.py` with no `# type: ignore[no-untyped-def]` comments left.
 - `make test-integration` passes with `docker compose up -d qdrant`.
 - The fake `make retrieve` and `make retrieval-baseline --allow-fake` runs from T5/T6 pass on a throwaway base.
 - `git diff --stat main -- knowledge evaluation config` is empty.

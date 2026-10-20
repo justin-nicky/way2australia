@@ -282,7 +282,7 @@ Small fixes carried from the Spec 004 retrospective.
 | R8 | T6 | `retrieval/test_goldens.py`, `retrieval/test_baseline.py`; throwaway fake `make retrieval-baseline --allow-fake` |
 | R9 | T1 | `ingestion/test_store.py`; `make test-integration` (`test_store_integration.py`) |
 | R10 | T1 | `make lint` (format check), `test_date_and_policy.py`, `make -n setup-bge-m3` |
-| R11 | T1–T6 | `make verify` without Docker/PyTorch; `make test-integration` |
+| R11 | T1–T7 | `make verify` without Docker/PyTorch; `make test-integration` |
 | R12 | T7 | doc review against code; `git diff --stat main -- knowledge evaluation config` |
 | Definition of Done | T7 | `make verify`, `make test-integration`, fake CLI runs, protected-path diff |
 
@@ -294,3 +294,4 @@ Small fixes carried from the Spec 004 retrospective.
 - 2026-10-20 — R9/T7: T7 gains a call-order assertion (payload indexes before the settings write) for the T1 spy test, from the T1 review F1. T1 stays approved; no task re-opened.
 - 2026-10-20 — R1/T4/T5: T4 gains the hostile-query filter-identity test and AccessContext blank-tenant rejection; T5 gains the shared settings loader with a tenant-message and never-called-client test (T2 review F1-F4). design.md wording updated to match (`AccessContext` tenant validation, shared settings loader). T2 stays approved; no task re-opened.
 - 2026-10-20 — R4/T5/T7: T5 gains retrieval-side wording for index-binding refusals (and an optional missing-document_id conversion); T7 gains a multi-page document_count test and a non-empty spy-call assertion (T3 review F1-F3). T3 stays approved; no task re-opened.
+- 2026-10-20 — R8/T6/T7: T6 reads the embedder device after the warm-up query and tests it; T7 gains the cosmetic type-annotation fix from the T4 review F1. T4 stays approved; no task re-opened.
