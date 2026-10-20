@@ -70,18 +70,18 @@ Implement the tasks in order; each depends on the ones before it.
 
 ## T3 — Read-only index binding
 
-**State:** not started
+**State:** approved (2026-10-20)
 **Requirements:** R4, R11
 
-- [ ] In `ingestion/store.py`, turn `_read_settings` into the public module function `read_index_settings(client, collection) -> IndexSettings | None`. Keep its validation and the field-names-only error. `QdrantIndexStore` delegates to it, and its behavior is unchanged.
-- [ ] Implement `retrieval/index.py`:
+- [x] In `ingestion/store.py`, turn `_read_settings` into the public module function `read_index_settings(client, collection) -> IndexSettings | None`. Keep its validation and the field-names-only error. `QdrantIndexStore` delegates to it, and its behavior is unchanged.
+- [x] Implement `retrieval/index.py`:
   - `DenseIndex.open(client, collection_base, index_version, embedder_info)` uses `collection_name()` and `read_index_settings()`;
   - it raises `IndexBindingError` on: a missing collection; a missing settings collection; missing, malformed or foreign settings; `index_version` mismatch; any differing embedder field (model ID, revision, vector size, normalize, fake flag); a missing or wrong-size `dense` vector;
   - the refusal names each differing field (recorded vs wanted), and never prints values from a malformed record;
   - chunker fields and `hash_contract` are not compared.
-- [ ] Implement `DenseIndex.search(vector, query_filter, limit)` (`query_points`, `using="dense"`, payload on, vectors off) and `DenseIndex.document_count(query_filter)` (distinct `document_id`s under the filter, payload `document_id` only).
-- [ ] `DenseIndex` uses only `collection_exists`, `get_collection`, `retrieve`, `query_points` and `scroll`, never a write call.
-- [ ] Unit tests, `packages/rag/tests/retrieval/test_index.py`:
+- [x] Implement `DenseIndex.search(vector, query_filter, limit)` (`query_points`, `using="dense"`, payload on, vectors off) and `DenseIndex.document_count(query_filter)` (distinct `document_id`s under the filter, payload `document_id` only).
+- [x] `DenseIndex` uses only `collection_exists`, `get_collection`, `retrieve`, `query_points` and `scroll`, never a write call.
+- [x] Unit tests, `packages/rag/tests/retrieval/test_index.py`:
   - one test per refusal row, including a fake embedder against a real-marked index and the reverse;
   - a spy client proves no write call is made;
   - `document_count` respects the filter;

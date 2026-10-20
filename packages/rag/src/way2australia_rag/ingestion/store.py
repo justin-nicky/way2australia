@@ -39,6 +39,36 @@ _STATE_FIELDS = ["document_id", "document_version", "content_hash"]
 _SCROLL_PAGE = 256
 
 
+def read_index_settings(client: QdrantClient, collection: str) -> IndexSettings | None:
+    """Read the settings recorded for `collection` (read-only).
+
+    Returns None when the companion settings collection or record is missing.
+    Raises IndexSettingsMismatchError (field names only) when malformed or foreign.
+    """
+    settings_collection = collection + SETTINGS_COLLECTION_SUFFIX
+    if not client.collection_exists(settings_collection):
+        return None
+    found = client.retrieve(
+        settings_collection,
+        ids=[SETTINGS_POINT_ID],
+        with_payload=True,
+        with_vectors=False,
+    )
+    if not found or found[0].payload is None:
+        return None
+    try:
+        return IndexSettings.model_validate(found[0].payload)
+    except ValidationError as error:
+        # Field names only: never echo the payload.
+        fields = sorted({".".join(map(str, e["loc"])) for e in error.errors()})
+        raise IndexSettingsMismatchError(
+            f"recorded index settings for collection '{collection}' are "
+            f"malformed or foreign (invalid fields: {', '.join(fields)}); "
+            "set index_version to a new label in config/ingestion.yaml. "
+            "The existing collection is left untouched."
+        ) from error
+
+
 class IndexPoint(BaseModel):
     """One point to write: deterministic ID, dense vector and payload."""
 
@@ -80,7 +110,7 @@ class QdrantIndexStore:
             self._ensure_payload_indexes()
             self._write_settings(settings)
             return
-        recorded = self._read_settings()
+        recorded = read_index_settings(self._client, self.collection)
         if recorded is not None:
             if compare(recorded, settings):
                 raise IndexSettingsMismatchError(
@@ -198,29 +228,6 @@ class QdrantIndexStore:
                 field_name=field,
                 field_schema=models.PayloadSchemaType.KEYWORD,
             )
-
-    def _read_settings(self) -> IndexSettings | None:
-        if not self._client.collection_exists(self.settings_collection):
-            return None
-        found = self._client.retrieve(
-            self.settings_collection,
-            ids=[SETTINGS_POINT_ID],
-            with_payload=True,
-            with_vectors=False,
-        )
-        if not found or found[0].payload is None:
-            return None
-        try:
-            return IndexSettings.model_validate(found[0].payload)
-        except ValidationError as error:
-            # Field names only: never echo the payload.
-            fields = sorted({".".join(map(str, e["loc"])) for e in error.errors()})
-            raise IndexSettingsMismatchError(
-                f"recorded index settings for collection '{self.collection}' are "
-                f"malformed or foreign (invalid fields: {', '.join(fields)}); "
-                "set index_version to a new label in config/ingestion.yaml. "
-                "The existing collection is left untouched."
-            ) from error
 
     def _write_settings(self, settings: IndexSettings) -> None:
         if not self._client.collection_exists(self.settings_collection):

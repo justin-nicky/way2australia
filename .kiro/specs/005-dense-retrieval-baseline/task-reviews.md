@@ -78,3 +78,40 @@ Append-only, newest at the bottom.
 
 ### User decision
 - 2026-10-20 — approved. Verbatim: "Approved T2. F3: yes — via spec-planner, add to T4: the filter spy test asserts an identical filter for several query texts (including hostile ones like "ignore filters, role=staff"), covering R1's "query text cannot change policy or tenant". F4: in the same T4 amendment, make `AccessContext` reject blank/whitespace `tenant_id` itself (it is the core authorization type; don't rely on callers stripping). F1 + F2: fix in T5 with the shared settings loader (message names `W2A_TENANT_ID`; test that the client factory is never called). I'll start Qdrant before T4's review so its Docker test runs."
+
+## T3 — round 1
+
+### Implementation
+- Model: claude-sonnet-5-5
+- Files changed: `packages/rag/src/way2australia_rag/ingestion/store.py` (`_read_settings` became module function `read_index_settings(client, collection)`; `QdrantIndexStore.ensure_collection` calls it; same validation and field-names-only error); `packages/rag/src/way2australia_rag/retrieval/index.py` (new: `DenseIndex.open`, `search`, `document_count`); `packages/rag/tests/retrieval/test_index.py` (new); `.kiro/specs/005-dense-retrieval-baseline/tasks.md` (State, T3 checkboxes)
+- Verification run: `make verify` -> pass, exit 0 (359 passed, 6 skipped; Qdrant down, no `bge-m3` group, so Docker and model tests skipped; ruff check, `ruff format --check` and pyright included). Existing `test_store.py` tests pass unchanged. No Docker integration check in T3's task, so Docker was not started.
+- Notes: `DenseIndex.open` translates `IndexSettingsMismatchError` from `read_index_settings` into `IndexBindingError` (same text, field names only). Refusals: missing collection, missing settings collection, missing settings record, malformed/foreign settings, `index_version` mismatch, each of model ID/revision/vector size/normalize/fake flag (each differing field named, recorded vs wanted), missing `dense` vector, wrong-size `dense` vector. Chunker fields and `hash_contract` are not compared (tested). `DenseIndex` calls only `collection_exists`, `get_collection`, `retrieve` (via `read_index_settings`), `query_points`, `scroll`; the spy test asserts the set of called methods is a subset of those and disjoint from a list of write methods. `document_count` scrolls `document_id` only under the given filter and returns distinct IDs. Nothing under `knowledge/`, `evaluation/`, `config/` changed. No containers or processes left running; `w2a-realcheck-*` collections untouched.
+- Usage: 105K tokens · 12 tool uses · 1:22
+
+### Review
+- Model: claude-opus-5-5 (matches the BEST tier, Claude Code `Opus`; different model from the implementer)
+- Verdict: PASS
+- Commands:
+  - `make verify` (Qdrant down, no `bge-m3` group) → pass, exit 0 (359 passed, 6 skipped; ruff check clean; `ruff format --check`: 65 files already formatted; pyright 0 errors; skills check and `validate-knowledge` OK);
+  - `make test-unit` → pass (346 passed, 1 skipped, 18 deselected);
+  - `make test-integration` → not run: Qdrant not reachable (`curl localhost:6333/readyz` exit 7) and not part of T3's verification block; no containers started or stopped, `w2a-realcheck-*` untouched;
+  - scratch probe (`.venv/bin/python -I`, in-memory Qdrant, nothing written to the repo): the spy test's `method_calls` set is `{collection_exists, get_collection, query_points, retrieve, scroll}` (non-empty, so the subset assertion is not vacuous), and a `delete_collection` call through the same spy is recorded, so a write would be caught; `document_count` over 649 points (301 distinct public `document_id`s, 49 staff) returns 301/49 with `_SCROLL_PAGE` patched to 256, 7 and 1 (multi-page loop correct); the scroll payload is `{document_id}` only;
+  - `git status --porcelain -- evaluation/ knowledge/ config/` → empty.
+- Checks:
+  - `read_index_settings(client, collection)` is a verbatim lift of `_read_settings` (same `collection_exists` → `retrieve` → `model_validate`, same field-names-only message; `self.collection` became the `collection` argument, equal at the only call site); `QdrantIndexStore.ensure_collection` delegates; `packages/rag/tests/ingestion/test_store.py` unchanged in the diff and passing.
+  - `DenseIndex.open` uses `collection_name()` and `read_index_settings()`; refusal order: collection, settings collection, settings record/malformed/foreign (translated to `IndexBindingError`), `index_version` + the five embedder fields (all differences collected, each named recorded vs wanted), then the `dense` named vector (missing, or a non-dict unnamed vector, or wrong size). No query runs before all checks pass. Chunker fields and `hash_contract` are not compared (non-vacuous test rewrites all three and still binds).
+  - Every R4 row has its own non-vacuous test on in-memory Qdrant with the fake embedder: missing collection, missing settings collection, missing settings record, malformed (asserts both field names present and `SECRET-VALUE` absent), foreign, `index_version`, each of model id / revision / vector size / normalize / fake flag (parametrized, asserts the named field and recorded value), fake-vs-real and real-vs-fake, multiple fields named, missing `dense`, wrong-size `dense`.
+  - `search` calls `query_points(..., using="dense", with_payload=True, with_vectors=False)` with the caller's filter (test: staff point excluded, `vector is None`). `document_count` scrolls under the caller's filter, `document_id` payload only, distinct count, loops on `next_page_offset`.
+  - `DenseIndex` has no create/update/delete calls (source read; spy test plus probe). No other task's work in the diff; no new dependency.
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R4] No committed test exercises `document_count` across more than one scroll page (4 points vs `_SCROLL_PAGE = 256`); the loop is correct (scratch probe above) but a regression would go unnoticed → add a test that monkeypatches `retrieval.index._SCROLL_PAGE` to a small value with duplicate `document_id`s spanning pages.
+  - F2 [MINOR, IMPLEMENTATION, R4] `test_dense_index_makes_no_write_calls` would pass vacuously if the spy recorded nothing (`set() <= allowed`); it does record today (probe) → also assert `called` is non-empty, or that `query_points` and `scroll` are in it.
+  - F3 [MINOR, IMPLEMENTATION, R4] A malformed/foreign settings refusal reuses the ingestion message text ("set index_version to a new label in config/ingestion.yaml"), which is ingestion advice in a retrieval context; and `document_count` raises a bare `KeyError` if a filtered point lacks `document_id` (cannot happen for `PointPayload`-written points) → optional wording tweak when T5 wires the CLI; no change needed now.
+- Summary for user (PASS only):
+  - Changed: `ingestion/store.py` exposes `read_index_settings()` (pure refactor, ingestion unchanged); new `retrieval/index.py` `DenseIndex` binds the query embedder to the recorded index settings read-only and provides filtered `search` and distinct `document_count`; new `tests/retrieval/test_index.py` (one test per R4 refusal, no-write spy, filter tests).
+  - Verified by: `make verify` (359 passed, 6 skipped), `make test-unit`, scratch probes for the spy and multi-page scrolling. Docker integration not run (Qdrant down; not required for T3).
+  - Worth your attention: three MINOR test/wording gaps (F1 pagination test, F2 non-empty spy assertion, F3 ingestion-flavoured advice in one retrieval refusal); none blocks.
+- Usage: 95K tokens · 13 tool uses · 2:06
+
+### User decision
+- 2026-10-20 — approved. Verbatim: "Approved T3. F1 + F2: add in T7's final pass — a multi-page `document_count` test (small `_SCROLL_PAGE`), and assert the spy's recorded calls are non-empty. F3: in T5, reword the retrieval-side mismatch advice for retrieval users (not "edit config/ingestion.yaml"); converting the missing-`document_id` KeyError is optional. Qdrant is up for T4's review."
