@@ -77,6 +77,7 @@ class QdrantIndexStore:
             )
         if not self._client.collection_exists(self.collection):
             self._create_collection(settings)
+            self._ensure_payload_indexes()
             self._write_settings(settings)
             return
         recorded = self._read_settings()
@@ -93,6 +94,9 @@ class QdrantIndexStore:
                 "settings, set index_version to a new label in "
                 "config/ingestion.yaml; the existing collection is left untouched."
             )
+        # Empty collection without settings: a half-finished earlier creation,
+        # so re-create the payload indexes before recording settings.
+        self._ensure_payload_indexes()
         self._write_settings(settings)
 
     def read_state(self) -> dict[str, IndexedDocument]:
@@ -185,6 +189,9 @@ class QdrantIndexStore:
                 )
             },
         )
+
+    def _ensure_payload_indexes(self) -> None:
+        """Create every keyword index (repeating a call is harmless)."""
         for field in KEYWORD_INDEX_FIELDS:
             self._client.create_payload_index(
                 self.collection,

@@ -8,11 +8,16 @@ import uuid
 from collections.abc import Iterator
 
 import pytest
-from qdrant_client import QdrantClient
+from qdrant_client import QdrantClient, models
 from test_store import make_points, make_settings  # type: ignore[import-not-found]
 from way2australia_rag.ingestion.errors import IndexSettingsMismatchError
 from way2australia_rag.ingestion.settings import IndexSettings
-from way2australia_rag.ingestion.store import SETTINGS_POINT_ID, QdrantIndexStore
+from way2australia_rag.ingestion.store import (
+    DENSE_VECTOR_NAME,
+    KEYWORD_INDEX_FIELDS,
+    SETTINGS_POINT_ID,
+    QdrantIndexStore,
+)
 
 QDRANT_URL = "http://localhost:6333"
 VERSION = "v1"
@@ -71,3 +76,52 @@ def test_replace_and_delete_flows(store: QdrantIndexStore) -> None:
     assert state["doc_a"].document_version == 2
     store.delete_documents(["doc_a"])
     assert set(store.read_state()) == {"doc_b"}
+
+
+def _keyword_indexed(client: QdrantClient, name: str) -> set[str]:
+    schema = client.get_collection(name).payload_schema
+    return {
+        field
+        for field, info in schema.items()
+        if info.data_type == models.PayloadSchemaType.KEYWORD
+    }
+
+
+def test_collection_has_keyword_indexes_and_cosine_dense_vector(
+    live_client: QdrantClient, store: QdrantIndexStore
+) -> None:
+    settings = make_settings()
+    store.ensure_collection(settings)
+    info = live_client.get_collection(store.collection)
+    assert set(KEYWORD_INDEX_FIELDS) <= _keyword_indexed(live_client, store.collection)
+    vectors = info.config.params.vectors
+    assert isinstance(vectors, dict)
+    dense = vectors[DENSE_VECTOR_NAME]
+    assert dense.size == settings.embedder_vector_size
+    assert dense.distance == models.Distance.COSINE
+
+
+def test_empty_without_settings_recreates_dropped_indexes(
+    live_client: QdrantClient, store: QdrantIndexStore
+) -> None:
+    store.ensure_collection(make_settings())
+    for field in KEYWORD_INDEX_FIELDS:
+        live_client.delete_payload_index(store.collection, field)
+    assert not _keyword_indexed(live_client, store.collection)
+    live_client.delete_collection(store.settings_collection)
+    store.ensure_collection(make_settings())
+    assert set(KEYWORD_INDEX_FIELDS) <= _keyword_indexed(live_client, store.collection)
+    assert live_client.collection_exists(store.settings_collection)
+
+
+def test_repeated_create_payload_index_is_harmless(
+    live_client: QdrantClient, store: QdrantIndexStore
+) -> None:
+    store.ensure_collection(make_settings())
+    for field in KEYWORD_INDEX_FIELDS:
+        live_client.create_payload_index(
+            store.collection,
+            field_name=field,
+            field_schema=models.PayloadSchemaType.KEYWORD,
+        )
+    assert set(KEYWORD_INDEX_FIELDS) <= _keyword_indexed(live_client, store.collection)

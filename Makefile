@@ -4,6 +4,7 @@ UV_CACHE_DIR ?= $(CURDIR)/.uv-cache
 UV_PYTHON_INSTALL_DIR ?= $(CURDIR)/.uv-python
 UV_ENV = UV_CACHE_DIR=$(UV_CACHE_DIR) UV_PYTHON_INSTALL_DIR=$(UV_PYTHON_INSTALL_DIR)
 PYTHON_TARGETS ?= apps packages tests scripts
+UV_HTTP_TIMEOUT ?= 300
 
 .PHONY: setup setup-bge-m3 format lint typecheck test test-unit test-integration verify skills-sync skills-check validate-knowledge ingest
 
@@ -13,13 +14,14 @@ setup:
 # Adds the optional bge-m3 group (sentence-transformers, which brings PyTorch).
 # `make setup` syncs without the group and therefore removes it again.
 setup-bge-m3:
-	$(UV_ENV) $(UV) sync --all-packages --group dev --extra bge-m3
+	UV_HTTP_TIMEOUT=$(UV_HTTP_TIMEOUT) $(UV_ENV) $(UV) sync --all-packages --group dev --extra bge-m3
 
 format:
 	$(UV_ENV) $(UV) run ruff format $(PYTHON_TARGETS)
 
 lint:
 	$(UV_ENV) $(UV) run ruff check $(PYTHON_TARGETS)
+	$(UV_ENV) $(UV) run ruff format --check $(PYTHON_TARGETS)
 
 typecheck:
 	$(UV_ENV) $(UV) run pyright $(PYTHON_TARGETS)

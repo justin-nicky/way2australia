@@ -170,9 +170,7 @@ def test_repository_content_hash_is_content_hash_v1() -> None:
     assert len(documents) == 13
     assert len({d.content_hash for d in documents}) == 13
     for d in documents:
-        fields = {
-            name: getattr(d, name) for name in KnowledgeDocument.model_fields
-        }
+        fields = {name: getattr(d, name) for name in KnowledgeDocument.model_fields}
         assert d.content_hash == compute_content_hash(d.content, fields)
 
 

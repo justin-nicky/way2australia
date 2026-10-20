@@ -1,6 +1,7 @@
 """QdrantIndexStore tests on in-memory Qdrant (Spec 004 R7, R9, R13)."""
 
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 from qdrant_client import QdrantClient
@@ -19,6 +20,7 @@ from way2australia_rag.ingestion.settings import (
     collection_name,
 )
 from way2australia_rag.ingestion.store import (
+    KEYWORD_INDEX_FIELDS,
     SETTINGS_POINT_ID,
     IndexPoint,
     QdrantIndexStore,
@@ -132,6 +134,18 @@ def test_empty_without_settings_writes_them(client: QdrantClient) -> None:
     store.ensure_collection(make_settings())
     found = client.retrieve(store.settings_collection, ids=[SETTINGS_POINT_ID])
     assert IndexSettings.model_validate(found[0].payload) == make_settings()
+
+
+def test_empty_without_settings_recreates_payload_indexes() -> None:
+    real = QdrantClient(":memory:")
+    spy = MagicMock(wraps=real)
+    store = QdrantIndexStore(spy, BASE, VERSION)
+    store.ensure_collection(make_settings())
+    real.delete_collection(store.settings_collection)
+    spy.create_payload_index.reset_mock()
+    store.ensure_collection(make_settings())
+    fields = [c.kwargs["field_name"] for c in spy.create_payload_index.call_args_list]
+    assert fields == list(KEYWORD_INDEX_FIELDS)
 
 
 @pytest.mark.parametrize(

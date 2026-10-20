@@ -11,23 +11,23 @@ Implement the tasks in order; each depends on the ones before it.
 
 ## T1 — Index-store hardening, quality gate and setup fixes
 
-**State:** not started
+**State:** approved (2026-10-20)
 **Requirements:** R9, R10, R11
 
-- [ ] In `ingestion/store.py`, move the payload-index loop out of `_create_collection` into `_ensure_payload_indexes()`. Call it on creation and on the "exists, empty, no settings" row of `ensure_collection`, before `_write_settings` (T6 F4).
-- [ ] Leave every other `ensure_collection` row unchanged.
-- [ ] Do not change the payload fields, point identity, `IndexSettings` fields, `INGESTION_NAMESPACE` or `index_version`.
-- [ ] Unit test in `packages/rag/tests/ingestion/test_store.py`: the "exists, empty, no settings" row calls `create_payload_index` for every `KEYWORD_INDEX_FIELDS` entry (spy client).
-- [ ] Extend the Docker test `packages/rag/tests/ingestion/test_store_integration.py` (`integration` marker; unique base; cleanup), asserting:
+- [x] In `ingestion/store.py`, move the payload-index loop out of `_create_collection` into `_ensure_payload_indexes()`. Call it on creation and on the "exists, empty, no settings" row of `ensure_collection`, before `_write_settings` (T6 F4).
+- [x] Leave every other `ensure_collection` row unchanged.
+- [x] Do not change the payload fields, point identity, `IndexSettings` fields, `INGESTION_NAMESPACE` or `index_version`.
+- [x] Unit test in `packages/rag/tests/ingestion/test_store.py`: the "exists, empty, no settings" row calls `create_payload_index` for every `KEYWORD_INDEX_FIELDS` entry (spy client).
+- [x] Extend the Docker test `packages/rag/tests/ingestion/test_store_integration.py` (`integration` marker; unique base; cleanup), asserting:
   - `get_collection(...).payload_schema` has each `KEYWORD_INDEX_FIELDS` entry as keyword;
   - the `dense` vector has the expected size and Cosine distance;
   - the F4 row re-creates dropped indexes;
   - a second `create_payload_index` call on an existing index is harmless (T6 F2).
-- [ ] Format `packages/rag/tests/test_content_hash.py` once with `ruff format`, with no behavior change.
-- [ ] Make `make lint` also run `ruff format --check $(PYTHON_TARGETS)`, the same paths `make format` uses.
-- [ ] Add `UV_HTTP_TIMEOUT ?= 300` to the `Makefile` and pass it to the `setup-bge-m3` command. It can be overridden from the environment.
-- [ ] In `packages/rag/tests/test_date_and_policy.py`, change the scope check to two-way: the scopes named in `config/access_policy.yaml` equal the `AccessScope` members (Spec 004 T1 F1).
-- [ ] Do not edit `config/access_policy.yaml`.
+- [x] Format `packages/rag/tests/test_content_hash.py` once with `ruff format`, with no behavior change.
+- [x] Make `make lint` also run `ruff format --check $(PYTHON_TARGETS)`, the same paths `make format` uses.
+- [x] Add `UV_HTTP_TIMEOUT ?= 300` to the `Makefile` and pass it to the `setup-bge-m3` command. It can be overridden from the environment.
+- [x] In `packages/rag/tests/test_date_and_policy.py`, change the scope check to two-way: the scopes named in `config/access_policy.yaml` equal the `AccessScope` members (Spec 004 T1 F1).
+- [x] Do not edit `config/access_policy.yaml`.
 
 ### Verification
 
