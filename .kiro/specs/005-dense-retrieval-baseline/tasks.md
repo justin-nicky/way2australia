@@ -135,7 +135,7 @@ Implement the tasks in order; each depends on the ones before it.
 ## T5 — `make retrieve` developer CLI
 
 **State:** not started
-**Requirements:** R1, R5, R6, R11
+**Requirements:** R1, R4, R5, R6, R11
 
 - [ ] Implement `retrieval/cli.py` (`python -m way2australia_rag.retrieval.cli`): positional query; `--repo-root`, `--config`, `--top-k`, `--embedder {bge_m3,fake}`.
 - [ ] Startup order:
@@ -161,11 +161,13 @@ Implement the tasks in order; each depends on the ones before it.
   - output contains no API key, absolute path or chunk text.
 - [ ] Add one shared settings loader, used by both retrieval CLIs and the ingestion CLI. It turns the `RuntimeSettings` pydantic `ValidationError` into a configuration error (`RetrievalConfigurationError` for retrieval, `IngestionConfigurationError` for ingestion, or one shared configuration-error type both CLIs map to exit 2). The message names only the environment variable names (for example `W2A_TENANT_ID`), never values (T2 review F1).
 - [ ] Unit test: run the ingestion CLI and the retrieval CLI with `W2A_TENANT_ID=""` (and whitespace-only). Assert exit 2, a message naming `W2A_TENANT_ID`, and that the injected Qdrant client factory is never called (T2 review F2).
+- [ ] Reword the retrieval-side index-binding refusals (settings mismatch, missing or malformed/foreign settings) so the advice addresses retrieval users. For example: re-run ingestion into this index version, or point retrieval at the matching `index_version`/collection. Do not reuse ingestion's "set index_version to a new label in config/ingestion.yaml" wording. Optional: convert the bare `KeyError` in `DenseIndex.document_count`, for a point lacking `document_id`, into an `IndexBindingError` (T3 review F3).
 
 ### Verification
 
 - `make test-unit`
 - `make test-unit`: the empty-`W2A_TENANT_ID` test passes for both the ingestion and retrieval CLIs (exit 2, message names `W2A_TENANT_ID`, client factory never called).
+- `make test-unit`: a test asserts that the retrieval index-binding refusal message (mismatch and malformed settings) does not tell the user to edit `config/ingestion.yaml`.
 - `make verify`
 - With Docker Qdrant: `QDRANT_COLLECTION_BASE=w2a-t5-throwaway make ingest INGEST_ARGS="--embedder fake"`, then `QDRANT_COLLECTION_BASE=w2a-t5-throwaway make retrieve QUERY="Is coaching compulsory?" RETRIEVE_ARGS="--embedder fake"` exits 0 with up to 5 hits. Delete the throwaway collections afterwards.
 
@@ -252,6 +254,8 @@ Implement the tasks in order; each depends on the ones before it.
 - [ ] Confirm `git diff --stat main -- knowledge evaluation config experiments/configs` is empty.
 - [ ] Run spec-wide checks: `make verify`; `make test-integration` with Docker Qdrant; the T5 and T6 throwaway fake runs.
 - [ ] Extend the T1 spy-client unit test in `packages/rag/tests/ingestion/test_store.py` to assert the recorded call order on the "exists, empty, no settings" row: every `create_payload_index` call precedes the settings write (`_write_settings`). That order is the T6 F4 fix itself (T1 review F1).
+- [ ] Add a multi-page `document_count` test in `packages/rag/tests/retrieval/test_index.py`. Monkeypatch `retrieval.index._SCROLL_PAGE` to a small value, with duplicate `document_id`s spanning more than one scroll page, and assert the distinct count is correct (T3 review F1).
+- [ ] Strengthen the T3 no-writes spy test in `packages/rag/tests/retrieval/test_index.py` to also assert that the recorded calls are non-empty (for example that `query_points` and `scroll` were called), so it cannot pass vacuously (T3 review F2).
 - [ ] Keep next-spec work out (see Completion gate).
 - [ ] Hand off to spec-orchestrator for completion
 
@@ -259,6 +263,8 @@ Implement the tasks in order; each depends on the ones before it.
 
 - `make verify` passes without the `bge-m3` extra installed.
 - `make test-unit`: the extended `packages/rag/tests/ingestion/test_store.py` spy test passes, asserting that payload indexes are created before the settings write on the "exists, empty, no settings" row.
+- `make test-unit`: the multi-page `document_count` test passes with a patched small `_SCROLL_PAGE`.
+- `make test-unit`: the T3 no-writes spy test asserts a non-empty set of recorded calls.
 - `make test-integration` passes with `docker compose up -d qdrant`.
 - The fake `make retrieve` and `make retrieval-baseline --allow-fake` runs from T5/T6 pass on a throwaway base.
 - `git diff --stat main -- knowledge evaluation config` is empty.
