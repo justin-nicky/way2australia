@@ -190,7 +190,7 @@ Implement the tasks in order; each depends on the ones before it.
   3. one unmeasured warm-up query, recorded as `warmup_ms` and excluded from p50/p95;
   4. measure each case;
   5. compute overall, per `query_language` and per `category` HitRate@5, Recall@5 and MRR;
-  6. compute p50/p95 and `random_hit_rate_at_k` with its formula string (for example `5/13`).
+  6. compute p50/p95 and `random_hit_rate_at_k` with its formula string (for example `min(1, 5/13)`).
 - [x] Write the JSON per the design schema:
   - git commit and dirty flag;
   - suite ID and version;
@@ -228,7 +228,7 @@ Implement the tasks in order; each depends on the ones before it.
 - `make test-unit`: the control-character tests pass for the retrieve CLI hit lines and the baseline summary (one line per hit, no control characters or ANSI escapes).
 - `make verify`
 - With Docker Qdrant, after a fake ingest into `QDRANT_COLLECTION_BASE=w2a-t6-throwaway`:
-  - `QDRANT_COLLECTION_BASE=w2a-t6-throwaway make retrieval-baseline BASELINE_ARGS="--embedder fake --allow-fake --output <tmp>/baseline.json"` exits 0, and the JSON has `document_count: 13`, `random_hit_rate_formula: "5/13"` and the "not a quality measurement" note;
+  - `QDRANT_COLLECTION_BASE=w2a-t6-throwaway make retrieval-baseline BASELINE_ARGS="--embedder fake --allow-fake --output <tmp>/baseline.json"` exits 0, and the JSON has `document_count: 13`, `random_hit_rate_formula: "min(1, 5/13)"` and the "not a quality measurement" note;
   - the same command without `--allow-fake` exits 2.
   - Delete the throwaway collections and the temporary file afterwards.
 
@@ -264,6 +264,11 @@ Implement the tasks in order; each depends on the ones before it.
 - [ ] Strengthen the T3 no-writes spy test in `packages/rag/tests/retrieval/test_index.py` to also assert that the recorded calls are non-empty (for example that `query_points` and `scroll` were called), so it cannot pass vacuously (T3 review F2).
 - [ ] In `packages/rag/tests/retrieval/test_authorization_isolation.py`, replace the `# type: ignore[no-untyped-def]` comments on the `client_with_forbidden` fixture and its tests with a proper `QdrantClient` annotation (cosmetic; T4 review F1).
 - [ ] In the shared settings loader (`load_runtime_settings`, `ingestion/config.py`), add a fallback: a validation error with no field location gives a generic configuration error that names no values, instead of an `IndexError`. Add a unit test (T5 review F2).
+- [ ] In `write_result` (`retrieval/baseline.py`), if the write fails after the result file has been created, remove that partial file and raise a `RetrievalConfigurationError`. Add a unit test that simulates a failing write and asserts no file remains (T6 review F1).
+- [ ] Always print and record the random-hit-rate formula as `min(1, k/N)` with the concrete numbers (for example `min(1, 5/13)`), so the cap is visible when k >= N. Add a unit test with k >= N (for example `min(1, 5/3)` next to `1.0`) (T6 review F2).
+- [ ] Make `safe_text` strip the bidi embedding, override and isolate characters U+202A–U+202E and U+2066–U+2069, while keeping U+200C (ZWNJ) and U+200D (ZWJ) for Malayalam. Add a unit test covering both (T6 review F3).
+- [ ] Make the retrieve CLI (`retrieval/cli.py`) print `RetrievalError` and other error message lines through `safe_text`, as the baseline CLI does. Add a unit test with a malformed payload whose `document_id` contains control characters, asserting the error line is a single line with no control characters (T6 review F4).
+- [ ] Add a pure unit test for `default_output_path` naming: a fixed `datetime` and a `tmp_path` root give `experiments/results/retrieval-baseline-<index_version>-<YYYYMMDDTHHMMSSZ>.json` in UTC (T6 review F5).
 - [ ] Keep next-spec work out (see Completion gate).
 - [ ] Hand off to spec-orchestrator for completion
 
@@ -275,6 +280,11 @@ Implement the tasks in order; each depends on the ones before it.
 - `make test-unit`: the T3 no-writes spy test asserts a non-empty set of recorded calls.
 - `make verify`: pyright is clean on `test_authorization_isolation.py` with no `# type: ignore[no-untyped-def]` comments left.
 - `make test-unit`: the `load_runtime_settings` fallback test passes (a validation error with an empty location gives a configuration error naming no values, never `IndexError`).
+- `make test-unit`: the `write_result` failure test passes (no partial file remains; a `RetrievalConfigurationError` is raised).
+- `make test-unit`: the formula test passes (the formula is recorded as `min(1, k/N)` with concrete numbers, and the cap is visible when k >= N).
+- `make test-unit`: the `safe_text` bidi test passes (U+202A–U+202E and U+2066–U+2069 removed; U+200C and U+200D kept).
+- `make test-unit`: the retrieve CLI error-line test passes (malformed `document_id` with control characters is printed as one safe line).
+- `make test-unit`: the `default_output_path` naming test passes with a fixed `datetime`.
 - `make test-integration` passes with `docker compose up -d qdrant`.
 - The fake `make retrieve` and `make retrieval-baseline --allow-fake` runs from T5/T6 pass on a throwaway base.
 - `git diff --stat main -- knowledge evaluation config` is empty.

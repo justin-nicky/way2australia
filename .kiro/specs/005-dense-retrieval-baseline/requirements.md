@@ -1,6 +1,6 @@
 # 005 — Dense Retrieval Baseline Requirements
 
-Status: approved (2026-10-20)
+Status: approved (2026-10-21)
 
 ## Goal
 
@@ -277,9 +277,9 @@ Small fixes carried from the Spec 004 retrospective.
 | R3 | T2, T4 | `retrieval/test_access.py`, `retrieval/test_authorization_isolation.py` (filter-dropping store raises) |
 | R4 | T3, T5, T7 | `retrieval/test_index.py` (each refusal row, no writes, non-empty spy calls, multi-page `document_count`); retrieval-wording refusal test |
 | R5 | T4, T5 | `retrieval/test_retriever.py`; `make test-integration` (`test_retrieval_integration.py`) |
-| R6 | T5, T6 | `retrieval/test_cli.py` (incl. control-character-safe hit lines); throwaway fake `make retrieve` |
-| R7 | T6 | `retrieval/test_metrics.py` |
-| R8 | T6 | `retrieval/test_goldens.py`, `retrieval/test_baseline.py`; throwaway fake `make retrieval-baseline --allow-fake` |
+| R6 | T5, T6, T7 | `retrieval/test_cli.py` (incl. control-character-safe hit and error lines, bidi stripping); throwaway fake `make retrieve` |
+| R7 | T6, T7 | `retrieval/test_metrics.py`; `min(1, k/N)` formula test |
+| R8 | T6, T7 | `retrieval/test_goldens.py`, `retrieval/test_baseline.py` (incl. partial-file cleanup, `default_output_path` naming); throwaway fake `make retrieval-baseline --allow-fake` |
 | R9 | T1 | `ingestion/test_store.py`; `make test-integration` (`test_store_integration.py`) |
 | R10 | T1 | `make lint` (format check), `test_date_and_policy.py`, `make -n setup-bge-m3` |
 | R11 | T1–T7 | `make verify` without Docker/PyTorch; `make test-integration` |
@@ -296,3 +296,4 @@ Small fixes carried from the Spec 004 retrospective.
 - 2026-10-20 — R4/T5/T7: T5 gains retrieval-side wording for index-binding refusals (and an optional missing-document_id conversion); T7 gains a multi-page document_count test and a non-empty spy-call assertion (T3 review F1-F3). T3 stays approved; no task re-opened.
 - 2026-10-20 — R8/T6/T7: T6 reads the embedder device after the warm-up query and tests it; T7 gains the cosmetic type-annotation fix from the T4 review F1. T4 stays approved; no task re-opened.
 - 2026-10-20 — R6/R8/T6/T7: T6 gains a control-character-safe text helper used by the retrieve CLI and the baseline summary; T7 gains the settings-loader fallback for validation errors without a field location (T5 review F1-F2). T5 stays approved; no task re-opened.
+- 2026-10-21 — R6/R7/R8/T7: T7 now lists every deferred review item explicitly (T1 F1, T3 F1-F2, T4 F1, T5 F2, T6 F1-F5), including result-file cleanup on write failure, the min(1, k/N) formula display, bidi-character stripping in safe_text and safe error lines in the retrieve CLI. T6's verification text and example now read min(1, 5/13) (verification text only; T6 stays approved). T1-T6 stay approved; no task re-opened.
