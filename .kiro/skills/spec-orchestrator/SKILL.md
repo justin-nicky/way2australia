@@ -46,7 +46,7 @@ Record usage: the subagent result ends with `<usage>subagent_tokens: N, tool_use
 
 ## User interaction
 
-When a task is `awaiting user review (round N)`, show the reviewer's "Summary for user" from `task-reviews.md`, not a diff, then a usage table built from every round's `Usage:` and `Model:` lines for this task:
+When a task is `awaiting user review (round N)`, show the reviewer's "Summary for user" from `task-reviews.md`, including its reading order, not a diff, then a usage table built from every round's `Usage:` and `Model:` lines for this task:
 
 | Round | Stage | Model | Tokens |
 |---|---|---|---|

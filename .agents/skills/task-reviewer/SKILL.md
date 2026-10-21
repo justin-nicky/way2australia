@@ -71,6 +71,8 @@ Append the Review block to the task's current round using [task-review-template.
 
 Do not commit, push or merge. The orchestrator commits everything after the user approves.
 
-PASS summary: for the user, not for reviewers. Say what changed and where, how it was verified, and decisions or risks worth their attention. No raw diff, at most ~10 lines.
+PASS summary: for the user, not for reviewers. Say what changed and where, how it was verified, and decisions or risks worth their attention. No raw diff, at most ~10 lines, plus the reading order.
+
+Reading order: a numbered list of the changed files in the order the user should read them to follow the flow, not alphabetically. Start where execution starts (CLI, `make` target or public entry point), then the core logic it calls, then models, errors and configuration, then tests last. For each file give one line: what it does in the flow and, where it helps, the key class or function to look at (`retriever.py` → `DenseRetriever.retrieve`). Group small supporting edits (test doubles, `Makefile`, docs) into one final line. At most ~10 entries.
 
 Final message: verdict, State set, and the summary (PASS) or findings (FAIL).

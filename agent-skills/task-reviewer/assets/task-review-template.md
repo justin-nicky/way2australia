@@ -7,4 +7,8 @@
   - Changed: <what and where>
   - Verified by: <commands, tests>
   - Worth your attention: <decisions, risks, deviations; "nothing" if none>
+  - Reading order (follow the flow: entry point → core logic → models/errors/config → tests):
+    1. `<path>` → `<Class.method>`: <its role in the flow>
+    2. ...
+    N. Supporting edits: <test doubles, Makefile, docs>
 - Usage: <tokens, e.g. 180K or 1.2M> tokens · <tool uses> tool uses · <duration> (left for the orchestrator; recorded by the orchestrator; `not measured` if the role ran outside it)
