@@ -173,53 +173,53 @@ Implement the tasks in order; each depends on the ones before it.
 
 ## T6 — Metrics, golden loader and `make retrieval-baseline`
 
-**State:** not started
+**State:** approved (2026-10-21)
 **Requirements:** R6, R7, R8, R11
 
-- [ ] Implement `retrieval/metrics.py`: `dedupe_documents`, `hit_rate_at_k`, `recall_at_k`, `reciprocal_rank`, `random_hit_rate` (`min(1, k/N)`, N ≥ 1) and `percentile` (nearest-rank). Pure functions; no chunk, point or section IDs.
-- [ ] Implement `retrieval/goldens.py`:
+- [x] Implement `retrieval/metrics.py`: `dedupe_documents`, `hit_rate_at_k`, `recall_at_k`, `reciprocal_rank`, `random_hit_rate` (`min(1, k/N)`, N ≥ 1) and `percentile` (nearest-rank). Pure functions; no chunk, point or section IDs.
+- [x] Implement `retrieval/goldens.py`:
   - read-only `load_suite(repo_root, suite_path)` and golden loading from the `golden_answerable` dataset only;
   - minimal `GoldenCase` with `extra="ignore"`;
   - keep active, answerable cases with non-empty `relevant_document_ids`, and report the excluded count;
   - dataset paths must stay inside `repo_root`;
   - `access_context` is never used for access.
-- [ ] Implement the declared release: `--release` (default `seed-v1`) reads `knowledge/releases/<id>.json` read-only and requires a matching `knowledge_release_id`. Record `declared_knowledge_release_id` and `release_snapshot_verified: false` next to the actual index identity (collection, `index_version`, recorded `IndexSettings`).
-- [ ] Implement `retrieval/baseline.py`, `run_baseline()`:
+- [x] Implement the declared release: `--release` (default `seed-v1`) reads `knowledge/releases/<id>.json` read-only and requires a matching `knowledge_release_id`. Record `declared_knowledge_release_id` and `release_snapshot_verified: false` next to the actual index identity (collection, `index_version`, recorded `IndexSettings`).
+- [x] Implement `retrieval/baseline.py`, `run_baseline()`:
   1. refuse a fake index unless `allow_fake`;
   2. N = `document_count` under the access filter;
   3. one unmeasured warm-up query, recorded as `warmup_ms` and excluded from p50/p95;
   4. measure each case;
   5. compute overall, per `query_language` and per `category` HitRate@5, Recall@5 and MRR;
   6. compute p50/p95 and `random_hit_rate_at_k` with its formula string (for example `5/13`).
-- [ ] Write the JSON per the design schema:
+- [x] Write the JSON per the design schema:
   - git commit and dirty flag;
   - suite ID and version;
   - full `IndexSettings`, collection, `top_k`, strategy `dense`, device;
   - per-case ranked `document_id`s;
   - the notes: top-5 over N documents is optimistic (with the random expectation); snapshot not verified; warm-up excluded; plus "not a quality measurement" for fake runs.
-- [ ] The JSON contains no query text, chunk text, absolute paths or secrets.
-- [ ] Default output is `experiments/results/retrieval-baseline-<index_version>-<UTC>.json`; `--output` overrides it. Never overwrite an existing file, and on any error write nothing (exit 2).
-- [ ] Implement `retrieval/baseline_cli.py` with the same startup order and exit codes as T5, plus `--suite`, `--release`, `--top-k`, `--allow-fake`, `--output`.
+- [x] The JSON contains no query text, chunk text, absolute paths or secrets.
+- [x] Default output is `experiments/results/retrieval-baseline-<index_version>-<UTC>.json`; `--output` overrides it. Never overwrite an existing file, and on any error write nothing (exit 2).
+- [x] Implement `retrieval/baseline_cli.py` with the same startup order and exit codes as T5, plus `--suite`, `--release`, `--top-k`, `--allow-fake`, `--output`.
   - It prints overall HitRate@5 next to the random expectation, Recall@5, MRR, p50/p95, the output file name relative to the repository root, and the notes.
-- [ ] Add a `Makefile` target `retrieval-baseline` that runs `python -m way2australia_rag.retrieval.baseline_cli --repo-root $(CURDIR) $(BASELINE_ARGS)`, and add it to `.PHONY`.
-- [ ] Unit tests, `packages/rag/tests/retrieval/test_metrics.py`: hand-built rankings (duplicates, no hits, several relevant documents, MRR 0), the `random_hit_rate` cap, and percentiles.
-- [ ] Unit tests, `packages/rag/tests/retrieval/test_goldens.py`:
+- [x] Add a `Makefile` target `retrieval-baseline` that runs `python -m way2australia_rag.retrieval.baseline_cli --repo-root $(CURDIR) $(BASELINE_ARGS)`, and add it to `.PHONY`.
+- [x] Unit tests, `packages/rag/tests/retrieval/test_metrics.py`: hand-built rankings (duplicates, no hits, several relevant documents, MRR 0), the `random_hit_rate` cap, and percentiles.
+- [x] Unit tests, `packages/rag/tests/retrieval/test_goldens.py`:
   - the real `public-eval-v1` loads 63 cases;
   - a temporary suite with inactive, unanswerable and empty-relevant cases is filtered correctly;
   - a path escaping `repo_root` is refused;
   - `evaluation/` file hashes are unchanged after loading.
-- [ ] Unit tests, `packages/rag/tests/retrieval/test_baseline.py`, on a fake index with `tmp_path` output:
+- [x] Unit tests, `packages/rag/tests/retrieval/test_baseline.py`, on a fake index with `tmp_path` output:
   - refused without `allow_fake`;
   - with it, every required field is present, including the random expectation and all notes;
   - `measured_cases` excludes the warm-up;
   - no query text, chunk text or absolute path;
   - an existing output file is refused;
   - the release mismatch is refused.
-- [ ] Read `embedder.device` after the warm-up query, not before. A real `BgeM3Embedder` reports `None` until the model loads, so reading it earlier would record `device: null`. The result JSON's `device` field is that post-warm-up value. Add a unit test in `packages/rag/tests/retrieval/test_baseline.py` with a stub embedder whose `device` is `None` until its first embed call (then, for example, `"mps"`), asserting that the recorded device is the post-warm-up value, not `None` (T4 review decision).
-- [ ] Tests never write under `experiments/results/`.
-- [ ] Add ONE helper in the retrieval package (for example `safe_text()`; the implementer chooses the name). It strips or escapes control characters, newlines and ANSI escape sequences from payload-derived text (titles etc.) before printing (T5 review F1).
-- [ ] Use that helper both in the baseline summary printer and in the existing `make retrieve` hit lines in `packages/rag/src/way2australia_rag/retrieval/cli.py`, so this task also touches that file.
-- [ ] Unit test: a title containing `\n` and an ANSI escape (for example `"\x1b[31m"`) is printed as a single line with no control characters, both by the retrieve CLI and by the baseline summary.
+- [x] Read `embedder.device` after the warm-up query, not before. A real `BgeM3Embedder` reports `None` until the model loads, so reading it earlier would record `device: null`. The result JSON's `device` field is that post-warm-up value. Add a unit test in `packages/rag/tests/retrieval/test_baseline.py` with a stub embedder whose `device` is `None` until its first embed call (then, for example, `"mps"`), asserting that the recorded device is the post-warm-up value, not `None` (T4 review decision).
+- [x] Tests never write under `experiments/results/`.
+- [x] Add ONE helper in the retrieval package (for example `safe_text()`; the implementer chooses the name). It strips or escapes control characters, newlines and ANSI escape sequences from payload-derived text (titles etc.) before printing (T5 review F1).
+- [x] Use that helper both in the baseline summary printer and in the existing `make retrieve` hit lines in `packages/rag/src/way2australia_rag/retrieval/cli.py`, so this task also touches that file.
+- [x] Unit test: a title containing `\n` and an ANSI escape (for example `"\x1b[31m"`) is printed as a single line with no control characters, both by the retrieve CLI and by the baseline summary.
 
 ### Verification
 

@@ -6,7 +6,7 @@ UV_ENV = UV_CACHE_DIR=$(UV_CACHE_DIR) UV_PYTHON_INSTALL_DIR=$(UV_PYTHON_INSTALL_
 PYTHON_TARGETS ?= apps packages tests scripts
 UV_HTTP_TIMEOUT ?= 300
 
-.PHONY: setup setup-bge-m3 format lint typecheck test test-unit test-integration verify skills-sync skills-check validate-knowledge ingest retrieve
+.PHONY: setup setup-bge-m3 format lint typecheck test test-unit test-integration verify skills-sync skills-check validate-knowledge ingest retrieve retrieval-baseline
 
 setup:
 	$(UV_ENV) $(UV) sync --all-packages --group dev
@@ -55,3 +55,8 @@ ingest:
 # e.g. make retrieve QUERY="Is coaching compulsory?" RETRIEVE_ARGS="--embedder fake".
 retrieve:
 	@$(UV_ENV) $(UV) run python -m way2australia_rag.retrieval.cli --repo-root $(CURDIR) $(RETRIEVE_ARGS) "$(QUERY)"
+
+# Run the golden cases through dense retrieval and write a JSON result. Extra
+# options go in BASELINE_ARGS, e.g. make retrieval-baseline BASELINE_ARGS="--embedder fake --allow-fake".
+retrieval-baseline:
+	@$(UV_ENV) $(UV) run python -m way2australia_rag.retrieval.baseline_cli --repo-root $(CURDIR) $(BASELINE_ARGS)

@@ -38,6 +38,7 @@ from way2australia_rag.retrieval.retriever import (
     MIN_TOP_K,
     DenseRetriever,
 )
+from way2australia_rag.retrieval.text import safe_text
 
 EXIT_OK = 0
 EXIT_REFUSED = 2
@@ -45,14 +46,17 @@ EXIT_REFUSED = 2
 
 def format_result(result: RetrievalResult) -> str:
     lines = [
-        f"index: {result.collection} (index_version {result.index_version}; "
-        f"embedder {result.embedder_model_id} @ {result.embedder_revision}, "
+        f"index: {safe_text(result.collection)} "
+        f"(index_version {safe_text(result.index_version)}; "
+        f"embedder {safe_text(result.embedder_model_id)} @ "
+        f"{safe_text(result.embedder_revision)}, "
         f"fake={str(result.embedder_is_fake).lower()}, "
-        f"device={result.device or 'unknown'})",
+        f"device={safe_text(result.device or 'unknown')})",
         f"hits: {len(result.hits)} (top_k {result.top_k}, {result.latency_ms:.1f} ms)",
     ]
     lines.extend(
-        f"{hit.rank}  {hit.document_id}  {hit.section_id}  {hit.score:.4f}  {hit.title}"
+        f"{hit.rank}  {safe_text(hit.document_id)}  {safe_text(hit.section_id)}  "
+        f"{hit.score:.4f}  {safe_text(hit.title)}"
         for hit in result.hits
     )
     return "\n".join(lines)
