@@ -73,16 +73,16 @@ Implement the tasks in order; each depends on the ones before it.
 
 ## T2 — Evaluation schemas and `make validate-evaluation`
 
-**State:** not started
+**State:** approved (2026-10-23)
 **Requirements:** R2, R3, R14, R15
 
-- [ ] Create `evaluation/schemas/evaluation_suite.schema.json` (Draft 2020-12, `$id` `evaluation_suite.schema.json`), describing the suite manifest shape.
-- [ ] Create `evaluation/schemas/evaluation_case_types.schema.json` (Draft 2020-12, `$id` `evaluation_case_types.schema.json`) with these `$defs`:
+- [x] Create `evaluation/schemas/evaluation_suite.schema.json` (Draft 2020-12, `$id` `evaluation_suite.schema.json`), describing the suite manifest shape.
+- [x] Create `evaluation/schemas/evaluation_case_types.schema.json` (Draft 2020-12, `$id` `evaluation_case_types.schema.json`) with these `$defs`:
   - `golden_answerable`, `unanswerable_refusal` and `security`. Each is `allOf` a `$ref` to the existing `evaluation_case.schema.json` plus the type's required fields from R2.
   - `candidate_row`, with the R14 fields: `candidate_id`, `status` (const `suggested`), `proposal_type` (`new_case`, `case_change`), `target_suite_id`, `proposed_by`, `drafted_by`, `requires_review`, `needs_fluent_speaker_review`, `rationale`, and `proposed_case` or (`target_case_ids` and `options`).
-- [ ] Do not edit `evaluation_case.schema.json` or any other existing file under `evaluation/`.
-- [ ] Add `evaluation/schemas.py`: a local `referencing.Registry` built from the three files by `$id`, with no network resolution. A missing or invalid schema is an `EvaluationConfigurationError`.
-- [ ] Add `evaluation/validate.py` with every R2 check from design data flow "make validate-evaluation":
+- [x] Do not edit `evaluation_case.schema.json` or any other existing file under `evaluation/`.
+- [x] Add `evaluation/schemas.py`: a local `referencing.Registry` built from the three files by `$id`, with no network resolution. A missing or invalid schema is an `EvaluationConfigurationError`.
+- [x] Add `evaluation/validate.py` with every R2 check from design data flow "make validate-evaluation":
   - the suite schema, and the per-type case schemas;
   - unique `case_id`, `evaluation_suite_id` match, `case_count`, no duplicate dataset path;
   - relevant documents checked through `LocalDocumentRepository` and `list_eligible_documents(GUEST_PUBLIC_POLICY)`, with "unknown document" and "not eligible" reported separately;
@@ -92,26 +92,26 @@ Implement the tasks in order; each depends on the ones before it.
     - no suite dataset path under `evaluation/candidates/`;
     - the language-neutral rule: a non-`en` `query_language` needs `needs_fluent_speaker_review: true` and `owner_review` in `requires_review`.
   - Output: one `safe_text` line per problem plus a count. Exit 0 when valid, 1 on problems, 2 on configuration errors (including an invalid corpus, with advice to run `make validate-knowledge`).
-- [ ] Add `evaluation/cli.py` with the `validate` subcommand (`python -m way2australia_rag.evaluation.cli validate --repo-root ...`). Unexpected exceptions print the class name only.
-- [ ] `Makefile`:
+- [x] Add `evaluation/cli.py` with the `validate` subcommand (`python -m way2australia_rag.evaluation.cli validate --repo-root ...`). Unexpected exceptions print the class name only.
+- [x] `Makefile`:
   - add the target `validate-evaluation`;
   - add `validate-evaluation` to `.PHONY`;
   - add it to `verify` after `validate-knowledge`.
-- [ ] Add `packages/rag/tests/evaluation/test_schemas.py`:
+- [x] Add `packages/rag/tests/evaluation/test_schemas.py`:
   - both new schemas are valid;
   - each per-type required field is enforced (temp copies);
   - the existing schema is referenced, not copied.
-- [ ] Add `packages/rag/tests/evaluation/test_validate.py`:
+- [x] Add `packages/rag/tests/evaluation/test_validate.py`:
   - the current repository validates (exit 0);
   - a temp-copy failure for each check, including an ineligible document, a candidate referenced by a suite, a non-`suggested` candidate, and a non-`en` candidate without review flags;
   - no `ml` literal in `evaluation/*.py`.
-- [ ] Enforce through the schemas what the tolerant T1 loader models do not (T1 review F1; design "Interfaces / models"):
+- [x] Enforce through the schemas what the tolerant T1 loader models do not (T1 review F1; design "Interfaces / models"):
   - a case `status` outside the `evaluation_case.schema.json` enum (for example `retired`) is a validation problem;
   - the suite manifest requires a non-empty `evaluation_suite_id`, `version`, a non-empty `status` from the allowed values, a non-empty `introduced_in_release`, an integer `case_count` and `datasets`;
   - every case requires a non-empty `evaluation_suite_id`.
 
   An empty or missing manifest `status` is never accepted.
-- [ ] Extend `test_validate.py` with one temp-copy test each, every one exiting 1 and naming the file and field:
+- [x] Extend `test_validate.py` with one temp-copy test each, every one exiting 1 and naming the file and field:
   - an unknown case status;
   - a missing `evaluation_suite_id` (manifest; case);
   - a missing suite `status`;

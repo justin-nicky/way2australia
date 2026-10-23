@@ -6,7 +6,7 @@ UV_ENV = UV_CACHE_DIR=$(UV_CACHE_DIR) UV_PYTHON_INSTALL_DIR=$(UV_PYTHON_INSTALL_
 PYTHON_TARGETS ?= apps packages tests scripts
 UV_HTTP_TIMEOUT ?= 300
 
-.PHONY: setup setup-bge-m3 format lint typecheck test test-unit test-integration verify skills-sync skills-check validate-knowledge ingest retrieve retrieval-baseline
+.PHONY: setup setup-bge-m3 format lint typecheck test test-unit test-integration verify skills-sync skills-check validate-knowledge validate-evaluation ingest retrieve retrieval-baseline
 
 setup:
 	$(UV_ENV) $(UV) sync --all-packages --group dev
@@ -44,7 +44,10 @@ skills-check:
 validate-knowledge:
 	$(UV_ENV) $(UV) run python -m way2australia_rag.repositories.validate --repo-root $(CURDIR)
 
-verify: lint typecheck skills-check validate-knowledge test
+validate-evaluation:
+	$(UV_ENV) $(UV) run python -m way2australia_rag.evaluation.cli validate --repo-root $(CURDIR)
+
+verify: lint typecheck skills-check validate-knowledge validate-evaluation test
 
 # Index approved public knowledge into Qdrant. Extra options go in INGEST_ARGS,
 # e.g. make ingest INGEST_ARGS="--embedder fake".
