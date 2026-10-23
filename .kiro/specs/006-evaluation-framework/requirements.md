@@ -398,3 +398,6 @@ Proposed fixes for evaluation-data gaps shall be recorded as inactive candidates
 
 <!-- Approved amendments only, one dated line each:
 - YYYY-MM-DD — <R#/T#>: <what changed and why>. Re-opened <T#>. -->
+
+- 2026-10-23 — R12/T1: the legacy retrieval-baseline snapshot is built from a frozen fixture copy under packages/rag/tests/retrieval/fixtures/ (13 seed documents, manifest, small fixed golden suite), not from live knowledge/ or evaluation/, so approved data changes and Phase 2 releases never break it; it fails only when legacy code behaviour changes. T1 was reverted and re-planned; no other task re-opened.
+- 2026-10-23 — R11/T6: every eval-compare refusal names what differs and the next step (suggest a new baseline), with a test per refusal case; the Phase 2 'compare shared cases' mode is recorded as a note for the next spec, not built. No task re-opened.

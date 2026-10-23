@@ -365,7 +365,7 @@ Spec-level checks:
 
 - `CaseStatus` mirrors the existing schema enum, which already holds the Phase 2 statuses. The loader just counts them, so Phase 2 governance adds transitions, not new loading logic.
 - Candidate rows already have the Phase 2 suggestion shape: `candidate_id`, `proposal_type`, `target_suite_id`, `proposed_by`, `drafted_by`, `requires_review`, `rationale`, and `proposed_case` or `target_case_ids` plus `options`. Admin accept, edit or reject can consume them later. Activation stays a human, versioned change (new `case_version`s or cases, and a suite version bump).
-- `eval-compare` is the core of Phase 2's "candidate evaluation versus active release". The authorization gate is the "hard-block security regression" Phase 2 needs.
+- `eval-compare` is the core of Phase 2's "candidate evaluation versus active release". The authorization gate is the "hard-block security regression" Phase 2 needs. Phase 2 release-candidate evaluation will also need a "compare shared cases" mode: only cases present in both runs with the same `case_version` are compared, new, removed and changed cases are reported separately, and security regressions are still a hard fail. It is not built in Spec 006, where `eval-compare` refuses any difference in the case set (recorded in `tasks.md` "Notes for the retrospective").
 - Assets are read by repository-relative path through `suite.py` only. A later metadata-database or S3 source can replace `read_manifest` and `read_dataset` behind the same models.
 - `retrieval/goldens.py` and legacy `make retrieval-baseline` can be retired by a later spec once nothing needs the 1.0 producer. `read_result` keeps reading 1.0 files.
 
