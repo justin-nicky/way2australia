@@ -147,7 +147,7 @@ Batch pipeline in `packages/rag/src/way2australia_rag/ingestion/`, run by `make 
 
 | Module | Role |
 |---|---|
-| `config.py` | `IngestionConfig` from `config/ingestion.yaml` (index-defining: `index_version`, embedder, pinned revision, chunker cap); `RuntimeSettings` from the environment (`QDRANT_URL`, `QDRANT_API_KEY`, `QDRANT_COLLECTION_BASE`) |
+| `config.py` | `IngestionConfig` from `config/ingestion.yaml` (index-defining: `index_version`, embedder, pinned revision, chunker cap); `RuntimeSettings` from the environment (`QDRANT_URL`, `QDRANT_API_KEY`, `QDRANT_COLLECTION_BASE`, `W2A_TENANT_ID` since Spec 005), built by the shared `load_runtime_settings` |
 | `chunking.py` | `Chunker` Protocol, `HeadingChunker` (`heading` v1, character cap), stable `section_id` slugs |
 | `embedding.py`, `bge_m3.py` | `Embedder` Protocol, deterministic `FakeEmbedder`, `BgeM3Embedder` (optional `bge-m3` extra, dense only) |
 | `settings.py`, `payload.py`, `identity.py` | `IndexSettings` and mismatch comparison, 17-field `PointPayload`, UUIDv5 `point_id` under `INGESTION_NAMESPACE` |
@@ -180,7 +180,49 @@ run summary
 - Changing an index-defining setting means a new `index_version`, which gives a new collection; the store never deletes a collection.
 - Decisions: D025–D030, D032.
 
-## Current RAG query flow
+## Retrieval (Phase 1 dense baseline, Spec 005)
+
+Library code in `packages/rag/src/way2australia_rag/retrieval/` plus the shared access types in `packages/core`. No HTTP route yet. Two developer CLIs run it: `make retrieve` and `make retrieval-baseline`.
+
+| Module | Role |
+|---|---|
+| `core/access.py` | `Role`, frozen `AccessContext(role, tenant_id)` (blank tenant refused) |
+| `access.py` | `guest_access`, `resolve_access` (the only role-to-policy mapping; guest returns `GUEST_PUBLIC_POLICY`), `ResolvedAccess`, `build_access_filter` (the only filter builder), `check_hit` (fail-closed re-check) |
+| `index.py` | `DenseIndex`: read-only binding to the collection and its `-settings` record; `search`, `document_count` |
+| `retriever.py` | `DenseRetriever.retrieve(query, access, top_k)` → `RetrievalResult` |
+| `models.py`, `errors.py`, `text.py` | `RetrievedChunk`/`RetrievalResult`, error hierarchy, `safe_text` for printing payload text |
+| `cli.py` | `make retrieve` |
+| `metrics.py`, `goldens.py`, `baseline.py`, `baseline_cli.py` | document-level metrics, read-only golden/suite/release loading, baseline runner and writer, `make retrieval-baseline` |
+
+Query flow as built:
+
+```text
+query text + environment (QDRANT_*, W2A_TENANT_ID) + config/ingestion.yaml
+  ↓
+load_runtime_settings            (empty tenant refused)
+  ↓
+build_embedder                   (missing bge-m3 extra exits 2 before any Qdrant call)
+  ↓
+Qdrant client → DenseIndex.open  (read-only; refuses a mismatched or missing index)
+  ↓
+resolve_access(guest_access(settings))  → ResolvedAccess(policy, tenant_id)
+  ↓
+embed_query → build_access_filter(access) → query_points(dense, filter, limit=top_k)
+  ↓
+check_hit on every returned payload (RetrievalAuthorizationError if it violates the policy)
+  ↓
+RetrievalResult (hits sorted by score, document/section identity, header facts)
+```
+
+- Authorization: the filter is built from the server-resolved `ResolvedAccess` only (allowed `access_scope` values, server tenant, null `owner_user_id`) and is part of the Qdrant query, so unauthorized points never leave the store. The query text, the embedder and evaluation cases cannot change it. `check_hit` is a second line of defense. Future fallbacks must take the same `ResolvedAccess` and call `check_hit` (D035).
+- Binding: the query embedder's model ID, revision, vector size, normalization and fake flag, plus `index_version`, must equal the recorded `IndexSettings`; chunker fields are not compared (D036).
+- Language fields (`content_language`, `lote_languages`) are returned with hits but there is no language filter, score threshold or reranking yet.
+- The baseline runner refuses a fake index without `--allow-fake`, uses one `ResolvedAccess` for every golden case (the case's `access_context` is ignored), computes document-level HitRate@k, Recall@k and MRR (overall, per `query_language`, per `category`), p50/p95 latency after an unmeasured warm-up, and the `min(1, k/N)` random expectation (D037).
+- Decisions: D033–D041.
+
+## Target RAG query flow
+
+Target pipeline, not implemented. Only the dense retrieval leg exists today (see "Retrieval" above): there is no FastAPI route, BM25, RRF, reranker, context builder or generation yet.
 
 ```text
 User
@@ -189,17 +231,17 @@ FastAPI
   ↓
 validation / limits
   ↓
-AccessContext(role=guest)
+AccessContext(role=guest, server tenant) → resolve_access → ResolvedAccess
   ↓
 LanguageContext
   ↓
 optional query transform
   ↓
-dense retrieval + sparse/BM25
-  ↓
-RRF fusion
-  ↓
-mandatory authorization filter
+dense retrieval                       sparse/BM25 retrieval
+  (authorization filter inside          (same ResolvedAccess filter inside
+   the Qdrant query; check_hit)          its query; check_hit)
+  ↓                                      ↓
+RRF fusion (only already-authorized hits)
   ↓
 reranker
   ↓
@@ -216,7 +258,7 @@ citation validation
 response
 ```
 
-Authorization must be enforced before retrieved content reaches generation.
+Authorization is applied inside each retriever (dense, BM25 and the SQLite FTS5 fallback), as part of that retriever's own query, before fusion: every leg takes the same server-resolved `ResolvedAccess`, filters with it in the query and re-checks each hit with `check_hit` (D035, D040). It is never applied after RRF, after reranking or after generation, so unauthorized content never reaches fusion, the reranker, the context builder or the LLM.
 
 ## Retrieval fallback
 
@@ -230,7 +272,7 @@ Expected graceful-degradation paths:
 - model failure → evidence-only response where possible;
 - weak evidence → insufficient-evidence response.
 
-Fallback paths must preserve authorization.
+Fallback paths must preserve authorization: a fallback retriever takes the same `ResolvedAccess`, applies the authorization filter inside its own query and calls `check_hit` on every hit (D035, D040). None of these fallbacks is implemented yet.
 
 ## Primary stack
 

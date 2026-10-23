@@ -1,6 +1,7 @@
 """QdrantIndexStore tests on in-memory Qdrant (Spec 004 R7, R9, R13)."""
 
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 from qdrant_client import QdrantClient
@@ -19,6 +20,7 @@ from way2australia_rag.ingestion.settings import (
     collection_name,
 )
 from way2australia_rag.ingestion.store import (
+    KEYWORD_INDEX_FIELDS,
     SETTINGS_POINT_ID,
     IndexPoint,
     QdrantIndexStore,
@@ -132,6 +134,34 @@ def test_empty_without_settings_writes_them(client: QdrantClient) -> None:
     store.ensure_collection(make_settings())
     found = client.retrieve(store.settings_collection, ids=[SETTINGS_POINT_ID])
     assert IndexSettings.model_validate(found[0].payload) == make_settings()
+
+
+def test_empty_without_settings_recreates_payload_indexes() -> None:
+    real = QdrantClient(":memory:")
+    spy = MagicMock(wraps=real)
+    store = QdrantIndexStore(spy, BASE, VERSION)
+    store.ensure_collection(make_settings())
+    real.delete_collection(store.settings_collection)
+    spy.reset_mock()
+    store.ensure_collection(make_settings())
+    fields = [c.kwargs["field_name"] for c in spy.create_payload_index.call_args_list]
+    assert fields == list(KEYWORD_INDEX_FIELDS)
+    # Call order is the fix itself: every payload index precedes the settings write.
+    calls = [
+        (c[0], c[1][0] if c[1] else c[2].get("collection_name"))
+        for c in spy.method_calls
+    ]
+    index_positions = [
+        i for i, (n, _) in enumerate(calls) if n == "create_payload_index"
+    ]
+    settings_write = [
+        i
+        for i, (n, target) in enumerate(calls)
+        if n == "upsert" and target == store.settings_collection
+    ]
+    assert len(index_positions) == len(KEYWORD_INDEX_FIELDS)
+    assert len(settings_write) == 1
+    assert max(index_positions) < settings_write[0]
 
 
 @pytest.mark.parametrize(

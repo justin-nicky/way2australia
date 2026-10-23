@@ -9,7 +9,14 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SecretStr,
+    ValidationError,
+    field_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from way2australia_rag.ingestion.errors import IngestionConfigurationError
@@ -89,3 +96,41 @@ class RuntimeSettings(BaseSettings):
     collection_base: str = Field(
         default="way2australia", validation_alias="QDRANT_COLLECTION_BASE"
     )
+    tenant_id: str = Field(default="way2australia", validation_alias="W2A_TENANT_ID")
+
+    @field_validator("tenant_id")
+    @classmethod
+    def _tenant_not_empty(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("W2A_TENANT_ID must not be empty")
+        return value
+
+
+def load_runtime_settings(
+    error_type: type[Exception] = IngestionConfigurationError,
+) -> RuntimeSettings:
+    """The one place `RuntimeSettings` is built for the CLIs (Spec 005 R1).
+
+    A validation failure becomes `error_type` naming only environment variable
+    names, never their values.
+    """
+    try:
+        return RuntimeSettings()
+    except ValidationError as error:
+        aliases = {
+            name: str(field.validation_alias or name)
+            for name, field in RuntimeSettings.model_fields.items()
+        }
+        names = sorted(
+            {
+                aliases.get(str(e["loc"][0]), str(e["loc"][0]))
+                for e in error.errors()
+                if e["loc"]
+            }
+        )
+        if not names:  # e.g. a model-level error with no field location
+            raise error_type("invalid runtime settings.") from None
+        raise error_type(
+            f"invalid runtime settings: check {', '.join(names)}."
+        ) from None

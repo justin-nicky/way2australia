@@ -12,6 +12,10 @@ class IngestionConfigurationError(IngestionError):
 class IndexSettingsMismatchError(IngestionError):
     """Recorded index settings differ from the settings the run wants."""
 
+    def __init__(self, message: str, invalid_fields: tuple[str, ...] = ()) -> None:
+        super().__init__(message)
+        self.invalid_fields = invalid_fields
+
 
 class OptionalDependencyError(IngestionError):
     """An optional dependency group is required but not installed."""

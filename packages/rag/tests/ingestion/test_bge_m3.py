@@ -125,3 +125,26 @@ def test_real_model_smoke() -> None:
     for vec in vectors:
         assert len(vec) == 1024
         assert math.isclose(math.sqrt(sum(x * x for x in vec)), 1.0, abs_tol=1e-3)
+
+
+def test_device_none_before_load_and_recorded_after(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeModel:
+        device = "mps"
+
+        def encode(self, texts: list[str], **kwargs: object) -> list[list[float]]:
+            return [[1.0, 0.0] for _ in texts]
+
+    loads: list[int] = []
+
+    def fake_loader(self: BgeM3Embedder) -> FakeModel:
+        loads.append(1)
+        return FakeModel()
+
+    monkeypatch.setattr(BgeM3Embedder, "_load_model", fake_loader)
+    embedder = BgeM3Embedder(SHA)
+    assert embedder.device is None
+    assert loads == []  # reading the device never loads the model
+    embedder.embed_query("x")
+    assert embedder.device == "mps"

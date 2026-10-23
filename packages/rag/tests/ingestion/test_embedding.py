@@ -67,3 +67,7 @@ def test_no_pytorch_import() -> None:
         "sys.exit(1 if bad else 0)"
     )
     assert subprocess.run([sys.executable, "-c", code], check=False).returncode == 0
+
+
+def test_fake_device_is_none() -> None:
+    assert FakeEmbedder().device is None

@@ -73,6 +73,10 @@ class CountingEmbedder:
         self.calls = 0
         self.fail_on = fail_on
 
+    @property
+    def device(self) -> str | None:
+        return None
+
     def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
         self.calls += 1
         if self.fail_on and any(self.fail_on in t for t in texts):

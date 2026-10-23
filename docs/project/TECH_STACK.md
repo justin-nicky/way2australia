@@ -9,7 +9,7 @@ This file records the currently selected implementation stack and intentional no
 - Data validation/settings: Pydantic / Pydantic Settings
 - Manifest schema validation: `jsonschema` (JSON Schema validation of the document manifest, `packages/rag`)
 - Frontmatter parsing: `pyyaml` (YAML frontmatter of knowledge documents, `packages/rag`)
-- Runtime configuration: `pydantic-settings` (`QDRANT_URL`, `QDRANT_API_KEY`, `QDRANT_COLLECTION_BASE`, `packages/rag`)
+- Runtime configuration: `pydantic-settings` (`QDRANT_URL`, `QDRANT_API_KEY`, `QDRANT_COLLECTION_BASE`, `W2A_TENANT_ID`; `RuntimeSettings` in `packages/rag`, built once per CLI run by `load_runtime_settings`, D034)
 - Qdrant client: `qdrant-client` (`packages/rag`)
 - HTTP client: httpx
 - Testing: pytest
@@ -30,7 +30,7 @@ This file records the currently selected implementation stack and intentional no
 
 ### Embeddings
 - BGE-M3 initially
-- `sentence-transformers` in the optional `bge-m3` extra of `packages/rag` (`[project.optional-dependencies]`, installed by `uv sync --extra bge-m3` through `make setup-bge-m3`; brings PyTorch); the model revision is pinned to a commit SHA in `config/ingestion.yaml`; the device is not pinned (`sentence-transformers` picks CUDA, Apple `mps` or CPU)
+- `sentence-transformers` in the optional `bge-m3` extra of `packages/rag` (`[project.optional-dependencies]`, installed by `uv sync --extra bge-m3` through `make setup-bge-m3`; brings PyTorch); the model revision is pinned to a commit SHA in `config/ingestion.yaml`; the device is not pinned (`sentence-transformers` picks CUDA, Apple `mps` or CPU); it is recorded in retrieval results and the baseline JSON (D038)
 - a deterministic fake embedder for tests and CI
 
 Reason:
@@ -61,8 +61,8 @@ Exact Bedrock model should be selected based on current:
 ## Evaluation
 
 - pytest for deterministic tests
-- custom retrieval metrics
-- DeepEval where useful
+- custom retrieval metrics (plain Python, no dependency: document-level HitRate@k, Recall@k and MRR in `packages/rag/.../retrieval/metrics.py`, Spec 005)
+- DeepEval where useful (not yet a dependency)
 
 Primary retrieval metrics:
 - Recall@5

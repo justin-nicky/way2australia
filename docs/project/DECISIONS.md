@@ -165,3 +165,37 @@ Corrects wording in D026 and D027 to match the code; neither decision changes.
 - D026 identity fields are exactly `document_id`, `document_version`, `section_id` and `chunk_position` (`payload.IDENTITY_FIELDS`). There is no separate "chunk identity" field; point IDs use the same `section_id` and position.
 - D026 decides Spec 002 retrospective F4 (one version per `document_id`; the manifest loader already rejects a second record for a `document_id`). It does not fully close it: the `repositories/manifest.py` module docstring still says "one record per document version" and should be corrected in a later code change.
 - D027's "optional `bge-m3` group" is a `[project.optional-dependencies]` extra of `packages/rag`, installed with `uv sync --extra bge-m3` (`make setup-bge-m3`). It is not a PEP 735 dependency group (`uv sync --group`).
+
+## D033 — `AccessContext` and `Role` live in core; the guest resolver returns the identical policy object (Spec 005)
+`packages/core/src/way2australia_core/access.py` defines `Role` (the roles in `config/access_policy.yaml`) and a frozen `AccessContext(role, tenant_id)`. It carries no scopes and no language fields: scopes are a server-code policy decision, and language never grants or denies access. `tenant_id` is stripped and a blank value is refused by the type itself. `resolve_access` (`retrieval/access.py`) is the only role-to-policy mapping; `guest` returns the same `GUEST_PUBLIC_POLICY` object that ingestion eligibility uses (a test pins the identity), and every other role raises `RetrievalConfigurationError` until a spec implements it.
+
+## D034 — `W2A_TENANT_ID` is a server setting (Spec 005)
+The tenant is `RuntimeSettings.tenant_id`, read from `W2A_TENANT_ID` (default `way2australia`). An empty or whitespace-only value is refused. The one shared loader `load_runtime_settings` (`ingestion/config.py`) turns a validation error into the caller's configuration error that names only environment variable names, never values, and gives a generic message if the error has no field location. Ingestion and both retrieval CLIs use it, so `make ingest` also records and refuses by this tenant. There is no CLI flag for role, scope or tenant, and no query or evaluation-case field can set them.
+
+## D035 — One filter builder, a fail-closed re-check, and the same path for later fallbacks (Spec 005)
+`build_access_filter(ResolvedAccess)` is the only place an authorization filter is built: `access_scope` in the policy's allowed scopes, `tenant_id` equal to the server tenant, and `owner_user_id` null (a point without that field is excluded). It runs inside the Qdrant query, before any text reaches a caller. `check_hit` re-validates every returned payload against the same `ResolvedAccess` and raises `RetrievalAuthorizationError` if a store drops the filter (fail closed, exit 2 in the CLIs). Later fallbacks (BM25, SQLite FTS5) must take the same `ResolvedAccess` and call `check_hit`; no second policy path may be added.
+
+## D036 — Query-embedder binding is read-only and compares embedder fields only (Spec 005)
+`DenseIndex.open` never writes. It requires the collection, its `-settings` record, a `dense` vector of the right size, `index_version` equality, and equality of the five embedder fields (model ID, revision, vector size, normalization, fake flag). Chunker fields and `hash_contract` are not compared: they describe how documents were split, not how a query is embedded. Refusals use retrieval-side advice (re-run ingestion into this index version, or point retrieval at the matching `index_version` and collection), never ingestion's "edit `config/ingestion.yaml`" wording. A fake embedder against a real index (or the reverse) is refused.
+
+## D037 — Baseline result format (Spec 005)
+`make retrieval-baseline` writes one JSON document (`schema_version` 1.0, `kind: retrieval_baseline`). Decisions:
+- the release is declared, not verified: `--release` (default `seed-v1`) must match `knowledge/releases/<id>.json`, and the result records `declared_knowledge_release_id` with `release_snapshot_verified: false` beside the actual collection, `index_version` and full `IndexSettings`;
+- a random-retrieval expectation is recorded as `random_hit_rate_formula` `min(1, k/N)` with the concrete numbers (for example `min(1, 5/13)`) and `random_hit_rate_at_k`, because top-5 over 13 documents is optimistic;
+- one unmeasured warm-up query runs first; `warmup_ms` is recorded and excluded from p50/p95;
+- query text, chunk text, absolute paths and secrets are never written; cases are identified by `case_id`/`case_version` and the ranked `document_id`s;
+- a fake-embedder index is refused unless `--allow-fake`, and then the notes say "not a quality measurement";
+- the golden's `access_context` is ignored: every case uses the one server-resolved guest access;
+- a result file is never overwritten, nothing is written on error (a partial file from a failed write is removed), and tests never write under `experiments/results/`.
+
+## D038 — The embedding device is recorded, not pinned, and not an index setting (Spec 005)
+The retriever result and the baseline JSON record `embedder.device` read after the warm-up query (a real `BgeM3Embedder` reports `None` until the model loads). The device is not part of `IndexSettings` and is not compared at query time, and nothing pins it. Cross-machine reproducibility (for example `mps` versus `cpu`) is therefore left to later work. This follows Spec 004's open observation.
+
+## D039 — `make lint` checks formatting (Spec 005)
+`make lint` runs `ruff check` and `ruff format --check`, so `make verify` fails on format drift that `make format` would fix. `UV_HTTP_TIMEOUT ?= 300` is the default in the `Makefile` for `make setup-bge-m3` (override per run, for example `UV_HTTP_TIMEOUT=600`). Both close Spec 004 observations.
+
+## D040 — Authorization is applied inside every retriever, before fusion (Spec 005 retrospective; extends D035)
+Recorded at the user's T7 approval (2026-10-23). Every retrieval leg, not only fallbacks, applies the authorization filter inside its own query: the dense Qdrant query (implemented), and later the BM25/sparse leg of hybrid retrieval and the SQLite FTS5 fallback. Each leg takes the same server-resolved `ResolvedAccess`, builds its filter from that policy and tenant (the Qdrant filter through `build_access_filter`; a non-Qdrant store needs an equivalent built from the same `ResolvedAccess`, with no second policy definition), and calls `check_hit` on every hit before returning it. RRF fusion, reranking and context building only ever see already-authorized hits. Authorization is never applied after RRF, after reranking or after generation. D035 is unchanged; this states its rule for hybrid legs as well as fallbacks.
+
+## D041 — Payload-derived text is printed only through `safe_text` (Spec 005)
+Payload text (titles, IDs, error lines that embed them) is untrusted data. Every CLI line that can carry it goes through the one helper `retrieval/text.py` `safe_text`: ANSI escape sequences and bidi embedding, override and isolate characters (U+202A–U+202E, U+2066–U+2069) are removed, control characters and line breaks become spaces, whitespace is collapsed. Format characters such as ZWNJ (U+200C) and ZWJ (U+200D) are kept because Malayalam needs them. The retrieve and baseline CLIs both use it; later printers and the API's plain-text logs should reuse it instead of adding a second sanitizer.

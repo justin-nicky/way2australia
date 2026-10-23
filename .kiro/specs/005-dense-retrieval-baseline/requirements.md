@@ -1,6 +1,6 @@
 # 005 — Dense Retrieval Baseline Requirements
 
-Status: approved (2026-10-20)
+Status: approved (2026-10-21)
 
 ## Goal
 
@@ -70,6 +70,7 @@ A minimal `AccessContext` shall carry the caller's role and tenant. A single ser
 - The resolver maps `guest` to `GUEST_PUBLIC_POLICY`; the same object is returned, not a copy. Any role that is not implemented is refused with a retrieval error, never mapped to a default.
 - The tenant comes from server-side settings, never from a query, a document payload or an LLM. It is the environment setting `W2A_TENANT_ID` on `RuntimeSettings` (default `way2australia`), read once at startup and never set per request.
 - An empty or whitespace-only `W2A_TENANT_ID` is refused at startup with a configuration error (exit 2), before any Qdrant call.
+- `AccessContext` itself rejects a blank or whitespace-only `tenant_id`.
 - Language fields never feature in the access context or the policy.
 - Unit tests cover guest resolution, refusal of unimplemented roles, and that query text cannot change the resolved policy or tenant.
 
@@ -271,17 +272,17 @@ Small fixes carried from the Spec 004 retrospective.
 
 | Requirement | Task(s) | Verification |
 |---|---|---|
-| R1 | T2 | `make test-unit` (`core/tests/test_access.py`, `retrieval/test_access.py`) |
+| R1 | T2, T4, T5, T7 | `make test-unit` (`core/tests/test_access.py`, `retrieval/test_access.py`, `retrieval/test_retriever.py` filter identity, empty-tenant CLI test) |
 | R2 | T2, T4 | `retrieval/test_access.py`, `retrieval/test_authorization_isolation.py`, `retrieval/test_retriever.py` |
 | R3 | T2, T4 | `retrieval/test_access.py`, `retrieval/test_authorization_isolation.py` (filter-dropping store raises) |
-| R4 | T3 | `retrieval/test_index.py` (each refusal row, no writes) |
+| R4 | T3, T5, T7 | `retrieval/test_index.py` (each refusal row, no writes, non-empty spy calls, multi-page `document_count`); retrieval-wording refusal test |
 | R5 | T4, T5 | `retrieval/test_retriever.py`; `make test-integration` (`test_retrieval_integration.py`) |
-| R6 | T5 | `retrieval/test_cli.py`; throwaway fake `make retrieve` |
-| R7 | T6 | `retrieval/test_metrics.py` |
-| R8 | T6 | `retrieval/test_goldens.py`, `retrieval/test_baseline.py`; throwaway fake `make retrieval-baseline --allow-fake` |
+| R6 | T5, T6, T7 | `retrieval/test_cli.py` (incl. control-character-safe hit and error lines, bidi stripping); throwaway fake `make retrieve` |
+| R7 | T6, T7 | `retrieval/test_metrics.py`; `min(1, k/N)` formula test |
+| R8 | T6, T7 | `retrieval/test_goldens.py`, `retrieval/test_baseline.py` (incl. partial-file cleanup, `default_output_path` naming); throwaway fake `make retrieval-baseline --allow-fake` |
 | R9 | T1 | `ingestion/test_store.py`; `make test-integration` (`test_store_integration.py`) |
 | R10 | T1 | `make lint` (format check), `test_date_and_policy.py`, `make -n setup-bge-m3` |
-| R11 | T1–T6 | `make verify` without Docker/PyTorch; `make test-integration` |
+| R11 | T1–T7 | `make verify` without Docker/PyTorch; `make test-integration` |
 | R12 | T7 | doc review against code; `git diff --stat main -- knowledge evaluation config` |
 | Definition of Done | T7 | `make verify`, `make test-integration`, fake CLI runs, protected-path diff |
 
@@ -290,3 +291,9 @@ Small fixes carried from the Spec 004 retrospective.
 <!-- Approved amendments only, one dated line each:
 - YYYY-MM-DD — <R#/T#>: <what changed and why>. Re-opened <T#>. -->
 - 2026-10-20 — R4/T3: design.md `DenseIndex` may also call the read-only `retrieve` (already used by `read_index_settings`), so the T3 no-writes spy test matches the design. No requirement text changed; no task re-opened.
+- 2026-10-20 — R9/T7: T7 gains a call-order assertion (payload indexes before the settings write) for the T1 spy test, from the T1 review F1. T1 stays approved; no task re-opened.
+- 2026-10-20 — R1/T4/T5: T4 gains the hostile-query filter-identity test and AccessContext blank-tenant rejection; T5 gains the shared settings loader with a tenant-message and never-called-client test (T2 review F1-F4). design.md wording updated to match (`AccessContext` tenant validation, shared settings loader). T2 stays approved; no task re-opened.
+- 2026-10-20 — R4/T5/T7: T5 gains retrieval-side wording for index-binding refusals (and an optional missing-document_id conversion); T7 gains a multi-page document_count test and a non-empty spy-call assertion (T3 review F1-F3). T3 stays approved; no task re-opened.
+- 2026-10-20 — R8/T6/T7: T6 reads the embedder device after the warm-up query and tests it; T7 gains the cosmetic type-annotation fix from the T4 review F1. T4 stays approved; no task re-opened.
+- 2026-10-20 — R6/R8/T6/T7: T6 gains a control-character-safe text helper used by the retrieve CLI and the baseline summary; T7 gains the settings-loader fallback for validation errors without a field location (T5 review F1-F2). T5 stays approved; no task re-opened.
+- 2026-10-21 — R6/R7/R8/T7: T7 now lists every deferred review item explicitly (T1 F1, T3 F1-F2, T4 F1, T5 F2, T6 F1-F5), including result-file cleanup on write failure, the min(1, k/N) formula display, bidi-character stripping in safe_text and safe error lines in the retrieve CLI. T6's verification text and example now read min(1, 5/13) (verification text only; T6 stays approved). T1-T6 stay approved; no task re-opened.

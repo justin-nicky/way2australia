@@ -64,4 +64,4 @@ def test_guest_policy_agrees_with_access_policy_config() -> None:
 
     named = {s for role in config["roles"].values() for s in role["allowed_scopes"]}
     members = {scope.value for scope in AccessScope}
-    assert named <= members
+    assert named == members

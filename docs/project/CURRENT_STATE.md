@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-10-17
+Last updated: 2026-10-23
 
 ## Current phase
 
@@ -12,7 +12,7 @@ Spec 001 project foundation is complete.
 
 ## Current goal
 
-Implement Spec 005 (dense retrieval baseline, approved 2026-10-20; 7 tasks) through `spec-orchestrator`. Specs 001–004 are complete. Repository-based shared context keeps Codex, Claude Code and Kiro interchangeable.
+Finish Spec 005 (dense retrieval baseline, `.kiro/specs/005-dense-retrieval-baseline/`) through `spec-orchestrator`: all tasks T1–T7 approved (2026-10-23); the required `spec-reviewer` retrospective round 1 is `PASS` (2026-10-23, `.kiro/specs/005-dense-retrieval-baseline/review.md`) and awaits the user's approval, then the merge. Specs 001–004 are complete. Repository-based shared context keeps Codex, Claude Code and Kiro interchangeable.
 
 ## Finalized high-level decisions
 
@@ -82,8 +82,17 @@ Implemented:
 - Spec 004 (merged to `main`, `dde5b35`): ingestion baseline in `packages/rag/src/way2australia_rag/ingestion/`: `HeadingChunker` (`heading` v1, 2000-character cap, stable `section_id` slugs), `Embedder` Protocol with a deterministic fake and a BGE-M3 adapter (optional `bge-m3` extra, pinned model revision), `IndexSettings` and a 17-field `PointPayload`, UUIDv5 point IDs, `QdrantIndexStore` (companion `<collection>-settings` collection, refusal on settings mismatch), `IngestionService` (change detection by `content_hash`, document version and point-ID set; stale deletion; per-document failures), `config/ingestion.yaml`, CLI and `make ingest` (`INGEST_ARGS` pass-through, `--embedder fake`), `make setup-bge-m3`; unit tests (no Docker, no PyTorch) and Docker Qdrant integration tests;
 - the seed corpus (13 public documents, one chunk each) ingests into Qdrant; with the fake embedder a second run reports 0 added, updated and deleted.
 
+- Spec 005 (branch `spec/005`, not yet merged; all tasks T1–T7 approved, retrospective round 1 `PASS` awaiting user approval): dense retrieval baseline.
+  - `AccessContext` and `Role` in `packages/core` (blank tenant refused); `W2A_TENANT_ID` server setting (empty refused; shared `load_runtime_settings` used by ingestion and both retrieval CLIs).
+  - `packages/rag/src/way2australia_rag/retrieval/`: read-only `DenseIndex` (binding to the index and its recorded settings, embedder fields compared), `build_access_filter` (scope, tenant, null owner) with the fail-closed `check_hit` re-check, `DenseRetriever`, `safe_text`.
+  - `make retrieve QUERY=...`: guest/public dense search CLI.
+  - `make retrieval-baseline`: document-level HitRate@k, Recall@k and MRR over the 63 `public-eval-v1` golden cases, p50/p95 latency after a warm-up, `min(1, k/N)` random expectation, JSON written to `experiments/results/` (never overwritten; a fake index needs `--allow-fake`).
+  - `make lint` also runs `ruff format --check`; `UV_HTTP_TIMEOUT` defaults to 300 in the `Makefile`; payload indexes are re-created on the exists-empty-no-settings path.
+  - Decisions D033 to D041 (D040 and D041 added by the retrospective). `make verify` without the `bge-m3` extra: 446 passed, 1 skipped; `make test-integration`: 19 passed against the running Qdrant (re-run by the retrospective, 2026-10-23).
+
 Not yet implemented:
-- retrieval (dense, BM25, hybrid, reranking);
+- BM25, hybrid retrieval (RRF) and reranking; no HTTP retrieval route;
+- a recorded real BGE-M3 retrieval baseline (**PENDING, not done**; user-owned, after merge);
 - evaluation runs;
 - generation;
 - observability;
@@ -98,11 +107,13 @@ Not yet implemented:
 | 002 — document model and repository | **verified (2026-10-15, merged dca6cbd)**; branch `spec/002` (base `869c37f`; T1–T2 on `main`, approved without task review). T3 (the Spec 003 T9 dry run) approved 2026-10-14 after task review round 1 PASS: manifest loading and metadata validation in `packages/rag/.../repositories/manifest.py` and `frontmatter.py`, new deps `jsonschema` and `pyyaml`. T4 approved 2026-10-14 (LocalDocumentRepository; placeholder content_hash until T5); T5 approved 2026-10-14 (content-hash-v1 and manifest hash verification); T6 approved 2026-10-15 (eligibility policy); T7 approved 2026-10-15 (`make validate-knowledge`); T8 approved 2026-10-15 (isolated security repository, seed corpus tests); T9 approved 2026-10-15 (documentation and handoff); merged to `main` |
 | 003 — task-gated agent workflow | **verified** (2026-10-15, bootstrap exception: implemented directly on `main`, base `9e95cfe`); dry run on Spec 002 recorded in its T9; T1–T8 closed by the user's instruction to close the spec, without per-task review records |
 | 004 — ingestion baseline | **verified (2026-10-17, merged dde5b35)**; merged at the user's request before the retrospective; required `spec-reviewer` retrospective round 1 `PASS`, approved by the user 2026-10-17; branch `spec/004` (base `af659da`); T1 approved 2026-10-15 (shared strict date check, policy-vs-config test); T2 approved 2026-10-15 (heading chunker, `section_id` slug rule recorded in design); T3 approved 2026-10-15 (`Embedder` Protocol and deterministic fake); T4 approved 2026-10-16 (BGE-M3 adapter, optional `bge-m3` extra, pinned revision; real-model smoke test skipped, user-owned); T5 approved 2026-10-16 (index settings, 17-field payload, UUIDv5 point identity); T6 approved 2026-10-16 (`QdrantIndexStore`, companion settings collection, Docker integration test); T7 approved 2026-10-16 (`IngestionService`, change detection, run report); T8 approved 2026-10-16 (`config/ingestion.yaml`, CLI, `make ingest`, day1_baseline agreement tests); T9 approved 2026-10-17 (docs, decisions and handoff). User-owned pre-merge check (not a gate): one real BGE-M3 ingestion of the seed corpus into a throwaway collection, run twice, plus the opt-in smoke test |
-| 005 — dense retrieval baseline | **approved** (requirements, design and tasks approved 2026-10-20); 7 tasks `not started`; branch `spec/005` not yet created. User-owned post-merge step (not a gate): run the real BGE-M3 `make retrieval-baseline` and commit its result |
+| 005 — dense retrieval baseline | **all tasks approved (2026-10-23)**; required `spec-reviewer` retrospective round 1 `PASS` (2026-10-23), awaiting user approval; not yet merged; branch `spec/005` (base `2f98ef9`); T1 approved 2026-10-20 (payload-index re-creation, Docker index assertions, `ruff format --check` gate, two-way scope check); T2 approved 2026-10-20 (`AccessContext`/`Role`, `W2A_TENANT_ID`, guest resolver, single access filter, fail-closed `check_hit`); T3 approved 2026-10-20 (read-only `DenseIndex` binding, public `read_index_settings`); T4 approved 2026-10-20 (`DenseRetriever`, fail-closed re-check, isolation tests, `Embedder.device`); T5 approved 2026-10-20 (`make retrieve` CLI, shared settings loader, retrieval-side refusal advice); T6 approved 2026-10-21 (metrics, golden loader, `make retrieval-baseline`, `safe_text`); T7 approved 2026-10-23 (docs, decisions D033–D039, deferred review fixes). Retrospective round 1 `PASS` (docs reconciled: TECH_STACK, ARCHITECTURE target flow, D040–D041, design As-built notes); user approval and merge not done. **PENDING, NOT done:** the committed real BGE-M3 `make retrieval-baseline` result is a user-owned post-merge step (not a gate) |
 
 ## Next step
 
-1. Run `/spec-orchestrator 005-dense-retrieval-baseline` (creates `spec/005`, runs T1 first). The Spec 004 retrospective notes are built into the spec.
+1. Spec 005: the user approves retrospective round 1 (`PASS`); the orchestrator commits it with the `Spec-Review` trailer; merge `spec/005` into `main`.
+2. After merge (user-owned, **PENDING, not done**, not a gate): `make setup-bge-m3`; a real `make ingest`; `make retrieval-baseline`; `make setup`. Commit the resulting `experiments/results/retrieval-baseline-*.json` as the recorded baseline and update this file. No real-model baseline exists yet; fake runs are plumbing checks only, never a baseline.
+3. Plan the next roadmap spec (evaluation runs, hybrid retrieval) separately with `spec-planner`, starting from the "Notes for the next spec" in `.kiro/specs/005-dense-retrieval-baseline/review.md` (round 1).
 
 ## One-off: user-owned pre-merge check for Spec 004 (done 2026-10-17)
 
@@ -132,20 +143,24 @@ These are evaluation-data gaps, deliberately deferred for now (decision 2026-10-
 - No golden case is tagged pure Malayalam (`query_language: ml`). The 9 `mixed` cases include 8 written mostly in Malayalam script.
 - `relevant_section_ids` is empty in every evaluation case.
 
+Closed by Spec 005 (T1, T7): payload indexes are re-created on the exists-empty-no-settings path, with a call-order test (Spec 004 T6 F4); Docker integration assertions cover the payload indexes and the `dense` vector config (T6 F2); the policy-vs-config scope check is two-way (T1 F1); `ruff format --check` runs in `make lint` (formatting drift); `UV_HTTP_TIMEOUT` defaults to 300 for `make setup-bge-m3`; the BGE-M3 device is now recorded in retrieval results (D038).
+
+Spec 005 retrospective (`.kiro/specs/005-dense-retrieval-baseline/review.md`, round 1), MINOR, no remediation tasks (F1 and F2 were documentation gaps, reconciled in that round):
+- F3: the authorization isolation tests (`test_authorization_isolation.py`) run only on in-memory local-mode Qdrant; no committed Docker test proves the server applies the filter (the retrospective checked it manually on Docker: staff scope, other tenant, non-null owner and a missing `owner_user_id` were each nearest unfiltered and never returned).
+- F4: interface sketches in `design.md` differ from the code (`retrieval/__init__.py` has no exports; `SuiteRef.golden_dataset_path`; extra `run_baseline` parameters); recorded in the design's As-built notes.
+- F5: the design error table says a non-guest role is refused without Qdrant contact, but resolution runs after the read-only `DenseIndex.open` (as the design data flow and T5 say); unreachable today.
+- Closed by user decision, no change: Spec 005 T1 F2 (repeated `create_payload_index` tested on the client directly), T7 F3 (no test of the exclusive-create race in `write_result`).
+
 Spec 004 review findings still open (all MINOR, no remediation tasks; see `.kiro/specs/004-ingestion-baseline/task-reviews.md` and `review.md` round 1):
-- T1 F1: the policy-vs-config test checks scopes one way (`named <= members`, `packages/rag/tests/test_date_and_policy.py`); a new `AccessScope` member without a config entry would not fail it.
 - T3 F1: `test_info_reports_fake_identity` uses `pytest.raises(Exception)` instead of `pydantic.ValidationError`.
 - T5 F2: the `settings.py` docstring says `max_length` never changes vectors; revisit if `max_length` becomes configurable.
-- T6 F2: no integration assertion that the payload indexes and the `dense` vector config exist on the server (verified manually).
-- T6 F4: if collection creation succeeds but payload-index creation or the settings write fails, the next run writes settings without recreating the indexes.
 - T7 F1: chunking and point-ID computation run outside the per-document try/except, so an unexpected chunker exception would abort the run.
 - T7 F2: `QdrantIndexStore` holds both `_index_version` and `index_version`.
 - T7 F3: no test for the "embedder returned a wrong number of vectors" guard.
 - T7 F5: `test_security_fixtures_never_reach_the_index` does not assert the fixtures loaded.
 - T8 round 2 F1: the late `OptionalDependencyError` re-raise in `service.py` (broken installs) has no test.
 - Retro F1: the `repositories/manifest.py` module docstring says "one record per document version"; the loader allows one record per `document_id` (D026, D032).
-- `packages/rag/tests/test_content_hash.py` is not `ruff format`-clean, so `make format` keeps reformatting it; `make verify` does not run `ruff format --check`.
-- The BGE-M3 device is not pinned or recorded (the user's real run used `mps`); `make setup-bge-m3` may need `UV_HTTP_TIMEOUT` (see the one-off check above).
+- The BGE-M3 device is recorded in retrieval results and the baseline JSON but not pinned and not an index setting (D038); the user's real run used `mps`.
 - The index is derived from `heading` chunking; none of the 13 seed documents has headings, so heading behavior is covered only by synthetic tests, and the chunking strategy differs from `experiments/configs/day1_baseline.yaml` (recursive, 600 tokens) on purpose (D030).
 
 Spec 002 retrospective (`.kiro/specs/002-document-model-and-repository/review.md`, round 1), MINOR, no remediation tasks (F1–F4 handled by Spec 004 as noted):
