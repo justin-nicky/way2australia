@@ -1,6 +1,6 @@
 # 006 — Evaluation Framework Tasks
 
-Status: approved (2026-10-23)
+Status: implementing (branch spec/006, base a400bab)
 
 Implement the tasks in order; each depends on the ones before it.
 - New code lives under `packages/rag/src/way2australia_rag/evaluation/`, with tests under `packages/rag/tests/evaluation/` (design "Package / file placement").
