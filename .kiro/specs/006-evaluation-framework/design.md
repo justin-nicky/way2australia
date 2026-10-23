@@ -177,13 +177,14 @@ class CaseStatus(StrEnum):  # mirrors evaluation_case.schema.json
     ACTIVE, REVIEW_REQUIRED, POTENTIALLY_OBSOLETE, DEPRECATED, REPLACED, SUGGESTED
 
 class DatasetRef(BaseModel): type: DatasetType; path: str
-class SuiteManifest(BaseModel):
-    evaluation_suite_id: str; version: int; status: str
-    introduced_in_release: str; datasets: list[DatasetRef]; case_count: int
+class SuiteManifest(BaseModel):     # extra="ignore"
+    evaluation_suite_id: str; version: int; datasets: list[DatasetRef]
+    status: str = ""; introduced_in_release: str = ""; case_count: int | None = None
 
 class CaseBase(BaseModel):            # extra="ignore"
-    case_id: str; case_version: int; status: CaseStatus
-    evaluation_suite_id: str; query: str
+    case_id: str; case_version: int
+    status: str                        # plain string; CaseStatus is checked by validate-evaluation
+    evaluation_suite_id: str = ""; query: str
     access_context: dict[str, Any] | None = None   # loaded, never used
 class GoldenCase(CaseBase):
     answerable: bool; relevant_document_ids: list[str]
@@ -232,13 +233,25 @@ def mrr_tolerance(n: int) -> float: return 1.0 / n
 def compare(base: ComparableRun, candidate: ComparableRun) -> Comparison   # raises on unlike runs
 ```
 
+Loader models versus validation (as built in T1, review F1). The loader models are deliberately tolerant:
+- `CaseBase.status` is a plain `str`, not `CaseStatus`. The legacy tests use a `retired` status that must still load and be excluded.
+- `SuiteManifest.status`, `introduced_in_release` and `case_count`, and `CaseBase.evaluation_suite_id`, have defaults, because the legacy temp suites omit them.
+
+So allowed status values and required suite and case fields are enforced by `validate-evaluation` through `evaluation_suite.schema.json` and `evaluation_case_types.schema.json` (T2), never by the loader models. A status outside `CaseStatus` is simply not `active`, so it never runs.
+
 `retrieval/goldens.py` after the change keeps its public names:
 - `GoldenCase` is re-exported from `evaluation.models` with the same fields plus defaults.
 - `SuiteRef` and `load_suite` keep the "exactly one `golden_answerable` dataset" rule and the same messages.
 - `load_golden_cases` reads only the golden dataset through `read_dataset` and keeps the same selection (active, answerable, non-empty `relevant_document_ids`) and excluded count.
 - `declared_release_id` is re-exported.
 - `EvaluationConfigurationError` messages are re-raised as `RetrievalConfigurationError(str(error))`, so legacy callers see the same class and text.
-- The legacy path does not read the unanswerable or security datasets, so a problem there cannot change legacy behavior.
+- The legacy path does not read the rows of the unanswerable or security datasets, so a malformed row there cannot change legacy behavior. Manifest-level problems are different (as built in T1, review F2): legacy `retrieval-baseline` now refuses, with exit 2, suites it used to ignore:
+  - an unknown dataset type;
+  - a non-golden dataset path that is missing, not a string, or escapes the repository root;
+  - a non-string golden path;
+  - `null` in the newly typed optional fields (`status`, `introduced_in_release`, a non-integer `case_count` on the manifest; `evaluation_suite_id`, `relevant_section_ids` on golden rows).
+
+  The real `public-eval-v1` suite and the frozen fixture suite are unaffected. This is documented in the `COMMANDS.md` legacy entry (T8).
 
 ### Result document 2.0 (`kind: retrieval_evaluation`)
 

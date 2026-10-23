@@ -105,10 +105,24 @@ Implement the tasks in order; each depends on the ones before it.
   - the current repository validates (exit 0);
   - a temp-copy failure for each check, including an ineligible document, a candidate referenced by a suite, a non-`suggested` candidate, and a non-`en` candidate without review flags;
   - no `ml` literal in `evaluation/*.py`.
+- [ ] Enforce through the schemas what the tolerant T1 loader models do not (T1 review F1; design "Interfaces / models"):
+  - a case `status` outside the `evaluation_case.schema.json` enum (for example `retired`) is a validation problem;
+  - the suite manifest requires a non-empty `evaluation_suite_id`, `version`, a non-empty `status` from the allowed values, a non-empty `introduced_in_release`, an integer `case_count` and `datasets`;
+  - every case requires a non-empty `evaluation_suite_id`.
+
+  An empty or missing manifest `status` is never accepted.
+- [ ] Extend `test_validate.py` with one temp-copy test each, every one exiting 1 and naming the file and field:
+  - an unknown case status;
+  - a missing `evaluation_suite_id` (manifest; case);
+  - a missing suite `status`;
+  - an empty-string suite `status`;
+  - a missing `introduced_in_release`;
+  - a missing or non-integer `case_count`.
 
 ### Verification
 
 - `make validate-evaluation` exits 0 on the repository.
+- `test_validate.py`: the unknown-status test and each missing-field test fail validation as expected, and an empty manifest `status` is rejected.
 - `make test-unit`, `make lint`, `make typecheck`.
 - `make verify`, which now runs `validate-evaluation`.
 - `git status --porcelain -- evaluation knowledge config` lists exactly `?? evaluation/schemas/evaluation_case_types.schema.json` and `?? evaluation/schemas/evaluation_suite.schema.json`.
@@ -151,6 +165,9 @@ Implement the tasks in order; each depends on the ones before it.
   - no query or chunk text in the document;
   - never overwritten, and partial-file cleanup;
   - the default collection accepted and recorded.
+- [ ] Add a behavior test to `test_retrieval_eval.py` (T1 review F4). Golden cases whose own `access_context` claims another role (for example `admin`) or another tenant run with exactly the same access as cases without one:
+  - the runner resolves guest access once, from server settings (`resolve_access(guest_access(settings))`);
+  - a spy index records the filter passed to `search` for every case, and every recorded filter equals `build_access_filter` of the server-resolved access.
 - [ ] Add CLI tests in `packages/rag/tests/evaluation/test_cli.py`: exit codes, `safe_text` output, and nothing written on error. Writes go to `tmp_path` only.
 
 ### Verification
@@ -158,6 +175,7 @@ Implement the tasks in order; each depends on the ones before it.
 - `make test-unit`, `make lint`, `make typecheck`, `make verify`.
 - `make eval-retrieval` without the `bge-m3` extra exits 2, naming the missing extra, before any Qdrant contact.
 - `make retrieval-baseline` legacy check: the T1 snapshot test still passes.
+- `test_retrieval_eval.py`: the `access_context` behavior test passes (the same filter for every case, whatever its `access_context`).
 - `git status --porcelain -- evaluation knowledge config` is empty.
 - `git status --porcelain -- experiments` is empty.
 
@@ -317,6 +335,7 @@ Implement the tasks in order; each depends on the ones before it.
 - [ ] `docs/project/COMMANDS.md`:
   - document `validate-evaluation`, `eval-retrieval`, `eval-security`, `eval-compare` (options, exit codes, output locations, the gate rule);
   - mark `retrieval-baseline` as **legacy** (keeps `--allow-fake` and its output location) and name `eval-retrieval` as the quality command;
+  - in the legacy `retrieval-baseline` entry, document that it now refuses, with exit 2, malformed suites it used to ignore: an unknown dataset type; a non-golden dataset path that is missing, not a string, or outside the repository; a non-string golden path; `null` in the newly typed optional fields (`status`, `introduced_in_release`, a non-integer `case_count`; `evaluation_suite_id`, `relevant_section_ids` on golden rows). The real suite and the frozen fixture suite are unaffected (T1 review F2);
   - update the "Implemented today" list.
 - [ ] `docs/project/ARCHITECTURE.md`: add an "Evaluation" section (loader, runners, gates, isolation), including the note that ingestion eligibility is the only guard against synthetic or unapproved documents.
 - [ ] `docs/project/DECISIONS.md`: record decisions D042 to D046 from the design, and fold the design-approval decisions into them:
@@ -332,6 +351,14 @@ Implement the tasks in order; each depends on the ones before it.
   - open findings;
   - the user-owned post-merge reproduction;
   - candidates awaiting fluent-speaker and owner review.
+- [ ] `.gitignore` (outside `evaluation/`, `knowledge/` and `config/`; the files changed in T8 are the docs above plus `.gitignore`):
+  - anchor the `MANIFEST` rule to the repository root as `/MANIFEST`, so it cannot match `knowledge/manifest/` on case-insensitive filesystems (macOS);
+  - **this deliberately edits a line approved in T1:** remove the T1 negation `!packages/rag/tests/retrieval/fixtures/legacy_baseline_repo/knowledge/manifest/` and its comment line, which the root anchor makes redundant;
+  - check with `git check-ignore`:
+    - a new untracked file under `knowledge/manifest/`, and one under `packages/rag/tests/retrieval/fixtures/legacy_baseline_repo/knowledge/manifest/`, are **not** ignored (`git check-ignore -v <file>` prints nothing and exits 1);
+    - `git ls-files packages/rag/tests/retrieval/fixtures/legacy_baseline_repo/knowledge/manifest/` still lists the fixture manifest;
+    - a root-level `MANIFEST` is still ignored;
+    - the check files are removed afterwards.
 - [ ] Run the spec-wide checks: `make verify`, `make test-integration` (Docker), `make eval-security`, the `eval-compare` self-check on the committed baseline, and the T1 snapshot test.
 - [ ] Protected-path check against `main`: `git diff --stat main -- knowledge config evaluation` shows only the three new files.
 - [ ] Keep next-spec work out (see Completion gate).
@@ -343,6 +370,7 @@ Implement the tasks in order; each depends on the ones before it.
 - `make test-integration` with `docker compose up -d qdrant`.
 - `make validate-evaluation`, `make eval-security`, and `make eval-compare` with BASE and CANDIDATE both set to the committed baseline file.
 - `git status --porcelain -- evaluation knowledge config`, and `git diff --stat main -- knowledge config evaluation` (three new files only).
+- `git check-ignore` checks as in the `.gitignore` box: new files under live `knowledge/manifest/` and under the fixture's `knowledge/manifest/` are not ignored, the fixture manifest is still tracked, and a root `MANIFEST` is ignored.
 - The docs match the code as built (reviewer check).
 
 ## Completion gate
