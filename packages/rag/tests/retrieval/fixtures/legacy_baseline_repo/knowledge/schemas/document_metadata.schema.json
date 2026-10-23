@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "document_metadata.schema.json",
+  "title": "Way2Australia Knowledge Document Metadata",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "document_id",
+    "document_version",
+    "tenant_id",
+    "access_scope",
+    "source_authority",
+    "approval_status",
+    "lifecycle_status",
+    "introduced_in_release",
+    "retrieval_enabled"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "document_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "document_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "tenant_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "knowledge_domain": {
+      "type": "string"
+    },
+    "access_scope": {
+      "type": "string"
+    },
+    "persona_scope": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "owner_user_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "language_scope": {
+      "type": "string"
+    },
+    "lote_languages": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "content_language": {
+      "type": "string"
+    },
+    "source_authority": {
+      "type": "string"
+    },
+    "source_type": {
+      "type": "string"
+    },
+    "source_url": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "approval_status": {
+      "type": "string"
+    },
+    "last_reviewed_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "lifecycle_status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "draft",
+        "deprecated",
+        "archived"
+      ]
+    },
+    "introduced_in_release": {
+      "type": "string"
+    },
+    "effective_from": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "effective_to": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "retrieval_enabled": {
+      "type": "boolean"
+    },
+    "synthetic": {
+      "type": "boolean"
+    }
+  },
+  "additionalProperties": true
+}

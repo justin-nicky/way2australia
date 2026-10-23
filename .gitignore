@@ -38,6 +38,8 @@ build/
 *.egg
 MANIFEST
 .eggs/
+# MANIFEST matches the fixture's knowledge/manifest/ on case-insensitive filesystems (Spec 006 T1).
+!packages/rag/tests/retrieval/fixtures/legacy_baseline_repo/knowledge/manifest/
 
 # =============================================================================
 # Test & coverage

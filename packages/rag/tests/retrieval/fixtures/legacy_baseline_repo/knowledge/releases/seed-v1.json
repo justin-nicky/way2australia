@@ -1,0 +1,77 @@
+{
+  "knowledge_release_id": "seed-v1",
+  "release_version": 1,
+  "status": "active",
+  "release_type": "bootstrap_seed",
+  "created_at": "2026-10-11",
+  "document_snapshot": {
+    "documents": [
+      {
+        "document_id": "business_001_overview_scope",
+        "document_version": 1
+      },
+      {
+        "document_id": "business_002_packages_pricing_validity",
+        "document_version": 1
+      },
+      {
+        "document_id": "business_003_materials_and_dialogue_practice",
+        "document_version": 1
+      },
+      {
+        "document_id": "business_004_vocabulary_and_free_access",
+        "document_version": 1
+      },
+      {
+        "document_id": "business_005_coaching",
+        "document_version": 1
+      },
+      {
+        "document_id": "business_006_mock_assessments",
+        "document_version": 1
+      },
+      {
+        "document_id": "business_007_payments_account_support",
+        "document_version": 1
+      },
+      {
+        "document_id": "business_008_public_samples",
+        "document_version": 1
+      },
+      {
+        "document_id": "language_ml_001_naati_policy",
+        "document_version": 1
+      },
+      {
+        "document_id": "official_001_ccl_format_scoring_results",
+        "document_version": 1
+      },
+      {
+        "document_id": "official_002_candidate_rules_setup",
+        "document_version": 1
+      },
+      {
+        "document_id": "official_003_booking_fees_validity",
+        "document_version": 1
+      },
+      {
+        "document_id": "official_004_migration_points",
+        "document_version": 1
+      }
+    ]
+  },
+  "evaluation_suite": {
+    "evaluation_suite_id": "public-eval-v1",
+    "version": 1,
+    "path": "evaluation/suites/public-eval-v1.json"
+  },
+  "rag_config": {
+    "path": "experiments/configs/day1_baseline.yaml"
+  },
+  "index": {
+    "status": "not_built",
+    "index_version": null,
+    "notes": "Derived artifact. Created by the Day-1 ingestion/indexing workflow."
+  },
+  "notes": "Lightweight Phase-1 release manifest. Phase 2 will create immutable Knowledge Release Candidates, preview indexes, evaluation governance, approval and atomic publication."
+}

@@ -1,0 +1,271 @@
+{
+  "schema_version": "1.0",
+  "kind": "retrieval_baseline",
+  "created_at": "2026-10-23T12:00:00+00:00",
+  "git_commit": "0000000000000000000000000000000000000000",
+  "git_dirty": false,
+  "evaluation_suite_id": "legacy-fixture-suite",
+  "evaluation_suite_version": 1,
+  "declared_knowledge_release_id": "seed-v1",
+  "release_snapshot_verified": false,
+  "collection": "way2australia-idx-v1",
+  "index_version": "idx-v1",
+  "index_settings": {
+    "schema_version": "1.0",
+    "index_version": "idx-v1",
+    "embedder_model_id": "fake-hash-embedder",
+    "embedder_revision": "1",
+    "embedder_vector_size": 64,
+    "embedder_normalize": true,
+    "embedder_is_fake": true,
+    "chunker_name": "heading",
+    "chunker_version": "1",
+    "chunker_max_chunk_chars": 2000,
+    "hash_contract": "content-hash-v1"
+  },
+  "retrieval_strategy": "dense",
+  "top_k": 5,
+  "device": null,
+  "embedder_is_fake": true,
+  "case_count": 8,
+  "excluded_case_count": 1,
+  "document_count": 13,
+  "random_hit_rate_at_k": 0.3846,
+  "random_hit_rate_formula": "min(1, 5/13)",
+  "metrics": {
+    "overall": {
+      "hit_rate_at_5": 0.375,
+      "recall_at_5": 0.3125,
+      "mrr": 0.1875,
+      "n": 8
+    },
+    "by_query_language": {
+      "en": {
+        "hit_rate_at_5": 0.1667,
+        "recall_at_5": 0.1667,
+        "mrr": 0.0833,
+        "n": 6
+      },
+      "mixed": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 0.75,
+        "mrr": 0.5,
+        "n": 2
+      }
+    },
+    "by_category": {
+      "business": {
+        "hit_rate_at_5": 0.0,
+        "recall_at_5": 0.0,
+        "mrr": 0.0,
+        "n": 2
+      },
+      "materials": {
+        "hit_rate_at_5": 0.0,
+        "recall_at_5": 0.0,
+        "mrr": 0.0,
+        "n": 1
+      },
+      "multilingual": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 0.75,
+        "mrr": 0.5,
+        "n": 2
+      },
+      "official": {
+        "hit_rate_at_5": 0.0,
+        "recall_at_5": 0.0,
+        "mrr": 0.0,
+        "n": 1
+      },
+      "payment": {
+        "hit_rate_at_5": 0.0,
+        "recall_at_5": 0.0,
+        "mrr": 0.0,
+        "n": 1
+      },
+      "pricing": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 0.5,
+        "n": 1
+      }
+    }
+  },
+  "latency_ms": {
+    "p50": 1.0,
+    "p95": 1.0,
+    "warmup_ms": 3.0,
+    "measured_cases": 8
+  },
+  "cases": [
+    {
+      "case_id": "g001",
+      "case_version": 1,
+      "query_language": "en",
+      "category": "business",
+      "ranked_document_ids": [
+        "business_007_payments_account_support",
+        "business_003_materials_and_dialogue_practice",
+        "business_004_vocabulary_and_free_access",
+        "business_002_packages_pricing_validity",
+        "official_004_migration_points"
+      ],
+      "relevant_document_ids": [
+        "business_001_overview_scope"
+      ],
+      "hit": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "latency_ms": 1.0
+    },
+    {
+      "case_id": "g003",
+      "case_version": 1,
+      "query_language": "en",
+      "category": "business",
+      "ranked_document_ids": [
+        "official_004_migration_points",
+        "official_001_ccl_format_scoring_results",
+        "language_ml_001_naati_policy",
+        "business_007_payments_account_support",
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "relevant_document_ids": [
+        "business_001_overview_scope",
+        "business_005_coaching"
+      ],
+      "hit": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "latency_ms": 1.0
+    },
+    {
+      "case_id": "g005",
+      "case_version": 1,
+      "query_language": "en",
+      "category": "pricing",
+      "ranked_document_ids": [
+        "business_006_mock_assessments",
+        "business_002_packages_pricing_validity",
+        "business_005_coaching",
+        "business_008_public_samples",
+        "business_001_overview_scope"
+      ],
+      "relevant_document_ids": [
+        "business_002_packages_pricing_validity"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.5,
+      "latency_ms": 1.0
+    },
+    {
+      "case_id": "g010",
+      "case_version": 1,
+      "query_language": "en",
+      "category": "materials",
+      "ranked_document_ids": [
+        "official_001_ccl_format_scoring_results",
+        "business_001_overview_scope",
+        "business_004_vocabulary_and_free_access",
+        "official_002_candidate_rules_setup",
+        "official_003_booking_fees_validity"
+      ],
+      "relevant_document_ids": [
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "hit": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "latency_ms": 1.0
+    },
+    {
+      "case_id": "g032",
+      "case_version": 1,
+      "query_language": "en",
+      "category": "payment",
+      "ranked_document_ids": [
+        "official_001_ccl_format_scoring_results",
+        "business_005_coaching",
+        "official_004_migration_points",
+        "business_002_packages_pricing_validity",
+        "language_ml_001_naati_policy"
+      ],
+      "relevant_document_ids": [
+        "business_007_payments_account_support"
+      ],
+      "hit": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "latency_ms": 1.0
+    },
+    {
+      "case_id": "g037",
+      "case_version": 1,
+      "query_language": "en",
+      "category": "official",
+      "ranked_document_ids": [
+        "language_ml_001_naati_policy",
+        "official_003_booking_fees_validity",
+        "official_004_migration_points",
+        "business_008_public_samples",
+        "business_005_coaching"
+      ],
+      "relevant_document_ids": [
+        "official_001_ccl_format_scoring_results"
+      ],
+      "hit": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "latency_ms": 1.0
+    },
+    {
+      "case_id": "g055",
+      "case_version": 1,
+      "query_language": "mixed",
+      "category": "multilingual",
+      "ranked_document_ids": [
+        "business_004_vocabulary_and_free_access",
+        "business_002_packages_pricing_validity",
+        "official_002_candidate_rules_setup",
+        "business_001_overview_scope",
+        "official_003_booking_fees_validity"
+      ],
+      "relevant_document_ids": [
+        "business_002_packages_pricing_validity"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.5,
+      "latency_ms": 1.0
+    },
+    {
+      "case_id": "g062",
+      "case_version": 1,
+      "query_language": "mixed",
+      "category": "multilingual",
+      "ranked_document_ids": [
+        "business_001_overview_scope",
+        "business_003_materials_and_dialogue_practice",
+        "official_001_ccl_format_scoring_results",
+        "business_002_packages_pricing_validity",
+        "official_002_candidate_rules_setup"
+      ],
+      "relevant_document_ids": [
+        "business_003_materials_and_dialogue_practice",
+        "business_006_mock_assessments"
+      ],
+      "hit": true,
+      "recall": 0.5,
+      "reciprocal_rank": 0.5,
+      "latency_ms": 1.0
+    }
+  ],
+  "notes": [
+    "Top-5 over 13 indexed documents is optimistic; compare HitRate@5 with the random expectation min(1, 5/13).",
+    "The index was not verified against the declared release's document snapshot.",
+    "Model load and the warm-up query are excluded from p50/p95.",
+    "not a quality measurement"
+  ]
+}
