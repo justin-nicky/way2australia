@@ -317,6 +317,7 @@ def test_dense_index_makes_no_write_calls(client: QdrantClient) -> None:
     index.search([1.0] + [0.0] * (size - 1), scope_filter("public"), 3)
     index.document_count(scope_filter("public"))
     called = {name for name, *_ in (c for c in spy.method_calls)}
+    assert {"query_points", "scroll"} <= called  # the spy saw real work
     assert called <= {
         "collection_exists",
         "get_collection",
@@ -335,3 +336,16 @@ def test_document_count_missing_document_id_is_a_binding_error(
     client.delete_payload(COLLECTION, keys=["document_id"], points=[1])
     with pytest.raises(IndexBindingError, match="document_id"):
         index.document_count(models.Filter())
+
+
+def test_document_count_spans_multiple_scroll_pages(
+    client: QdrantClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("way2australia_rag.retrieval.index._SCROLL_PAGE", 2)
+    # 9 points, 4 distinct documents, duplicates spread across several pages.
+    ids = ["a", "b", "a", "c", "a", "b", "d", "c", "a"]
+    seed(client, [(i + 1, payload(d)) for i, d in enumerate(ids)])
+    spy = MagicMock(wraps=client)
+    index = DenseIndex.open(spy, BASE, VERSION, fake_info())
+    assert index.document_count(scope_filter("public")) == 4
+    assert spy.scroll.call_count > 1

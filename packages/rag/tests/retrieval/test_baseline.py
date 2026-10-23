@@ -7,6 +7,7 @@ import copy
 import json
 import re
 from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,7 @@ from way2australia_rag.retrieval import baseline_cli
 from way2australia_rag.retrieval.access import build_access_filter
 from way2australia_rag.retrieval.baseline import (
     BaselineResult,
+    default_output_path,
     run_baseline,
     write_result,
 )
@@ -126,7 +128,9 @@ def test_required_fields_and_notes(tmp_path: Path) -> None:
     assert doc["declared_knowledge_release_id"] == "seed-v1"
     assert doc["release_snapshot_verified"] is False
     assert doc["retrieval_strategy"] == "dense" and doc["embedder_is_fake"] is True
-    assert doc["document_count"] == 8 and doc["random_hit_rate_formula"] == "5/8"
+    assert (
+        doc["document_count"] == 8 and doc["random_hit_rate_formula"] == "min(1, 5/8)"
+    )
     assert doc["random_hit_rate_at_k"] == pytest.approx(0.625)
     assert doc["index_settings"]["embedder_is_fake"] is True
     assert doc["case_count"] == 3 and doc["excluded_case_count"] == 2
@@ -135,7 +139,7 @@ def test_required_fields_and_notes(tmp_path: Path) -> None:
     assert set(doc["metrics"]["by_query_language"]) == {"en", "mixed"}
     assert set(doc["metrics"]["by_category"]) == {"business", "official"}
     notes = " ".join(doc["notes"])
-    assert "optimistic" in notes and "5/8" in notes
+    assert "optimistic" in notes and "min(1, 5/8)" in notes
     assert "not verified against the declared release" in notes
     assert "warm-up" in notes
     assert "not a quality measurement" in doc["notes"]
@@ -206,6 +210,75 @@ def test_existing_output_is_never_overwritten(tmp_path: Path) -> None:
     assert out.read_text() == "keep"
 
 
+def test_failed_write_removes_partial_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    index, emb, retriever = setup(tmp_path)
+    result = run(index, emb, retriever)
+    out = tmp_path / "r.json"
+    real_open = Path.open
+
+    class Failing:
+        def __init__(self, handle):  # noqa: ANN001, ANN204
+            self._h = handle
+
+        def __enter__(self):  # noqa: ANN204
+            return self
+
+        def __exit__(self, *a):  # noqa: ANN002, ANN204
+            self._h.close()
+
+        def write(self, text: str) -> None:
+            self._h.write(text[:5])  # a partial file now exists
+            raise OSError("disk full")
+
+    def fake_open(self, *a, **k):  # noqa: ANN001, ANN002, ANN003, ANN202
+        handle = real_open(self, *a, **k)
+        return Failing(handle) if self == out else handle
+
+    monkeypatch.setattr(Path, "open", fake_open)
+    with pytest.raises(RetrievalConfigurationError, match="could not write"):
+        write_result(out, result)
+    assert not out.exists()
+
+
+def test_formula_shows_the_cap_when_k_reaches_document_count(tmp_path: Path) -> None:
+    points = [make_point(f"doc_{i}", CHUNK_TEXT + str(i)) for i in range(3)]
+    index = DenseIndex.open(build_client(points), BASE, VERSION, EMBEDDER.info)
+    doc = run_baseline(
+        retriever=DenseRetriever(index, EMBEDDER),
+        index=index,
+        embedder=EMBEDDER,
+        access=guest(),
+        cases=[case(1, "doc_1")],
+        excluded_case_count=0,
+        suite=SUITE,
+        release_id="seed-v1",
+        top_k=5,
+        allow_fake=True,
+        repo_root=REPO_ROOT,
+    ).document
+    assert doc["document_count"] == 3
+    assert doc["random_hit_rate_formula"] == "min(1, 5/3)"
+    assert doc["random_hit_rate_at_k"] == 1.0
+
+
+def test_default_output_path_naming_is_utc() -> None:
+    plus_ten = timezone(timedelta(hours=10))
+    now = datetime(2026, 10, 21, 9, 5, 7, tzinfo=plus_ten)  # 2026-10-20 23:05:07Z
+    root = Path("/repo-root")
+    assert default_output_path(root, "idx-v1", now) == (
+        root
+        / "experiments"
+        / "results"
+        / "retrieval-baseline-idx-v1-20261020T230507Z.json"
+    )
+    utc_now = datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC)
+    assert default_output_path(root, "v2", utc_now).name == (
+        "retrieval-baseline-v2-20260102T030405Z.json"
+    )
+
+
 # --- CLI (in-memory Qdrant, fake embedder, tmp_path output) ---
 
 
@@ -251,7 +324,7 @@ def test_cli_with_allow_fake_writes_result_and_prints_summary(
     assert cli_run(seeded, "--allow-fake", "--output", str(out)) == 0
     doc = json.loads(out.read_text())
     assert doc["document_count"] == 13 and doc["case_count"] == 63
-    assert doc["random_hit_rate_formula"] == "5/13"
+    assert doc["random_hit_rate_formula"] == "min(1, 5/13)"
     assert "not a quality measurement" in doc["notes"]
     shown = capsys.readouterr().out
     assert "HitRate@5" in shown and "random" in shown and "b.json" in shown

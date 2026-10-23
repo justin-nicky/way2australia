@@ -33,6 +33,13 @@ def test_safe_text_keeps_malayalam_joiners() -> None:
     assert safe_text(text) == text
 
 
+def test_safe_text_strips_bidi_controls_but_keeps_zwj_zwnj() -> None:
+    bidi = "".join(chr(c) for c in [*range(0x202A, 0x202F), *range(0x2066, 0x206A)])
+    assert safe_text(f"a{bidi}b") == "ab"
+    kept = "ക്\u200dഷ ന\u200cമ"
+    assert safe_text(f"{bidi}{kept}{bidi}") == kept
+
+
 @pytest.mark.filterwarnings("ignore:Payload indexes have no effect:UserWarning")
 def test_retrieve_cli_hit_line_is_single_clean_line() -> None:
     point = make_point("doc_1", "hello", title=HOSTILE)

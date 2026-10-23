@@ -116,7 +116,7 @@ def main(
         )
     except (RetrievalError, IngestionError) as error:
         # Both families are path- and secret-free by contract.
-        print(f"ERROR {type(error).__name__}: {error}", file=sys.stderr)
+        print(f"ERROR {type(error).__name__}: {safe_text(error)}", file=sys.stderr)
         return EXIT_REFUSED
     except Exception as error:  # noqa: BLE001 - unreachable Qdrant, bad config
         # Class name only: client messages can carry URLs or credentials.

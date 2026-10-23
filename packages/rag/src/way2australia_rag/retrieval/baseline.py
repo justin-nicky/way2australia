@@ -144,7 +144,8 @@ def run_baseline(
     commit, dirty = git_state(repo_root)
     notes = [
         f"Top-{top_k} over {document_count} indexed documents is optimistic; compare "
-        f"HitRate@{top_k} with the random expectation {top_k}/{document_count}.",
+        f"HitRate@{top_k} with the random expectation "
+        f"min(1, {top_k}/{document_count}).",
         "The index was not verified against the declared release's document snapshot.",
         "Model load and the warm-up query are excluded from p50/p95.",
     ]
@@ -171,7 +172,7 @@ def run_baseline(
         "excluded_case_count": excluded_case_count,
         "document_count": document_count,
         "random_hit_rate_at_k": round(random_hit_rate(top_k, document_count), 4),
-        "random_hit_rate_formula": f"{top_k}/{document_count}",
+        "random_hit_rate_formula": f"min(1, {top_k}/{document_count})",
         "metrics": {
             "overall": _aggregate(rows, top_k),
             "by_query_language": _slices(rows, "query_language", top_k),
@@ -217,4 +218,10 @@ def write_result(path: Path, result: BaselineResult) -> None:
     except FileExistsError as error:
         raise RetrievalConfigurationError(
             f"output file '{path.name}' already exists; it is never overwritten."
+        ) from error
+    except OSError as error:
+        # The file may exist now (disk full mid-write): remove our partial file.
+        path.unlink(missing_ok=True)
+        raise RetrievalConfigurationError(
+            f"could not write output file '{path.name}'; nothing was kept."
         ) from error

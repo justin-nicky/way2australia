@@ -203,3 +203,50 @@ Append-only, newest at the bottom.
 
 ### User decision
 - 2026-10-21 — approved. Verbatim: "Approved T6. Deviations: all accepted. Fix F1–F5 in T7 (no T6 round 2): F3 strip bidi override/isolate chars (U+202A–202E, U+2066–2069) while keeping U+200C/U+200D; F4 route retrieve-CLI RetrievalError lines through safe_text; F1 remove a partial result file on write failure; F2 always print the formula as `min(1, k/N)`; F5 default_output_path naming test. Before T7 starts: one spec-planner amendment adding every deferred item to T7 as explicit boxes (T1 F1 call order, T3 F1/F2, T4 F1, T5 F2, T6 F1–F5), with a Change log line."
+
+## T7 — round 1
+
+### Implementation
+- Model: claude-sonnet-5-5
+- Files changed:
+  - code: `ingestion/config.py` (`load_runtime_settings` generic fallback for a validation error with no field location), `retrieval/baseline.py` (formula `min(1, k/N)`, `write_result` removes a partial file and raises `RetrievalConfigurationError`), `retrieval/text.py` (`safe_text` strips U+202A-U+202E and U+2066-U+2069, keeps ZWJ/ZWNJ), `retrieval/cli.py` (error line through `safe_text`);
+  - tests: `tests/ingestion/test_store.py` (call-order assertion), `tests/retrieval/test_index.py` (multi-page `document_count`, non-empty spy calls), `test_authorization_isolation.py` (`QdrantClient` annotations, no `type: ignore`), `test_cli.py` (loader fallback, safe error line), `test_text.py` (bidi/ZWJ/ZWNJ), `test_baseline.py` (write failure, k >= N formula, `default_output_path`, updated formula strings);
+  - docs: `docs/project/DECISIONS.md` (D033-D039), `ARCHITECTURE.md` (retrieval section), `COMMANDS.md` (retrieval, quoting caveat, `W2A_TENANT_ID`, lint, `UV_HTTP_TIMEOUT`), `CURRENT_STATE.md`; `TECH_STACK.md` unchanged (no dependency changes); `tasks.md` (State, T7 boxes except the final hand-off box).
+- Verification run:
+  - `make verify` without the `bge-m3` group -> pass, exit 0 (446 passed, 1 skipped; ruff check and format check, pyright, skills-check, validate-knowledge clean; Qdrant was up so Docker integration tests ran);
+  - `make test-integration` against the already running Qdrant -> 19 passed;
+  - throwaway run with a unique `QDRANT_COLLECTION_BASE`: fake `make ingest` added 13; `make retrieve` exit 0 with 5 hits; `make retrieval-baseline --embedder fake --allow-fake --output <tmp>/baseline.json` exit 0 (`document_count` 13, `random_hit_rate_formula` `min(1, 5/13)`, last note "not a quality measurement"); the same without `--allow-fake` exit 2 and no file;
+  - my two collections and the temp directory were deleted; Qdrant lists only the user's `w2a-realcheck-idx-v1` and `-settings` (untouched);
+  - `git diff --stat main -- knowledge evaluation config experiments/configs` is empty; nothing was written under `experiments/results/`; no result file exists; container not started or stopped; real-model path not run.
+- Notes:
+  - the `write_result` failure path unlinks the file after any non-`FileExistsError` `OSError` from open or write; the unit test simulates a write that leaves a partial file;
+  - the baseline note text now reads "random expectation min(1, k/N)" too (same formula as the JSON field);
+  - the `load_runtime_settings` test patches `RuntimeSettings.__init__` to raise a `ValidationError` with an empty `loc`;
+  - `CURRENT_STATE.md` lists the real BGE-M3 baseline as PENDING (user-owned, after merge), not done; Spec 005 status is "implementing"; the closed Spec 004 findings were removed from the open list (T1 F1, T6 F2, T6 F4, formatting drift, device/`UV_HTTP_TIMEOUT`);
+  - the final "Hand off to spec-orchestrator" box is left unticked for the orchestrator.
+- Usage: 154K tokens · 35 tool uses · 6:20
+
+### Review
+- Model: claude-opus-5-5 (matches the BEST tier, Opus; different model from the implementer, claude-sonnet-5-5)
+- Verdict: PASS
+- Commands:
+  - `make verify` (bge-m3 extra absent: `import sentence_transformers` fails) -> pass, exit 0: ruff check clean, `ruff format --check` 81 files formatted, pyright 0 errors, skills-check OK, validate-knowledge 0 problems, 446 passed, 1 skipped (Qdrant up, so the Docker tests ran);
+  - `make test-integration` against the user's running Qdrant -> 19 passed, 428 deselected;
+  - `grep -c "type: ignore" packages/rag/tests/retrieval/test_authorization_isolation.py` -> 0 (pyright clean on it);
+  - mutation probes (scratch pytest plugin, no repo edit), each new test fails under its mutation and passes without: settings write moved before the payload indexes on the exists-empty-no-settings row (T1 F1, `assert 9 < 4`); `document_count` reading one scroll page only (T3 F1, `2 == 4`); `_BIDI` disabled (T6 F3); retrieve CLI error line without `safe_text` (T6 F4, raw `\n` and ANSI in the line); `unlink` disabled in `write_result` (T6 F1, file remains); formula reverted to `5/3` (T6 F2); old `e["loc"][0]` loader (T5 F2, not a configuration error). The T3 F2 assertion `{"query_points", "scroll"} <= called` makes the no-writes spy test non-vacuous by construction;
+  - exclusive-create race probe: with `check_output_free` patched out, `write_result` on an existing file raises "already exists" and the file keeps its content (`FileExistsError` is caught before the generic `OSError` cleanup);
+  - throwaway run, `QDRANT_COLLECTION_BASE=w2a-t7rev-throwaway`: `make ingest INGEST_ARGS="--embedder fake"` added 13; `make retrieve ... RETRIEVE_ARGS="--embedder fake --top-k 3"` exit 0, 3 hits; the documented `python -m way2australia_rag.retrieval.cli --repo-root .` workaround with a query containing `'`, `"$HOME"` and a backtick exit 0; `make retrieval-baseline BASELINE_ARGS="--embedder fake --allow-fake --output <tmp>/baseline.json"` exit 0, `document_count` 13, `random_hit_rate_formula` `min(1, 5/13)`, summary `random 0.3846 = min(1, 5/13)`, last note "not a quality measurement"; without `--allow-fake` exit 2 and no file. My two collections and the temp directory were deleted; Qdrant lists only `w2a-realcheck-idx-v1` and `-settings` (untouched); container not started or stopped; real-model path not run;
+  - `git diff --stat main -- knowledge evaluation config experiments/configs` -> empty; `git status --porcelain -- evaluation/ knowledge/ config/ experiments/` -> clean; `experiments/results/` holds only `.gitkeep`; `git diff --stat main -- docs/project/TECH_STACK.md pyproject.toml packages/*/pyproject.toml uv.lock` -> empty (no dependency change).
+- Docs checked against code: D033-D039 unique and sequential after D032, each claim matches the code (`core/access.py` strip/blank refusal; `load_runtime_settings` used by the ingestion CLI and both retrieval CLIs; `build_access_filter` scope/tenant/`IsNull(owner_user_id)`; `check_hit`; `_EMBEDDER_FIELDS` five fields, no chunker/`hash_contract`; `SCHEMA_VERSION` "1.0", `kind`, `warmup_ms`, `case_version`, device read after warm-up). COMMANDS.md flags, `--top-k` 1-50 default 5, exit codes, `W2A_TENANT_ID` default, output path `retrieval-baseline-<index_version>-<YYYYMMDDTHHMMSSZ>.json`, `UV_HTTP_TIMEOUT ?= 300`, `make lint` format check and the quoting caveat match the `Makefile` and CLIs. ARCHITECTURE.md retrieval flow matches the CLI startup order. CURRENT_STATE.md lists the real BGE-M3 baseline as PENDING (user-owned, post-merge, not a gate), the test counts match, the closed Spec 004 findings are removed, and no Spec 005 review finding is left open (T1 F2 and T2 F4 closed by user decision / T4; the rest fixed in T4-T7). Final "Hand off to spec-orchestrator" box is unticked.
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R12] `docs/project/TECH_STACK.md` line 12 lists the `pydantic-settings` runtime variables as `QDRANT_URL`, `QDRANT_API_KEY`, `QDRANT_COLLECTION_BASE` only; `RuntimeSettings` now also reads `W2A_TENANT_ID`. No dependency changed, so "TECH_STACK unchanged" is otherwise right -> add `W2A_TENANT_ID` to that line.
+  - F2 [MINOR, IMPLEMENTATION, R12] `ARCHITECTURE.md` keeps the pre-existing "## Current RAG query flow" heading right after the new "Query flow as built"; it is the target pipeline (FastAPI, RRF, reranker, Bedrock) and places the authorization filter after RRF, which can be misread as implemented -> optional: rename it to "Target RAG query flow" (not introduced by this task).
+  - F3 [MINOR, IMPLEMENTATION, R8] No committed test covers the exclusive-create race (`open("x")` raising `FileExistsError` after `check_output_free` passed); verified by probe only -> optional test that patches `check_output_free` and asserts the existing file is untouched.
+- Summary for user (PASS only):
+  - Changed: all ten deferred review items fixed with tests (`ingestion/config.py` loader fallback; `retrieval/baseline.py` `min(1, k/N)` formula and partial-file cleanup; `retrieval/text.py` bidi stripping, ZWJ/ZWNJ kept; `retrieval/cli.py` safe error line; call-order, multi-page, non-empty-spy, annotation, k >= N and `default_output_path` tests); docs: D033-D039, ARCHITECTURE retrieval section, COMMANDS retrieval/tenant/lint/timeout, CURRENT_STATE.
+  - Verified by: `make verify` without bge-m3 (446 passed, 1 skipped), `make test-integration` (19 passed), mutation probes showing each new test catches its regression, and a throwaway fake ingest/retrieve/baseline run (only your realcheck collections remain).
+  - Worth your attention: the real BGE-M3 baseline is still PENDING (your post-merge step). Three MINOR doc/test notes: TECH_STACK omits `W2A_TENANT_ID` (F1), the old "Current RAG query flow" heading reads as implemented (F2), no test for the exclusive-create race (F3).
+- Usage: 145K tokens · 40 tool uses · 13:18
+
+### User decision
+- 2026-10-23 — approved. Verbatim: "Approved T7. F1: retrospective reconciles TECH_STACK.md. F2: retrospective must rename "Current RAG query flow" to "Target RAG query flow" AND correct it: the authorization filter is applied inside each retriever (dense, BM25, FTS5 fallback) before fusion, never after RRF. Add this to "Notes for the next spec" for the hybrid retrieval spec. F3: no change. Proceed to the retrospective."

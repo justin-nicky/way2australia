@@ -142,10 +142,26 @@ def test_empty_without_settings_recreates_payload_indexes() -> None:
     store = QdrantIndexStore(spy, BASE, VERSION)
     store.ensure_collection(make_settings())
     real.delete_collection(store.settings_collection)
-    spy.create_payload_index.reset_mock()
+    spy.reset_mock()
     store.ensure_collection(make_settings())
     fields = [c.kwargs["field_name"] for c in spy.create_payload_index.call_args_list]
     assert fields == list(KEYWORD_INDEX_FIELDS)
+    # Call order is the fix itself: every payload index precedes the settings write.
+    calls = [
+        (c[0], c[1][0] if c[1] else c[2].get("collection_name"))
+        for c in spy.method_calls
+    ]
+    index_positions = [
+        i for i, (n, _) in enumerate(calls) if n == "create_payload_index"
+    ]
+    settings_write = [
+        i
+        for i, (n, target) in enumerate(calls)
+        if n == "upsert" and target == store.settings_collection
+    ]
+    assert len(index_positions) == len(KEYWORD_INDEX_FIELDS)
+    assert len(settings_write) == 1
+    assert max(index_positions) < settings_write[0]
 
 
 @pytest.mark.parametrize(

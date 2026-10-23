@@ -234,10 +234,10 @@ Implement the tasks in order; each depends on the ones before it.
 
 ## T7 — Documentation, decisions and handoff
 
-**State:** not started
+**State:** approved (2026-10-23)
 **Requirements:** R12, Definition of Done
 
-- [ ] Add `DECISIONS.md` entries, starting at D033, for:
+- [x] Add `DECISIONS.md` entries, starting at D033, for:
   - `AccessContext` and `Role` in core, and the guest resolver returning the identical policy object;
   - `W2A_TENANT_ID` (server setting, empty refused, also affects `make ingest`);
   - the single filter builder (scope, tenant, null owner), the fail-closed re-check, and that later fallbacks take the same `ResolvedAccess` and call `check_hit`;
@@ -245,31 +245,31 @@ Implement the tasks in order; each depends on the ones before it.
   - the baseline result format: declared release without snapshot verification, k/N random expectation, warm-up excluded, query text omitted, fake runs need `--allow-fake`;
   - the device is recorded, not pinned, and not an index setting;
   - `ruff format --check` in `make lint`.
-- [ ] Update `docs/project/ARCHITECTURE.md`: a retrieval section (modules, query flow as built, authorization path) next to the ingestion section.
-- [ ] Update `docs/project/COMMANDS.md`:
+- [x] Update `docs/project/ARCHITECTURE.md`: a retrieval section (modules, query flow as built, authorization path) next to the ingestion section.
+- [x] Update `docs/project/COMMANDS.md`:
   - `make retrieve` (`QUERY`, `RETRIEVE_ARGS`), including the quoting note: `QUERY` goes through the shell, so a query containing `"` or `$` needs care, and running `python -m way2australia_rag.retrieval.cli` directly avoids it;
   - `make retrieval-baseline` (`BASELINE_ARGS`, `--allow-fake`, output location);
   - `W2A_TENANT_ID`;
   - `make lint` now checks formatting;
   - the `UV_HTTP_TIMEOUT` default.
-- [ ] Update `docs/project/TECH_STACK.md` if anything changed (no new dependencies are expected).
-- [ ] Update `docs/project/CURRENT_STATE.md` to implemented reality, including:
+- [x] Update `docs/project/TECH_STACK.md` if anything changed (no new dependencies are expected).
+- [x] Update `docs/project/CURRENT_STATE.md` to implemented reality, including:
   - retrieval implemented;
   - the real BGE-M3 baseline pending the user-owned run;
   - Spec 004 findings closed by this spec (T6 F2, T6 F4, T1 F1, formatting drift, `UV_HTTP_TIMEOUT`).
-- [ ] Confirm `git diff --stat main -- knowledge evaluation config experiments/configs` is empty.
-- [ ] Run spec-wide checks: `make verify`; `make test-integration` with Docker Qdrant; the T5 and T6 throwaway fake runs.
-- [ ] Extend the T1 spy-client unit test in `packages/rag/tests/ingestion/test_store.py` to assert the recorded call order on the "exists, empty, no settings" row: every `create_payload_index` call precedes the settings write (`_write_settings`). That order is the T6 F4 fix itself (T1 review F1).
-- [ ] Add a multi-page `document_count` test in `packages/rag/tests/retrieval/test_index.py`. Monkeypatch `retrieval.index._SCROLL_PAGE` to a small value, with duplicate `document_id`s spanning more than one scroll page, and assert the distinct count is correct (T3 review F1).
-- [ ] Strengthen the T3 no-writes spy test in `packages/rag/tests/retrieval/test_index.py` to also assert that the recorded calls are non-empty (for example that `query_points` and `scroll` were called), so it cannot pass vacuously (T3 review F2).
-- [ ] In `packages/rag/tests/retrieval/test_authorization_isolation.py`, replace the `# type: ignore[no-untyped-def]` comments on the `client_with_forbidden` fixture and its tests with a proper `QdrantClient` annotation (cosmetic; T4 review F1).
-- [ ] In the shared settings loader (`load_runtime_settings`, `ingestion/config.py`), add a fallback: a validation error with no field location gives a generic configuration error that names no values, instead of an `IndexError`. Add a unit test (T5 review F2).
-- [ ] In `write_result` (`retrieval/baseline.py`), if the write fails after the result file has been created, remove that partial file and raise a `RetrievalConfigurationError`. Add a unit test that simulates a failing write and asserts no file remains (T6 review F1).
-- [ ] Always print and record the random-hit-rate formula as `min(1, k/N)` with the concrete numbers (for example `min(1, 5/13)`), so the cap is visible when k >= N. Add a unit test with k >= N (for example `min(1, 5/3)` next to `1.0`) (T6 review F2).
-- [ ] Make `safe_text` strip the bidi embedding, override and isolate characters U+202A–U+202E and U+2066–U+2069, while keeping U+200C (ZWNJ) and U+200D (ZWJ) for Malayalam. Add a unit test covering both (T6 review F3).
-- [ ] Make the retrieve CLI (`retrieval/cli.py`) print `RetrievalError` and other error message lines through `safe_text`, as the baseline CLI does. Add a unit test with a malformed payload whose `document_id` contains control characters, asserting the error line is a single line with no control characters (T6 review F4).
-- [ ] Add a pure unit test for `default_output_path` naming: a fixed `datetime` and a `tmp_path` root give `experiments/results/retrieval-baseline-<index_version>-<YYYYMMDDTHHMMSSZ>.json` in UTC (T6 review F5).
-- [ ] Keep next-spec work out (see Completion gate).
+- [x] Confirm `git diff --stat main -- knowledge evaluation config experiments/configs` is empty.
+- [x] Run spec-wide checks: `make verify`; `make test-integration` with Docker Qdrant; the T5 and T6 throwaway fake runs.
+- [x] Extend the T1 spy-client unit test in `packages/rag/tests/ingestion/test_store.py` to assert the recorded call order on the "exists, empty, no settings" row: every `create_payload_index` call precedes the settings write (`_write_settings`). That order is the T6 F4 fix itself (T1 review F1).
+- [x] Add a multi-page `document_count` test in `packages/rag/tests/retrieval/test_index.py`. Monkeypatch `retrieval.index._SCROLL_PAGE` to a small value, with duplicate `document_id`s spanning more than one scroll page, and assert the distinct count is correct (T3 review F1).
+- [x] Strengthen the T3 no-writes spy test in `packages/rag/tests/retrieval/test_index.py` to also assert that the recorded calls are non-empty (for example that `query_points` and `scroll` were called), so it cannot pass vacuously (T3 review F2).
+- [x] In `packages/rag/tests/retrieval/test_authorization_isolation.py`, replace the `# type: ignore[no-untyped-def]` comments on the `client_with_forbidden` fixture and its tests with a proper `QdrantClient` annotation (cosmetic; T4 review F1).
+- [x] In the shared settings loader (`load_runtime_settings`, `ingestion/config.py`), add a fallback: a validation error with no field location gives a generic configuration error that names no values, instead of an `IndexError`. Add a unit test (T5 review F2).
+- [x] In `write_result` (`retrieval/baseline.py`), if the write fails after the result file has been created, remove that partial file and raise a `RetrievalConfigurationError`. Add a unit test that simulates a failing write and asserts no file remains (T6 review F1).
+- [x] Always print and record the random-hit-rate formula as `min(1, k/N)` with the concrete numbers (for example `min(1, 5/13)`), so the cap is visible when k >= N. Add a unit test with k >= N (for example `min(1, 5/3)` next to `1.0`) (T6 review F2).
+- [x] Make `safe_text` strip the bidi embedding, override and isolate characters U+202A–U+202E and U+2066–U+2069, while keeping U+200C (ZWNJ) and U+200D (ZWJ) for Malayalam. Add a unit test covering both (T6 review F3).
+- [x] Make the retrieve CLI (`retrieval/cli.py`) print `RetrievalError` and other error message lines through `safe_text`, as the baseline CLI does. Add a unit test with a malformed payload whose `document_id` contains control characters, asserting the error line is a single line with no control characters (T6 review F4).
+- [x] Add a pure unit test for `default_output_path` naming: a fixed `datetime` and a `tmp_path` root give `experiments/results/retrieval-baseline-<index_version>-<YYYYMMDDTHHMMSSZ>.json` in UTC (T6 review F5).
+- [x] Keep next-spec work out (see Completion gate).
 - [ ] Hand off to spec-orchestrator for completion
 
 ### Verification

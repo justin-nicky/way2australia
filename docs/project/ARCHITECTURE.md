@@ -180,6 +180,46 @@ run summary
 - Changing an index-defining setting means a new `index_version`, which gives a new collection; the store never deletes a collection.
 - Decisions: D025–D030, D032.
 
+## Retrieval (Phase 1 dense baseline, Spec 005)
+
+Library code in `packages/rag/src/way2australia_rag/retrieval/` plus the shared access types in `packages/core`. No HTTP route yet. Two developer CLIs run it: `make retrieve` and `make retrieval-baseline`.
+
+| Module | Role |
+|---|---|
+| `core/access.py` | `Role`, frozen `AccessContext(role, tenant_id)` (blank tenant refused) |
+| `access.py` | `guest_access`, `resolve_access` (the only role-to-policy mapping; guest returns `GUEST_PUBLIC_POLICY`), `ResolvedAccess`, `build_access_filter` (the only filter builder), `check_hit` (fail-closed re-check) |
+| `index.py` | `DenseIndex`: read-only binding to the collection and its `-settings` record; `search`, `document_count` |
+| `retriever.py` | `DenseRetriever.retrieve(query, access, top_k)` → `RetrievalResult` |
+| `models.py`, `errors.py`, `text.py` | `RetrievedChunk`/`RetrievalResult`, error hierarchy, `safe_text` for printing payload text |
+| `cli.py` | `make retrieve` |
+| `metrics.py`, `goldens.py`, `baseline.py`, `baseline_cli.py` | document-level metrics, read-only golden/suite/release loading, baseline runner and writer, `make retrieval-baseline` |
+
+Query flow as built:
+
+```text
+query text + environment (QDRANT_*, W2A_TENANT_ID) + config/ingestion.yaml
+  ↓
+load_runtime_settings            (empty tenant refused)
+  ↓
+build_embedder                   (missing bge-m3 extra exits 2 before any Qdrant call)
+  ↓
+Qdrant client → DenseIndex.open  (read-only; refuses a mismatched or missing index)
+  ↓
+resolve_access(guest_access(settings))  → ResolvedAccess(policy, tenant_id)
+  ↓
+embed_query → build_access_filter(access) → query_points(dense, filter, limit=top_k)
+  ↓
+check_hit on every returned payload (RetrievalAuthorizationError if it violates the policy)
+  ↓
+RetrievalResult (hits sorted by score, document/section identity, header facts)
+```
+
+- Authorization: the filter is built from the server-resolved `ResolvedAccess` only (allowed `access_scope` values, server tenant, null `owner_user_id`) and is part of the Qdrant query, so unauthorized points never leave the store. The query text, the embedder and evaluation cases cannot change it. `check_hit` is a second line of defense. Future fallbacks must take the same `ResolvedAccess` and call `check_hit` (D035).
+- Binding: the query embedder's model ID, revision, vector size, normalization and fake flag, plus `index_version`, must equal the recorded `IndexSettings`; chunker fields are not compared (D036).
+- Language fields (`content_language`, `lote_languages`) are returned with hits but there is no language filter, score threshold or reranking yet.
+- The baseline runner refuses a fake index without `--allow-fake`, uses one `ResolvedAccess` for every golden case (the case's `access_context` is ignored), computes document-level HitRate@k, Recall@k and MRR (overall, per `query_language`, per `category`), p50/p95 latency after an unmeasured warm-up, and the `min(1, k/N)` random expectation (D037).
+- Decisions: D033–D039.
+
 ## Current RAG query flow
 
 ```text

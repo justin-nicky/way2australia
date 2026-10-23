@@ -123,8 +123,14 @@ def load_runtime_settings(
             for name, field in RuntimeSettings.model_fields.items()
         }
         names = sorted(
-            {aliases.get(str(e["loc"][0]), str(e["loc"][0])) for e in error.errors()}
+            {
+                aliases.get(str(e["loc"][0]), str(e["loc"][0]))
+                for e in error.errors()
+                if e["loc"]
+            }
         )
+        if not names:  # e.g. a model-level error with no field location
+            raise error_type("invalid runtime settings.") from None
         raise error_type(
             f"invalid runtime settings: check {', '.join(names)}."
         ) from None

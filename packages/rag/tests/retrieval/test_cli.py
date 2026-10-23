@@ -289,3 +289,56 @@ def test_other_tenant_gets_zero_hits_and_exit_0(
     monkeypatch.setenv("W2A_TENANT_ID", "another-tenant")
     assert retrieve(indexed) == 0
     assert "hits: 0" in capsys.readouterr().out
+
+
+def test_runtime_settings_error_without_location_is_generic(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from pydantic import ValidationError
+    from way2australia_rag.ingestion import config as ingestion_config
+    from way2australia_rag.retrieval.errors import RetrievalConfigurationError
+
+    def boom(self: Any) -> None:
+        raise ValidationError.from_exception_data(
+            "RuntimeSettings",
+            [
+                {
+                    "type": "value_error",
+                    "loc": (),
+                    "input": "SECRET-VALUE",
+                    "ctx": {"error": ValueError("SECRET-VALUE")},
+                }
+            ],
+        )
+
+    monkeypatch.setattr(ingestion_config.RuntimeSettings, "__init__", boom)
+    with pytest.raises(RetrievalConfigurationError) as error:
+        ingestion_config.load_runtime_settings(RetrievalConfigurationError)
+    assert "invalid runtime settings" in str(error.value)
+    assert "SECRET-VALUE" not in str(error.value)
+    assert not isinstance(error.value, IndexError)
+
+
+def test_error_line_is_a_single_safe_line(
+    indexed: Factory,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    original = DenseIndex.search
+    hostile = "doc\nFORGED 9 \x1b[31mred\x1b[0m\x00"
+
+    def malformed(self: DenseIndex, *args: Any, **kwargs: Any) -> list[Any]:
+        points: list[models.ScoredPoint] = original(self, *args, **kwargs)
+        for point in points:
+            payload = dict(point.payload or {})
+            payload["document_id"] = hostile
+            payload.pop("title", None)  # make the payload malformed
+            point.payload = payload
+        return points
+
+    monkeypatch.setattr(DenseIndex, "search", malformed)
+    assert retrieve(indexed) == 2
+    err = capsys.readouterr().err.rstrip("\n")
+    assert "RetrievalAuthorizationError" in err and "malformed payload" in err
+    assert "\n" not in err and "\x1b" not in err
+    assert not re.search(r"[\x00-\x1f\x7f]", err)
