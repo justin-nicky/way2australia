@@ -341,3 +341,23 @@ Other alternatives:
 - **Exact random expectation for cases with several relevant documents** (`1 − C(N−r,k)/C(N,k)`): not included. R7 specifies k/N, which understates the random rate for those cases. It could be added later as an extra field.
 - **Including query text in the baseline JSON:** left out. Case IDs plus versioned datasets are enough.
 - **Importing `build_embedder` from `ingestion/cli.py`:** accepted for now. Moving it to a factory module is a cleanup for the shared-package change.
+
+## As-built notes
+
+Added by the `spec-reviewer` retrospective, round 1 (2026-10-23). The approved design text above is unchanged; these notes list where the code differs from it, and where each difference was approved.
+
+| Deviation from the approved design | As built | Where approved / finding |
+|---|---|---|
+| Baseline JSON sketch shows `"random_hit_rate_formula": "min(1, k/N) = 5/13"` | The code records and prints `min(1, k/N)` with the concrete numbers only, e.g. `"min(1, 5/13)"` (and `min(1, 5/3)` next to `1.0` when k >= N, so the cap is visible). The optimism note uses the same form. | Change log 2026-10-21 (T6 verification text `min(1, 5/13)`); T6 review F2 and user decision 2026-10-21; implemented in T7; D037 |
+| Retrieve CLI data flow: parse args, then config | The CLI checks the query and `--top-k` before loading config; neither touches Qdrant. | T5 review round 1, accepted by the user 2026-10-20 |
+| Baseline CLI: "same setup as the retrieve CLI" | Order is top-k check, config, runtime settings, suite, declared release, golden cases, output-file check, embedder, client, `DenseIndex.open`, access. All file checks run before any Qdrant contact. | T6 review round 1 ("Deviations judged"), accepted 2026-10-21 |
+| Error table: non-guest role, "Qdrant contacted? no" | Both CLIs call `resolve_access` after `DenseIndex.open`, as the design's own data flow (step 7 after step 6) and T5's startup order say, so a non-guest role would be refused after a read-only bind. Unreachable today: `guest_access` always builds `Role.GUEST`. | Retrospective round 1 F5 (SPEC_DEFECT, MINOR: the design table and data flow disagree) |
+| `retrieval/__init__.py` "public exports" | The module holds only a docstring; callers import from the submodules (`retrieval.access`, `retrieval.retriever`, ...). | Retrospective round 1 F4 (MINOR) |
+| `SuiteRef(evaluation_suite_id, version, datasets)` | `SuiteRef` keeps `golden_dataset_path` (the one `golden_answerable` dataset) instead of the dataset list; a suite with zero or several golden datasets is refused. | Retrospective round 1 F4 (MINOR) |
+| `run_baseline(retriever, access, cases, suite, release_id, top_k, allow_fake, clock)` | Keyword-only and also takes `index`, `embedder` (device read after warm-up), `excluded_case_count` and `repo_root` (git state). | T6 user decision (device after warm-up, change log 2026-10-20); remaining parameters retrospective round 1 F4 (MINOR) |
+| `IndexSettingsMismatchError` | Gained `invalid_fields` so retrieval can reword the malformed-settings refusal without echoing ingestion advice. | T5 task text (T3 review F3), change log 2026-10-20 |
+| `load_runtime_settings` | Shared loader in `ingestion/config.py`, parameterized by the caller's error type, with a generic message when a validation error has no field location. | Change log 2026-10-20 (T5) and 2026-10-21 (T7); D034 |
+| Payload-text printing | One `safe_text` helper (`retrieval/text.py`) for both CLIs, including error lines; strips ANSI, controls and bidi override/isolate characters, keeps ZWNJ/ZWJ. | Change log 2026-10-20 and 2026-10-21 (T6, T7); D041 |
+| `write_result` | Removes a partial file if the write fails after the exclusive create, then raises `RetrievalConfigurationError`. | Change log 2026-10-21 (T7, T6 review F1); D037 |
+
+Verified unchanged: payload fields, point identity, `IndexSettings` fields, `INGESTION_NAMESPACE` and `index_version` (`idx-v1`). The user's existing `w2a-realcheck-idx-v1` collection still binds read-only with the real BGE-M3 identity and is refused for the fake embedder (checked in this round without loading the model).
