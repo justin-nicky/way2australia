@@ -1,6 +1,6 @@
 # 005 — Dense Retrieval Baseline Tasks
 
-Status: implementing (branch spec/005, base 2f98ef9)
+Status: all tasks approved (2026-10-23)
 
 Implement the tasks in order; each depends on the ones before it.
 - New retrieval code lives under `packages/rag/src/way2australia_rag/retrieval/`, with tests under `packages/rag/tests/retrieval/`.
@@ -270,7 +270,7 @@ Implement the tasks in order; each depends on the ones before it.
 - [x] Make the retrieve CLI (`retrieval/cli.py`) print `RetrievalError` and other error message lines through `safe_text`, as the baseline CLI does. Add a unit test with a malformed payload whose `document_id` contains control characters, asserting the error line is a single line with no control characters (T6 review F4).
 - [x] Add a pure unit test for `default_output_path` naming: a fixed `datetime` and a `tmp_path` root give `experiments/results/retrieval-baseline-<index_version>-<YYYYMMDDTHHMMSSZ>.json` in UTC (T6 review F5).
 - [x] Keep next-spec work out (see Completion gate).
-- [ ] Hand off to spec-orchestrator for completion
+- [x] Hand off to spec-orchestrator for completion
 
 ### Verification
 
