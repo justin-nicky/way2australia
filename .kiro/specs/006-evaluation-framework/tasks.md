@@ -1,0 +1,340 @@
+# 006 — Evaluation Framework Tasks
+
+Status: approved (2026-10-23)
+
+Implement the tasks in order; each depends on the ones before it.
+- New code lives under `packages/rag/src/way2australia_rag/evaluation/`, with tests under `packages/rag/tests/evaluation/` (design "Package / file placement").
+- `make verify` must never need Docker, PyTorch or a model download. Unit tests use `FakeEmbedder` and `QdrantClient(":memory:")`.
+- **Protected paths.** Under `evaluation/` exactly three new files may appear in this spec, each created by the task named below:
+  - `evaluation/schemas/evaluation_suite.schema.json` (T2);
+  - `evaluation/schemas/evaluation_case_types.schema.json` (T2);
+  - `evaluation/candidates/006-candidates.jsonl` (T7).
+
+  No existing file under `evaluation/` is edited, and nothing under `knowledge/` or `config/` changes. Every task checks this with `git status --porcelain -- evaluation knowledge config`.
+- Do not edit `retrieval/metrics.py`, `retrieval/baseline.py` or `retrieval/baseline_cli.py`. Legacy `make retrieval-baseline` must stay byte-for-byte compatible (R12).
+- Tests never write under `experiments/results/`, and the committed `experiments/results/retrieval-baseline-idx-v1-20261023T063534Z.json` is never modified.
+- Every fake-embedder run against Docker Qdrant uses a throwaway collection base (D028 fake-run trap).
+
+## T1 — Legacy snapshot, evaluation models and governed suite loader
+
+**State:** not started
+**Requirements:** R1, R3, R12
+
+- [ ] **First, before touching `retrieval/goldens.py`:** add `packages/rag/tests/retrieval/test_legacy_baseline_snapshot.py`.
+  - It runs `run_baseline` on an in-memory fake index of the seed corpus, with a fixed clock and a patched `git_state`.
+  - It compares the JSON text with the committed snapshot `packages/rag/tests/retrieval/fixtures/legacy_baseline_snapshot.json`, which this step generates from the current code.
+  - It also pins the printed `format_summary` text.
+  - Run it green on the unchanged code.
+- [ ] Add `evaluation/__init__.py` (docstring only) and `evaluation/errors.py` (`EvaluationError`, `EvaluationConfigurationError`).
+- [ ] Add `evaluation/models.py` as in the design: `DatasetType`, `CaseStatus`, `DatasetRef`, `SuiteManifest`, `CaseBase`, `GoldenCase`, `UnanswerableCase`, `SecurityCase`, `LoadedSuite` with `active()` and `excluded_by_status()`.
+  - Case models tolerate extra fields.
+  - `access_context` is loaded but never used.
+- [ ] Add `evaluation/suite.py` with `read_manifest`, `read_dataset`, `load_suite` and `declared_release_id` (moved from `goldens.py`).
+  - Refuse unknown dataset types and paths that resolve outside the repository.
+  - Error messages carry the file name and line only, never absolute paths or case text.
+  - Nothing is written.
+- [ ] Reduce `retrieval/goldens.py` to the compatibility wrapper from the design ("Interfaces / models"):
+  - same public names, the same "exactly one `golden_answerable` dataset" rule, the same selection and excluded count, the same messages;
+  - `EvaluationConfigurationError` is re-raised as `RetrievalConfigurationError`;
+  - only the golden dataset is read.
+- [ ] Add the status helpers used by later tasks:
+  - only `active` cases are returned by `active()`;
+  - every other status is counted by `excluded_by_status()`;
+  - `suggested` is never returned.
+- [ ] Add `packages/rag/tests/evaluation/test_suite_loader.py`. It covers:
+  - a valid suite (85 cases: 63, 12 and 10);
+  - an unknown dataset type;
+  - an escaping path;
+  - a malformed line (file and line in the message, no case text);
+  - an ignored `access_context`;
+  - extra fields;
+  - that the loader is read-only (hash of `evaluation/` before and after).
+- [ ] Add `packages/rag/tests/evaluation/test_status_handling.py` for exclusion counts by status and for `suggested` never being returned. It uses temp-copy suites.
+
+### Verification
+
+- `make test-unit`: the snapshot test passes **both before and after** the `goldens.py` change; the existing `retrieval/test_goldens.py`, `test_baseline.py` and `test_cli.py` pass unchanged.
+- `make lint` and `make typecheck`.
+- `make verify`.
+- `git diff --stat -- packages/rag/src/way2australia_rag/retrieval/metrics.py packages/rag/src/way2australia_rag/retrieval/baseline.py packages/rag/src/way2australia_rag/retrieval/baseline_cli.py` is empty.
+- `git status --porcelain -- evaluation knowledge config` is empty.
+
+## T2 — Evaluation schemas and `make validate-evaluation`
+
+**State:** not started
+**Requirements:** R2, R3, R14, R15
+
+- [ ] Create `evaluation/schemas/evaluation_suite.schema.json` (Draft 2020-12, `$id` `evaluation_suite.schema.json`), describing the suite manifest shape.
+- [ ] Create `evaluation/schemas/evaluation_case_types.schema.json` (Draft 2020-12, `$id` `evaluation_case_types.schema.json`) with these `$defs`:
+  - `golden_answerable`, `unanswerable_refusal` and `security`. Each is `allOf` a `$ref` to the existing `evaluation_case.schema.json` plus the type's required fields from R2.
+  - `candidate_row`, with the R14 fields: `candidate_id`, `status` (const `suggested`), `proposal_type` (`new_case`, `case_change`), `target_suite_id`, `proposed_by`, `drafted_by`, `requires_review`, `needs_fluent_speaker_review`, `rationale`, and `proposed_case` or (`target_case_ids` and `options`).
+- [ ] Do not edit `evaluation_case.schema.json` or any other existing file under `evaluation/`.
+- [ ] Add `evaluation/schemas.py`: a local `referencing.Registry` built from the three files by `$id`, with no network resolution. A missing or invalid schema is an `EvaluationConfigurationError`.
+- [ ] Add `evaluation/validate.py` with every R2 check from design data flow "make validate-evaluation":
+  - the suite schema, and the per-type case schemas;
+  - unique `case_id`, `evaluation_suite_id` match, `case_count`, no duplicate dataset path;
+  - relevant documents checked through `LocalDocumentRepository` and `list_eligible_documents(GUEST_PUBLIC_POLICY)`, with "unknown document" and "not eligible" reported separately;
+  - candidate rows in `evaluation/candidates/*.jsonl`:
+    - `status: suggested`;
+    - a `proposed_case` that is a valid golden with eligible documents;
+    - no suite dataset path under `evaluation/candidates/`;
+    - the language-neutral rule: a non-`en` `query_language` needs `needs_fluent_speaker_review: true` and `owner_review` in `requires_review`.
+  - Output: one `safe_text` line per problem plus a count. Exit 0 when valid, 1 on problems, 2 on configuration errors (including an invalid corpus, with advice to run `make validate-knowledge`).
+- [ ] Add `evaluation/cli.py` with the `validate` subcommand (`python -m way2australia_rag.evaluation.cli validate --repo-root ...`). Unexpected exceptions print the class name only.
+- [ ] `Makefile`:
+  - add the target `validate-evaluation`;
+  - add `validate-evaluation` to `.PHONY`;
+  - add it to `verify` after `validate-knowledge`.
+- [ ] Add `packages/rag/tests/evaluation/test_schemas.py`:
+  - both new schemas are valid;
+  - each per-type required field is enforced (temp copies);
+  - the existing schema is referenced, not copied.
+- [ ] Add `packages/rag/tests/evaluation/test_validate.py`:
+  - the current repository validates (exit 0);
+  - a temp-copy failure for each check, including an ineligible document, a candidate referenced by a suite, a non-`suggested` candidate, and a non-`en` candidate without review flags;
+  - no `ml` literal in `evaluation/*.py`.
+
+### Verification
+
+- `make validate-evaluation` exits 0 on the repository.
+- `make test-unit`, `make lint`, `make typecheck`.
+- `make verify`, which now runs `validate-evaluation`.
+- `git status --porcelain -- evaluation knowledge config` lists exactly `?? evaluation/schemas/evaluation_case_types.schema.json` and `?? evaluation/schemas/evaluation_suite.schema.json`.
+
+## T3 — Retrieval evaluation runner, slices, result 2.0 and `make eval-retrieval`
+
+**State:** not started
+**Requirements:** R4, R5, R6, R7, R13
+
+- [ ] Add `evaluation/slices.py`:
+  - `query_language`, `category` and `source_authority` slices. The `source_authority` key is the sorted, `+`-joined values from the repository map.
+  - `n` and `small_sample` (threshold 10) on every slice.
+  - `absent_query_languages`: `en` plus the `product_support` codes whose `status` is `active` in `config/language_registry.json` (read only), minus the languages that have cases.
+- [ ] Add `evaluation/sections.py`: section metrics over `"<document_id>#<section_id>"` keys, reusing the `retrieval/metrics.py` functions unchanged. Report `measurable_cases` and omit the metrics, with a note, when it is 0.
+- [ ] Add `evaluation/retrieval_eval.py`: `run_retrieval_evaluation(...)` building the 2.0 document from the design ("Result document 2.0").
+  - It includes every 1.0 key, `evaluation_suite` counts, `by_source_authority`, `absent_query_languages`, `section_level`, per-case `source_authority` and `top1_score`, and the R5 notes (the g004/u001 note only while both are active).
+  - It writes no query text, chunk text or absolute paths.
+- [ ] Add `evaluation/results.py`:
+  - constants `RESULT_KIND = "retrieval_evaluation"` and `SCHEMA_VERSION = "2.0"`;
+  - `default_output_path` giving `experiments/results/retrieval-evaluation-<index_version>-<UTC>.json`;
+  - writing through the unchanged `retrieval.baseline.write_result` and `check_output_free`.
+- [ ] Add the `retrieval` subcommand to `evaluation/cli.py`, following the startup order in design data flow "make eval-retrieval":
+  1. top-k check, config, runtime settings;
+  2. suite, refusing a non-`active` suite status (exit 2);
+  3. declared release, repository map, language registry;
+  4. output check;
+  5. embedder, refusing a fake one before any Qdrant contact;
+  6. `DenseIndex.open` (read-only), refusing a recorded fake index;
+  7. `resolve_access(guest_access(settings))`.
+
+  It has no `--embedder` or `--allow-fake` flag; its options are `--top-k`, `--suite`, `--release` and `--output`. The collection comes from `QDRANT_COLLECTION_BASE` and the default collection is not refused. It prints the collection used. Errors use `ERROR <ClassName>: <safe_text>`, and nothing is written on error.
+- [ ] `Makefile`:
+  - add the target `eval-retrieval` (`EVAL_ARGS` pass-through);
+  - add `eval-retrieval` to `.PHONY`.
+- [ ] Add `packages/rag/tests/evaluation/test_slices.py` and `test_sections.py`, as in the design's test table.
+- [ ] Add `packages/rag/tests/evaluation/test_retrieval_eval.py`, with an injected retriever, index and embedder. It covers:
+  - the fake-embedder and fake-index refusals;
+  - the non-active suite refusal;
+  - the field set as a superset of the 1.0 keys;
+  - no query or chunk text in the document;
+  - never overwritten, and partial-file cleanup;
+  - the default collection accepted and recorded.
+- [ ] Add CLI tests in `packages/rag/tests/evaluation/test_cli.py`: exit codes, `safe_text` output, and nothing written on error. Writes go to `tmp_path` only.
+
+### Verification
+
+- `make test-unit`, `make lint`, `make typecheck`, `make verify`.
+- `make eval-retrieval` without the `bge-m3` extra exits 2, naming the missing extra, before any Qdrant contact.
+- `make retrieval-baseline` legacy check: the T1 snapshot test still passes.
+- `git status --porcelain -- evaluation knowledge config` is empty.
+- `git status --porcelain -- experiments` is empty.
+
+## T4 — Unanswerable/refusal reporting
+
+**State:** not started
+**Requirements:** R10, R7
+
+- [ ] In `run_retrieval_evaluation`, after the golden cases, run each active `unanswerable_refusal` case and record only its top-1 score. Its latency is excluded from p50/p95.
+- [ ] Add the `unanswerable` block:
+  - `status: not_evaluable_before_generation`, `owner: roadmap-10`, `n`;
+  - `top1_score` (min, p50, p95, max), and `golden_top1_score` computed the same way;
+  - per-case `case_id`, `case_version` and `top1_score`.
+
+  No threshold, no pass/fail, and never used as answerability.
+- [ ] Print one informational summary line for it.
+- [ ] Extend `test_retrieval_eval.py`:
+  - the not-evaluable marker;
+  - the distributions on synthetic scores;
+  - unanswerable latencies excluded from p50/p95;
+  - no unanswerable query text in the document.
+
+### Verification
+
+- `make test-unit`, `make lint`, `make typecheck`, `make verify`.
+- `git status --porcelain -- evaluation knowledge config` is empty.
+
+## T5 — Security corpus and index builder, `make eval-security`, hard gate and Docker isolation test
+
+**State:** not started
+**Requirements:** R8, R9, R13, R3, R15
+
+- [ ] Add `evaluation/security_corpus.py` with `build_security_repository(fixture_root, work_dir)`, moved from `tests/conftest.py`.
+  - The fixture root is an explicit parameter. No `tests/fixtures/security` path appears in library code.
+  - Make `tests/conftest.py`'s `security_repository` fixture call it. The existing Spec 002 tests pass unchanged.
+- [ ] Add `evaluation/security_index.py` with `build_security_index(...)` as in design data flow "make eval-security":
+  - Fake-identity `IndexSettings` (`index_version` `sec-v1`) through `QdrantIndexStore.ensure_collection`.
+  - Seed points from `list_eligible_documents` through the production chunker, `build_payload` and `replace_document` path.
+  - `fixture_staff_canary` points: one with its own vector, plus one per query with that query's vector.
+  - The four synthetic forbidden variants per query (`staff_scope`, `other_tenant`, `owned`, `missing_owner`), written with a raw `client.upsert`. Their vector is the query vector and their `chunk_text` is the `"forbidden fixture"` sentinel.
+  - **Enforced in code, before any write:** refuse a collection base that does not match `^w2a-sectest-[0-9a-f]{8}$`, and refuse when the collection or its `-settings` already exists.
+- [ ] Add `evaluation/security_eval.py`:
+  - constants `RETRIEVAL_SIDE_ATTACK_TYPES`, `DEFERRED_OWNERS` and `FORBIDDEN_VARIANTS`;
+  - for each retrieval-side security case and each active golden query: an unfiltered sanity check (rank 1 must be forbidden, otherwise a harness error, exit 2), then `DenseRetriever.retrieve(query, access, top_k=MAX_TOP_K)` (50) with `resolve_access(guest_access(settings))`;
+  - a forbidden `document_id`, or a `RetrievalAuthorizationError`, is a violation;
+  - deferred and `unclassified` cases are listed;
+  - `poisoned_public_document` is listed under `excluded_fixtures` with its reason;
+  - the collection is deleted at the end.
+- [ ] Add the `security` subcommand to `evaluation/cli.py`:
+  - in-memory client and a `w2a-sectest-<uuid4 hex[:8]>` base;
+  - `--fixture-root`, defaulting to `<repo-root>/tests/fixtures/security` (the CLI is the only place that default lives);
+  - `--output`, with the default `experiments/results/tmp/security-evaluation-<UTC>.json`, written with the exclusive writer;
+  - exit 0 pass, 1 violation (naming `case_id`, `document_id` and variant, never text), 2 harness or configuration error.
+- [ ] `.gitignore`: add `experiments/results/tmp/`.
+- [ ] `Makefile`:
+  - add the target `eval-security` (`EVAL_ARGS` pass-through);
+  - add `eval-security` to `.PHONY`.
+- [ ] Add `packages/rag/tests/evaluation/test_security_eval.py`:
+  - the full in-memory gate passes on the seed corpus;
+  - the sanity check holds for every query;
+  - a filter-dropping index makes the gate fail with exit 1;
+  - the filter is identical for every query (spy), including after `s003`;
+  - builder refusals: the base `way2australia`, a `w2a-sectest-` base without 8 hex, an existing collection;
+  - no fixture path literal in `evaluation/*.py`;
+  - **the whole gate (index build plus all queries) finishes in under 10 s** (`perf_counter`).
+- [ ] Add `packages/rag/tests/evaluation/test_security_integration.py` (`integration` marker). It uses the same builder on Docker Qdrant with a unique `w2a-sectest-*` base and asserts that no forbidden point is returned. It removes the collection and its `-settings` in `finally`, and skips when Qdrant is unreachable (closes Spec 005 retro F3).
+
+### Verification
+
+- `make test-unit`, including the gate and its under-10 s bound; `make lint`, `make typecheck`.
+- `make verify` (no Docker, no model).
+- `make eval-security` exits 0, and its JSON lands in `experiments/results/tmp/`. `git status --porcelain -- experiments` is then empty.
+- `docker compose up -d qdrant`, then `make test-integration`: the new test passes and leaves no `w2a-sectest-*` collection behind (check with `curl -s localhost:6333/collections`).
+- `git status --porcelain -- evaluation knowledge config` is empty.
+
+## T6 — Result comparison and quality gate (`make eval-compare`)
+
+**State:** not started
+**Requirements:** R11
+
+- [ ] In `evaluation/results.py`, add `read_result(path) -> ComparableRun`.
+  - It accepts only `retrieval_baseline` 1.0 and `retrieval_evaluation` 2.0; anything else is exit 2.
+  - It builds a per-case map `(case_id, case_version)` to (`hit`, `recall`, `reciprocal_rank`), plus the slice keys (`source_authority` for 2.0 only) and the identity and informational fields.
+- [ ] Add `evaluation/compare.py` with `HIT_TOLERANCE_CASES = 1` and `mrr_tolerance(n) = 1/n`.
+  - Refuse when any of these differ: suite ID or version, the case key set, `top_k`, `document_count`; or when either run is fake.
+  - Compute hits and unrounded MRR from the per-case rows.
+  - Fail if `hits_cand < hits_base - 1`, or if `mrr_base - mrr_cand > 1/n + 1e-9`.
+  - Print per-slice deltas, informational latency and identity differences, and `WARNING flipped hit->miss` / `miss->hit` lines by `case_id`. Flips never fail the gate.
+- [ ] Add the `compare` subcommand to `evaluation/cli.py` (`--base`, `--candidate`). Exit 0 pass (warnings allowed), 1 gate failure, 2 refusal.
+- [ ] `Makefile`:
+  - add the target `eval-compare` (`BASE` and `CANDIDATE` variables, both required, with a usage error if either is missing);
+  - add `eval-compare` to `.PHONY`.
+- [ ] Add `packages/rag/tests/evaluation/test_compare.py` with synthetic result files in `tmp_path`:
+  - pass at exactly one lost case; fail at two;
+  - MRR pass at exactly 1/n; fail just above it;
+  - flip warnings in both directions;
+  - each refusal;
+  - 1.0 versus 2.0 (the `source_authority` slice is noted as not compared);
+  - reading the committed 1.0 file read-only and comparing it with itself: pass, no warnings.
+
+### Verification
+
+- `make test-unit`, `make lint`, `make typecheck`, `make verify`.
+- `make eval-compare BASE=experiments/results/retrieval-baseline-idx-v1-20261023T063534Z.json CANDIDATE=experiments/results/retrieval-baseline-idx-v1-20261023T063534Z.json` exits 0 with no warnings.
+- `git status --porcelain -- evaluation knowledge config experiments` is empty.
+
+## T7 — Evaluation candidate cases
+
+**State:** not started
+**Requirements:** R14, R2, R15
+
+- [ ] Create `evaluation/candidates/006-candidates.jsonl`, valid against `candidate_row`. Every row has `status: suggested`, `target_suite_id: public-eval-v1` and `proposed_by: spec-006`.
+- [ ] Draft about 6 pure-`ml` golden proposals (`proposal_type: new_case`, `proposed_case.query_language: ml`, eligible `relevant_document_ids`) covering:
+  - CCL format and scoring (`official_001_ccl_format_scoring_results`);
+  - candidate rules (`official_002_candidate_rules_setup`);
+  - booking and fees (`official_003_booking_fees_validity`);
+  - packages and pricing (`business_002_packages_pricing_validity`);
+  - coaching (`business_005_coaching`);
+  - the Malayalam NAATI policy (`language_ml_001_naati_policy`).
+
+  Each row has `drafted_by: agent`, `needs_fluent_speaker_review: true` and `requires_review: ["fluent_malayalam_speaker", "owner_review"]`, plus a `rationale`. The queries are agent drafts that a fluent speaker must correct before any approval.
+- [ ] Add one `case_change` proposal for the `g004`/`u001` conflict: `target_case_ids: ["g004", "u001"]`, `options` listing the alternatives without choosing one, and `requires_review: ["owner_review"]`.
+- [ ] No `relevant_section_ids` proposals (R14; revisited with the chunking spec).
+- [ ] No suite manifest change, no active case change, and no `case_version` bump.
+- [ ] Extend `test_validate.py`: the real candidates file validates, and the loader never returns its rows as suite cases.
+
+### Verification
+
+- `make validate-evaluation` exits 0.
+- `make test-unit`, `make lint`, `make verify`.
+- `git status --porcelain -- evaluation knowledge config` lists exactly `?? evaluation/candidates/`.
+- `make eval-security` still passes (the candidates are not loaded).
+
+## T8 — Documentation, decisions and handoff
+
+**State:** not started
+**Requirements:** R12, R15, Definition of Done
+
+- [ ] `docs/project/COMMANDS.md`:
+  - document `validate-evaluation`, `eval-retrieval`, `eval-security`, `eval-compare` (options, exit codes, output locations, the gate rule);
+  - mark `retrieval-baseline` as **legacy** (keeps `--allow-fake` and its output location) and name `eval-retrieval` as the quality command;
+  - update the "Implemented today" list.
+- [ ] `docs/project/ARCHITECTURE.md`: add an "Evaluation" section (loader, runners, gates, isolation), including the note that ingestion eligibility is the only guard against synthetic or unapproved documents.
+- [ ] `docs/project/DECISIONS.md`: record decisions D042 to D046 from the design, and fold the design-approval decisions into them:
+  - suite-status refusal;
+  - eligibility guard;
+  - top_k 50;
+  - fixture root parameter and builder enforcement;
+  - Malayalam review flags.
+- [ ] `docs/project/TECH_STACK.md`: only if a new dependency was added (none expected; `referencing` comes with `jsonschema`).
+- [ ] `docs/project/CURRENT_STATE.md`:
+  - Spec 006 status;
+  - implemented reality;
+  - open findings;
+  - the user-owned post-merge reproduction;
+  - candidates awaiting fluent-speaker and owner review.
+- [ ] Run the spec-wide checks: `make verify`, `make test-integration` (Docker), `make eval-security`, the `eval-compare` self-check on the committed baseline, and the T1 snapshot test.
+- [ ] Protected-path check against `main`: `git diff --stat main -- knowledge config evaluation` shows only the three new files.
+- [ ] Keep next-spec work out (see Completion gate).
+- [ ] Hand off to spec-orchestrator for completion
+
+### Verification
+
+- `make verify`, `make test-unit`, `make lint`, `make typecheck`.
+- `make test-integration` with `docker compose up -d qdrant`.
+- `make validate-evaluation`, `make eval-security`, and `make eval-compare` with BASE and CANDIDATE both set to the committed baseline file.
+- `git status --porcelain -- evaluation knowledge config`, and `git diff --stat main -- knowledge config evaluation` (three new files only).
+- The docs match the code as built (reviewer check).
+
+## Completion gate
+
+Do not implement any of the following in this spec:
+- **Spec 007 and hybrid retrieval:** BM25, sparse vectors, RRF, dense-vs-sparse comparisons, reranking, query rewriting.
+- **Multilingual retrieval (roadmap 8):** query-language detection, language filtering, Malayalam-specific behavior.
+- **Generation and security (roadmap 10, 12):** `make eval-generation`, answerability or refusal-answer scoring, score thresholds, prompt-injection, poisoned-content, citation-manipulation and input-budget tests, LLM-as-judge.
+- **CI/CD (roadmap 15):** any `.github/workflows/` file or other CI configuration.
+- **Phase 2:** evaluation governance workflow, an approval CLI or UI, activating candidates, `public-eval-v2`, impact analysis, LLM suggestion pipelines, audit, Knowledge Release Candidates.
+- Any edit to existing evaluation cases, datasets, schemas or the suite manifest, or to `knowledge/` or `config/`.
+- Changes to legacy `make retrieval-baseline` behavior or output location.
+- Device pinning (D038), chunking changes or a new `index_version`, and the Spec 004 nits.
+- `make experiment`, FastAPI routes, Langfuse.
+
+## Post-merge real evaluation (user-owned, not a gate)
+
+After `spec/006` is merged, the user runs:
+1. `make setup-bge-m3`;
+2. `QDRANT_COLLECTION_BASE=w2a-realcheck make eval-retrieval`, using the existing real collection `w2a-realcheck-idx-v1`;
+3. `make eval-compare BASE=experiments/results/retrieval-baseline-idx-v1-20261023T063534Z.json CANDIDATE=<new 2.0 file>`. The expected result is a pass that reproduces HitRate@5 0.952 and MRR 0.878; any flipped cases are warnings by `case_id`;
+4. `make setup`;
+5. commit the 2.0 result, and update `CURRENT_STATE.md`.
+
+This is not a gate for merging.
