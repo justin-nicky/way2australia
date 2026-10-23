@@ -1,6 +1,6 @@
 # 005 — Dense Retrieval Baseline Tasks
 
-Status: all tasks approved (2026-10-23)
+Status: verified (2026-10-23, merged b33462e)
 
 Implement the tasks in order; each depends on the ones before it.
 - New retrieval code lives under `packages/rag/src/way2australia_rag/retrieval/`, with tests under `packages/rag/tests/retrieval/`.
