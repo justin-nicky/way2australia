@@ -154,4 +154,5 @@ Report:
 - number of tasks;
 - prerequisites;
 - expected implementation tier: **BEST_MINUS_ONE**;
-- readiness for `spec-orchestrator` / `spec-implementer`.
+- readiness for `spec-orchestrator` / `spec-implementer`;
+- a reminder that the orchestrator will ask the user to run `/compact` before T1, since the approved spec files now hold everything implementation needs.

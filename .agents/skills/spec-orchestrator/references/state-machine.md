@@ -6,7 +6,7 @@
 |---|---|---|
 | 1 | Uncommitted changes with no task in progress, or checked-out branch not implied by state | stop; ask the user (uncommitted changes during an in-progress task are its work awaiting approval) |
 | 2 | No approved spec in progress (any of the three files not `approved`) | offer `spec-planner` (pass the latest "Notes for the next spec" from the previous spec's `review.md`, if any) |
-| 3 | Spec approved (`tasks.md` `approved (…)`), no `spec/<NNN>` branch | create `spec/<NNN>` from up-to-date `main`; set `Status: implementing (branch spec/<NNN>, base <sha>)`; commit; continue to task level |
+| 3 | Spec approved (`tasks.md` `approved (…)`), no `spec/<NNN>` branch | create `spec/<NNN>` from up-to-date `main`; set `Status: implementing (branch spec/<NNN>, base <sha>)`; commit; ask the user to run `/compact` before T1 (SKILL.md → Compact before the first task); then task level |
 | 4 | Otherwise | task level: first task whose State is not `approved` |
 | 5 | Every task `approved` | set `all tasks approved`, start the required `spec-reviewer` retrospective; on `PASS` and user approval, commit and merge (SKILL.md → Completion) |
 

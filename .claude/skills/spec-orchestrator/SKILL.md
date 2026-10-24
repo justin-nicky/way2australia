@@ -32,6 +32,16 @@ Never read or edit product code or diffs. Never write spec content (requirements
 2. Follow the table in `state-machine.md` for the first task whose State is not `approved`. Do the action, re-read the State lines, and repeat until the table says to ask the user (user review, escalation, spec issue, material decision, missing permission) or the spec is complete.
 3. Keep `CURRENT_STATE.md` accurate at each transition.
 
+## Compact before the first task
+
+Planning happens in the same chat as orchestration, so its discussion is still in context when implementation starts. Everything implementation needs is now in the repository (approved spec files, `tasks.md`, `CURRENT_STATE.md`).
+
+When the spec's first task is about to start (every task `not started`, no `task-reviews.md` yet), after creating the branch and committing the spec status: stop and ask the user to run `/compact` before T1, for example:
+
+`/compact Spec <NNN> approved and committed on spec/<NNN>; next: T1. Keep only decisions recorded in the spec files; drop the planning discussion.`
+
+You cannot run `/compact` yourself. Ask once. When the user has compacted, or says to skip it, start T1. On hosts without `/compact`, say so and continue.
+
 ## Starting roles
 
 One writer at a time per checkout: never start a role while another role on the same spec is running.

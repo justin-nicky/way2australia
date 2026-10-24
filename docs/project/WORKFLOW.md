@@ -31,6 +31,8 @@ Skills live in `agent-skills/` and are mirrored to `.claude/skills/`, `.agents/s
 
 Roles run in fresh contexts (the orchestrator spawns them as subagents where the host allows, otherwise the user starts them) and hand off through repository files (`tasks.md`, `task-reviews.md`, commit trailers), not chat. Model tiers are advisory and applied when a session starts, never switched mid-session (`agent-skills/MODEL_PREFERENCES.md`).
 
+Planning and orchestration usually share one chat. Once all three spec files are approved and committed, the orchestrator asks the user to run `/compact` before T1, so the planning discussion does not ride along through implementation; the approved spec files carry everything needed.
+
 The specification is part of the implementation contract.
 
 ## Feature specs
