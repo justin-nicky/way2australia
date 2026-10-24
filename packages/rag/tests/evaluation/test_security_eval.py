@@ -62,7 +62,6 @@ from way2australia_rag.retrieval.access import (
     build_access_filter,
     resolve_access,
 )
-from way2australia_rag.retrieval.errors import RetrievalAuthorizationError
 from way2australia_rag.retrieval.index import DenseIndex
 from way2australia_rag.retrieval.text import safe_text
 
@@ -463,30 +462,57 @@ def test_real_fixture_folder_builds(
     assert len(docs) == len(SECURITY_FIXTURE_FILES)
 
 
-def test_violation_names_the_document_from_the_error_attribute(
-    security_repository: LocalDocumentRepository, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    from way2australia_rag.retrieval import access, retriever
+class OddIdStore(DenseIndex):
+    """A store that returns an unauthorized point (staff scope) whose
+    `document_id` holds quotes, so a message-parsing regex could not read it."""
 
     odd = "doc'with\"quote'"
-    real = access.check_hit
 
-    def fake_check(payload: Any, resolved: ResolvedAccess) -> PointPayload:
-        try:
-            return real(
-                {**payload, "document_id": odd, "access_scope": "staff"}, resolved
-            )
-        except RetrievalAuthorizationError as error:
-            assert error.document_id == odd
-            raise
+    def __init__(self, source: DenseIndex) -> None:
+        super().__init__(source._client, source.collection, source.settings)
 
-    monkeypatch.setattr(retriever, "check_hit", fake_check)
+    def search(  # type: ignore[override]
+        self, vector: list[float], query_filter: models.Filter, limit: int
+    ) -> list[models.ScoredPoint]:
+        points = super().search(vector, query_filter, limit)
+        assert points, "the seed corpus should answer every query"
+        first = points[0]
+        payload = {**(first.payload or {}), "document_id": self.odd}
+        payload["access_scope"] = "staff"
+        points[0] = first.model_copy(update={"payload": payload})
+        return points
+
+
+def test_violation_names_the_document_from_the_error_attribute(
+    security_repository: LocalDocumentRepository,
+) -> None:
+    # The forbidden point comes from the store; the real check_hit raises.
     queries, deferred = real_queries()
     index = build([q.text for q in queries], security_repository)
-    report = run_security_evaluation(index, guest_access(), queries, deferred)
+    broken = dataclasses.replace(index, dense=OddIdStore(index.dense))
+    report = run_security_evaluation(broken, guest_access(), queries, deferred)
     assert not report.passed
-    expected = safe_text(odd)
+    expected = safe_text(OddIdStore.odd)
+    assert report.violations
     assert all(v["document_id"] == expected for v in report.violations)
+
+    document = security_document(
+        index=broken,
+        report=report,
+        suite=load_suite(REPO_ROOT, SUITE),
+        access=guest_access(),
+        duration_ms=1.0,
+        created_at="2026-01-01T00:00:00+00:00",
+        repo_root=REPO_ROOT,
+    )
+    assert document["passed"] is False
+    assert document["violations"]
+    assert all(v["document_id"] == expected for v in document["violations"])
+
+    lines = cli.format_security_summary(document, Path("result.json")).splitlines()
+    violation_lines = [line for line in lines if line.startswith("VIOLATION")]
+    assert violation_lines
+    assert all(f"document {expected}" in line for line in violation_lines)
 
 
 def test_no_fixture_path_literal_in_library_code() -> None:

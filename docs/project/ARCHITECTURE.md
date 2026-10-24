@@ -307,6 +307,28 @@ Evaluation Suite contains:
 Evaluation cases should have stable IDs and versions.
 Do not couple evaluations to chunk IDs.
 
+## Evaluation (Phase 1 framework, Spec 006)
+
+Library code in `packages/rag/src/way2australia_rag/evaluation/`, one CLI (`evaluation/cli.py`) behind `make validate-evaluation`, `eval-retrieval`, `eval-security` and `eval-compare`. It sits on top of `retrieval/` and imports it unchanged; the only edits there are the `goldens.py` compatibility wrapper and the `document_id` attribute on `RetrievalAuthorizationError`. Nothing in `retrieval/`, `ingestion/` or `repositories/` imports `evaluation/` except that wrapper.
+
+| Module | Role |
+|---|---|
+| `models.py`, `suite.py` | tolerant typed cases and suite; `load_suite` reads manifest and datasets read-only, ignores `access_context`, refuses unknown dataset types and escaping paths |
+| `schemas.py`, `validate.py` | local `referencing` registry for the three schemas; all checks behind `validate-evaluation` (schemas, cross-checks, relevant documents through the repository, candidates) |
+| `retrieval_eval.py`, `slices.py`, `sections.py` | run active goldens (and unanswerable cases, top-1 score only) through `DenseRetriever`; slices by query language, category and source authority; section-level metrics |
+| `results.py`, `compare.py` | read result files 1.0 and 2.0 into a comparable form; the quality gate |
+| `security_corpus.py`, `security_index.py`, `security_eval.py` | isolated security repository, throwaway index, authorization gate |
+
+Isolation and gates:
+- Access: every query, quality or security, goes through `DenseRetriever` with the one `resolve_access(guest_access(settings))`; evaluation code builds no filter and reads no role, scope or tenant from a case (D033 to D035, D040).
+- Quality runs refuse a fake embedder or fake index and read the index read-only (D036). Result files are never overwritten and hold IDs, scores and counts only (D043).
+- The security gate runs on a throwaway `w2a-sectest-<8 hex>` collection with the fake embedder, normally in memory; ineligible content is written only there, never into a real index (D045). Failure is exit 1; a broken harness is exit 2, never a pass.
+- Evaluation assets are never written by evaluation code (C6); candidates are `suggested`, never loaded as cases, and activated only by a human, versioned change.
+- Ingestion eligibility is the only guard against synthetic or unapproved documents. Retrieval does not re-check it because the payload does not carry those fields, so `poisoned_public_document` (public scope, synthetic) is not an authorization case.
+- Section-level keys are `"<document_id>#<section_id>"`. No active golden case has `relevant_section_ids` yet, so the section block reports zero measurable cases.
+- The security result's `access.role` is hard-coded `guest`, correct in Phase 1; it must become the resolved role when other roles are added.
+- Decisions: D042 to D046.
+
 ## Knowledge Release
 
 A Knowledge Release conceptually references:

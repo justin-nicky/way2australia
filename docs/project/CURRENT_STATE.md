@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-10-23
+Last updated: 2026-10-24
 
 ## Current phase
 
@@ -12,7 +12,7 @@ Spec 001 project foundation is complete.
 
 ## Current goal
 
-Implement Spec 006 (evaluation framework, approved 2026-10-23; 8 tasks) through `spec-orchestrator`. Specs 001–005 are complete. Repository-based shared context keeps Codex, Claude Code and Kiro interchangeable.
+Finish Spec 006 (evaluation framework, branch `spec/006`; T1 to T8a approved, T8b in task review) through `spec-orchestrator`, then the required `spec-reviewer` retrospective. Specs 001–005 are complete. Repository-based shared context keeps Codex, Claude Code and Kiro interchangeable.
 
 ## Finalized high-level decisions
 
@@ -90,10 +90,20 @@ Implemented:
   - `make lint` also runs `ruff format --check`; `UV_HTTP_TIMEOUT` defaults to 300 in the `Makefile`; payload indexes are re-created on the exists-empty-no-settings path.
   - Decisions D033 to D041 (D040 and D041 added by the retrospective). `make verify` without the `bge-m3` extra: 446 passed, 1 skipped; `make test-integration`: 19 passed against the running Qdrant (re-run by the retrospective, 2026-10-23).
 
+- Spec 006 (on branch `spec/006`, not yet merged; T1 to T8a approved, T8b in task review): evaluation framework in `packages/rag/src/way2australia_rag/evaluation/`.
+  - Governed read-only suite loader (`suite.py`, tolerant models) and two new schema files under `evaluation/schemas/`; `make validate-evaluation` (part of `make verify`) checks schemas, cross-checks, relevant-document existence and eligibility, and candidate rows.
+  - `make eval-retrieval`: active goldens and unanswerable cases through `DenseRetriever`; result format 2.0 (`retrieval_evaluation`) with query-language, category and source-authority slices, `small_sample` flags, absent languages, section-level block, unanswerable top-1 score distribution (informational); refuses a fake embedder or index and a suite that is not `active`.
+  - `make eval-security`: authorization hard gate on a throwaway in-memory `w2a-sectest-*` collection with the fake embedder (forbidden points nearest to every query, unfiltered sanity check, `top_k` 50); Docker isolation integration test.
+  - `make eval-compare BASE=... CANDIDATE=...`: reads 1.0 and 2.0 results; gate: more than 1 fewer hit cases, or an MRR drop above `1/n`, fails; flips are warnings.
+  - `make retrieval-baseline` is legacy and frozen (characterization test on a frozen fixture copy); the only `retrieval/` changes are the `goldens.py` wrapper and `RetrievalAuthorizationError.document_id`.
+  - `evaluation/candidates/006-candidates.jsonl`: 7 `suggested` candidate rows (6 agent-drafted Malayalam golden rows, 1 change proposal for `g004`/`u001`); never loaded as cases.
+  - Decisions D042 to D046. `referencing` is a direct `packages/rag` dependency.
+
 Not yet implemented:
 - BM25, hybrid retrieval (RRF) and reranking; no HTTP retrieval route;
 - a recorded real BGE-M3 retrieval baseline, recorded in `experiments/results/retrieval-baseline-idx-v1-20261023T063534Z.json` (commit `7418812`; BAAI/bge-m3 @ `5617a9f`, device `mps:0`, index `w2a-realcheck-idx-v1`): 63 cases, N=13; HitRate@5 0.952 vs random 0.385 (`min(1, 5/13)`), Recall@5 0.952, MRR 0.878; `en` (54) HitRate 0.963 / MRR 0.910, `mixed` (9) HitRate 0.889 / MRR 0.685; p50 61.5 ms, p95 216.5 ms (warm-up 105.9 s excluded); misses `g004`, `g026`, `g061`;
-- evaluation runs;
+- a recorded real `make eval-retrieval` run (user-owned, post-merge);
+- the Phase 2 "compare shared cases" mode of `eval-compare` (today any difference in the case set is refused);
 - generation;
 - observability;
 - CI/CD;
@@ -108,11 +118,11 @@ Not yet implemented:
 | 003 — task-gated agent workflow | **verified** (2026-10-15, bootstrap exception: implemented directly on `main`, base `9e95cfe`); dry run on Spec 002 recorded in its T9; T1–T8 closed by the user's instruction to close the spec, without per-task review records |
 | 004 — ingestion baseline | **verified (2026-10-17, merged dde5b35)**; merged at the user's request before the retrospective; required `spec-reviewer` retrospective round 1 `PASS`, approved by the user 2026-10-17; branch `spec/004` (base `af659da`); T1 approved 2026-10-15 (shared strict date check, policy-vs-config test); T2 approved 2026-10-15 (heading chunker, `section_id` slug rule recorded in design); T3 approved 2026-10-15 (`Embedder` Protocol and deterministic fake); T4 approved 2026-10-16 (BGE-M3 adapter, optional `bge-m3` extra, pinned revision; real-model smoke test skipped, user-owned); T5 approved 2026-10-16 (index settings, 17-field payload, UUIDv5 point identity); T6 approved 2026-10-16 (`QdrantIndexStore`, companion settings collection, Docker integration test); T7 approved 2026-10-16 (`IngestionService`, change detection, run report); T8 approved 2026-10-16 (`config/ingestion.yaml`, CLI, `make ingest`, day1_baseline agreement tests); T9 approved 2026-10-17 (docs, decisions and handoff). User-owned pre-merge check (not a gate): one real BGE-M3 ingestion of the seed corpus into a throwaway collection, run twice, plus the opt-in smoke test |
 | 005 — dense retrieval baseline | **verified (2026-10-23, merged b33462e)**; required `spec-reviewer` retrospective round 1 `PASS`, approved by the user 2026-10-23; branch `spec/005` (base `2f98ef9`); T1 approved 2026-10-20 (payload-index re-creation, Docker index assertions, `ruff format --check` gate, two-way scope check); T2 approved 2026-10-20 (`AccessContext`/`Role`, `W2A_TENANT_ID`, guest resolver, single access filter, fail-closed `check_hit`); T3 approved 2026-10-20 (read-only `DenseIndex` binding, public `read_index_settings`); T4 approved 2026-10-20 (`DenseRetriever`, fail-closed re-check, isolation tests, `Embedder.device`); T5 approved 2026-10-20 (`make retrieve` CLI, shared settings loader, retrieval-side refusal advice); T6 approved 2026-10-21 (metrics, golden loader, `make retrieval-baseline`, `safe_text`); T7 approved 2026-10-23 (docs, decisions D033–D039, deferred review fixes). Retrospective round 1 `PASS` (docs reconciled: TECH_STACK, ARCHITECTURE target flow, D040–D041, design As-built notes); approved by the user and merged 2026-10-23. Real BGE-M3 baseline done by the user 2026-10-23 (`experiments/results/retrieval-baseline-idx-v1-20261023T063534Z.json`) |
-| 006 — evaluation framework | **implementing** on branch `spec/006` (base `a400bab`); T1 approved 2026-10-23 (frozen-fixture legacy snapshot, read-only suite loader, `goldens.py` wrapper); T2 approved 2026-10-23 (evaluation schemas, `make validate-evaluation`); T3 approved 2026-10-24 (retrieval evaluation runner, result 2.0, `make eval-retrieval`); T4 approved 2026-10-24 (unanswerable score reporting); T5 approved 2026-10-24 (security corpus builder, `make eval-security` hard gate, Docker isolation test); T6 approved 2026-10-24 (`make eval-compare`, 1/n MRR gate, refusal messages); T7 approved 2026-10-24 (candidate cases file, agent-drafted Malayalam rows pending fluent-speaker review); T8 split into T8a (deferred code/test fixes) and T8b (docs, decisions, hand-off) by the 2026-10-24 amendment; T8a approved 2026-10-24 (deferred review fixes, live-count clean-up); T8b next. User-owned post-merge step (not a gate): a real `make eval-retrieval` run reproducing the Spec 005 baseline (0.952 / 0.878) via `make eval-compare` |
+| 006 — evaluation framework | **all tasks approved (2026-10-24)** on branch `spec/006` (base `a400bab`); retrospective pending; T1 approved 2026-10-23 (frozen-fixture legacy snapshot, read-only suite loader, `goldens.py` wrapper); T2 approved 2026-10-23 (evaluation schemas, `make validate-evaluation`); T3 approved 2026-10-24 (retrieval evaluation runner, result 2.0, `make eval-retrieval`); T4 approved 2026-10-24 (unanswerable score reporting); T5 approved 2026-10-24 (security corpus builder, `make eval-security` hard gate, Docker isolation test); T6 approved 2026-10-24 (`make eval-compare`, 1/n MRR gate, refusal messages); T7 approved 2026-10-24 (candidate cases file, agent-drafted Malayalam rows pending fluent-speaker review); T8 split into T8a (deferred code/test fixes) and T8b (docs, decisions, hand-off) by the 2026-10-24 amendment; T8a approved 2026-10-24 (deferred review fixes, live-count clean-up); T8b approved 2026-10-24 (docs, decisions D042 to D046, `.gitignore` `/MANIFEST`, two test fixes). Open findings: none from T1 to T8a (all approved findings were fixed in T8a); noted for the retrospective: record the flip-line format `g002 v1` in the design As-built notes and carry the Phase 2 shared-case compare idea into the next spec. Awaiting human review, outside this spec: the 6 agent-drafted Malayalam candidates (fluent-speaker correction, then owner approval) and the `g004`/`u001` change proposal (owner decision). The user-owned post-merge step is below. User-owned post-merge step (not a gate): a real `make eval-retrieval` run reproducing the Spec 005 baseline (0.952 / 0.878) via `make eval-compare` |
 
 ## Next step
 
-1. Run `/spec-orchestrator 006-evaluation-framework` (creates `spec/006`, runs T1 first). The Spec 005 retrospective notes are built into the spec.
+1. Continue `/spec-orchestrator 006-evaluation-framework`: task review for T8b, then the `spec-reviewer` retrospective. After merge, the user runs the real `make eval-retrieval` and `make eval-compare BASE=experiments/results/retrieval-baseline-idx-v1-20261023T063534Z.json CANDIDATE=<new file>`; it is expected to pass (HitRate@5 0.952, MRR 0.878), with any flips listed as warnings.
 2. Done 2026-10-23: the user ran the real BGE-M3 baseline; result committed as `experiments/results/retrieval-baseline-idx-v1-20261023T063534Z.json`. Use its numbers and the three misses (`g004`, `g026`, `g061`) as inputs to the next specs. Keep `make retrieval-baseline` results as new files; never overwrite this one.
 3. Plan the next roadmap spec (evaluation runs, hybrid retrieval) separately with `spec-planner`, starting from the "Notes for the next spec" in `.kiro/specs/005-dense-retrieval-baseline/review.md` (round 1).
 

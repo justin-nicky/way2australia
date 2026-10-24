@@ -2,7 +2,7 @@
 
 This file defines the intended stable command surface for humans and coding agents.
 
-The commands below are the target interface. Implemented today: `setup`, `format`, `lint`, `typecheck`, `test`, `test-unit`, `test-integration`, `verify`, `skills-sync`, `skills-check`, `validate-knowledge`, `setup-bge-m3`, `ingest`, `retrieve`, `retrieval-baseline`. The other targets are created by the spec that needs them.
+The commands below are the target interface. Implemented today: `setup`, `format`, `lint`, `typecheck`, `test`, `test-unit`, `test-integration`, `verify`, `skills-sync`, `skills-check`, `validate-knowledge`, `setup-bge-m3`, `ingest`, `retrieve`, `retrieval-baseline` (legacy), `validate-evaluation`, `eval-retrieval`, `eval-security`, `eval-compare`. The other targets are created by the spec that needs them.
 
 ## Environment
 
@@ -106,12 +106,13 @@ make retrieval-baseline BASELINE_ARGS="--embedder fake --allow-fake --output /tm
 - exit codes: `0` success (including zero hits), `2` refusal or configuration error (empty query, bad `--top-k`, empty `W2A_TENANT_ID`, missing `bge-m3` extra, missing or mismatched index, unreachable Qdrant, a hit that fails the access re-check). Retrieval and ingestion errors print `ERROR <ClassName>: <message>`; any other exception prints its class name only;
 - quoting caveat: `QUERY` is expanded by the shell inside `"$(QUERY)"`, so a query containing `"`, `$` or a backtick needs care. To avoid it, run the module directly: `uv run python -m way2australia_rag.retrieval.cli --repo-root . "your query"` (or `python3 -m uv run python -m ...`), with the same options.
 
-`make retrieval-baseline` behavior:
+`make retrieval-baseline` behavior (**legacy**: the Spec 005 producer, kept frozen and byte-for-byte compatible, with its own `--allow-fake` and output location `experiments/results/retrieval-baseline-*.json`; use `make eval-retrieval` for the quality measurement, see "Evaluation"):
 - options (through `BASELINE_ARGS`): `--embedder {bge_m3,fake}`, `--allow-fake`, `--top-k` (default 5), `--suite` (default `evaluation/suites/public-eval-v1.json`), `--release` (default `seed-v1`, must match `knowledge/releases/<id>.json`), `--output`, `--config`;
 - runs the active, answerable golden cases that have `relevant_document_ids` (63 in `public-eval-v1`) through dense retrieval and prints overall HitRate@5 next to the random expectation `min(1, 5/N)`, Recall@5, MRR, p50/p95 latency (after an unmeasured warm-up), the result file name relative to the repository root, and notes;
 - an index built with the fake embedder is refused (exit 2) unless `--allow-fake`; the result then carries the note "not a quality measurement". `--allow-fake` is for plumbing checks, never for a recorded baseline;
 - the result is `experiments/results/retrieval-baseline-<index_version>-<UTC YYYYMMDDTHHMMSSZ>.json` unless `--output` is given. It is never overwritten and nothing is written on error. It holds no query text, chunk text, absolute paths or secrets. Tests and throwaway checks should use `--output` in a temporary directory. Do not commit a fake or throwaway result;
 - the committed real BGE-M3 result is produced by the user after merge (`make setup-bge-m3`, a real `make ingest`, `make retrieval-baseline`, `make setup`);
+- since Spec 006 the suite is read through the governed evaluation loader, so the command now refuses, with exit 2, malformed suites it used to ignore: an unknown dataset type; a non-golden dataset path that is missing, not a string, or outside the repository; a non-string golden path; `null` in the newly typed optional fields (`status`, `introduced_in_release`, a non-integer `case_count` on the manifest; `evaluation_suite_id`, `relevant_section_ids` on golden rows). The real `public-eval-v1` suite and the frozen fixture suite are unaffected;
 - exit codes as `make retrieve`.
 
 Environment (retrieval and ingestion): `QDRANT_URL`, `QDRANT_API_KEY`, `QDRANT_COLLECTION_BASE`, and `W2A_TENANT_ID` (default `way2australia`; empty or whitespace-only is refused with exit 2). The tenant is a server setting stored on every indexed point, so changing it changes which points `make retrieve` can see, and it also applies to `make ingest`.
@@ -119,16 +120,42 @@ Environment (retrieval and ingestion): `QDRANT_URL`, `QDRANT_API_KEY`, `QDRANT_C
 ## Evaluation
 
 ```bash
+make validate-evaluation
 make eval-retrieval
-make eval-generation
 make eval-security
+make eval-compare BASE=<result.json> CANDIDATE=<result.json>
 ```
 
-Retrieval evaluation should support at least:
-- Recall@5;
-- MRR;
-- HitRate@5;
-- language/category slices.
+All four run one module, `python -m way2australia_rag.evaluation.cli {validate,retrieval,security,compare}`. Extra options for `eval-retrieval` and `eval-security` go in `EVAL_ARGS`; the `make` targets pass `--repo-root` themselves. `make eval-generation` does not exist yet (generation evaluation is a later roadmap item). Error lines are `ERROR <ClassName>: <message>` with payload-derived text passed through `safe_text`; an unexpected exception prints its class name only.
+
+`make validate-evaluation` (part of `make verify`, no Qdrant, no model):
+- validates the suite manifest (`evaluation/schemas/evaluation_suite.schema.json`; suite `status` is one of `draft`, `active`, `deprecated`, `replaced`) and every dataset line (`evaluation_case_types.schema.json`, which reuses the existing `evaluation_case.schema.json`);
+- cross-checks: unique `case_id` across the suite, each case's `evaluation_suite_id`, `case_count`, no dataset path listed twice, and that every relevant document is in the corpus (otherwise "unknown document") and eligible for guest/public (otherwise "not eligible"), through the document repository;
+- validates the candidate files in `evaluation/candidates/` (status `suggested`, proposed case valid, eligible documents, a non-`en` proposed query needs `needs_fluent_speaker_review: true` and `owner_review` in `requires_review`) and refuses a suite that lists a candidates file as a dataset;
+- prints one line per problem (`<file>:<line> <case_id> <field>: <reason>`) and a count; exit `0` valid, `1` problems, `2` configuration error (missing schema, unreadable suite, invalid corpus, a dataset path outside the repository).
+
+`make eval-retrieval` (quality measurement; needs the real BGE-M3 index, see `make setup-bge-m3` and `make ingest`):
+- options: `--top-k` (1 to 50, default 5), `--suite` (default `evaluation/suites/public-eval-v1.json`), `--release` (default `seed-v1`, must match `knowledge/releases/<id>.json`), `--output`, `--repo-root` (default: the current directory), `--config` (default `<repo-root>/config/ingestion.yaml`). There is no `--embedder` or `--allow-fake` option;
+- runs the active golden cases, then the active unanswerable cases (top-1 score only; their latency is not in p50/p95), through `DenseRetriever` with the one server-resolved guest access;
+- refuses with exit 2, before any Qdrant contact, a suite whose `status` is not `active`, a missing or mismatched declared release, an existing output file, and a configured fake embedder; a recorded fake index is refused after the read-only binding; the D036 binding rules apply;
+- the result is `experiments/results/retrieval-evaluation-<index_version>-<UTC YYYYMMDDTHHMMSSZ>.json` unless `--output` is given: `kind: retrieval_evaluation`, `schema_version` 2.0, a superset of the 1.0 baseline keys (overall, per `query_language`, per `category` and per `source_authority` metrics with a `small_sample` flag below 10 cases, absent query languages, section-level metrics, the unanswerable top-1 score distribution marked informational, latency, per-case rows, notes). It holds no query text, chunk text, absolute paths or secrets, is never overwritten, and nothing is written on error. Tests and throwaway checks should use `--output` in a temporary directory; do not commit a throwaway result;
+- exit codes: `0` success, `2` refusal or error.
+
+`make eval-security` (authorization hard gate; fake embedder on a throwaway in-memory Qdrant, no Docker, no model; not part of the `make verify` target itself, but its logic is covered by the unit tests that `make verify` runs):
+- options: `--repo-root`, `--config`, `--suite`, `--fixture-root` (default `<repo-root>/tests/fixtures/security`; that default lives only in the CLI, library code never names it) and `--output` (default `experiments/results/tmp/security-evaluation-<UTC>.json`, git-ignored);
+- builds a collection `w2a-sectest-<8 hex>` holding the eligible seed corpus plus forbidden points (staff scope, other tenant, owned, missing owner, and the staff-only canary fixture) that are the nearest neighbour of every query, checks without a filter that a forbidden point really is nearest, then retrieves through the production path at `top_k` 50 for the active retrieval-side security cases and every active golden query. Other attack types are listed as deferred with an owner;
+- the fixture folder must hold exactly `poisoned_public_document.md` and `staff_only_canary.md` (hidden dot-files are ignored); any other visible entry or a missing file is refused before anything is copied;
+- the throwaway collection is deleted in the CLI's `finally`, so a failed run removes it too;
+- the result is `kind: security_evaluation`, `schema_version` 1.0: `passed`, `access`, `index`, query and case counts, `violations` (`case_id`, `document_id`, `variant`), `deferred`, `excluded_fixtures`, `duration_ms`; IDs, counts and verdicts only, never query or chunk text;
+- exit codes: `0` pass, `1` violation (a forbidden document returned, or the access re-check raised; printed as `VIOLATION case <id> document <id> variant <name>`), `2` harness or configuration error (`EvaluationHarnessError`, for example the sanity check not finding a forbidden point nearest, or an existing output file).
+
+`make eval-compare BASE=<file> CANDIDATE=<file>` (both required; exit 2 with a usage line otherwise):
+- reads a Spec 005 1.0 baseline file or a 2.0 evaluation file; the `source_authority` slice is compared only when both are 2.0;
+- gate rule (constants in code; changing them needs a spec amendment): fail when the candidate has more than 1 fewer hit cases than the base, or when the mean reciprocal rank drops by more than `1/n` for `n` compared cases. Both are computed from the per-case rows, not from the rounded aggregates. Cases that flip hit to miss or miss to hit are printed as `WARNING flipped ...` lines; slice deltas and latency changes are printed too; none of these fails the gate;
+- refuses (exit 2) files that are not comparable: different suite ID or version, different case sets, different `top_k` or document count, either side from a fake-embedder index, an unreadable or unknown file, or a file that repeats a `case_id`;
+- exit codes: `0` pass (warnings allowed), `1` gate failure, `2` refusal.
+
+Retrieval evaluation supports Recall@5, MRR, HitRate@5 and language/category/source-authority slices, at document level (section level where a case has `relevant_section_ids`).
 
 ## Experiments
 

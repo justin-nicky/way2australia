@@ -247,7 +247,11 @@ def test_candidate_unknown_and_ineligible_documents(root: Path, capsys) -> None:
     assert "unknown document 'nope'" in out
 
 
-def test_candidate_ineligible_document_is_not_unknown(root: Path) -> None:
+def test_candidate_ineligible_document_is_not_unknown(
+    root: Path,
+    capsys,  # noqa: ANN001
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     target = "business_001_overview_scope"
     write_candidates(root, CANDIDATE)
     real = LocalDocumentRepository(LocalRepositoryConfig(repo_root=root))
@@ -263,10 +267,16 @@ def test_candidate_ineligible_document_is_not_unknown(root: Path) -> None:
             ]
             return [d for d in out if query is None or query.matches(d)]
 
-    problems = validate_evaluation(root, repository=Stub())  # type: ignore[arg-type]
-    texts = [str(p) for p in problems if "candidates" in p.file]
-    assert any(f"document '{target}' not eligible" in t for t in texts)
-    assert not any("unknown document" in t for t in texts)
+    monkeypatch.setattr(
+        cli,
+        "validate_evaluation",
+        lambda repo_root: validate_evaluation(repo_root, repository=Stub()),  # type: ignore[arg-type]
+    )
+    code, out = run(root, capsys)
+    assert code == 1
+    candidate_lines = [x for x in out.splitlines() if "candidates" in x]
+    assert any(f"document '{target}' not eligible" in x for x in candidate_lines)
+    assert not any("unknown document" in x for x in candidate_lines)
 
 
 def test_suite_dataset_path_escaping_repository(root: Path, capsys) -> None:  # noqa: ANN001

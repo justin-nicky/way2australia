@@ -1,6 +1,6 @@
 # 006 — Evaluation Framework Tasks
 
-Status: implementing (branch spec/006, base a400bab)
+Status: all tasks approved (2026-10-24)
 
 Implement the tasks in order; each depends on the ones before it.
 - New code lives under `packages/rag/src/way2australia_rag/evaluation/`, with tests under `packages/rag/tests/evaluation/` (design "Package / file placement").
@@ -382,38 +382,38 @@ Deferred task-review items (user-approved 2026-10-24; see each task's "User deci
 
 ## T8b — Documentation, decisions and handoff
 
-**State:** not started
+**State:** approved (2026-10-24)
 **Requirements:** R2, R4, R6, R8, R12, R13, R15, Definition of Done
 
 Runs after T8a is approved and committed. Two test fixes from the T8a review (user-approved), then documentation, decisions, the `.gitignore` fix, the spec-wide checks and the final protected-path check. The only code files T8b edits are `packages/rag/tests/evaluation/test_security_eval.py` and `packages/rag/tests/evaluation/test_validate.py` (tests only; no source file changes).
 
-- [ ] **T8a review F1 (test fix, `packages/rag/tests/evaluation/test_security_eval.py`).** The T5 F1 test (unauthorized point whose `document_id` the old regex could not parse) injects the forbidden point through a store that returns it, not by wrapping or patching `check_hit`, so the real `check_hit` raises `RetrievalAuthorizationError`. It asserts that the violation entry in the result document built by `security_document` and the printed `VIOLATION` line both name that `document_id` (through `safe_text`).
-- [ ] **T8a review F2 (test fix, `packages/rag/tests/evaluation/test_validate.py`).** The ineligible-candidate-document test asserts exit code 1, besides the "not eligible" (not "unknown document") report.
+- [x] **T8a review F1 (test fix, `packages/rag/tests/evaluation/test_security_eval.py`).** The T5 F1 test (unauthorized point whose `document_id` the old regex could not parse) injects the forbidden point through a store that returns it, not by wrapping or patching `check_hit`, so the real `check_hit` raises `RetrievalAuthorizationError`. It asserts that the violation entry in the result document built by `security_document` and the printed `VIOLATION` line both name that `document_id` (through `safe_text`).
+- [x] **T8a review F2 (test fix, `packages/rag/tests/evaluation/test_validate.py`).** The ineligible-candidate-document test asserts exit code 1, besides the "not eligible" (not "unknown document") report.
 
-- [ ] `docs/project/COMMANDS.md`:
+- [x] `docs/project/COMMANDS.md`:
   - document `validate-evaluation`, `eval-retrieval`, `eval-security`, `eval-compare` (options, exit codes, output locations, the gate rule);
   - mark `retrieval-baseline` as **legacy** (keeps `--allow-fake` and its output location) and name `eval-retrieval` as the quality command;
   - in the legacy `retrieval-baseline` entry, document that it now refuses, with exit 2, malformed suites it used to ignore: an unknown dataset type; a non-golden dataset path that is missing, not a string, or outside the repository; a non-string golden path; `null` in the newly typed optional fields (`status`, `introduced_in_release`, a non-integer `case_count`; `evaluation_suite_id`, `relevant_section_ids` on golden rows). The real suite and the frozen fixture suite are unaffected (T1 review F2);
   - update the "Implemented today" list.
-- [ ] `docs/project/ARCHITECTURE.md`: add an "Evaluation" section (loader, runners, gates, isolation), including the note that ingestion eligibility is the only guard against synthetic or unapproved documents.
-- [ ] Documentation of the as-built details from the task reviews (the design's "As-built notes" already record them; T3 F2, T3 F3, T5 F2, T5 F3):
+- [x] `docs/project/ARCHITECTURE.md`: add an "Evaluation" section (loader, runners, gates, isolation), including the note that ingestion eligibility is the only guard against synthetic or unapproved documents.
+- [x] Documentation of the as-built details from the task reviews (the design's "As-built notes" already record them; T3 F2, T3 F3, T5 F2, T5 F3):
   - `COMMANDS.md` `eval-retrieval`: the `--repo-root` and `--config` options, besides `--top-k`, `--suite`, `--release` and `--output`;
   - `COMMANDS.md` `eval-security`: the `--repo-root`, `--config`, `--suite`, `--fixture-root` (default `<repo-root>/tests/fixtures/security`, which lives only in the CLI) and `--output` options; the throwaway collection is deleted in the CLI's `finally`, so failed runs remove it too; `EvaluationHarnessError` is exit 2; the security result document shape (`kind: security_evaluation`, `schema_version` 1.0, the fields listed in the design's As-built notes);
   - the `ARCHITECTURE.md` Evaluation section: section-level keys are `"<document_id>#<section_id>"`, and the security result's `access.role` is hard-coded `guest` in Phase 1 and must become the resolved role when other roles are added.
-- [ ] `docs/project/DECISIONS.md`: record decisions D042 to D046 from the design (D042 is the next free number, checked 2026-10-24; check again before writing), and fold the design-approval decisions into them:
+- [x] `docs/project/DECISIONS.md`: record decisions D042 to D046 from the design (D042 is the next free number, checked 2026-10-24; check again before writing), and fold the design-approval decisions into them:
   - suite-status refusal, naming the allowed suite status values `draft`, `active`, `deprecated`, `replaced` (T2 review F4);
   - eligibility guard;
   - top_k 50;
   - fixture root parameter and builder enforcement;
   - Malayalam review flags.
-- [ ] `docs/project/TECH_STACK.md`: record `referencing` as a direct `packages/rag` dependency (JSON Schema `$ref` registry for the evaluation schemas, declared by the T8a T2 review F5 box); no other new dependency is expected.
-- [ ] `docs/project/CURRENT_STATE.md`:
+- [x] `docs/project/TECH_STACK.md`: record `referencing` as a direct `packages/rag` dependency (JSON Schema `$ref` registry for the evaluation schemas, declared by the T8a T2 review F5 box); no other new dependency is expected.
+- [x] `docs/project/CURRENT_STATE.md`:
   - Spec 006 status;
   - implemented reality;
   - open findings;
   - the user-owned post-merge reproduction;
   - candidates awaiting fluent-speaker and owner review.
-- [ ] `.gitignore` (outside `evaluation/`, `knowledge/` and `config/`; the files changed in T8b are the two test files named in its header, the docs above and `.gitignore`):
+- [x] `.gitignore` (outside `evaluation/`, `knowledge/` and `config/`; the files changed in T8b are the two test files named in its header, the docs above and `.gitignore`):
   - anchor the `MANIFEST` rule to the repository root as `/MANIFEST`, so it cannot match `knowledge/manifest/` on case-insensitive filesystems (macOS);
   - **this deliberately edits a line approved in T1:** remove the T1 negation `!packages/rag/tests/retrieval/fixtures/legacy_baseline_repo/knowledge/manifest/` and its comment line, which the root anchor makes redundant;
   - check with `git check-ignore`:
@@ -421,10 +421,10 @@ Runs after T8a is approved and committed. Two test fixes from the T8a review (us
     - `git ls-files packages/rag/tests/retrieval/fixtures/legacy_baseline_repo/knowledge/manifest/` still lists the fixture manifest;
     - a root-level `MANIFEST` is still ignored;
     - the check files are removed afterwards.
-- [ ] Run the spec-wide checks: `make verify`, `make test-integration` (Docker), `make eval-security`, the `eval-compare` self-check on the committed baseline, and the T1 snapshot test.
-- [ ] Final protected-path check against `main`: `git diff --name-status main -- knowledge config evaluation` lists exactly three added files (`A evaluation/schemas/evaluation_suite.schema.json`, `A evaluation/schemas/evaluation_case_types.schema.json`, `A evaluation/candidates/006-candidates.jsonl`) and nothing else; the candidates file differs from its T7 version only in the content edits T8a made. `git status --porcelain -- evaluation knowledge config` is empty (T8a's edit is committed).
-- [ ] Keep next-spec work out (see Completion gate).
-- [ ] Hand off to spec-orchestrator for completion
+- [x] Run the spec-wide checks: `make verify`, `make test-integration` (Docker), `make eval-security`, the `eval-compare` self-check on the committed baseline, and the T1 snapshot test.
+- [x] Final protected-path check against `main`: `git diff --name-status main -- knowledge config evaluation` lists exactly three added files (`A evaluation/schemas/evaluation_suite.schema.json`, `A evaluation/schemas/evaluation_case_types.schema.json`, `A evaluation/candidates/006-candidates.jsonl`) and nothing else; the candidates file differs from its T7 version only in the content edits T8a made. `git status --porcelain -- evaluation knowledge config` is empty (T8a's edit is committed).
+- [x] Keep next-spec work out (see Completion gate).
+- [x] Hand off to spec-orchestrator for completion
 
 ### Verification
 
