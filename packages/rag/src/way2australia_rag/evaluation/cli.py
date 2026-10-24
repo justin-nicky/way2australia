@@ -112,6 +112,20 @@ def _authority_map(repo_root: Path) -> dict[str, str]:
         ) from error
 
 
+def _unanswerable_line(report: dict[str, Any]) -> str:
+    def fmt(dist: dict[str, Any]) -> str:
+        return "/".join(
+            "n/a" if dist[key] is None else f"{dist[key]:.4f}"
+            for key in ("min", "p50", "p95", "max")
+        )
+
+    return (
+        f"unanswerable ({report['status']}, informational, no pass/fail): "
+        f"n={report['n']}, top-1 score min/p50/p95/max "
+        f"{fmt(report['top1_score'])} vs golden {fmt(report['golden_top1_score'])}"
+    )
+
+
 def format_summary(document: dict[str, Any], output: Path, repo_root: Path) -> str:
     k = document["top_k"]
     overall = document["metrics"]["overall"]
@@ -151,6 +165,7 @@ def format_summary(document: dict[str, Any], output: Path, repo_root: Path) -> s
         f"{document['section_level']['measurable_cases']}",
         f"latency p50 {latency['p50']:.1f} ms, p95 {latency['p95']:.1f} ms "
         f"(warm-up {latency['warmup_ms']:.1f} ms excluded)",
+        _unanswerable_line(document["unanswerable"]),
         f"result: {shown}",
         *[f"note: {note}" for note in document["notes"]],
     ]

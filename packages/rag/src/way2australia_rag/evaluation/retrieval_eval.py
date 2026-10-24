@@ -47,6 +47,8 @@ from way2australia_rag.retrieval.retriever import DenseRetriever
 
 RETRIEVAL_STRATEGY = "dense"
 OVERLAP_CASES = ("g004", "u001")
+UNANSWERABLE_STATUS = "not_evaluable_before_generation"
+UNANSWERABLE_OWNER = "roadmap-10"
 
 
 def active_golden_cases(suite: LoadedSuite) -> list[GoldenCase]:
@@ -88,6 +90,51 @@ def require_real_index(index: DenseIndex) -> None:
             '(use `make retrieval-baseline BASELINE_ARGS="--embedder fake '
             '--allow-fake"` for plumbing checks).'
         )
+
+
+def score_distribution(scores: Sequence[float | None]) -> dict[str, float | None]:
+    """min, p50, p95, max of the top-1 scores (nearest rank); None when empty.
+
+    Informational only: it has no threshold and is never answerability (R10)."""
+    values = [s for s in scores if s is not None]
+    if not values:
+        return {"min": None, "p50": None, "p95": None, "max": None}
+    return {
+        "min": round(min(values), 4),
+        "p50": round(percentile(values, 50), 4),
+        "p95": round(percentile(values, 95), 4),
+        "max": round(max(values), 4),
+    }
+
+
+def unanswerable_report(
+    suite: LoadedSuite,
+    retriever: DenseRetriever,
+    access: ResolvedAccess,
+    top_k: int,
+    golden_top1: Sequence[float | None],
+) -> dict[str, Any]:
+    """Top-1 score per active unanswerable case. Latency is not recorded, so
+    p50/p95 of the golden run stay comparable with 1.0. No pass or fail."""
+    rows: list[dict[str, Any]] = []
+    for case in suite.active(DatasetType.UNANSWERABLE_REFUSAL):
+        result = retriever.retrieve(case.query, access, top_k)
+        score = round(result.hits[0].score, 4) if result.hits else None
+        rows.append(
+            {
+                "case_id": case.case_id,
+                "case_version": case.case_version,
+                "top1_score": score,
+            }
+        )
+    return {
+        "status": UNANSWERABLE_STATUS,
+        "owner": UNANSWERABLE_OWNER,
+        "n": len(rows),
+        "top1_score": score_distribution([r["top1_score"] for r in rows]),
+        "golden_top1_score": score_distribution(golden_top1),
+        "cases": rows,
+    }
 
 
 def _notes(suite: LoadedSuite, *, top_k: int, document_count: int, n: int) -> list[str]:
@@ -182,6 +229,9 @@ def run_retrieval_evaluation(
         )
 
     latencies = [r["latency_ms"] for r in rows]
+    unanswerable = unanswerable_report(
+        suite, retriever, access, top_k, [r["top1_score"] for r in rows]
+    )
     settings = index.settings
     commit, dirty = git_state(repo_root)
     manifest = suite.manifest
@@ -228,6 +278,7 @@ def run_retrieval_evaluation(
         ),
         "small_sample_threshold": SMALL_SAMPLE_THRESHOLD,
         "section_level": section_report(section_rows, top_k),
+        "unanswerable": unanswerable,
         "latency_ms": {
             "p50": round(percentile(latencies, 50), 3),
             "p95": round(percentile(latencies, 95), 3),

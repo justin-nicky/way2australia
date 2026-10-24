@@ -187,3 +187,46 @@ Append-only, newest at the bottom.
 
 ### User decision
 - 2026-10-24 — approved. Verbatim: "Approved T3. Implementer decisions accepted. Add to the T8 running list: F1: CLI test for `eval-retrieval` with a non-default `W2A_TENANT_ID`, asserting the search filter carries that tenant (access resolved from server settings, not passed in). F2: record `--config` / `--repo-root` in design As-built notes and COMMANDS.md. F3: record the section-key form `"<document_id>#<section_id>"` in design.md and T8 docs. Also: show me T3's reading order and token usage table — both should be in the summary. If the reviewer didn't produce the reading order, note it so T4's review includes it."
+
+## T4 — round 1
+
+### Implementation
+- Model: claude-sonnet-5-5 (intended tier BEST_MINUS_ONE; run as a subagent, no user to ask).
+- Files changed:
+  - `packages/rag/src/way2australia_rag/evaluation/retrieval_eval.py`: `score_distribution`, `unanswerable_report`, constants `UNANSWERABLE_STATUS`/`UNANSWERABLE_OWNER`; the 2.0 document gains the `unanswerable` block;
+  - `packages/rag/src/way2australia_rag/evaluation/cli.py`: `_unanswerable_line` in `format_summary` (one informational line);
+  - tests: `packages/rag/tests/evaluation/test_retrieval_eval.py` (7 new tests), `test_cli.py` (block and summary-line assertions in the success test);
+  - `tasks.md`: T4 State and checkboxes; this file.
+- Verification run:
+  - `make verify` -> exit 0 (ruff check and format, pyright, skills-check, validate-knowledge OK, validate-evaluation OK, pytest 547 passed, 1 skipped). No Docker started, Qdrant not started, stopped or touched; no `w2a-realcheck-*` collection touched; no `bge-m3` extra.
+  - `git status --porcelain -- evaluation knowledge config experiments` -> empty; `git diff --stat` on `retrieval/` -> empty.
+- Notes and decisions:
+  - Unanswerable cases run after the golden cases with the same server-resolved access (a spy test checks the filter, including a hostile `access_context`). Only the top-1 score is kept; the `latency_ms` of those retrievals is neither recorded nor in p50/p95 (test inflates their latency).
+  - Distributions use the existing nearest-rank `percentile`, rounded to 4 decimals. With no scores (zero active unanswerable cases, or a case with no hits) the value is `null`; a no-hit case has `top1_score: null` and is skipped in the distribution.
+  - The block is always present, also with `n: 0`. It has no `hit`, threshold or pass/fail key (asserted).
+  - Warm-up still uses the first golden query; no extra search for unanswerable cases.
+  - No query text is written (test scans the written file).
+- Usage: 110K tokens · 15 tool uses · 2:10
+
+### Review
+- Model: claude-opus-5-5 (intended tier BEST, Claude Code `Opus`: matches; run as a subagent; implementer used a different model).
+- Verdict: PASS
+- Commands: `make lint` → exit 0; `make typecheck` → exit 0 (0 errors); `make test-unit` → exit 0 (528 passed, 1 skipped, 19 deselected); `make verify` → exit 0 (547 passed, 1 skipped; the 19 Docker integration tests ran against the reachable local Qdrant on their own temporary collections; no `w2a-realcheck-*` collection or `experiments/results/` touched); `git status --porcelain -- evaluation knowledge config experiments` → empty; `git diff --stat HEAD -- packages/rag/src/way2australia_rag/retrieval/` → empty.
+- Checks: all four T4 boxes backed by code and tests. R10: block marked `not_evaluable_before_generation`, owner `roadmap-10`, `n`, min/p50/p95/max for unanswerable and golden top-1 scores, per-case `case_id`/`case_version`/`top1_score`; no threshold, pass/fail or hit key (asserted). Unanswerable latencies not recorded and not in p50/p95 (test inflates them). Deprecated cases excluded. Same server-resolved `ResolvedAccess` for unanswerable queries; a hostile `access_context` cannot widen the filter (spy test). R7: block added to the 2.0 document; no query text written (file scan). Scope: no T5–T8 work, no new dependency, no Phase 2 drift.
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R10] `run_retrieval_evaluation` docstring still says "Run the active golden cases"; it now also runs the active unanswerable cases → update the docstring (can ride with T8).
+- Summary for user (PASS only):
+  - Changed: `retrieval_eval.py` gains `score_distribution` and `unanswerable_report`; the runner calls it after the golden loop and adds an `unanswerable` block to the 2.0 result. `cli.py` prints one informational line (`_unanswerable_line`). 7 new runner tests, CLI success test extended.
+  - Verified by: `make lint`, `make typecheck`, `make test-unit` (528 passed), `make verify` (547 passed, 1 skipped); protected paths and `retrieval/` unchanged.
+  - Worth your attention: a case with no hits gets `top1_score: null` and is skipped in the distribution; with zero active cases all four values are `null` and the block is still present. The block is never a gate; real numbers appear only on the user-owned real run.
+  - Reading order (follow the flow: entry point → core logic → models/errors/config → tests):
+    1. `packages/rag/src/way2australia_rag/evaluation/retrieval_eval.py` → `run_retrieval_evaluation`: where `unanswerable_report` is called after the golden loop (after `latencies` is taken) and where the `unanswerable` key enters the document.
+    2. `packages/rag/src/way2australia_rag/evaluation/retrieval_eval.py` → `unanswerable_report`: runs active unanswerable cases with the same access, keeps only top-1 score; constants `UNANSWERABLE_STATUS`/`UNANSWERABLE_OWNER`.
+    3. `packages/rag/src/way2australia_rag/evaluation/retrieval_eval.py` → `score_distribution`: nearest-rank min/p50/p95/max, `None` handling.
+    4. `packages/rag/src/way2australia_rag/evaluation/cli.py` → `_unanswerable_line` (used by `format_summary`): the one printed informational line.
+    5. `packages/rag/tests/evaluation/test_retrieval_eval.py`: the 7 new tests from `test_unanswerable_block_is_marked_not_evaluable` to `test_no_unanswerable_query_text_in_the_document`.
+    6. Supporting edits: `packages/rag/tests/evaluation/test_cli.py` (block and summary-line asserts), `tasks.md` State/checkboxes.
+- Usage: 85K tokens · 12 tool uses · 5:27
+
+### User decision
+- 2026-10-24 — approved. Verbatim: "Approved T4. Add F1 (docstring) to the T8 list. For T5: include the access_context check in the security runner's tests, as flagged earlier."

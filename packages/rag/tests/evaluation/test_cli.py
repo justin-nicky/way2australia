@@ -79,7 +79,10 @@ def test_success_writes_result_prints_collection_and_summary(
     assert doc["kind"] == "retrieval_evaluation" and doc["case_count"] == 63
     assert doc["collection"] == "way2australia-idx-v1"
     assert doc["evaluation_suite"]["cases_by_type"]["unanswerable_refusal"] == 12
+    block = doc["unanswerable"]
+    assert block["status"] == "not_evaluable_before_generation" and block["n"] == 12
     shown = capsys.readouterr().out
+    assert "unanswerable (not_evaluable_before_generation, informational" in shown
     assert "collection: way2australia-idx-v1" in shown
     assert "HitRate@5" in shown and "e.json" in shown
 

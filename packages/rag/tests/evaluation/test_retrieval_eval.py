@@ -314,3 +314,130 @@ def test_case_access_context_never_widens_access() -> None:
     expected = build_access_filter(guest())
     assert len(seen) == len(hostile) + 1  # + the warm-up query
     assert all(f == expected for f in seen)
+
+
+SECRET_UNANSWERABLE = "UNANSWERABLE-SECRET-QUERY"
+
+
+def unanswerable(i: int, status: str = "active") -> UnanswerableCase:
+    return UnanswerableCase(
+        case_id=f"u{i:03d}",
+        case_version=3,
+        status=status,
+        query=f"{SECRET_UNANSWERABLE} {i}",
+        answerable=False,
+        expected_behavior="refuse",
+    )
+
+
+def suite_with_unanswerable() -> LoadedSuite:
+    return suite_of(
+        [golden(1, ["doc_1"]), golden(2, ["doc_2"])],
+        unanswerable=[unanswerable(1), unanswerable(2), unanswerable(3, "deprecated")],
+    )
+
+
+def test_unanswerable_block_is_marked_not_evaluable() -> None:
+    index, emb, retriever = build()
+    block = run(index, emb, retriever, suite_with_unanswerable())["unanswerable"]
+    assert block["status"] == "not_evaluable_before_generation"
+    assert block["owner"] == "roadmap-10"
+    assert block["n"] == 2  # the deprecated case is not run
+    assert [c["case_id"] for c in block["cases"]] == ["u001", "u002"]
+    assert all(c["case_version"] == 3 for c in block["cases"])
+    assert all(isinstance(c["top1_score"], float) for c in block["cases"])
+    forbidden = {"hit", "pass", "passed", "refused", "threshold", "recall"}
+    assert not forbidden & set(block) and not forbidden & set(block["cases"][0])
+
+
+def test_unanswerable_block_present_with_zero_cases() -> None:
+    index, emb, retriever = build()
+    block = run(index, emb, retriever, basic_suite())["unanswerable"]
+    assert block["n"] == 0 and block["cases"] == []
+    assert block["top1_score"] == {"min": None, "p50": None, "p95": None, "max": None}
+
+
+def test_score_distribution_on_synthetic_scores() -> None:
+    from way2australia_rag.evaluation.retrieval_eval import score_distribution
+
+    scores = [0.1 * i for i in range(1, 11)]
+    assert score_distribution(scores) == {
+        "min": 0.1,
+        "p50": 0.5,
+        "p95": 1.0,
+        "max": 1.0,
+    }
+    assert score_distribution([None, 0.25]) == {
+        "min": 0.25,
+        "p50": 0.25,
+        "p95": 0.25,
+        "max": 0.25,
+    }
+    empty = {"min": None, "p50": None, "p95": None, "max": None}
+    assert score_distribution([]) == empty
+
+
+def test_distributions_match_the_case_rows() -> None:
+    index, emb, retriever = build()
+    doc = run(index, emb, retriever, suite_with_unanswerable())
+    block = doc["unanswerable"]
+    golden_scores = [c["top1_score"] for c in doc["cases"]]
+    assert block["golden_top1_score"]["min"] == min(golden_scores)
+    assert block["golden_top1_score"]["max"] == max(golden_scores)
+    scores = [c["top1_score"] for c in block["cases"]]
+    assert block["top1_score"]["min"] == min(scores)
+    assert block["top1_score"]["max"] == max(scores)
+
+
+def test_unanswerable_latency_is_excluded_from_p50_p95() -> None:
+    index, emb, retriever = build()
+
+    class Slow:
+        def retrieve(self, query, access, top_k):  # noqa: ANN001, ANN202
+            result = retriever.retrieve(query, access, top_k)
+            if SECRET_UNANSWERABLE in query:
+                return result.model_copy(update={"latency_ms": 99999.0})
+            return result
+
+    doc = run(index, emb, Slow(), suite_with_unanswerable())
+    assert doc["latency_ms"]["p95"] < 99999.0
+    assert doc["latency_ms"]["measured_cases"] == 2
+    assert all(c["latency_ms"] < 99999.0 for c in doc["cases"])
+    assert "latency_ms" not in doc["unanswerable"]["cases"][0]
+
+
+def test_unanswerable_runs_with_the_server_access_only() -> None:
+    index, emb, retriever = build()
+    seen: list[Any] = []
+    original = index.search
+
+    def spy(vector, query_filter, limit):  # noqa: ANN001, ANN202
+        seen.append(query_filter)
+        return original(vector, query_filter, limit)
+
+    index.search = spy  # type: ignore[method-assign]
+    suite = suite_of(
+        [golden(1, ["doc_1"])],
+        unanswerable=[
+            UnanswerableCase(
+                case_id="u001",
+                case_version=1,
+                status="active",
+                query="x",
+                answerable=False,
+                expected_behavior="refuse",
+                access_context={"role": "admin", "tenant_id": "other"},
+            )
+        ],
+    )
+    run(index, emb, retriever, suite)
+    expected = build_access_filter(guest())
+    assert len(seen) == 3 and all(f == expected for f in seen)
+
+
+def test_no_unanswerable_query_text_in_the_document(tmp_path: Path) -> None:
+    index, emb, retriever = build()
+    doc = run(index, emb, retriever, suite_with_unanswerable())
+    out = tmp_path / "r.json"
+    write_document(out, doc)
+    assert SECRET_UNANSWERABLE not in out.read_text()

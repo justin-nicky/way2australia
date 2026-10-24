@@ -181,18 +181,18 @@ Implement the tasks in order; each depends on the ones before it.
 
 ## T4 — Unanswerable/refusal reporting
 
-**State:** not started
+**State:** approved (2026-10-24)
 **Requirements:** R10, R7
 
-- [ ] In `run_retrieval_evaluation`, after the golden cases, run each active `unanswerable_refusal` case and record only its top-1 score. Its latency is excluded from p50/p95.
-- [ ] Add the `unanswerable` block:
+- [x] In `run_retrieval_evaluation`, after the golden cases, run each active `unanswerable_refusal` case and record only its top-1 score. Its latency is excluded from p50/p95.
+- [x] Add the `unanswerable` block:
   - `status: not_evaluable_before_generation`, `owner: roadmap-10`, `n`;
   - `top1_score` (min, p50, p95, max), and `golden_top1_score` computed the same way;
   - per-case `case_id`, `case_version` and `top1_score`.
 
   No threshold, no pass/fail, and never used as answerability.
-- [ ] Print one informational summary line for it.
-- [ ] Extend `test_retrieval_eval.py`:
+- [x] Print one informational summary line for it.
+- [x] Extend `test_retrieval_eval.py`:
   - the not-evaluable marker;
   - the distributions on synthetic scores;
   - unanswerable latencies excluded from p50/p95;
