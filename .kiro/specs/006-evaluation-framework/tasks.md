@@ -129,22 +129,22 @@ Implement the tasks in order; each depends on the ones before it.
 
 ## T3 — Retrieval evaluation runner, slices, result 2.0 and `make eval-retrieval`
 
-**State:** not started
+**State:** approved (2026-10-24)
 **Requirements:** R4, R5, R6, R7, R13
 
-- [ ] Add `evaluation/slices.py`:
+- [x] Add `evaluation/slices.py`:
   - `query_language`, `category` and `source_authority` slices. The `source_authority` key is the sorted, `+`-joined values from the repository map.
   - `n` and `small_sample` (threshold 10) on every slice.
   - `absent_query_languages`: `en` plus the `product_support` codes whose `status` is `active` in `config/language_registry.json` (read only), minus the languages that have cases.
-- [ ] Add `evaluation/sections.py`: section metrics over `"<document_id>#<section_id>"` keys, reusing the `retrieval/metrics.py` functions unchanged. Report `measurable_cases` and omit the metrics, with a note, when it is 0.
-- [ ] Add `evaluation/retrieval_eval.py`: `run_retrieval_evaluation(...)` building the 2.0 document from the design ("Result document 2.0").
+- [x] Add `evaluation/sections.py`: section metrics over `"<document_id>#<section_id>"` keys, reusing the `retrieval/metrics.py` functions unchanged. Report `measurable_cases` and omit the metrics, with a note, when it is 0.
+- [x] Add `evaluation/retrieval_eval.py`: `run_retrieval_evaluation(...)` building the 2.0 document from the design ("Result document 2.0").
   - It includes every 1.0 key, `evaluation_suite` counts, `by_source_authority`, `absent_query_languages`, `section_level`, per-case `source_authority` and `top1_score`, and the R5 notes (the g004/u001 note only while both are active).
   - It writes no query text, chunk text or absolute paths.
-- [ ] Add `evaluation/results.py`:
+- [x] Add `evaluation/results.py`:
   - constants `RESULT_KIND = "retrieval_evaluation"` and `SCHEMA_VERSION = "2.0"`;
   - `default_output_path` giving `experiments/results/retrieval-evaluation-<index_version>-<UTC>.json`;
   - writing through the unchanged `retrieval.baseline.write_result` and `check_output_free`.
-- [ ] Add the `retrieval` subcommand to `evaluation/cli.py`, following the startup order in design data flow "make eval-retrieval":
+- [x] Add the `retrieval` subcommand to `evaluation/cli.py`, following the startup order in design data flow "make eval-retrieval":
   1. top-k check, config, runtime settings;
   2. suite, refusing a non-`active` suite status (exit 2);
   3. declared release, repository map, language registry;
@@ -154,21 +154,21 @@ Implement the tasks in order; each depends on the ones before it.
   7. `resolve_access(guest_access(settings))`.
 
   It has no `--embedder` or `--allow-fake` flag; its options are `--top-k`, `--suite`, `--release` and `--output`. The collection comes from `QDRANT_COLLECTION_BASE` and the default collection is not refused. It prints the collection used. Errors use `ERROR <ClassName>: <safe_text>`, and nothing is written on error.
-- [ ] `Makefile`:
+- [x] `Makefile`:
   - add the target `eval-retrieval` (`EVAL_ARGS` pass-through);
   - add `eval-retrieval` to `.PHONY`.
-- [ ] Add `packages/rag/tests/evaluation/test_slices.py` and `test_sections.py`, as in the design's test table.
-- [ ] Add `packages/rag/tests/evaluation/test_retrieval_eval.py`, with an injected retriever, index and embedder. It covers:
+- [x] Add `packages/rag/tests/evaluation/test_slices.py` and `test_sections.py`, as in the design's test table.
+- [x] Add `packages/rag/tests/evaluation/test_retrieval_eval.py`, with an injected retriever, index and embedder. It covers:
   - the fake-embedder and fake-index refusals;
   - the non-active suite refusal;
   - the field set as a superset of the 1.0 keys;
   - no query or chunk text in the document;
   - never overwritten, and partial-file cleanup;
   - the default collection accepted and recorded.
-- [ ] Add a behavior test to `test_retrieval_eval.py` (T1 review F4). Golden cases whose own `access_context` claims another role (for example `admin`) or another tenant run with exactly the same access as cases without one:
+- [x] Add a behavior test to `test_retrieval_eval.py` (T1 review F4). Golden cases whose own `access_context` claims another role (for example `admin`) or another tenant run with exactly the same access as cases without one:
   - the runner resolves guest access once, from server settings (`resolve_access(guest_access(settings))`);
   - a spy index records the filter passed to `search` for every case, and every recorded filter equals `build_access_filter` of the server-resolved access.
-- [ ] Add CLI tests in `packages/rag/tests/evaluation/test_cli.py`: exit codes, `safe_text` output, and nothing written on error. Writes go to `tmp_path` only.
+- [x] Add CLI tests in `packages/rag/tests/evaluation/test_cli.py`: exit codes, `safe_text` output, and nothing written on error. Writes go to `tmp_path` only.
 
 ### Verification
 

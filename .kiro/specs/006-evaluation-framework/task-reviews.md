@@ -129,3 +129,61 @@ Append-only, newest at the bottom.
 
 ### User decision
 - 2026-10-23 — approved. Verbatim: "Approved T2. Implementer decisions accepted (incl. suite statuses draft/active/deprecated/replaced). Deferred to T8 — keep a running list and add all deferred items as T8 boxes in one spec-planner amendment before T8 starts: F1: fix `test_case_change_candidate_rules` so the missing-`options` row fails only for that reason (no unknown target). F2: tests for empty `relevant_document_ids` and empty-string `evaluation_suite_id`. F3: tests for an ineligible document in a candidate row and an escaping dataset path in `test_validate`. F4: record the allowed suite status values in design.md and T8's suite-status decision. F5: declare `referencing` directly in packages/rag/pyproject.toml (it is imported directly; already locked). Continue to T3."
+
+## T3 — round 1
+
+### Implementation
+- Model: claude-sonnet-5-5 (intended tier BEST_MINUS_ONE; run as a subagent, no user to ask).
+- Files changed:
+  - new `packages/rag/src/way2australia_rag/evaluation/{slices,sections,results,retrieval_eval}.py`;
+  - `evaluation/cli.py`: `retrieval` subcommand (startup order as in the design; `validate` unchanged);
+  - `Makefile`: `eval-retrieval` target (`EVAL_ARGS`) and `.PHONY`;
+  - new tests `packages/rag/tests/evaluation/{test_slices,test_sections,test_retrieval_eval,test_cli}.py`;
+  - `tasks.md`: T3 State and checkboxes.
+- Verification:
+  - `make verify` -> exit 0 (ruff check and format, pyright 0 errors, skills-check, validate-knowledge OK, validate-evaluation OK, pytest 540 passed, 1 skipped); no Docker, no bge-m3 extra, Qdrant not started, stopped or touched; no `w2a-realcheck-*` collection touched.
+  - `make eval-retrieval` without the extra -> exit 2, `ERROR OptionalDependencyError: BGE-M3 needs the optional 'bge-m3' dependency group; run make setup-bge-m3.` (before any Qdrant contact).
+  - The T1 legacy snapshot test passes unchanged inside `make verify`; `git diff --stat` on `retrieval/` is empty.
+  - `git status --porcelain`: nothing under `evaluation/`, `knowledge/`, `config/` or `experiments/`.
+- Usage: 167K tokens · 29 tool uses · 8:20
+- Notes and decisions:
+  - Added `--config` (and `--repo-root`) to `eval-retrieval`, as in the other CLIs; it cannot select a fake embedder (a fake provider is refused). Options otherwise: `--top-k`, `--suite`, `--release`, `--output`.
+  - `main` takes injectable `client_factory` and `embedder_factory` (defaults `default_client_factory`, `build_embedder`) so tests need no model; a stub embedder with `is_fake=False` stands in for BGE-M3.
+  - Active goldens with no `relevant_document_ids` or `answerable: false` are refused (exit 2, naming `case_id`, advising `make validate-evaluation`) rather than silently dropped (R3).
+  - `relevant_section_ids` entries are `"<document_id>#<section_id>"` keys (design says section keys; no case uses them yet). Reviewer to confirm.
+  - A relevant document missing from the eligible map gives source_authority key `unknown`.
+  - The 2.0 document has no `unanswerable` block (T4). `excluded_case_count` = golden cases not run.
+  - Fake-index refusal in the CLI is reached as a binding mismatch (D036) first; the explicit `require_real_index` is tested at runner level.
+  - `access_context` behavior test: a spy index records every search filter (warm-up included) for goldens with hostile contexts; all equal `build_access_filter(guest())`.
+
+### Review
+- Model: claude-opus-5-5 (intended tier BEST = Opus; matches; run as a subagent, fresh session, different model from the implementer).
+- Verdict: PASS
+- Commands:
+  - `make verify` → pass: ruff check clean, `ruff format --check` 116 files formatted, pyright 0 errors, skills-check, validate-knowledge OK, validate-evaluation OK, pytest 540 passed, 1 skipped (the local `way2australia-qdrant` container was already running, so the 19 integration tests ran inside `make verify` on their own `w2a-it-*` throwaway collections; no `w2a-realcheck-*` collection touched, no manual Qdrant call).
+  - `make test-unit` → 521 passed, 1 skipped, 19 deselected. `make test-integration` → 19 passed.
+  - `make eval-retrieval` (no `bge-m3` extra) → exit 2, `ERROR OptionalDependencyError: BGE-M3 needs the optional 'bge-m3' dependency group; run make setup-bge-m3.`; nothing written (embedder is built at step 5, before the client factory; `test_missing_extra_exits_2_before_qdrant` asserts `factory.calls == 0`).
+  - `pytest packages/rag/tests/retrieval/test_legacy_baseline_snapshot.py test_retrieval_eval.py::test_case_access_context_never_widens_access` → 5 passed.
+  - `git diff --stat HEAD -- packages/rag/src/way2australia_rag/retrieval/` → empty. `git status --porcelain -- evaluation knowledge config experiments` → empty.
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R4] The `access_context` behaviour test is meaningful at runner level (golden rows with `admin`/other-tenant and `staff`-scope contexts plus `None`; the spy sees 4 searches, warm-up included, each equal to `build_access_filter(guest())`; a runner that derived access from `case.access_context` would fail it). But the access is supplied by the test, so CLI step 7 (`resolve_access(guest_access(settings))`) is not covered: a CLI that ignored `W2A_TENANT_ID` or hard-coded a tenant would still pass. → Add a CLI test with a spy `search` and a non-default `W2A_TENANT_ID`, asserting every filter equals `build_access_filter(resolve_access(guest_access(settings)))` for that tenant.
+  - F2 [MINOR, IMPLEMENTATION, R4] `--config` (and `--repo-root`) are options beyond the task's list (`--top-k`, `--suite`, `--release`, `--output`). Judged safe: a fake provider in a custom config is refused at step 5, and `--repo-root` is required by the `make` target. → Record both in the design's As-built notes and `COMMANDS.md` at T8.
+  - F3 [MINOR, SPEC_DEFECT, R6] The `relevant_section_ids` entry form `"<document_id>#<section_id>"` is stated only in the T3 checklist; `evaluation_case.schema.json` allows any string and the design speaks of pairs. No case uses the field today. → Record the key form in `design.md` and the T8 docs (no schema change; `evaluation/` is protected).
+- Judgements on implementer decisions: `--config` accepted (F2). Injectable `client_factory`/`embedder_factory` with defaults `default_client_factory`/`build_embedder` are test seams only; the CLI has no `--embedder`/`--allow-fake` (tested). Refusing an active golden that is unanswerable or has no relevant documents (exit 2, naming `case_id`) matches R3 "never silently excluded". `"<document_id>#<section_id>"` keys confirmed against the T3 checklist (F3 for docs). `unknown` authority key is safe: `validate-evaluation` already refuses unknown or ineligible relevant documents. No `unanswerable` block is correct for T3 (R10 is T4). `excluded_case_count` = golden rows not run keeps the 1.0 meaning. Fake-index refusal reached as a D036 binding mismatch in the CLI is what design step 9 anticipates; `require_real_index` is tested at runner level with a real-reporting embedder.
+- Summary for user:
+  - Changed: new `evaluation/{slices,sections,results,retrieval_eval}.py` (slices with `n`/`small_sample`, absent languages from the registry, section metrics over `doc#section` keys, 2.0 result document, writing via the unchanged `retrieval.baseline.write_result`); `retrieval` subcommand in `evaluation/cli.py`; `make eval-retrieval`.
+  - Verified by: `make verify` (540 passed, 1 skipped, integration included), `make eval-retrieval` exit 2 without the extra, legacy snapshot and `access_context` tests, `retrieval/` diff empty, protected paths clean.
+  - Worth your attention: the `access_context` test proves the runner ignores case contexts, but not that the CLI resolves access from server settings (F1); extra `--config` option (F2); section-key form is undocumented outside `tasks.md` (F3).
+  - Reading order:
+    1. `Makefile` → `eval-retrieval` target.
+    2. `packages/rag/src/way2australia_rag/evaluation/cli.py` → `_retrieval`: startup order 1–7, refusals, `format_summary`.
+    3. `packages/rag/src/way2australia_rag/evaluation/retrieval_eval.py` → `run_retrieval_evaluation`, `require_*`, `_notes`: one access for all cases, rows and the 2.0 document.
+    4. `packages/rag/src/way2australia_rag/evaluation/slices.py` → `slice_by`, `source_authority_key`, `active_registry_languages`.
+    5. `packages/rag/src/way2australia_rag/evaluation/sections.py` → `section_report`: zero-measurable note.
+    6. `packages/rag/src/way2australia_rag/evaluation/results.py` → constants, `default_output_path`, `write_document`.
+    7. `packages/rag/tests/evaluation/test_retrieval_eval.py` (incl. `test_case_access_context_never_widens_access`), `test_cli.py`.
+    8. `packages/rag/tests/evaluation/test_slices.py`, `test_sections.py`; supporting edit: `tasks.md` T3 checkboxes and State.
+- Usage: 132K tokens · 24 tool uses · 6:59
+
+### User decision
+- 2026-10-24 — approved. Verbatim: "Approved T3. Implementer decisions accepted. Add to the T8 running list: F1: CLI test for `eval-retrieval` with a non-default `W2A_TENANT_ID`, asserting the search filter carries that tenant (access resolved from server settings, not passed in). F2: record `--config` / `--repo-root` in design As-built notes and COMMANDS.md. F3: record the section-key form `"<document_id>#<section_id>"` in design.md and T8 docs. Also: show me T3's reading order and token usage table — both should be in the summary. If the reviewer didn't produce the reading order, note it so T4's review includes it."
