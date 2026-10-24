@@ -1,10 +1,10 @@
 # 006 — Evaluation Framework Design
 
-Status: approved (2026-10-23)
+Status: approved (2026-10-24)
 
 ## Design summary
 
-A new package `packages/rag/src/way2australia_rag/evaluation/` holds the governed suite loader, the evaluation runners, the result format and the comparison tool. It sits on top of `retrieval/` and does not change it:
+A new package `packages/rag/src/way2australia_rag/evaluation/` holds the governed suite loader, the evaluation runners, the result format and the comparison tool. It sits on top of `retrieval/` and does not change it, with one minimal exception added by the 2026-10-24 amendment (T8a, T5 review F1): `RetrievalAuthorizationError` (`retrieval/errors.py`) gains a `document_id` attribute, set at both raise sites in `retrieval/access.py`. Its message text is unchanged, and no other `retrieval/` behavior changes:
 
 - `DenseIndex`, `DenseRetriever`, `resolve_access`/`guest_access`, `build_access_filter`, `check_hit`, `safe_text` and `retrieval/metrics.py` are imported unchanged. There is one access policy path (D035, D040).
 - `retrieval/metrics.py` stays where it is, byte-for-byte. Section-level metrics are a thin layer in `evaluation/` that calls the same functions with section keys.
@@ -34,6 +34,9 @@ packages/rag/src/way2australia_rag/evaluation/
 └── cli.py                 # `python -m way2australia_rag.evaluation.cli {validate,retrieval,security,compare}`
 
 packages/rag/src/way2australia_rag/retrieval/goldens.py   # becomes a compatibility wrapper (R1, R12)
+packages/rag/src/way2australia_rag/retrieval/errors.py    # T8a: RetrievalAuthorizationError.document_id (message unchanged)
+packages/rag/src/way2australia_rag/retrieval/access.py    # T8a: both check_hit raise sites pass document_id
+packages/rag/pyproject.toml                               # T8a: `referencing` declared directly (imported by schemas.py; already locked)
 
 evaluation/schemas/evaluation_suite.schema.json           # NEW (R2)
 evaluation/schemas/evaluation_case_types.schema.json      # NEW (R2)
@@ -117,6 +120,7 @@ The collection comes from `QDRANT_COLLECTION_BASE` and `index_version`, exactly 
 3. `build_security_index(client, base, queries, embedder, chunker)`:
    - Create the collection and its settings record with `QdrantIndexStore.ensure_collection`, using fake-identity `IndexSettings` (`index_version = "sec-v1"`).
    - Seed points: the eligible seed corpus (`list_eligible_documents`), chunked with the configured `HeadingChunker` and written with `build_payload` and `point_id` through `QdrantIndexStore.replace_document`. This is the production path.
+   - The isolated security repository (`security_corpus.build_security_repository`) copies an explicit list of fixture file names, the constant `SECURITY_FIXTURE_FILES = ("poisoned_public_document.md", "staff_only_canary.md")`, never a glob (2026-10-24 amendment, T5 review F4). It refuses, with `EvaluationConfigurationError` (exit 2) before copying anything, a fixture root that holds any other visible entry (for example a stray `README.md`) or lacks a listed file. Hidden (dot-prefixed) entries such as `.DS_Store` (macOS Finder noise) are ignored, never copied and never refused. The message names the file name only, never an absolute path.
    - Canary points: `fixture_staff_canary` from the isolated security repository (`security_corpus.py`, the same copy-to-temp approach as `tests/conftest.py`), as real `build_payload` points. One point keeps the canary's own text vector. One more point per query reuses the canary payload, with `chunk_position` set to the query's index and the vector `embedder.embed_query(query)`.
    - Synthetic forbidden points, one per query and per variant, written with a raw `client.upsert`, because one variant breaks the `PointPayload` model on purpose. Each starts from a valid public payload with document ID `forbidden_<variant>`. The four variants:
      - `staff_scope`: `access_scope: staff`;
@@ -128,7 +132,7 @@ The collection comes from `QDRANT_COLLECTION_BASE` and `index_version`, exactly 
 4. For each query:
    - Sanity check: an unfiltered `client.query_points` with `limit = 5` must have a forbidden or canary point at rank 1. A forbidden point's vector equals the query vector, so its cosine is 1.0, and no seed point can score higher. Otherwise this is a harness error (exit 2), never a pass.
    - Authorized retrieval: `DenseRetriever(DenseIndex.open(client, base, "sec-v1", embedder.info), embedder).retrieve(query, access, top_k=MAX_TOP_K)`.
-   - A returned `document_id` in the forbidden set (`fixture_staff_canary`, `forbidden_*`) is a violation. A `RetrievalAuthorizationError` from `check_hit` is also a violation (the store returned an unauthorized point).
+   - A returned `document_id` in the forbidden set (`fixture_staff_canary`, `forbidden_*`) is a violation. A `RetrievalAuthorizationError` from `check_hit` is also a violation (the store returned an unauthorized point). The violation's `document_id` is read from the error's `document_id` attribute, never parsed from its message (2026-10-24 amendment, T5 review F1).
 5. Check that the filter is identical for every query: `build_access_filter(access)` is built once and compared with the filter passed to `search`, through a spy index in tests. A second test asserts that the filter is unchanged after running the injection-style queries (`s003`).
 6. Report. Exit 0 if there are no violations. Exit 1 on any violation, naming the `case_id`, `document_id` and variant, never text. Exit 2 on a harness or configuration error. The collection is deleted at the end; the in-memory client is discarded.
 7. JSON is written only to `experiments/results/tmp/security-evaluation-<UTC>.json` (git-ignored) or to `--output`, again with the exclusive writer.
@@ -140,6 +144,8 @@ The collection comes from `QDRANT_COLLECTION_BASE` and `index_version`, exactly 
 1. `read_result(path)` accepts exactly two forms. Anything else is exit 2.
    - `kind: retrieval_baseline` with `schema_version: "1.0"`: Spec 005's format, read as-is.
    - `kind: retrieval_evaluation` with `schema_version: "2.0"`.
+
+   A file whose per-case rows repeat a `case_id` (with the same or a different `case_version`) is refused with exit 2, naming the file name and the `case_id` (2026-10-24 amendment, T6 review F5). One suite never holds two versions of one case, so a repeated `case_id` means a broken or hand-edited file.
 
    It produces a `ComparableRun`:
    - identity: suite ID and version, `top_k`, `document_count`, `embedder_is_fake`;
@@ -239,6 +245,8 @@ Loader models versus validation (as built in T1, review F1). The loader models a
 
 So allowed status values and required suite and case fields are enforced by `validate-evaluation` through `evaluation_suite.schema.json` and `evaluation_case_types.schema.json` (T2), never by the loader models. A status outside `CaseStatus` is simply not `active`, so it never runs.
 
+Allowed suite manifest `status` values (as built in T2, review F4; enforced by the `enum` in `evaluation_suite.schema.json`): `draft`, `active`, `deprecated`, `replaced`. An empty or missing value is rejected. These differ from the case statuses on purpose: a suite has no `review_required`, `potentially_obsolete` or `suggested` state, and a case has no `draft` state. Only `active` is evaluated by `eval-retrieval` and `eval-security`; every other value is refused with exit 2.
+
 `retrieval/goldens.py` after the change keeps its public names:
 - `GoldenCase` is re-exported from `evaluation.models` with the same fields plus defaults.
 - `SuiteRef` and `load_suite` keep the "exactly one `golden_answerable` dataset" rule and the same messages.
@@ -251,7 +259,7 @@ So allowed status values and required suite and case fields are enforced by `val
   - a non-string golden path;
   - `null` in the newly typed optional fields (`status`, `introduced_in_release`, a non-integer `case_count` on the manifest; `evaluation_suite_id`, `relevant_section_ids` on golden rows).
 
-  The real `public-eval-v1` suite and the frozen fixture suite are unaffected. This is documented in the `COMMANDS.md` legacy entry (T8).
+  The real `public-eval-v1` suite and the frozen fixture suite are unaffected. This is documented in the `COMMANDS.md` legacy entry (T8b).
 
 ### Result document 2.0 (`kind: retrieval_evaluation`)
 
@@ -298,6 +306,7 @@ A superset of the D037 1.0 keys. Every 1.0 key keeps its name, type and meaning 
 
 - `small_sample` is added to every slice entry, including the 1.0-named slices.
 - The `source_authority` slice key is the sorted, `+`-joined set of the relevant documents' `source_authority` values from the repository map.
+- Section-level metrics (R6) use the string key `"<document_id>#<section_id>"` for both retrieved hits and a case's `relevant_section_ids` entries, and pass those keys to the unchanged `retrieval/metrics.py` functions (as built in T3, review F3).
 - Scores are rounded to 4 decimals and latencies to 3, as in 1.0.
 - The fixed notes are the R5 list, including the g004/u001 note. The g004 note is emitted only while both cases are active in the loaded suite, so it disappears by itself after a human resolution.
 - No field holds query text, chunk text, absolute paths or secrets.
@@ -324,7 +333,9 @@ All CLI errors print `ERROR <ClassName>: <safe_text(message)>`, or the class nam
 | Unfiltered sanity check: nearest point not forbidden | security | 2 (harness error) | in-memory |
 | Forbidden document returned, or `check_hit` raises | security | **1 (gate failure)** | in-memory |
 | Security collection base without the `w2a-sectest-` prefix | security (builder) | 2 | no writes |
+| Security fixture root holds an unexpected visible entry or lacks a listed fixture file (hidden entries are ignored) | security | 2 | no |
 | Unreadable or unknown result kind/version | compare | 2 | no |
+| Result file repeats a `case_id` (any `case_version`) | compare | 2 | no |
 | Unlike runs (suite, case set, `top_k`, `document_count`) or a fake run | compare | 2 | no |
 | Quality gate failed | compare | **1** | no |
 | Unexpected exception | any | 2 | — |
@@ -367,6 +378,14 @@ New tests live under `packages/rag/tests/evaluation/`. None needs PyTorch, a mod
 | `test_cli.py` | subcommand exit codes; `safe_text` on output; nothing written on error; tests write only to `tmp_path` (R4, R7, R8, R11) |
 | `test_security_integration.py` (`integration`) | same builder on Docker Qdrant with a unique `w2a-sectest-*` base; no forbidden point returned; collection and `-settings` removed in `finally`; skips when Qdrant is unreachable (R9) |
 | `retrieval/test_legacy_baseline_snapshot.py` | written **first**, before `goldens.py` changes: a fixed-clock, fixed-git-state, in-memory fake-index `run_baseline` document equals the committed snapshot byte-for-byte; existing `test_goldens.py`, `test_baseline.py` and `test_cli.py` pass unchanged (R12) |
+
+Live-data rule for tests (2026-10-24 amendment, T8a). A unit test that reads live `knowledge/` or `evaluation/` data never asserts today's literal counts (13 documents; 85, 63, 12 or 10 cases; 5 retrieval-side security cases), because those fail on the first approved content or evaluation change and on every Phase 2 release. It asserts consistency with the live source instead:
+- documents loaded equal the number of manifest entries;
+- suite rows equal the manifest `case_count`;
+- per-type counts equal the row counts derived from the datasets (and, for security, the rows whose `attack_type` is in `RETRIEVAL_SIDE_ATTACK_TYPES`);
+- a second ingest run reports every loaded document unchanged.
+
+A test that genuinely needs exact numbers reads the frozen fixture copy `packages/rag/tests/retrieval/fixtures/legacy_baseline_repo/`. Tests over the committed 1.0 result file, a frozen artifact, may keep its recorded numbers.
 
 Spec-level checks:
 - `make verify`: validate-evaluation, the security gate test and all unit tests, with no extra, no Docker and no model.
@@ -413,3 +432,18 @@ Decisions recorded at design approval (2026-10-23):
   - D044: the quality gate (more than 1 case, MRR more than 1/n, flips are warnings);
   - D045: the security gate construction and the `w2a-sectest-` prefix;
   - D046: legacy `retrieval-baseline` kept frozen.
+
+  D042 is the next free number in `DECISIONS.md` (D041 is the last, checked 2026-10-24). The suite-status refusal folded into these decisions names the allowed suite status values (`draft`, `active`, `deprecated`, `replaced`).
+
+## As-built notes
+
+Recorded by the 2026-10-24 amendment from the T3 and T5 task reviews. Each note describes code as built in T3–T5; the T8a changes above (`document_id` attribute, explicit fixture list, duplicate `case_id` refusal) are design changes, not notes.
+
+- **`eval-retrieval` options (T3 review F2).** Besides `--top-k`, `--suite`, `--release` and `--output`, the `retrieval` subcommand takes `--repo-root` (default: the current directory) and `--config` (default: `<repo-root>/config/ingestion.yaml`). Neither selects an embedder or allows a fake run.
+- **`eval-security` (T5 review F2).**
+  - Options: `--repo-root`, `--config`, `--suite`, `--fixture-root` and `--output`. `--fixture-root` defaults to `<repo-root>/tests/fixtures/security`; that default lives only in `cli.py` (`DEFAULT_FIXTURE_ROOT`), never in library code.
+  - The throwaway collection is deleted by the CLI in its `finally` block (`delete_security_index`), and the in-memory client is closed there, so a failed run also removes it.
+  - `EvaluationHarnessError` (in `evaluation/errors.py`, a subclass of `EvaluationError`) marks a broken harness, for example an unfiltered sanity check that does not find a forbidden point nearest. It is exit 2, never a pass.
+  - The result document has `kind: security_evaluation`, `schema_version: "1.0"`, `created_at`, `git_commit`, `git_dirty`, `passed`, `evaluation_suite_id`, `evaluation_suite_version`, `access` (`role`, `tenant_id`, `allowed_access_scopes`), `index` (`collection`, `index_version`, `embedder_is_fake`, `seed_document_count`, `forbidden_points_per_variant`), `query_count`, `security_cases_run`, `golden_queries_run`, `violations` (`case_id`, `document_id`, `variant`), `deferred` (`case_id`, `attack_type`, `owner`), `excluded_fixtures` and `duration_ms`. It holds IDs, counts and verdicts only, never query or chunk text.
+- **`security_document` hard-codes `access.role: "guest"` (T5 review F3).** This is correct in Phase 1, where guest is the only role. It must change, to the resolved role, when other roles are added. No code change in this spec.
+- **Section keys (T3 review F3)** are `"<document_id>#<section_id>"` (see "Result document 2.0").

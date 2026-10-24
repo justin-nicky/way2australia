@@ -11,7 +11,10 @@ Implement the tasks in order; each depends on the ones before it.
   - `evaluation/candidates/006-candidates.jsonl` (T7).
 
   No existing file under `evaluation/` is edited, and nothing under `knowledge/` or `config/` changes. Every task checks this with `git status --porcelain -- evaluation knowledge config`.
+
+  One exception (2026-10-24 amendment): T8a edits the content of `evaluation/candidates/006-candidates.jsonl`, which T7 added, and only the rows named in its boxes. T8a's check allows exactly that file's own modification; T8b's final check against `main` still lists the three files above as the only changes.
 - Do not edit `retrieval/metrics.py`, `retrieval/baseline.py` or `retrieval/baseline_cli.py`. Legacy `make retrieval-baseline` must stay byte-for-byte compatible (R12).
+- The only other `retrieval/` change in this spec is T8a's minimal `RetrievalAuthorizationError.document_id` attribute (`retrieval/errors.py`, `retrieval/access.py`), with message text unchanged (design summary, 2026-10-24 amendment).
 - Tests never write under `experiments/results/`, and the committed `experiments/results/retrieval-baseline-idx-v1-20261023T063534Z.json` is never modified.
 - Every fake-embedder run against Docker Qdrant uses a throwaway collection base (D028 fake-run trap).
 
@@ -327,10 +330,62 @@ Implement the tasks in order; each depends on the ones before it.
 - `git status --porcelain -- evaluation knowledge config` lists exactly `?? evaluation/candidates/`.
 - `make eval-security` still passes (the candidates are not loaded).
 
-## T8 — Documentation, decisions and handoff
+## T8a — Deferred task-review fixes
 
 **State:** not started
-**Requirements:** R12, R15, Definition of Done
+**Requirements:** R1, R2, R3, R4, R8, R10, R11, R12, R14, R15
+
+Deferred task-review items (user-approved 2026-10-24; see each task's "User decision" in `task-reviews.md`), split from the former T8 at the user's request. T8a runs before T8b. It owns both scope exceptions in the header: the content edit of `evaluation/candidates/006-candidates.jsonl` and the minimal `RetrievalAuthorizationError.document_id` change in `retrieval/`.
+
+- [ ] **T2 review F1.** In `packages/rag/tests/evaluation/test_validate.py`, fix `test_case_change_candidate_rules` so the row without `options` fails only for that reason: restore a known `target_case_ids` (for example `["g001"]`) before deleting `options`, then assert exit 1, that the output names `options`, and that it does not contain `unknown case`.
+- [ ] **T2 review F2.** Add temp-copy tests to `test_validate.py`, each exiting 1 and naming the file and field: an active golden with `relevant_document_ids: []`; a case with `evaluation_suite_id: ""` (empty string).
+- [ ] **T2 review F3.** Add temp-copy tests to `test_validate.py`:
+  - a candidate row whose `proposed_case.relevant_document_ids` names a document that is in the corpus but not eligible: exit 1, reported as "not eligible", not as "unknown document";
+  - a suite dataset path that escapes the repository (for example `../outside.jsonl`): exit 2, and the message names the file but contains no absolute path.
+- [ ] **T2 review F4.** No code change. The allowed suite `status` values (`draft`, `active`, `deprecated`, `replaced`) are recorded in `design.md` ("Interfaces / models", 2026-10-24 amendment) and must be named in the suite-status-refusal decision (the `DECISIONS.md` box in T8b).
+- [ ] **T2 review F5.** Declare `referencing` directly in `[project].dependencies` of `packages/rag/pyproject.toml` (it is imported by `evaluation/schemas.py`; locked today at 0.37.0 through `jsonschema`), with a lower bound no higher than the locked version. Then run `make setup` (the `Makefile`'s `UV` fallback) to refresh `uv.lock`, so it lists `referencing` as a direct dependency of `way2australia-rag` and no other locked version changes (`git diff uv.lock` touches only the `way2australia-rag` entry). The lockfile is consistent afterwards: `make setup` runs clean a second time with no further `uv.lock` change.
+- [ ] **T3 review F1.** Add a CLI test to `packages/rag/tests/evaluation/test_cli.py`: with `W2A_TENANT_ID` set to a non-default value (for example `tenant-eval-x`) through `monkeypatch.setenv`, run the `retrieval` subcommand with a spy index (or a stub index built for that tenant), and assert that every filter passed to `search` equals `build_access_filter(resolve_access(guest_access(settings)))` for that tenant and carries `tenant-eval-x`, never the default tenant. The access is resolved from server settings; no CLI option or case field sets it.
+- [ ] **T4 review F1.** Fix the docstring of `run_retrieval_evaluation` (`evaluation/retrieval_eval.py`): it runs the active golden cases and then the active unanswerable cases (top-1 score only, latency excluded from p50/p95). Docstring only; no behavior change.
+- [ ] **T5 review F1 (the one allowed `retrieval/` change).** Give `RetrievalAuthorizationError` (`packages/rag/src/way2australia_rag/retrieval/errors.py`) a `document_id: str` attribute, passed as a keyword argument at both raise sites in `retrieval/access.py` (`check_hit`), with the message text unchanged.
+  - In `evaluation/security_eval.py`, read `error.document_id` for the violation and remove the `_HIT_DOCUMENT` regex.
+  - Add a test to `test_security_eval.py`: a store that returns an unauthorized point whose `document_id` the old regex could not parse (for example one containing `'`) makes the gate fail, and the violation (JSON and printed `VIOLATION` line) names that `document_id` (through `safe_text`).
+  - `git diff main -- packages/rag/src/way2australia_rag/retrieval/` touches only `errors.py`, `access.py` and the T1 `goldens.py` wrapper; the T1 legacy snapshot test and the existing `retrieval/` tests pass unchanged.
+- [ ] **T5 review F4.** `build_security_repository` (`evaluation/security_corpus.py`) copies only the explicit `SECURITY_FIXTURE_FILES = ("poisoned_public_document.md", "staff_only_canary.md")`, not a glob. Hidden (dot-prefixed) entries such as `.DS_Store` are ignored. It raises `EvaluationConfigurationError` before copying anything when the fixture root holds any other visible entry or lacks a listed file; the message names the file name only. Tests in `test_security_eval.py` on a `tmp_path` copy of `tests/fixtures/security/`: a stray `README.md` is refused and `work_dir` stays empty; a `.DS_Store` file is ignored and the build succeeds with only the two listed fixtures copied; a missing `staff_only_canary.md` is refused; the real folder still builds; `test_no_fixture_path_literal_in_library_code` still passes.
+- [ ] **T6 review F1.** Add an n=3 boundary test to `test_compare.py` (k=5, no hit lost):
+  - pass: BASE ranks (1, 1, 1), CANDIDATE ranks (1, 2, 2). The unrounded MRR drop is computed as `0.33333333333333337`, one float step above `1/3`, so it passes only through the `1e-9` epsilon; the test asserts that float fact too, so it exercises the epsilon;
+  - fail: BASE ranks (1, 2, 4), CANDIDATE ranks (3, 5, 5). The drop is 61/180 ≈ 0.3389, the smallest drop above 1/3 reachable with ranks 1–5 at n=3, so it exercises the strict `>`.
+- [ ] **T6 review F3.** In `test_case_set_missing_and_extra`, the extra-case refusal (BASE 9 cases, CANDIDATE 10) also asserts `case set differs (9 -> 10 cases` and the next-step text (`NEXT_STEP`).
+- [ ] **T6 review F5.** `read_result` (`evaluation/results.py`) refuses a file whose per-case rows repeat a `case_id`, with the same or a different `case_version`. The refusal follows the T6 rules: it starts with `not comparable:`, names the file name and the `case_id`, and suggests producing the file again with `make eval-retrieval`; exit 2 in the CLI. Tests in `test_compare.py`: a 2.0 file with `g001` v1 twice, a 2.0 file with `g001` v1 and `g001` v2, and a 1.0 file with a repeated `case_id`.
+- [ ] **T7 owner review (`evaluation/candidates/006-candidates.jsonl`, test only).** The user asked to "set `owner_review: true` on the `cand006_change_g004_u001` row (business decision)". The `candidate_row` schema has no boolean `owner_review` field: the owner-review flag is the value `"owner_review"` in the row's `requires_review` list (the same field the language-neutral rule reads). The row has carried `"requires_review": ["owner_review"]` since T7, which the user accepted as sufficient (2026-10-24): test-only box, no data change to this row, no schema change, no new `owner_review` field. Extend the T7 test in `test_validate.py` to assert that the `cand006_change_g004_u001` row's `requires_review` contains `"owner_review"`.
+- [ ] **T7 review F1, in `evaluation/candidates/006-candidates.jsonl`.**
+  - `cand006_ml_003`: correct the `rationale` (`g032` already covers the Way2Australia refund rule; this candidate is about the NAATI cancellation and refund rule) and reword the `proposed_case.query` so it names NAATI (or the official CCL test), so it no longer also matches `business_007_payments_account_support`.
+  - `cand006_ml_002`: review it for the same ambiguity (the mock test setup); either name NAATI or the official test in its query in the same way, or record in its `rationale` why it is unambiguous.
+  - Both rows stay `status: suggested`, `drafted_by: agent`, `needs_fluent_speaker_review: true`, `requires_review: ["fluent_malayalam_speaker", "owner_review"]`, `query_language: ml`, with their `relevant_document_ids` unchanged; their rationales still say the query is an agent draft for fluent-speaker correction. `cand006_ml_001` (T7 F2) is not changed. No other row changes.
+- [ ] **T7 review F3.** In `test_real_candidates_file_validates_and_is_not_loaded` (`test_validate.py`), assert that the number of loaded suite cases equals the suite manifest's `case_count` (read from the manifest, not a literal 85) and that no loaded case has `status: suggested`.
+- [ ] **Hard-coded live-data counts** (design "Testing / evaluation strategy", live-data rule; R15). Replace every unit-test assertion of today's live counts with a consistency check against the live source:
+  - documents loaded equal the number of manifest entries;
+  - suite rows equal the manifest `case_count`;
+  - per-type counts are derived from the datasets (security: rows whose `attack_type` is in `RETRIEVAL_SIDE_ATTACK_TYPES`);
+  - a second ingest run reports every loaded document unchanged (and the first run adds every loaded document).
+
+  Known locations: `== 13` in `packages/rag/tests/test_manifest_validation.py`, `test_local_repository.py`, `test_eligibility.py`, `test_content_hash.py`, `ingestion/test_chunking.py`, `ingestion/test_service.py`, `retrieval/test_baseline.py`; `== 85 / 63 / 12 / 10` in `evaluation/test_suite_loader.py` and `retrieval/test_goldens.py`; also found by the planner: `evaluation/test_security_eval.py` (`5 + 63`, `== 5`, `== 63`, the literal deferred `case_id` set) and `evaluation/test_cli.py` (`case_count == 63`, `== 12`). Search again (`grep -rnE "== ?(5|10|12|13|63|85)\b" packages/*/tests tests`) and fix any other live-data literal. A test that genuinely needs exact numbers reads the frozen `packages/rag/tests/retrieval/fixtures/legacy_baseline_repo/`. Constants (`SMALL_SAMPLE_THRESHOLD == 10`) and tests over the committed 1.0 result file (`test_compare.py`) keep their numbers.
+- [ ] **Live-data change check.** In a scratch copy of the repository outside it (for example the session scratchpad), add one valid public document (file, manifest entry with correct hashes, frontmatter) and one active golden case referencing it (with the suite manifest `case_count` raised by one). In that copy, `make validate-knowledge`, `make validate-evaluation` and `make test-unit` pass. The copy is then deleted; the repository's `knowledge/` and `evaluation/` are unchanged by this check.
+### Verification
+
+- `make verify`, `make test-unit`, `make lint`, `make typecheck`, `make validate-evaluation`, `make eval-security`.
+- The new and changed tests pass: `test_validate.py` (`options`-only failure, empty fields, ineligible candidate document, escaping dataset path, owner review on the `g004`/`u001` row, loaded count equals `case_count`, no `suggested` case loaded), `test_cli.py` (non-default `W2A_TENANT_ID` in the filter), `test_security_eval.py` (violation names the document from the error attribute; stray-file refusal, `.DS_Store` ignored, missing-file refusal), `test_compare.py` (n=3 boundary pass and fail, `9 -> 10` extra-case message, duplicate `case_id` refusals).
+- The T1 legacy snapshot test (`retrieval/test_legacy_baseline_snapshot.py`) passes unchanged after the `RetrievalAuthorizationError.document_id` change, with `legacy_baseline_snapshot.json` and `legacy_baseline_summary.txt` unchanged.
+- `git diff main -- packages/rag/src/way2australia_rag/retrieval/` touches only `goldens.py` (T1), `errors.py` and `access.py`; `git diff --stat main -- packages/rag/src/way2australia_rag/retrieval/metrics.py packages/rag/src/way2australia_rag/retrieval/baseline.py packages/rag/src/way2australia_rag/retrieval/baseline_cli.py` is empty.
+- After `make setup`, `git diff uv.lock` touches only the `way2australia-rag` entry, and a second `make setup` changes nothing.
+- `grep -rnE "== ?(13|63|85)\b" packages/*/tests tests` finds no assertion over live data (frozen-fixture and committed-1.0-file tests excepted), and the scratch-copy live-data change check passes (`make validate-knowledge`, `make validate-evaluation`, `make test-unit`).
+- Protected paths: `git status --porcelain -- evaluation knowledge config` lists exactly ` M evaluation/candidates/006-candidates.jsonl`, and `git diff -- evaluation/candidates/006-candidates.jsonl` changes only `cand006_ml_003` (and `cand006_ml_002` if reworded).
+
+## T8b — Documentation, decisions and handoff
+
+**State:** not started
+**Requirements:** R4, R6, R8, R12, R13, R15, Definition of Done
+
+Runs after T8a is approved and committed. Documentation, decisions, the `.gitignore` fix, the spec-wide checks and the final protected-path check.
 
 - [ ] `docs/project/COMMANDS.md`:
   - document `validate-evaluation`, `eval-retrieval`, `eval-security`, `eval-compare` (options, exit codes, output locations, the gate rule);
@@ -338,20 +393,24 @@ Implement the tasks in order; each depends on the ones before it.
   - in the legacy `retrieval-baseline` entry, document that it now refuses, with exit 2, malformed suites it used to ignore: an unknown dataset type; a non-golden dataset path that is missing, not a string, or outside the repository; a non-string golden path; `null` in the newly typed optional fields (`status`, `introduced_in_release`, a non-integer `case_count`; `evaluation_suite_id`, `relevant_section_ids` on golden rows). The real suite and the frozen fixture suite are unaffected (T1 review F2);
   - update the "Implemented today" list.
 - [ ] `docs/project/ARCHITECTURE.md`: add an "Evaluation" section (loader, runners, gates, isolation), including the note that ingestion eligibility is the only guard against synthetic or unapproved documents.
-- [ ] `docs/project/DECISIONS.md`: record decisions D042 to D046 from the design, and fold the design-approval decisions into them:
-  - suite-status refusal;
+- [ ] Documentation of the as-built details from the task reviews (the design's "As-built notes" already record them; T3 F2, T3 F3, T5 F2, T5 F3):
+  - `COMMANDS.md` `eval-retrieval`: the `--repo-root` and `--config` options, besides `--top-k`, `--suite`, `--release` and `--output`;
+  - `COMMANDS.md` `eval-security`: the `--repo-root`, `--config`, `--suite`, `--fixture-root` (default `<repo-root>/tests/fixtures/security`, which lives only in the CLI) and `--output` options; the throwaway collection is deleted in the CLI's `finally`, so failed runs remove it too; `EvaluationHarnessError` is exit 2; the security result document shape (`kind: security_evaluation`, `schema_version` 1.0, the fields listed in the design's As-built notes);
+  - the `ARCHITECTURE.md` Evaluation section: section-level keys are `"<document_id>#<section_id>"`, and the security result's `access.role` is hard-coded `guest` in Phase 1 and must become the resolved role when other roles are added.
+- [ ] `docs/project/DECISIONS.md`: record decisions D042 to D046 from the design (D042 is the next free number, checked 2026-10-24; check again before writing), and fold the design-approval decisions into them:
+  - suite-status refusal, naming the allowed suite status values `draft`, `active`, `deprecated`, `replaced` (T2 review F4);
   - eligibility guard;
   - top_k 50;
   - fixture root parameter and builder enforcement;
   - Malayalam review flags.
-- [ ] `docs/project/TECH_STACK.md`: only if a new dependency was added (none expected; `referencing` comes with `jsonschema`).
+- [ ] `docs/project/TECH_STACK.md`: record `referencing` as a direct `packages/rag` dependency (JSON Schema `$ref` registry for the evaluation schemas, declared by the T8a T2 review F5 box); no other new dependency is expected.
 - [ ] `docs/project/CURRENT_STATE.md`:
   - Spec 006 status;
   - implemented reality;
   - open findings;
   - the user-owned post-merge reproduction;
   - candidates awaiting fluent-speaker and owner review.
-- [ ] `.gitignore` (outside `evaluation/`, `knowledge/` and `config/`; the files changed in T8 are the docs above plus `.gitignore`):
+- [ ] `.gitignore` (outside `evaluation/`, `knowledge/` and `config/`; the files changed in T8b are the docs above plus `.gitignore`):
   - anchor the `MANIFEST` rule to the repository root as `/MANIFEST`, so it cannot match `knowledge/manifest/` on case-insensitive filesystems (macOS);
   - **this deliberately edits a line approved in T1:** remove the T1 negation `!packages/rag/tests/retrieval/fixtures/legacy_baseline_repo/knowledge/manifest/` and its comment line, which the root anchor makes redundant;
   - check with `git check-ignore`:
@@ -360,7 +419,7 @@ Implement the tasks in order; each depends on the ones before it.
     - a root-level `MANIFEST` is still ignored;
     - the check files are removed afterwards.
 - [ ] Run the spec-wide checks: `make verify`, `make test-integration` (Docker), `make eval-security`, the `eval-compare` self-check on the committed baseline, and the T1 snapshot test.
-- [ ] Protected-path check against `main`: `git diff --stat main -- knowledge config evaluation` shows only the three new files.
+- [ ] Final protected-path check against `main`: `git diff --name-status main -- knowledge config evaluation` lists exactly three added files (`A evaluation/schemas/evaluation_suite.schema.json`, `A evaluation/schemas/evaluation_case_types.schema.json`, `A evaluation/candidates/006-candidates.jsonl`) and nothing else; the candidates file differs from its T7 version only in the content edits T8a made. `git status --porcelain -- evaluation knowledge config` is empty (T8a's edit is committed).
 - [ ] Keep next-spec work out (see Completion gate).
 - [ ] Hand off to spec-orchestrator for completion
 
@@ -369,7 +428,7 @@ Implement the tasks in order; each depends on the ones before it.
 - `make verify`, `make test-unit`, `make lint`, `make typecheck`.
 - `make test-integration` with `docker compose up -d qdrant`.
 - `make validate-evaluation`, `make eval-security`, and `make eval-compare` with BASE and CANDIDATE both set to the committed baseline file.
-- `git status --porcelain -- evaluation knowledge config`, and `git diff --stat main -- knowledge config evaluation` (three new files only).
+- `git diff --name-status main -- knowledge config evaluation` lists exactly the three added files; `git status --porcelain -- evaluation knowledge config` is empty.
 - `git check-ignore` checks as in the `.gitignore` box: new files under live `knowledge/manifest/` and under the fixture's `knowledge/manifest/` are not ignored, the fixture manifest is still tracked, and a root `MANIFEST` is ignored.
 - The docs match the code as built (reviewer check).
 
@@ -407,3 +466,4 @@ This is not a task. The `spec-reviewer` should carry this into "Notes for the ne
   - keeps security and authorization regressions a hard fail.
 
   Spec 006 `eval-compare` refuses any difference in the case set instead (R11).
+- **Flip-line format (T6 review F2/F4, no code change).** Record in the design's As-built notes that flip warnings print the case key as `g002 v1` (for example `WARNING flipped hit->miss: g002 v1`), not the design's `g026 (v1)` sketch.
