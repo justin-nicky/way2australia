@@ -1,6 +1,6 @@
 # 006 — Evaluation Framework Tasks
 
-Status: all tasks approved (2026-10-24)
+Status: verified (2026-10-24, merged ab28d89)
 
 Implement the tasks in order; each depends on the ones before it.
 - New code lives under `packages/rag/src/way2australia_rag/evaluation/`, with tests under `packages/rag/tests/evaluation/` (design "Package / file placement").
