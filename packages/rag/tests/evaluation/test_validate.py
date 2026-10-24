@@ -99,6 +99,20 @@ def test_manifest_field_failures(root, capsys, label, change, field) -> None:  #
     assert f"{SUITE} {field}" in out
 
 
+def test_active_golden_without_relevant_documents(root: Path, capsys) -> None:  # noqa: ANN001
+    edit_rows(root, GOLDEN, lambda r: r[0].update(relevant_document_ids=[]))
+    code, out = run(root, capsys)
+    assert code == 1
+    assert f"{GOLDEN}:1 g001 relevant_document_ids" in out
+
+
+def test_case_with_empty_suite_id(root: Path, capsys) -> None:  # noqa: ANN001
+    edit_rows(root, GOLDEN, lambda r: r[0].update(evaluation_suite_id=""))
+    code, out = run(root, capsys)
+    assert code == 1
+    assert f"{GOLDEN}:1 g001 evaluation_suite_id" in out
+
+
 def test_duplicate_case_id(root: Path, capsys) -> None:  # noqa: ANN001
     edit_rows(root, GOLDEN, lambda r: r[1].update(case_id="g001"))
     code, out = run(root, capsys)
@@ -114,10 +128,11 @@ def test_suite_id_mismatch(root: Path, capsys) -> None:  # noqa: ANN001
 
 
 def test_case_count_mismatch(root: Path, capsys) -> None:  # noqa: ANN001
-    edit_suite(root, lambda r: r.update(case_count=84))
+    declared = json.loads((root / SUITE).read_text())["case_count"]
+    edit_suite(root, lambda r: r.update(case_count=declared - 1))
     code, out = run(root, capsys)
     assert code == 1
-    assert "declares 84 cases but the datasets hold 85" in out
+    assert f"declares {declared - 1} cases but the datasets hold {declared}" in out
 
 
 def test_duplicate_dataset_path(root: Path, capsys) -> None:  # noqa: ANN001
@@ -232,6 +247,42 @@ def test_candidate_unknown_and_ineligible_documents(root: Path, capsys) -> None:
     assert "unknown document 'nope'" in out
 
 
+def test_candidate_ineligible_document_is_not_unknown(root: Path) -> None:
+    target = "business_001_overview_scope"
+    write_candidates(root, CANDIDATE)
+    real = LocalDocumentRepository(LocalRepositoryConfig(repo_root=root))
+    docs = asyncio.run(real.list_documents(DocumentQuery()))
+
+    class Stub:
+        async def list_documents(self, query: Any = None) -> list[Any]:
+            out = [
+                d.model_copy(update={"retrieval_enabled": False})
+                if d.document_id == target
+                else d
+                for d in docs
+            ]
+            return [d for d in out if query is None or query.matches(d)]
+
+    problems = validate_evaluation(root, repository=Stub())  # type: ignore[arg-type]
+    texts = [str(p) for p in problems if "candidates" in p.file]
+    assert any(f"document '{target}' not eligible" in t for t in texts)
+    assert not any("unknown document" in t for t in texts)
+
+
+def test_suite_dataset_path_escaping_repository(root: Path, capsys) -> None:  # noqa: ANN001
+    edit_suite(
+        root,
+        lambda r: r["datasets"].append(
+            {"type": "golden_answerable", "path": "../outside.jsonl"}
+        ),
+    )
+    code, out = run(root, capsys)
+    assert code == 2
+    assert "outside.jsonl" in out
+    assert str(root) not in out
+    assert str(root.parent) not in out
+
+
 def test_candidate_referenced_by_suite(root: Path, capsys) -> None:  # noqa: ANN001
     write_candidates(root, CANDIDATE)
     edit_suite(
@@ -240,7 +291,6 @@ def test_candidate_referenced_by_suite(root: Path, capsys) -> None:  # noqa: ANN
             {"type": "golden_answerable", "path": "evaluation/candidates/t.jsonl"}
         ),
     )
-    edit_suite(root, lambda r: r.update(case_count=85))
     code, out = run(root, capsys)
     assert code == 1
     assert "suite references a candidates file" in out
@@ -284,9 +334,13 @@ def test_case_change_candidate_rules(root: Path, capsys) -> None:  # noqa: ANN00
     code, out = run(root, capsys)
     assert code == 1
     assert "unknown case 'zzz'" in out
+    row["target_case_ids"] = ["g001"]
     del row["options"]
     write_candidates(root, row)
-    assert run(root, capsys)[0] == 1
+    code, out = run(root, capsys)
+    assert code == 1
+    assert "options" in out
+    assert "unknown case" not in out
 
 
 def test_real_candidates_file_validates_and_is_not_loaded(capsys) -> None:  # noqa: ANN001
@@ -311,6 +365,11 @@ def test_real_candidates_file_validates_and_is_not_loaded(capsys) -> None:  # no
             assert r["proposed_case"]["case_id"] not in loaded_ids
     manifest = (REPO_ROOT / SUITE).read_text()
     assert "candidates" not in manifest
+    declared = json.loads(manifest)["case_count"]
+    assert len(every) == declared
+    assert all(c.status != "suggested" for c in every)
+    change = next(r for r in rows if r["candidate_id"] == "cand006_change_g004_u001")
+    assert "owner_review" in change["requires_review"]
 
 
 def test_no_language_literal_in_evaluation_code() -> None:

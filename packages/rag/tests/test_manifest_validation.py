@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from conftest import manifest_document_count
 from way2australia_rag.repositories import (
     DuplicateDocumentError,
     ManifestValidationError,
@@ -69,7 +70,7 @@ def run(root: Path, records: list[dict[str, Any]]) -> list[str]:
 
 def test_seed_manifest_loads_and_validates() -> None:
     entries = load_manifest(SEED_MANIFEST, load_schema(SCHEMA))
-    assert len(entries) == 13
+    assert len(entries) == manifest_document_count()
     assert validate_manifest(SEED_MANIFEST, REPO_ROOT, SCHEMA) == []
 
 

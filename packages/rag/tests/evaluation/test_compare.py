@@ -13,6 +13,7 @@ from conftest import REPO_ROOT
 from way2australia_rag.evaluation import cli
 from way2australia_rag.evaluation.compare import (
     HIT_TOLERANCE_CASES,
+    MRR_EPSILON,
     compare,
     mrr_tolerance,
 )
@@ -126,6 +127,33 @@ def test_mrr_boundary(tmp_path: Path) -> None:
     assert "MRR dropped" in result.failures[0]
 
 
+def ranked(ranks: tuple[int, ...]) -> dict[str, Any]:
+    return doc(
+        len(ranks),
+        cases=[case(i, rr=1 / rank) for i, rank in enumerate(ranks)],
+    )
+
+
+def test_mrr_boundary_at_three_cases_exercises_the_epsilon(tmp_path: Path) -> None:
+    # Pass: the unrounded drop is one float step above 1/3, so only the epsilon
+    # keeps this a pass.
+    result = run(tmp_path, ranked((1, 1, 1)), ranked((1, 2, 2)))
+    assert result.hits_base == result.hits_candidate == 3
+    drop = result.mrr_base - result.mrr_candidate
+    assert drop == 0.33333333333333337
+    assert drop > mrr_tolerance(3)
+    assert drop <= mrr_tolerance(3) + MRR_EPSILON
+    assert result.passed
+    # Fail: the smallest drop above 1/3 reachable with ranks 1-5 at n=3 (61/180).
+    result = run(tmp_path, ranked((1, 2, 4)), ranked((3, 5, 5)))
+    assert result.hits_base == result.hits_candidate == 3
+    drop = result.mrr_base - result.mrr_candidate
+    assert abs(drop - 61 / 180) < 1e-12
+    assert drop > mrr_tolerance(3) + MRR_EPSILON
+    assert not result.passed
+    assert "MRR dropped" in result.failures[0]
+
+
 def test_flip_warnings_both_directions_sorted(tmp_path: Path) -> None:
     base = doc()
     base["cases"][5] = case(5, hit=False)
@@ -178,6 +206,8 @@ def test_case_set_missing_and_extra(tmp_path: Path) -> None:
     assert NEXT_STEP in message
     message = refusal(tmp_path, fewer, doc())
     assert "only in CANDIDATE: g009 v1" in message
+    assert "case set differs (9 -> 10 cases" in message
+    assert NEXT_STEP in message
 
 
 def test_case_version_differs(tmp_path: Path) -> None:
@@ -245,6 +275,27 @@ def test_unreadable_and_malformed_files(tmp_path: Path) -> None:
     del broken["cases"][0]["hit"]
     with pytest.raises(NotComparableError, match="malformed"):
         read_result(write(tmp_path, "broken.json", broken), "BASE")
+
+
+@pytest.mark.parametrize(
+    ("label", "version", "second_version"),
+    [("2.0 same version", True, 1), ("2.0 other version", True, 2), ("1.0", False, 1)],
+)
+def test_duplicate_case_id_is_refused(
+    tmp_path: Path, label: str, version: bool, second_version: int
+) -> None:
+    document = doc(3, v2=version)
+    document["cases"].append(case(0, case_version=second_version))
+    path = write(tmp_path, "dup.json", document)
+    with pytest.raises(NotComparableError) as info:
+        read_result(path, "BASE")
+    message = str(info.value)
+    assert message.startswith("not comparable:"), label
+    assert "'dup.json'" in message and "g000" in message
+    assert "make eval-retrieval" in message
+    assert str(tmp_path) not in message
+    other = write(tmp_path, "ok.json", doc(3))
+    assert cli.main(["compare", "--base", str(path), "--candidate", str(other)]) == 2
 
 
 def test_several_differences_are_all_named(tmp_path: Path) -> None:

@@ -14,4 +14,11 @@ class IndexBindingError(RetrievalError):
 
 
 class RetrievalAuthorizationError(RetrievalError):
-    """A retrieved hit violates the access policy (fail closed)."""
+    """A retrieved hit violates the access policy (fail closed).
+
+    `document_id` is the hit's document ID (`<unreadable>` when absent).
+    """
+
+    def __init__(self, message: str, *, document_id: str) -> None:
+        super().__init__(message)
+        self.document_id = document_id

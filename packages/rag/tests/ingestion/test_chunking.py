@@ -6,7 +6,7 @@ import unicodedata
 from typing import Any
 
 import pytest
-from conftest import REPO_ROOT
+from conftest import REPO_ROOT, manifest_document_count
 from way2australia_core.documents import KnowledgeDocument
 from way2australia_rag.ingestion.chunking import (
     MIN_CHUNK_CHARS,
@@ -219,7 +219,7 @@ def test_seed_corpus_is_one_main_chunk_per_document() -> None:
     that heading chunking works (see design "Seed reality")."""
     repository = LocalDocumentRepository(LocalRepositoryConfig(repo_root=REPO_ROOT))
     documents = asyncio.run(list_eligible_documents(repository, GUEST_PUBLIC_POLICY))
-    assert len(documents) == 13
+    assert len(documents) == manifest_document_count()
     chunker = HeadingChunker()
     for document in documents:
         assert ids(chunker.chunk(document)) == [("main", 0)], document.document_id

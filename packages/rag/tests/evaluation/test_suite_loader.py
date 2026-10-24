@@ -6,7 +6,7 @@ import shutil
 from pathlib import Path
 
 import pytest
-from conftest import REPO_ROOT
+from conftest import REPO_ROOT, live_suite_rows
 from way2australia_rag.evaluation.errors import EvaluationConfigurationError
 from way2australia_rag.evaluation.models import DatasetType
 from way2australia_rag.evaluation.suite import (
@@ -31,16 +31,17 @@ def copy_suite(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def test_real_suite_loads_85_cases_and_is_read_only() -> None:
+def test_real_suite_loads_every_declared_case_and_is_read_only() -> None:
     before = tree_hashes()
     suite = load_suite(REPO_ROOT, SUITE)
     assert suite.manifest.evaluation_suite_id == "public-eval-v1"
-    assert (len(suite.goldens), len(suite.unanswerable), len(suite.security)) == (
-        63,
-        12,
-        10,
+    counts = (
+        len(live_suite_rows("golden_answerable")),
+        len(live_suite_rows("unanswerable_refusal")),
+        len(live_suite_rows("security")),
     )
-    assert suite.manifest.case_count == 85
+    assert (len(suite.goldens), len(suite.unanswerable), len(suite.security)) == counts
+    assert suite.manifest.case_count == sum(counts)
     assert tree_hashes() == before
 
 
@@ -96,7 +97,7 @@ def test_extra_fields_tolerated(tmp_path: Path) -> None:
     rows[0]["brand_new_field"] = {"a": 1}
     path.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
     suite = load_suite(root, SUITE)
-    assert len(suite.unanswerable) == 12
+    assert len(suite.unanswerable) == len(live_suite_rows("unanswerable_refusal"))
 
 
 def test_declared_release_id() -> None:
@@ -108,6 +109,6 @@ def test_declared_release_id() -> None:
 
 def test_dataset_types_loaded_by_type() -> None:
     suite = load_suite(REPO_ROOT, SUITE)
-    assert len(suite.active(DatasetType.GOLDEN_ANSWERABLE)) == 63
-    assert len(suite.active(DatasetType.UNANSWERABLE_REFUSAL)) == 12
-    assert len(suite.active(DatasetType.SECURITY)) == 10
+    for kind in DatasetType:
+        expected = live_suite_rows(kind.value, active_only=True)
+        assert len(suite.active(kind)) == len(expected), kind

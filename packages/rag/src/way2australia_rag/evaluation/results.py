@@ -16,6 +16,7 @@ from way2australia_rag.retrieval.baseline import (
     check_output_free,
     write_result,
 )
+from way2australia_rag.retrieval.text import safe_text
 
 RESULT_KIND = "retrieval_evaluation"
 SCHEMA_VERSION = "2.0"
@@ -111,13 +112,13 @@ def read_result(path: Path, label: str = "result") -> ComparableRun:
             "(supported: retrieval_baseline 1.0, retrieval_evaluation 2.0)",
         )
     try:
-        return _build_run(name, raw, str(kind), str(version))
+        return _build_run(name, raw, str(kind), str(version), label)
     except (KeyError, TypeError, ValueError, AttributeError) as error:
         raise _unreadable(label, name, "is malformed or incomplete") from error
 
 
 def _build_run(
-    name: str, raw: dict[str, Any], kind: str, version: str
+    name: str, raw: dict[str, Any], kind: str, version: str, label: str
 ) -> ComparableRun:
     def need(ok: bool) -> None:
         if not ok:
@@ -133,9 +134,15 @@ def _build_run(
     need(isinstance(top_k, int) and isinstance(documents, int))
     need(isinstance(fake, bool) and isinstance(raw["cases"], list))
     cases: dict[tuple[str, int], CaseRow] = {}
+    seen: set[str] = set()
     for item in raw["cases"]:
         key = (item["case_id"], item["case_version"])
-        need(isinstance(key[0], str) and isinstance(key[1], int) and key not in cases)
+        need(isinstance(key[0], str) and isinstance(key[1], int))
+        if key[0] in seen:
+            raise _unreadable(
+                label, name, f"repeats case_id '{safe_text(key[0])}' in its cases"
+            )
+        seen.add(key[0])
         need(isinstance(item["hit"], bool))
         need(_num(item["recall"]) and _num(item["reciprocal_rank"]))
         authority = item.get("source_authority") if version == "2.0" else None

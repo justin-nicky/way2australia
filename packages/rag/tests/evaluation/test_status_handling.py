@@ -4,11 +4,15 @@ import json
 import shutil
 from pathlib import Path
 
-from conftest import REPO_ROOT
+from conftest import REPO_ROOT, live_suite_rows
 from way2australia_rag.evaluation.models import DatasetType
 from way2australia_rag.evaluation.suite import load_suite
 
 SUITE = "evaluation/suites/public-eval-v1.json"
+
+
+def golden_count() -> int:
+    return len(live_suite_rows("golden_answerable"))
 
 
 def suite_with_statuses(tmp_path: Path, statuses: list[str]):  # noqa: ANN201
@@ -33,13 +37,13 @@ def test_exclusions_counted_by_status(tmp_path: Path) -> None:
         "review_required": 1,
         "suggested": 2,
     }
-    assert len(suite.active(kind)) == 58
+    assert len(suite.active(kind)) == golden_count() - 5
     assert suite.excluded_by_status(DatasetType.SECURITY) == {}
 
 
 def test_suggested_never_returned(tmp_path: Path) -> None:
-    suite = suite_with_statuses(tmp_path, ["suggested"] * 63)
+    suite = suite_with_statuses(tmp_path, ["suggested"] * golden_count())
     kind = DatasetType.GOLDEN_ANSWERABLE
     assert suite.active(kind) == []
     assert all(c.status != "suggested" for c in suite.active(kind))
-    assert suite.excluded_by_status(kind) == {"suggested": 63}
+    assert suite.excluded_by_status(kind) == {"suggested": golden_count()}

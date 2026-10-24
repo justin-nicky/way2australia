@@ -4,16 +4,18 @@ Full in-memory gate on the real seed corpus and suite: fake embedder, no Docker,
 no model. Nothing is written outside tmp_path.
 """
 
+import asyncio
 import dataclasses
 import json
 import re
+import shutil
 import uuid
 from pathlib import Path
 from time import perf_counter
 from typing import Any
 
 import pytest
-from conftest import REPO_ROOT
+from conftest import REPO_ROOT, live_suite_rows
 from qdrant_client import QdrantClient, models
 from way2australia_core import AccessContext, Role
 from way2australia_rag.evaluation import cli, security_eval
@@ -27,9 +29,14 @@ from way2australia_rag.evaluation.models import (
     SecurityCase,
     SuiteManifest,
 )
+from way2australia_rag.evaluation.security_corpus import (
+    SECURITY_FIXTURE_FILES,
+    build_security_repository,
+)
 from way2australia_rag.evaluation.security_eval import (
     DEFERRED_OWNERS,
     FORBIDDEN_VARIANTS,
+    RETRIEVAL_SIDE_ATTACK_TYPES,
     SecurityQuery,
     run_security_evaluation,
     security_document,
@@ -46,6 +53,7 @@ from way2australia_rag.ingestion.chunking import HeadingChunker
 from way2australia_rag.ingestion.embedding import FakeEmbedder
 from way2australia_rag.ingestion.payload import PointPayload
 from way2australia_rag.repositories import (
+    DocumentQuery,
     LocalDocumentRepository,
     LocalRepositoryConfig,
 )
@@ -54,7 +62,9 @@ from way2australia_rag.retrieval.access import (
     build_access_filter,
     resolve_access,
 )
+from way2australia_rag.retrieval.errors import RetrievalAuthorizationError
 from way2australia_rag.retrieval.index import DenseIndex
+from way2australia_rag.retrieval.text import safe_text
 
 pytestmark = pytest.mark.filterwarnings(
     "ignore:Payload indexes have no effect:UserWarning"
@@ -131,15 +141,18 @@ def test_full_gate_passes_on_the_seed_corpus(
     report = run_security_evaluation(index, guest_access(), queries, deferred)
     assert report.passed
     assert report.violations == []
-    assert report.query_count == len(queries) == 5 + 63
-    assert report.security_case_count == 5
-    assert report.golden_query_count == 63
+    security = live_suite_rows("security", active_only=True)
+    retrieval_side = [
+        r for r in security if r["attack_type"] in RETRIEVAL_SIDE_ATTACK_TYPES
+    ]
+    goldens = len(live_suite_rows("golden_answerable", active_only=True))
+    assert report.query_count == len(queries) == len(retrieval_side) + goldens
+    assert report.security_case_count == len(retrieval_side)
+    assert report.golden_query_count == goldens
     assert {d["case_id"] for d in report.deferred} == {
-        "s001",
-        "s005",
-        "s006",
-        "s007",
-        "s009",
+        r["case_id"]
+        for r in security
+        if r["attack_type"] not in RETRIEVAL_SIDE_ATTACK_TYPES
     }
     assert index.points_per_variant == {
         **{v: len(queries) for v in FORBIDDEN_VARIANTS},
@@ -392,6 +405,88 @@ def test_the_security_index_records_a_fake_embedder_and_is_removed(
     assert len(index.client.get_collections().collections) == 2
     delete_security_index(index)
     assert index.client.get_collections().collections == []
+
+
+def copy_fixtures(tmp_path: Path) -> Path:
+    root = tmp_path / "fixtures"
+    shutil.copytree(REPO_ROOT / "tests/fixtures/security", root)
+    return root
+
+
+def test_stray_fixture_file_is_refused_before_any_copy(tmp_path: Path) -> None:
+    root = copy_fixtures(tmp_path)
+    (root / "README.md").write_text("stray", encoding="utf-8")
+    work = tmp_path / "work"
+    work.mkdir()
+    with pytest.raises(EvaluationConfigurationError, match="README.md"):
+        build_security_repository(
+            root,
+            work,
+            schema_source=REPO_ROOT / "knowledge/schemas/document_metadata.schema.json",
+        )
+    assert list(work.iterdir()) == []
+
+
+def test_hidden_entries_are_ignored(tmp_path: Path) -> None:
+    root = copy_fixtures(tmp_path)
+    (root / ".DS_Store").write_bytes(b"\x00")
+    work = tmp_path / "work"
+    work.mkdir()
+    build_security_repository(
+        root,
+        work,
+        schema_source=REPO_ROOT / "knowledge/schemas/document_metadata.schema.json",
+    )
+    assert sorted(p.name for p in (work / "security_corpus").iterdir()) == sorted(
+        SECURITY_FIXTURE_FILES
+    )
+
+
+def test_missing_fixture_is_refused(tmp_path: Path) -> None:
+    root = copy_fixtures(tmp_path)
+    (root / "staff_only_canary.md").unlink()
+    work = tmp_path / "work"
+    work.mkdir()
+    with pytest.raises(EvaluationConfigurationError, match="staff_only_canary.md"):
+        build_security_repository(
+            root,
+            work,
+            schema_source=REPO_ROOT / "knowledge/schemas/document_metadata.schema.json",
+        )
+    assert list(work.iterdir()) == []
+
+
+def test_real_fixture_folder_builds(
+    security_repository: LocalDocumentRepository,
+) -> None:
+    docs = asyncio.run(security_repository.list_documents(DocumentQuery()))
+    assert len(docs) == len(SECURITY_FIXTURE_FILES)
+
+
+def test_violation_names_the_document_from_the_error_attribute(
+    security_repository: LocalDocumentRepository, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from way2australia_rag.retrieval import access, retriever
+
+    odd = "doc'with\"quote'"
+    real = access.check_hit
+
+    def fake_check(payload: Any, resolved: ResolvedAccess) -> PointPayload:
+        try:
+            return real(
+                {**payload, "document_id": odd, "access_scope": "staff"}, resolved
+            )
+        except RetrievalAuthorizationError as error:
+            assert error.document_id == odd
+            raise
+
+    monkeypatch.setattr(retriever, "check_hit", fake_check)
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    report = run_security_evaluation(index, guest_access(), queries, deferred)
+    assert not report.passed
+    expected = safe_text(odd)
+    assert all(v["document_id"] == expected for v in report.violations)
 
 
 def test_no_fixture_path_literal_in_library_code() -> None:

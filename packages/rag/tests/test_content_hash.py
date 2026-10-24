@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from conftest import manifest_document_count
 from way2australia_core.documents import KnowledgeDocument
 from way2australia_rag.repositories import (
     LocalDocumentRepository,
@@ -154,7 +155,7 @@ def test_seed_documents_match_manifest_hashes() -> None:
         for line in SEED_MANIFEST.read_text(encoding="utf-8").splitlines()
         if line.strip()
     ]
-    assert len(records) == 13
+    assert len(records) == manifest_document_count()
     for rec in records:
         raw = (REPO_ROOT / rec["path"]).read_bytes()
         body = split_frontmatter(raw.decode("utf-8"))[1]
@@ -167,8 +168,8 @@ def test_repository_content_hash_is_content_hash_v1() -> None:
     repository = LocalDocumentRepository(LocalRepositoryConfig(repo_root=REPO_ROOT))
     documents = asyncio.run(repository.list_documents())
 
-    assert len(documents) == 13
-    assert len({d.content_hash for d in documents}) == 13
+    assert len(documents) == manifest_document_count()
+    assert len({d.content_hash for d in documents}) == len(documents)
     for d in documents:
         fields = {name: getattr(d, name) for name in KnowledgeDocument.model_fields}
         assert d.content_hash == compute_content_hash(d.content, fields)

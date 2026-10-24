@@ -6,6 +6,7 @@ manifest, so tests load them through `LocalDocumentRepository` and the JSON
 Schema exactly like real documents (design "Security fixtures").
 """
 
+import json
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,31 @@ FIXTURE_IDS = {
     "staff_only_canary.md": "fixture_staff_canary",
     "poisoned_public_document.md": "fixture_public_poisoned",
 }
+
+
+LIVE_SUITE = "evaluation/suites/public-eval-v1.json"
+
+
+def live_suite_rows(dataset_type: str, *, active_only: bool = False) -> list[dict]:
+    """Raw rows of the live suite's datasets of one type (never a literal count)."""
+    manifest = json.loads((REPO_ROOT / LIVE_SUITE).read_text(encoding="utf-8"))
+    rows: list[dict] = []
+    for ref in manifest["datasets"]:
+        if ref["type"] != dataset_type:
+            continue
+        text = (REPO_ROOT / ref["path"]).read_text(encoding="utf-8")
+        rows += [json.loads(x) for x in text.splitlines() if x.strip()]
+    if active_only:
+        rows = [r for r in rows if r.get("status", "active") == "active"]
+    return rows
+
+
+def manifest_document_count() -> int:
+    """Number of documents in the live manifest (never a literal)."""
+    manifest = REPO_ROOT / "knowledge/manifest/document_manifest.jsonl"
+    return sum(
+        1 for x in manifest.read_text(encoding="utf-8").splitlines() if x.strip()
+    )
 
 
 @pytest.fixture

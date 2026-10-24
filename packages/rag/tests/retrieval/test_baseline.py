@@ -11,7 +11,7 @@ from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
-from conftest import REPO_ROOT
+from conftest import REPO_ROOT, live_suite_rows, manifest_document_count
 from qdrant_client import QdrantClient
 from way2australia_rag.ingestion import cli as ingestion_cli
 from way2australia_rag.ingestion.embedding import EmbedderInfo, FakeEmbedder
@@ -323,8 +323,12 @@ def test_cli_with_allow_fake_writes_result_and_prints_summary(
     out = tmp_path / "b.json"
     assert cli_run(seeded, "--allow-fake", "--output", str(out)) == 0
     doc = json.loads(out.read_text())
-    assert doc["document_count"] == 13 and doc["case_count"] == 63
-    assert doc["random_hit_rate_formula"] == "min(1, 5/13)"
+    documents = manifest_document_count()
+    assert doc["document_count"] == documents
+    assert doc["case_count"] == len(
+        live_suite_rows("golden_answerable", active_only=True)
+    )
+    assert doc["random_hit_rate_formula"] == f"min(1, 5/{documents})"
     assert "not a quality measurement" in doc["notes"]
     shown = capsys.readouterr().out
     assert "HitRate@5" in shown and "random" in shown and "b.json" in shown

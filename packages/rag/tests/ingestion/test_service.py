@@ -6,7 +6,7 @@ from collections.abc import Iterable, Sequence
 from typing import Any
 
 import pytest
-from conftest import REPO_ROOT
+from conftest import REPO_ROOT, manifest_document_count
 from qdrant_client import QdrantClient
 from test_chunking import make_document  # type: ignore[import-not-found]
 from way2australia_core.documents import KnowledgeDocument
@@ -359,21 +359,22 @@ def test_report_has_no_paths_or_text() -> None:
     assert "/" not in dumped.replace(f"{BASE}-{VERSION}", "")
 
 
-def test_seed_corpus_indexes_13_documents_and_is_idempotent() -> None:
+def test_seed_corpus_indexes_every_document_and_is_idempotent() -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         h = Harness()
     h.repository = LocalDocumentRepository(  # type: ignore[assignment]
         LocalRepositoryConfig(repo_root=REPO_ROOT)
     )
+    total = manifest_document_count()
     first = h.run()
-    assert len(first.added) == 13
+    assert len(first.added) == total
     assert first.updated == first.deleted == first.failures == []
     state = h.store.read_state()
-    assert len(state) == 13
+    assert len(state) == total
     assert all(len(s.point_ids) == 1 for s in state.values())
     h.reset_counts()
     second = h.run()
     assert second.added == second.updated == second.deleted == []
-    assert len(second.unchanged) == 13
+    assert len(second.unchanged) == total
     assert h.embedder.calls == 0 and h.store.replaced == []

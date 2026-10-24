@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 import pytest
-from conftest import REPO_ROOT
+from conftest import REPO_ROOT, live_suite_rows
 from way2australia_rag.retrieval.errors import RetrievalConfigurationError
 from way2australia_rag.retrieval.goldens import (
     declared_release_id,
@@ -24,12 +24,13 @@ def tree_hashes() -> dict[str, str]:
     }
 
 
-def test_real_suite_loads_63_cases_and_leaves_evaluation_unchanged() -> None:
+def test_real_suite_loads_every_golden_case_and_leaves_evaluation_unchanged() -> None:
     before = tree_hashes()
     suite = load_suite(REPO_ROOT, SUITE)
     cases, excluded = load_golden_cases(REPO_ROOT, suite)
     assert suite.evaluation_suite_id == "public-eval-v1" and suite.version == 1
-    assert len(cases) == 63 and excluded == 0
+    assert len(cases) == len(live_suite_rows("golden_answerable", active_only=True))
+    assert excluded == len(live_suite_rows("golden_answerable")) - len(cases)
     assert tree_hashes() == before
 
 

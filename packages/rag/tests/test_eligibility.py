@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from conftest import FIXTURE_IDS
+from conftest import FIXTURE_IDS, manifest_document_count
 from way2australia_core.documents import (
     AccessScope,
     ApprovalStatus,
@@ -218,7 +218,7 @@ def test_seed_corpus_is_entirely_eligible_for_guest() -> None:
     stored = asyncio.run(repository.list_documents())
     eligible = asyncio.run(list_eligible_documents(repository, GUEST_PUBLIC_POLICY))
 
-    assert len(stored) == 13
+    assert len(stored) == manifest_document_count()
     assert {d.document_id for d in eligible} == {d.document_id for d in stored}
 
 

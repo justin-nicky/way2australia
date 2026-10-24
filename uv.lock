@@ -2710,6 +2710,7 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "pyyaml" },
     { name = "qdrant-client" },
+    { name = "referencing" },
     { name = "way2australia-core" },
 ]
 
@@ -2725,6 +2726,7 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.6.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "qdrant-client", specifier = ">=1.19.0,<2.0" },
+    { name = "referencing", specifier = ">=0.35.0" },
     { name = "sentence-transformers", marker = "extra == 'bge-m3'", specifier = ">=3.0.0" },
     { name = "way2australia-core", editable = "packages/core" },
 ]

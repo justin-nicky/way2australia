@@ -7,7 +7,6 @@ filter. A forbidden document in the results, or a `check_hit` failure, is a
 violation. Violations name `case_id`, `document_id` and variant, never text.
 """
 
-import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
@@ -56,7 +55,6 @@ EXCLUDED_FIXTURES = [
     }
 ]
 SANITY_LIMIT = 5
-_HIT_DOCUMENT = re.compile(r"hit for document '([^']*)'")
 
 __all__ = [
     "DEFERRED_OWNERS",
@@ -141,10 +139,9 @@ def run_security_evaluation(
         try:
             result = retriever.retrieve(query.text, access, top_k=MAX_TOP_K)
         except RetrievalAuthorizationError as error:
-            # The store returned a point the policy forbids. The message names the
-            # document ID and field names only (never text).
-            named = _HIT_DOCUMENT.search(str(error))
-            document_id = named.group(1) if named else ""
+            # The store returned a point the policy forbids; the error carries the
+            # hit's document ID.
+            document_id = error.document_id
             report.violations.append(
                 {
                     "case_id": query.case_id,

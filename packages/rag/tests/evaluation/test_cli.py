@@ -5,17 +5,24 @@ import shutil
 from pathlib import Path
 
 import pytest
-from conftest import REPO_ROOT
-from qdrant_client import QdrantClient
+from conftest import REPO_ROOT, live_suite_rows
+from qdrant_client import QdrantClient, models
 from retrieval.test_cli import Factory
 from retrieval.test_retriever import make_payload
 from way2australia_rag.evaluation import cli
 from way2australia_rag.ingestion.chunking import HeadingChunker
+from way2australia_rag.ingestion.config import RuntimeSettings
 from way2australia_rag.ingestion.embedding import FakeEmbedder
 from way2australia_rag.ingestion.errors import OptionalDependencyError
 from way2australia_rag.ingestion.identity import point_id
 from way2australia_rag.ingestion.settings import build_index_settings
 from way2australia_rag.ingestion.store import IndexPoint, QdrantIndexStore
+from way2australia_rag.retrieval.access import (
+    build_access_filter,
+    guest_access,
+    resolve_access,
+)
+from way2australia_rag.retrieval.index import DenseIndex
 
 from .test_retrieval_eval import RealStub
 
@@ -37,7 +44,7 @@ def clean_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.chdir(tmp_path)
 
 
-def index_factory(embedder: FakeEmbedder) -> Factory:
+def index_factory(embedder: FakeEmbedder, tenant: str = "way2australia") -> Factory:
     client = QdrantClient(":memory:")
     store = QdrantIndexStore(client, BASE, VERSION)
     settings = build_index_settings(VERSION, embedder.info, HeadingChunker())
@@ -50,7 +57,7 @@ def index_factory(embedder: FakeEmbedder) -> Factory:
                 IndexPoint(
                     point_id=point_id(doc_id, "main", 0),
                     vector=embedder.embed_documents([text])[0],
-                    payload=make_payload(doc_id, text),
+                    payload=make_payload(doc_id, text, tenant_id=tenant),
                 )
             ],
         )
@@ -76,11 +83,18 @@ def test_success_writes_result_prints_collection_and_summary(
     out = tmp_path / "e.json"
     assert run(factory, "--output", str(out)) == 0
     doc = json.loads(out.read_text())
-    assert doc["kind"] == "retrieval_evaluation" and doc["case_count"] == 63
+    goldens = len(live_suite_rows("golden_answerable", active_only=True))
+    unanswerable = len(live_suite_rows("unanswerable_refusal", active_only=True))
+    assert doc["kind"] == "retrieval_evaluation" and doc["case_count"] == goldens
     assert doc["collection"] == "way2australia-idx-v1"
-    assert doc["evaluation_suite"]["cases_by_type"]["unanswerable_refusal"] == 12
+    assert (
+        doc["evaluation_suite"]["cases_by_type"]["unanswerable_refusal"] == unanswerable
+    )
     block = doc["unanswerable"]
-    assert block["status"] == "not_evaluable_before_generation" and block["n"] == 12
+    assert (
+        block["status"] == "not_evaluable_before_generation"
+        and block["n"] == unanswerable
+    )
     shown = capsys.readouterr().out
     assert "unanswerable (not_evaluable_before_generation, informational" in shown
     assert "collection: way2australia-idx-v1" in shown
@@ -161,6 +175,30 @@ def test_unexpected_exception_prints_class_name_only(
     err = capsys.readouterr().err
     assert code == 2 and "ConnectionError" in err and "secret" not in err
     assert not out.exists()
+
+
+def test_filter_carries_the_server_tenant(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("W2A_TENANT_ID", "tenant-eval-x")
+    seen: list[models.Filter] = []
+    real_search = DenseIndex.search
+
+    def spy(self, vector, query_filter, limit):  # noqa: ANN001, ANN202
+        seen.append(query_filter)
+        return real_search(self, vector, query_filter, limit)
+
+    monkeypatch.setattr(DenseIndex, "search", spy)
+    factory = index_factory(RealStub(), "tenant-eval-x")
+    out = tmp_path / "e.json"
+    assert run(factory, "--output", str(out)) == 0
+    expected = build_access_filter(
+        resolve_access(guest_access(RuntimeSettings(tenant_id="tenant-eval-x")))
+    )
+    assert seen
+    assert all(f == expected for f in seen)
+    assert all("tenant-eval-x" in repr(f) for f in seen)
+    assert all("way2australia" not in repr(f) for f in seen)
 
 
 def test_cli_has_no_embedder_or_allow_fake_flag() -> None:

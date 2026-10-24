@@ -177,7 +177,12 @@ def run_retrieval_evaluation(
     repo_root: Path,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
 ) -> dict[str, Any]:
-    """Run the active golden cases and return the 2.0 result document."""
+    """Run the active golden cases, then the active unanswerable cases, and return
+    the 2.0 result document.
+
+    Unanswerable cases contribute their top-1 score only; their latency is
+    excluded from the p50/p95 figures.
+    """
     require_active_suite(suite)
     require_real_embedder(embedder)
     require_real_index(index)

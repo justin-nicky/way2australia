@@ -22,18 +22,37 @@ from way2australia_rag.repositories.hashing import compute_body_sha256, sha256_h
 
 SCHEMA = "knowledge/schemas/document_metadata.schema.json"
 ISOLATED_ROOT = "security_corpus"
+SECURITY_FIXTURE_FILES = ("poisoned_public_document.md", "staff_only_canary.md")
+
+
+def _fixture_files(fixture_root: Path) -> list[Path]:
+    """The two expected fixtures; refuse anything else visible before any copy."""
+    try:
+        present = {p.name for p in fixture_root.iterdir() if not p.name.startswith(".")}
+    except OSError as error:
+        raise EvaluationConfigurationError(
+            "the security fixture folder cannot be read."
+        ) from error
+    for name in SECURITY_FIXTURE_FILES:
+        if name not in present:
+            raise EvaluationConfigurationError(f"security fixture '{name}' is missing.")
+    for name in sorted(present - set(SECURITY_FIXTURE_FILES)):
+        raise EvaluationConfigurationError(
+            f"unexpected entry '{name}' in the security fixture folder."
+        )
+    return [fixture_root / name for name in SECURITY_FIXTURE_FILES]
 
 
 def build_security_repository(
     fixture_root: Path, work_dir: Path, *, schema_source: Path
 ) -> LocalDocumentRepository:
-    """Copy the `*.md` fixtures under `fixture_root` into `work_dir` with a manifest.
+    """Copy the two named fixtures under `fixture_root` into `work_dir` with a manifest.
 
-    `schema_source` is the document metadata JSON Schema to validate against.
+    Only `SECURITY_FIXTURE_FILES` are copied. Hidden (dot-prefixed) entries are
+    ignored; any other visible entry, or a missing listed file, is refused before
+    anything is copied. `schema_source` is the document metadata JSON Schema.
     """
-    fixtures = sorted(fixture_root.glob("*.md"))
-    if not fixtures:
-        raise EvaluationConfigurationError("no security fixture documents were found.")
+    fixtures = _fixture_files(fixture_root)
     (work_dir / SCHEMA).parent.mkdir(parents=True)
     shutil.copy(schema_source, work_dir / SCHEMA)
     (work_dir / ISOLATED_ROOT).mkdir()
