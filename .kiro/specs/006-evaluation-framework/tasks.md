@@ -383,9 +383,12 @@ Deferred task-review items (user-approved 2026-10-24; see each task's "User deci
 ## T8b — Documentation, decisions and handoff
 
 **State:** not started
-**Requirements:** R4, R6, R8, R12, R13, R15, Definition of Done
+**Requirements:** R2, R4, R6, R8, R12, R13, R15, Definition of Done
 
-Runs after T8a is approved and committed. Documentation, decisions, the `.gitignore` fix, the spec-wide checks and the final protected-path check.
+Runs after T8a is approved and committed. Two test fixes from the T8a review (user-approved), then documentation, decisions, the `.gitignore` fix, the spec-wide checks and the final protected-path check. The only code files T8b edits are `packages/rag/tests/evaluation/test_security_eval.py` and `packages/rag/tests/evaluation/test_validate.py` (tests only; no source file changes).
+
+- [ ] **T8a review F1 (test fix, `packages/rag/tests/evaluation/test_security_eval.py`).** The T5 F1 test (unauthorized point whose `document_id` the old regex could not parse) injects the forbidden point through a store that returns it, not by wrapping or patching `check_hit`, so the real `check_hit` raises `RetrievalAuthorizationError`. It asserts that the violation entry in the result document built by `security_document` and the printed `VIOLATION` line both name that `document_id` (through `safe_text`).
+- [ ] **T8a review F2 (test fix, `packages/rag/tests/evaluation/test_validate.py`).** The ineligible-candidate-document test asserts exit code 1, besides the "not eligible" (not "unknown document") report.
 
 - [ ] `docs/project/COMMANDS.md`:
   - document `validate-evaluation`, `eval-retrieval`, `eval-security`, `eval-compare` (options, exit codes, output locations, the gate rule);
@@ -410,7 +413,7 @@ Runs after T8a is approved and committed. Documentation, decisions, the `.gitign
   - open findings;
   - the user-owned post-merge reproduction;
   - candidates awaiting fluent-speaker and owner review.
-- [ ] `.gitignore` (outside `evaluation/`, `knowledge/` and `config/`; the files changed in T8b are the docs above plus `.gitignore`):
+- [ ] `.gitignore` (outside `evaluation/`, `knowledge/` and `config/`; the files changed in T8b are the two test files named in its header, the docs above and `.gitignore`):
   - anchor the `MANIFEST` rule to the repository root as `/MANIFEST`, so it cannot match `knowledge/manifest/` on case-insensitive filesystems (macOS);
   - **this deliberately edits a line approved in T1:** remove the T1 negation `!packages/rag/tests/retrieval/fixtures/legacy_baseline_repo/knowledge/manifest/` and its comment line, which the root anchor makes redundant;
   - check with `git check-ignore`:
@@ -428,6 +431,7 @@ Runs after T8a is approved and committed. Documentation, decisions, the `.gitign
 - `make verify`, `make test-unit`, `make lint`, `make typecheck`.
 - `make test-integration` with `docker compose up -d qdrant`.
 - `make validate-evaluation`, `make eval-security`, and `make eval-compare` with BASE and CANDIDATE both set to the committed baseline file.
+- T8a review fixes: the T5 F1 test in `test_security_eval.py` passes, injects the point through a store (no `check_hit` wrapper or patch), and asserts the `document_id` in both the `security_document` violation entry and the printed `VIOLATION` line; the ineligible-candidate test in `test_validate.py` asserts exit 1. While T8b is uncommitted, `git diff --name-only HEAD -- packages` (HEAD is the T8a commit) lists only those two test files.
 - `git diff --name-status main -- knowledge config evaluation` lists exactly the three added files; `git status --porcelain -- evaluation knowledge config` is empty.
 - `git check-ignore` checks as in the `.gitignore` box: new files under live `knowledge/manifest/` and under the fixture's `knowledge/manifest/` are not ignored, the fixture manifest is still tracked, and a root `MANIFEST` is ignored.
 - The docs match the code as built (reviewer check).
