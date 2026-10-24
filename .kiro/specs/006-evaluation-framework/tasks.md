@@ -302,11 +302,11 @@ Implement the tasks in order; each depends on the ones before it.
 
 ## T7 — Evaluation candidate cases
 
-**State:** not started
+**State:** approved (2026-10-24)
 **Requirements:** R14, R2, R15
 
-- [ ] Create `evaluation/candidates/006-candidates.jsonl`, valid against `candidate_row`. Every row has `status: suggested`, `target_suite_id: public-eval-v1` and `proposed_by: spec-006`.
-- [ ] Draft about 6 pure-`ml` golden proposals (`proposal_type: new_case`, `proposed_case.query_language: ml`, eligible `relevant_document_ids`) covering:
+- [x] Create `evaluation/candidates/006-candidates.jsonl`, valid against `candidate_row`. Every row has `status: suggested`, `target_suite_id: public-eval-v1` and `proposed_by: spec-006`.
+- [x] Draft about 6 pure-`ml` golden proposals (`proposal_type: new_case`, `proposed_case.query_language: ml`, eligible `relevant_document_ids`) covering:
   - CCL format and scoring (`official_001_ccl_format_scoring_results`);
   - candidate rules (`official_002_candidate_rules_setup`);
   - booking and fees (`official_003_booking_fees_validity`);
@@ -315,10 +315,10 @@ Implement the tasks in order; each depends on the ones before it.
   - the Malayalam NAATI policy (`language_ml_001_naati_policy`).
 
   Each row has `drafted_by: agent`, `needs_fluent_speaker_review: true` and `requires_review: ["fluent_malayalam_speaker", "owner_review"]`, plus a `rationale`. The queries are agent drafts that a fluent speaker must correct before any approval.
-- [ ] Add one `case_change` proposal for the `g004`/`u001` conflict: `target_case_ids: ["g004", "u001"]`, `options` listing the alternatives without choosing one, and `requires_review: ["owner_review"]`.
-- [ ] No `relevant_section_ids` proposals (R14; revisited with the chunking spec).
-- [ ] No suite manifest change, no active case change, and no `case_version` bump.
-- [ ] Extend `test_validate.py`: the real candidates file validates, and the loader never returns its rows as suite cases.
+- [x] Add one `case_change` proposal for the `g004`/`u001` conflict: `target_case_ids: ["g004", "u001"]`, `options` listing the alternatives without choosing one, and `requires_review: ["owner_review"]`.
+- [x] No `relevant_section_ids` proposals (R14; revisited with the chunking spec).
+- [x] No suite manifest change, no active case change, and no `case_version` bump.
+- [x] Extend `test_validate.py`: the real candidates file validates, and the loader never returns its rows as suite cases.
 
 ### Verification
 

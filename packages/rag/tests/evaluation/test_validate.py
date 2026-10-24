@@ -11,6 +11,7 @@ import pytest
 from conftest import REPO_ROOT
 from way2australia_rag.evaluation import cli
 from way2australia_rag.evaluation.errors import EvaluationConfigurationError
+from way2australia_rag.evaluation.suite import load_suite
 from way2australia_rag.evaluation.validate import validate_evaluation
 from way2australia_rag.repositories import (
     DocumentQuery,
@@ -286,6 +287,30 @@ def test_case_change_candidate_rules(root: Path, capsys) -> None:  # noqa: ANN00
     del row["options"]
     write_candidates(root, row)
     assert run(root, capsys)[0] == 1
+
+
+def test_real_candidates_file_validates_and_is_not_loaded(capsys) -> None:  # noqa: ANN001
+    path = REPO_ROOT / "evaluation/candidates/006-candidates.jsonl"
+    rows = [json.loads(x) for x in path.read_text().splitlines() if x.strip()]
+    assert rows
+    assert all(
+        r["status"] == "suggested"
+        and r["target_suite_id"] == "public-eval-v1"
+        and r["proposed_by"] == "spec-006"
+        for r in rows
+    )
+    assert all("relevant_section_ids" not in r.get("proposed_case", {}) for r in rows)
+    code, out = run(REPO_ROOT, capsys)
+    assert code == 0, out
+    loaded = load_suite(REPO_ROOT, SUITE)
+    every = (*loaded.goldens, *loaded.unanswerable, *loaded.security)
+    loaded_ids = {c.case_id for c in every}
+    for r in rows:
+        assert r["candidate_id"] not in loaded_ids
+        if "proposed_case" in r:
+            assert r["proposed_case"]["case_id"] not in loaded_ids
+    manifest = (REPO_ROOT / SUITE).read_text()
+    assert "candidates" not in manifest
 
 
 def test_no_language_literal_in_evaluation_code() -> None:

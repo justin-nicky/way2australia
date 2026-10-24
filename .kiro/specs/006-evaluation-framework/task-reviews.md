@@ -338,3 +338,48 @@ Append-only, newest at the bottom.
 
 ### User decision
 - 2026-10-24 — approved. Verbatim: "Approved T6. Implementer decisions accepted. Add to the T8 list: T6 F1: boundary test with n=3 — an MRR drop of exactly 1/n passes, the next representable value above fails (exercises the epsilon and strict `>`). T6 F3: the extra-case refusal test asserts the `9 -> 10` counts and the next-step text. T6 F5: `read_result` rejects a file with a duplicate `case_id` (any version); test it. No change for F2 and F4 (retrospective records the flip-line format in As-built notes)."
+
+## T7 — round 1
+
+### Implementation
+- Model: claude-sonnet-5-5 (intended tier BEST_MINUS_ONE; run as a subagent, no user to ask).
+- Files changed:
+  - new `evaluation/candidates/006-candidates.jsonl` (7 rows: 6 pure-`ml` `new_case` proposals, 1 `case_change` for `g004`/`u001`); the only change under `evaluation/`;
+  - `packages/rag/tests/evaluation/test_validate.py`: `test_real_candidates_file_validates_and_is_not_loaded`;
+  - `tasks.md` (T7 State and checkboxes); this file.
+- Verification run:
+  - `make validate-evaluation` -> exit 0, `OK, 0 problems`.
+  - `make verify` -> exit 0 (ruff check and format, pyright, skills-check, validate-knowledge, validate-evaluation, pytest 595 passed, 1 skipped).
+  - `make eval-security` -> PASS (candidates not loaded; result written under the ignored `experiments/results/tmp/`).
+  - `git status --porcelain -- evaluation knowledge config` -> exactly `?? evaluation/candidates/`.
+  - Qdrant container, `w2a-realcheck-*` collections and committed `experiments/results/` files not touched.
+- Notes and decisions:
+  - Each `ml` row: `status: suggested`, `target_suite_id: public-eval-v1`, `proposed_by: spec-006`, `drafted_by: agent`, `needs_fluent_speaker_review: true`, `requires_review: [fluent_malayalam_speaker, owner_review]`, a `rationale` stating the query is an agent draft. Candidate IDs `cand006_ml_001` to `006`; `proposed_case` is `case_version` 1, `category: multilingual`, with `expected_facts` taken from the document text and the guest `access_context` used by existing cases.
+  - Queries are written in Malayalam script and deliberately differ from existing goldens (for example refund on cancellation, test-day equipment, recording of coaching sessions, price of the three-mock package, English numerals policy, total marks and pass mark); none has `relevant_section_ids`.
+  - The `case_change` row lists four options (keep both, reword `u001`, retire `g004` as answerable, merge) without choosing; `requires_review: [owner_review]`, `needs_fluent_speaker_review: false`.
+  - The new test asserts the shared row rules, that the real file validates, that no candidate or proposed case ID appears among the suite's loaded cases, and that the suite manifest does not mention candidates.
+- Deferred items: none. Malayalam wording needs fluent-speaker correction before any approval (outside this spec).
+- Usage: 99K tokens · 19 tool uses · 2:05
+
+### Review
+- Model: claude-opus-5-5 (intended tier BEST = Opus; matches; implementer was Sonnet, so a different model).
+- Verdict: PASS
+- Commands: `make validate-evaluation` → exit 0, `OK, 0 problems`; `make verify` → exit 0 (ruff check + format check, pyright, skills-check, validate-knowledge, validate-evaluation; pytest 595 passed, 1 skipped; Docker integration tests ran, local Qdrant reachable); `make test-unit` → 575 passed, 1 skipped, 20 deselected; `make lint` → exit 0; `make test-integration` → 20 passed, 576 deselected; `pytest test_validate.py -k real_candidates` → 1 passed; `make eval-security` → PASS (68 queries, result under the ignored `experiments/results/tmp/`); `git status --porcelain -- evaluation knowledge config experiments` → exactly `?? evaluation/candidates/`; `git diff HEAD -- packages/rag/src/way2australia_rag/retrieval/` → empty; `load_suite` on `public-eval-v1` → 63/12/10 cases (85, matches `case_count`), query languages `en` and `mixed` only. `task-reviews.md` diff has no removed lines. No `w2a-realcheck-*` collection touched, container not started or stopped.
+- Reviewer content check: all 7 rows read against the schema (`candidate_row`) and the six cited documents. Every row: `status: suggested`, `target_suite_id: public-eval-v1`, `proposed_by: spec-006`, `drafted_by: agent`, a `rationale`. The six `new_case` rows: `query_language: ml`, `needs_fluent_speaker_review: true`, `requires_review: [fluent_malayalam_speaker, owner_review]`, one eligible document each, no `relevant_section_ids`; each query asks what its document answers (total and pass marks; allowed and banned equipment; 75% refund on cancellation; ₹8,499 materials + three mocks; no live-session recordings; numbers rendered in Malayalam), and the `expected_facts` are in the document text. The `case_change` row targets `g004` and `u001` (both exist), lists four options without choosing, `requires_review: [owner_review]`, and has `needs_fluent_speaker_review: false`, which the spec allows (R14 and the design require `true` only for non-`en` proposed queries).
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R14] `cand006_ml_003` ("ടെസ്റ്റ് ബുക്ക് ചെയ്തശേഷം റദ്ദാക്കിയാൽ പണം തിരികെ കിട്ടുമോ?") does not say NAATI or the official test, so on a Way2Australia assistant it also matches `business_007_payments_account_support` ("Payments are non-refundable"); its rationale's "no existing golden covers the refund rule" overlooks `g032` (Way2Australia refunds). `cand006_ml_002` ("ടെസ്റ്റ് എഴുതാൻ ...") has the same, milder ambiguity with the mock test setup → optional: name NAATI / the official test in both queries and say "the NAATI refund rule" in the rationale; otherwise leave for the fluent-speaker and owner review.
+  - F2 [MINOR, IMPLEMENTATION, R14] `cand006_ml_001` keeps "NAATI CCL" in Latin script; the other five use only Malayalam script (with Malayalam-script loanwords). Proper-noun acronyms are reasonable in a pure-`ml` query, but they give a lexical anchor the others lack → note for the fluent speaker; no change needed.
+  - F3 [MINOR, IMPLEMENTATION, R14] The new test proves non-loading by ID disjointness and by the manifest not containing "candidates"; it does not assert the loaded case count equals the manifest `case_count` (85) or that no loaded case has `status: suggested` → optional: add one of those assertions.
+- Summary for user (PASS only):
+  - Changed: new `evaluation/candidates/006-candidates.jsonl` (7 inactive rows: 6 agent-drafted pure-Malayalam golden proposals, one per required document, and one `case_change` listing four options for the `g004`/`u001` conflict without choosing), plus one test in `test_validate.py`. No active case, dataset, schema or suite manifest changed.
+  - Verified by: `make validate-evaluation` (0 problems), `make verify` (595 passed, 1 skipped), `make test-integration` (20 passed), `make eval-security` (PASS), protected-path check (only `?? evaluation/candidates/`), the suite still loads 85 cases with no `ml` case.
+  - Worth your attention: the Malayalam queries are agent drafts and match their documents, but must be corrected by a fluent speaker before any approval; the refund query may also hit the Way2Australia "non-refundable" policy unless it names NAATI (F1). The `case_change` row has `needs_fluent_speaker_review: false` (allowed: English-only owner decision). All three findings are MINOR and optional.
+  - Reading order (follow the flow: entry point → core logic → models/errors/config → tests):
+    1. `evaluation/candidates/006-candidates.jsonl`: the six `new_case` rows (`cand006_ml_001`–`006`), then `cand006_change_g004_u001` and its `options`.
+    2. `packages/rag/src/way2australia_rag/evaluation/validate.py` → `_validate_candidates` and `_candidate_rules` (unchanged, T2): how `make validate-evaluation` checks these rows.
+    3. `packages/rag/tests/evaluation/test_validate.py` → `test_real_candidates_file_validates_and_is_not_loaded`.
+    4. Supporting edits: `tasks.md` T7 State and checkboxes.
+- Usage: 107K tokens · 28 tool uses · 6:04
+
+### User decision
+- 2026-10-24 — approved. Verbatim: "Approved T7. Add to the T8 list: T7: set `owner_review: true` on the `cand006_change_g004_u001` row (business decision). Edits evaluation/candidates/006-candidates.jsonl — name the file explicitly in the T8 box. T7 F1: in the same file, correct `cand006_ml_003`'s rationale (g032 covers the refund rule) and make the query name NAATI to avoid matching business_007; review `cand006_ml_002` for the same ambiguity. T7 F3: the test asserts the loaded count equals the suite manifest's `case_count` (not a literal 85) and that no loaded case has status `suggested`. F2: no change (for the fluent-speaker review)."
