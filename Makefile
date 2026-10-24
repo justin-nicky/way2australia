@@ -6,7 +6,7 @@ UV_ENV = UV_CACHE_DIR=$(UV_CACHE_DIR) UV_PYTHON_INSTALL_DIR=$(UV_PYTHON_INSTALL_
 PYTHON_TARGETS ?= apps packages tests scripts
 UV_HTTP_TIMEOUT ?= 300
 
-.PHONY: setup setup-bge-m3 format lint typecheck test test-unit test-integration verify skills-sync skills-check validate-knowledge validate-evaluation ingest retrieve retrieval-baseline eval-retrieval eval-security
+.PHONY: setup setup-bge-m3 format lint typecheck test test-unit test-integration verify skills-sync skills-check validate-knowledge validate-evaluation ingest retrieve retrieval-baseline eval-retrieval eval-security eval-compare
 
 setup:
 	$(UV_ENV) $(UV) sync --all-packages --group dev
@@ -74,3 +74,11 @@ eval-retrieval:
 # Extra options go in EVAL_ARGS, e.g. make eval-security EVAL_ARGS="--output /tmp/x.json".
 eval-security:
 	@$(UV_ENV) $(UV) run python -m way2australia_rag.evaluation.cli security --repo-root $(CURDIR) $(EVAL_ARGS)
+
+# Compare two result files and apply the quality gate (exit 0 pass, 1 gate failure,
+# 2 refusal). Both variables are required:
+# make eval-compare BASE=<file> CANDIDATE=<file>
+eval-compare:
+	@if [ -z "$(BASE)" ] || [ -z "$(CANDIDATE)" ]; then \
+		echo "usage: make eval-compare BASE=<result.json> CANDIDATE=<result.json>" >&2; exit 2; fi
+	@$(UV_ENV) $(UV) run python -m way2australia_rag.evaluation.cli compare --base "$(BASE)" --candidate "$(CANDIDATE)"

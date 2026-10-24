@@ -7,6 +7,8 @@ Run as ``python -m way2australia_rag.evaluation.cli <subcommand>``.
 - ``security`` (``make eval-security``): the authorization hard gate on a
   throwaway in-memory index. Exit 0 pass, 1 violation (ids only, never text),
   2 harness or configuration error.
+- ``compare`` (``make eval-compare``): exit 0 pass (warnings allowed), 1 quality
+  gate failure, 2 refusal (unlike runs, a fake run, an unreadable file).
 - ``retrieval`` (``make eval-retrieval``): exit 0 on success, 2 on refusal or
   error. Nothing is written on error. There is no flag for embedder, role, scope
   or tenant, and no ``--allow-fake``.
@@ -27,6 +29,7 @@ from typing import Any
 
 from qdrant_client import QdrantClient
 
+from way2australia_rag.evaluation.compare import compare
 from way2australia_rag.evaluation.errors import (
     EvaluationConfigurationError,
     EvaluationError,
@@ -34,6 +37,7 @@ from way2australia_rag.evaluation.errors import (
 from way2australia_rag.evaluation.results import (
     check_output_free,
     default_output_path,
+    read_result,
     write_document,
 )
 from way2australia_rag.evaluation.retrieval_eval import (
@@ -388,6 +392,21 @@ def format_security_summary(document: dict[str, Any], shown: Path) -> str:
     return "\n".join(safe_text(line) for line in lines)
 
 
+def _compare(args: argparse.Namespace) -> int:
+    try:
+        base = read_result(args.base, "BASE")
+        candidate = read_result(args.candidate, "CANDIDATE")
+        comparison = compare(base, candidate)
+    except EvaluationError as error:
+        print(safe_text(error), file=sys.stderr)
+        return EXIT_ERROR
+    except Exception as error:  # noqa: BLE001 - class name only
+        print(f"ERROR {type(error).__name__}", file=sys.stderr)
+        return EXIT_ERROR
+    print("\n".join(comparison.lines))
+    return EXIT_OK if comparison.passed else EXIT_PROBLEMS
+
+
 def main(
     argv: Sequence[str] | None = None,
     *,
@@ -442,7 +461,14 @@ def main(
         default=None,
         help="result file (default: experiments/results/tmp/security-*.json)",
     )
+    compare_cmd = commands.add_parser(
+        "compare", help="compare two result files and apply the quality gate"
+    )
+    compare_cmd.add_argument("--base", type=Path, required=True)
+    compare_cmd.add_argument("--candidate", type=Path, required=True)
     args = parser.parse_args(argv)
+    if args.command == "compare":
+        return _compare(args)
     if args.command == "validate":
         return _validate(args.repo_root.resolve())
     if args.command == "security":

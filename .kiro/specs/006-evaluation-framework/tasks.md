@@ -253,29 +253,29 @@ Implement the tasks in order; each depends on the ones before it.
 
 ## T6 — Result comparison and quality gate (`make eval-compare`)
 
-**State:** not started
+**State:** approved (2026-10-24)
 **Requirements:** R11
 
-- [ ] In `evaluation/results.py`, add `read_result(path) -> ComparableRun`.
+- [x] In `evaluation/results.py`, add `read_result(path) -> ComparableRun`.
   - It accepts only `retrieval_baseline` 1.0 and `retrieval_evaluation` 2.0; anything else is exit 2.
   - It builds a per-case map `(case_id, case_version)` to (`hit`, `recall`, `reciprocal_rank`), plus the slice keys (`source_authority` for 2.0 only) and the identity and informational fields.
-- [ ] Add `evaluation/compare.py` with `HIT_TOLERANCE_CASES = 1` and `mrr_tolerance(n) = 1/n`.
+- [x] Add `evaluation/compare.py` with `HIT_TOLERANCE_CASES = 1` and `mrr_tolerance(n) = 1/n`.
   - Refuse when any of these differ: suite ID or version, the case key set, `top_k`, `document_count`; or when either run is fake.
   - Compute hits and unrounded MRR from the per-case rows.
   - Fail if `hits_cand < hits_base - 1`, or if `mrr_base - mrr_cand > 1/n + 1e-9`.
   - Print per-slice deltas, informational latency and identity differences, and `WARNING flipped hit->miss` / `miss->hit` lines by `case_id`. Flips never fail the gate.
-- [ ] Add the `compare` subcommand to `evaluation/cli.py` (`--base`, `--candidate`). Exit 0 pass (warnings allowed), 1 gate failure, 2 refusal.
-- [ ] Make every refusal explain the reason **and** the next step. Each message:
+- [x] Add the `compare` subcommand to `evaluation/cli.py` (`--base`, `--candidate`). Exit 0 pass (warnings allowed), 1 gate failure, 2 refusal.
+- [x] Make every refusal explain the reason **and** the next step. Each message:
   - starts with `not comparable:`;
   - names each differing field, all of them when several differ, with old -> new values where they are numbers or IDs (suite ID and version, `top_k`, `document_count`, the case counts, and up to 10 differing `case_id`/`case_version` keys, then "and N more");
   - ends with the suggested next step, for example "not comparable: document count changed 13 -> 14; run `make eval-retrieval` on the current system to set a new baseline."
   - The fake-run refusal names which file (BASE or CANDIDATE, by file name only) is fake and suggests a real-embedder `make eval-retrieval`.
   - An unreadable file or an unknown `kind`/`schema_version` names the file name and the value found, and suggests producing the file with `make eval-retrieval` (or `make retrieval-baseline` for 1.0).
   - Messages never contain query text, chunk text or absolute paths, and are printed through `safe_text`.
-- [ ] `Makefile`:
+- [x] `Makefile`:
   - add the target `eval-compare` (`BASE` and `CANDIDATE` variables, both required, with a usage error if either is missing);
   - add `eval-compare` to `.PHONY`.
-- [ ] Add `packages/rag/tests/evaluation/test_compare.py` with synthetic result files in `tmp_path`:
+- [x] Add `packages/rag/tests/evaluation/test_compare.py` with synthetic result files in `tmp_path`:
   - pass at exactly one lost case; fail at two;
   - MRR pass at exactly 1/n; fail just above it;
   - flip warnings in both directions;

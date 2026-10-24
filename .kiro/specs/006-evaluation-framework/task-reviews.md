@@ -286,3 +286,55 @@ Append-only, newest at the bottom.
 
 ### User decision
 - 2026-10-24 — approved. Verbatim: "Approved T5. Implementer decisions confirmed (schema_source, --config/--suite/--repo-root, --fixture-root as CLI-only default). Add to the T8 list: T5 F1: give `RetrievalAuthorizationError` a `document_id` attribute and read it in the security runner instead of regex-parsing the message; test that a violation report names the document. T5 F4: `build_security_repository` uses an explicit list of fixture files and refuses unexpected files in the fixture folder (e.g. a stray README.md); test both. T5 F3: no code change; record in As-built notes that `security_document` hard-codes role `guest` (Phase 1) and must change when other roles are added. (If not already added) the hard-coded live counts item: replace ~20 tests asserting 13 / 85 / 63 / 12 / 10 with consistency checks against live sources; exact-number tests use the frozen fixture; verify by adding one document and one golden in a scratch copy and running `make test-unit`."
+
+## T6 — round 1
+
+### Implementation
+- Model: claude-sonnet-5-5 (intended tier BEST_MINUS_ONE; run as a subagent, no user to ask).
+- Files changed:
+  - new `packages/rag/src/way2australia_rag/evaluation/compare.py` (`HIT_TOLERANCE_CASES`, `mrr_tolerance`, `compare`, `Comparison`);
+  - `evaluation/results.py`: `read_result`, `ComparableRun`, `CaseRow`; `evaluation/errors.py`: `NotComparableError`; `evaluation/cli.py`: `compare` subcommand (`--base`, `--candidate`);
+  - `Makefile`: `eval-compare` (usage error and exit 2 when BASE or CANDIDATE is missing), added to `.PHONY`;
+  - new `packages/rag/tests/evaluation/test_compare.py` (22 tests incl. CLI exit codes); `tasks.md` (T6 State and checkboxes); this file.
+- Verification run:
+  - `make verify` -> exit 0 (ruff check and format, pyright, skills-check, validate-knowledge, validate-evaluation, pytest 594 passed, 1 skipped).
+  - `make eval-compare BASE=<committed 1.0> CANDIDATE=<same>` -> exit 0, `eval-compare: PASS (hits 60 -> 60, MRR 0.8783 -> 0.8783)`, no WARNING lines (read-only use of the committed file).
+  - Manual: a scratch copy (scratchpad, outside the repo) with `document_count` 14 -> exit 2 and `not comparable: document count changed 13 -> 14; run `make eval-retrieval` on the current system to set a new baseline.`
+  - `make eval-compare` with no variables -> usage message, exit 2.
+  - `git status --porcelain -- evaluation knowledge config experiments` -> empty. Qdrant not touched.
+- Notes and decisions:
+  - Refusals raise `NotComparableError` (new `EvaluationError` subclass); the CLI prints the message as-is (it already starts with `not comparable:`), through `safe_text`, to stderr, exit 2. All differences are named in one message; case differences are capped at 10 keys then "and N more"; the same case_id with a different version is reported as "case_version changed for gNNN 1 -> 2".
+  - Unreadable files, unknown `kind`/`schema_version` and malformed rows name the file by name only and suggest `make eval-retrieval` (or `make retrieval-baseline` for 1.0). Label BASE/CANDIDATE is passed to `read_result` as an optional second argument.
+  - Fake runs: message names which file and suggests a real-embedder run; combined with other differences, both next steps are given.
+  - Hits and MRR come from per-case rows, unrounded. Slices follow BASE's labels over the shared case keys; `source_authority` is compared only when both files are 2.0, otherwise a note says so. Flips are sorted by case_id and never fail the gate.
+  - Test for "pass at exactly 1/n" uses n=10 and two cases moving rr 1.0 -> 0.5 (hits unchanged).
+- Deferred items: none. The Phase 2 "compare shared cases" mode is not built (per the amendment).
+- Usage: 116K tokens · 19 tool uses · 6:29
+
+### Review
+- Model: claude-opus-5-5 (intended tier BEST = Opus; matches; implementer was Sonnet, so a different model).
+- Verdict: PASS
+- Commands: `make verify` → exit 0 (ruff check + format check, pyright 0 errors, skills-check, validate-knowledge, validate-evaluation; pytest 594 passed, 1 skipped; Docker integration tests ran, local Qdrant reachable); `make test-integration` → exit 0 (20 passed, 575 deselected); `pytest packages/rag/tests/evaluation/test_compare.py` → 22 passed; `make eval-compare BASE=<committed 1.0> CANDIDATE=<same>` → exit 0, `eval-compare: PASS (hits 60 -> 60, MRR 0.8783 -> 0.8783)`, no WARNING lines, source_authority "not compared" note; manual scratchpad copy (outside the repo) with `document_count` 14 → exit 2, `not comparable: document count changed 13 -> 14; run `make eval-retrieval` on the current system to set a new baseline.`; `make eval-compare BASE=x` → usage line, exit 2; `git status --porcelain -- evaluation knowledge config experiments packages/rag/src/way2australia_rag/retrieval` → empty. No `w2a-realcheck-*` collection touched, container not started or stopped, nothing written under `experiments/results/`.
+- Reviewer mutation checks (scratch script outside the repo, module constants patched in memory, no file edited): `HIT_TOLERANCE_CASES` 0 or 2 → the one-lost/two-lost test fails; `mrr_tolerance` 1/n − 1e-6 or 1/n + 0.002 → `test_mrr_boundary` fails. Refusal tests checked one by one: suite ID, suite version, `top_k`, `document_count`, `case_version` and missing case each assert the reason, old -> new values and `make eval-retrieval`; BASE/CANDIDATE fake assert the file name and the real-embedder step; unknown `kind`/`schema_version` assert file name, value found and both commands; the shared `refusal()` helper asserts the `not comparable:` prefix and that neither the synthetic query text nor `tmp_path` appears. Messages carry file names only (`Path.name`), the CLI prints refusals through `safe_text` and unexpected errors as class name only.
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R11] The "pass at exactly 1/n" case (n=10, two rr 1.0 -> 0.5) computes a drop of 0.09999999999999998, below 1/n, so neither `MRR_EPSILON` nor the strict `>` is pinned: removing the epsilon, or using `>=` with it, still passes the test. At n=3 (one rr 1.0 -> 0.0) the float drop is 0.33333333333333337 > 1/3, where the epsilon matters → optional: add an n=3 boundary case.
+  - F2 [MINOR, IMPLEMENTATION, R11] The case-key cap applies per list (`case_version changed`, `only in BASE`, `only in CANDIDATE` each up to 10), so one message can list up to 30 keys; the task says "up to 10 differing keys, then and N more" → optional: cap the total, or record the per-list reading in T8 As-built notes.
+  - F3 [MINOR, IMPLEMENTATION, R11] The "extra case" half of `test_case_set_missing_and_extra` asserts only `only in CANDIDATE: g009 v1`, not the `9 -> 10` counts or the next step (the code emits both; the missing-case half asserts them) → optional: add the two assertions.
+  - F4 [MINOR, IMPLEMENTATION, R11] Flip lines read `WARNING flipped hit->miss: g002 v1`; the design example shows `g026 (v1)`. Sorting is by the `"<case_id> v<version>"` string, so by `case_id` as required → align the design example or the format in T8.
+  - F5 [MINOR, IMPLEMENTATION, R11] A file holding the same `case_id` twice with different `case_version`s is accepted (keys are unique per pair), and `_refusals` then collapses those versions in a dict, so the "case_version changed" detail can name only one of them. Unreachable with today's writers (one row per case) → note only.
+- Summary for user (PASS only):
+  - Changed: `make eval-compare BASE=... CANDIDATE=...` (new `evaluation/compare.py`, `read_result` in `results.py`, `compare` subcommand in `cli.py`, `NotComparableError`) reads 1.0 and 2.0 result files, refuses unlike or fake runs with one `not comparable:` message naming every difference (old -> new) and the next step, and otherwise applies the fixed gate: fail only if more than 1 hit is lost or MRR drops by more than 1/n. It prints overall and per-slice deltas, latency, identity differences and flip warnings; exit 0/1/2.
+  - Verified by: `make verify` (594 passed, 1 skipped), `make test-integration` (20 passed), 22 `test_compare.py` tests, the committed baseline compared with itself (PASS, no warnings), the manual 13 -> 14 refusal (exit 2), and reviewer mutation runs on both gate constants.
+  - Worth your attention: the "exactly 1/n" test does not exercise the float epsilon (F1); the 10-key cap is per list, not per message (F2). Slices use BASE's labels over the shared case keys. All five findings are MINOR and optional.
+  - Reading order (follow the flow: entry point → core logic → models/errors/config → tests):
+    1. `Makefile` → `eval-compare` (usage error when BASE or CANDIDATE is missing), then `packages/rag/src/way2australia_rag/evaluation/cli.py` → `_compare`: read both, compare, print, exit 0/1/2.
+    2. `packages/rag/src/way2australia_rag/evaluation/results.py` → `read_result` and `_build_run`: accepts only 1.0/2.0, builds `ComparableRun` with per-case `CaseRow`s; `_unreadable` messages.
+    3. `packages/rag/src/way2australia_rag/evaluation/compare.py` → `_refusals`: every difference in one message with old -> new and the next step.
+    4. `packages/rag/src/way2australia_rag/evaluation/compare.py` → `compare`: unrounded hits/MRR, the gate (`HIT_TOLERANCE_CASES`, `mrr_tolerance`), slice/latency/identity lines, sorted flip warnings.
+    5. `packages/rag/src/way2australia_rag/evaluation/errors.py` → `NotComparableError`.
+    6. `packages/rag/tests/evaluation/test_compare.py`: `doc()`/`case()` builders and the `refusal()` helper, the boundary tests, one test per refusal, the committed-baseline self-compare and CLI exit codes.
+    7. Supporting edits: `.PHONY` in `Makefile`, `tasks.md` State and checkboxes.
+- Usage: 117K tokens · 21 tool uses · 5:53
+
+### User decision
+- 2026-10-24 — approved. Verbatim: "Approved T6. Implementer decisions accepted. Add to the T8 list: T6 F1: boundary test with n=3 — an MRR drop of exactly 1/n passes, the next representable value above fails (exercises the epsilon and strict `>`). T6 F3: the extra-case refusal test asserts the `9 -> 10` counts and the next-step text. T6 F5: `read_result` rejects a file with a duplicate `case_id` (any version); test it. No change for F2 and F4 (retrospective records the flip-line format in As-built notes)."
