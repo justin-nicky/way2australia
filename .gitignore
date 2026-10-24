@@ -36,7 +36,7 @@ dist/
 build/
 *.egg-info/
 *.egg
-MANIFEST
+/MANIFEST
 .eggs/
 
 # =============================================================================
@@ -91,3 +91,6 @@ Thumbs.db
 *.tmp
 *.swp
 *.swo
+
+# Throwaway evaluation output (eval-security, fake runs)
+experiments/results/tmp/

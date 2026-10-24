@@ -72,7 +72,8 @@ def check_hit(payload: Mapping[str, object], access: ResolvedAccess) -> PointPay
         fields = sorted({".".join(str(p) for p in e["loc"]) for e in error.errors()})
         raise RetrievalAuthorizationError(
             f"hit for document '{doc}' has a malformed payload: "
-            f"check {', '.join(fields)}"
+            f"check {', '.join(fields)}",
+            document_id=doc,
         ) from None
     failed: list[str] = []
     try:
@@ -87,6 +88,7 @@ def check_hit(payload: Mapping[str, object], access: ResolvedAccess) -> PointPay
     if failed:
         raise RetrievalAuthorizationError(
             f"hit for document '{hit.document_id}' violates access policy: "
-            f"{', '.join(failed)}"
+            f"{', '.join(failed)}",
+            document_id=hit.document_id,
         )
     return hit

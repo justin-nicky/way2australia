@@ -1,0 +1,14 @@
+{
+  "evaluation_suite_id": "legacy-fixture-suite",
+  "version": 1,
+  "status": "active",
+  "introduced_in_release": "seed-v1",
+  "datasets": [
+    {
+      "type": "golden_answerable",
+      "path": "evaluation/datasets/golden_fixture.jsonl"
+    }
+  ],
+  "case_count": 9,
+  "notes": "Frozen fixture suite for the legacy retrieval-baseline snapshot test. Never refresh."
+}

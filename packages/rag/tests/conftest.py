@@ -7,21 +7,15 @@ Schema exactly like real documents (design "Security fixtures").
 """
 
 import json
-import shutil
 from pathlib import Path
 
 import pytest
-from way2australia_rag.repositories import (
-    LocalDocumentRepository,
-    LocalRepositoryConfig,
-)
-from way2australia_rag.repositories.frontmatter import split_frontmatter
-from way2australia_rag.repositories.hashing import compute_body_sha256, sha256_hex
+from way2australia_rag.evaluation.security_corpus import build_security_repository
+from way2australia_rag.repositories import LocalDocumentRepository
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SECURITY_FIXTURES = REPO_ROOT / "tests/fixtures/security"
 SCHEMA = "knowledge/schemas/document_metadata.schema.json"
-ISOLATED_ROOT = "security_corpus"
 
 FIXTURE_IDS = {
     "staff_only_canary.md": "fixture_staff_canary",
@@ -29,29 +23,33 @@ FIXTURE_IDS = {
 }
 
 
+LIVE_SUITE = "evaluation/suites/public-eval-v1.json"
+
+
+def live_suite_rows(dataset_type: str, *, active_only: bool = False) -> list[dict]:
+    """Raw rows of the live suite's datasets of one type (never a literal count)."""
+    manifest = json.loads((REPO_ROOT / LIVE_SUITE).read_text(encoding="utf-8"))
+    rows: list[dict] = []
+    for ref in manifest["datasets"]:
+        if ref["type"] != dataset_type:
+            continue
+        text = (REPO_ROOT / ref["path"]).read_text(encoding="utf-8")
+        rows += [json.loads(x) for x in text.splitlines() if x.strip()]
+    if active_only:
+        rows = [r for r in rows if r.get("status", "active") == "active"]
+    return rows
+
+
+def manifest_document_count() -> int:
+    """Number of documents in the live manifest (never a literal)."""
+    manifest = REPO_ROOT / "knowledge/manifest/document_manifest.jsonl"
+    return sum(
+        1 for x in manifest.read_text(encoding="utf-8").splitlines() if x.strip()
+    )
+
+
 @pytest.fixture
 def security_repository(tmp_path: Path) -> LocalDocumentRepository:
-    (tmp_path / SCHEMA).parent.mkdir(parents=True)
-    shutil.copy(REPO_ROOT / SCHEMA, tmp_path / SCHEMA)
-    (tmp_path / ISOLATED_ROOT).mkdir()
-    records = []
-    for name in sorted(FIXTURE_IDS):
-        raw = (SECURITY_FIXTURES / name).read_bytes()
-        (tmp_path / ISOLATED_ROOT / name).write_bytes(raw)
-        metadata, body = split_frontmatter(raw.decode("utf-8"))
-        records.append(
-            {
-                **metadata,
-                "path": f"{ISOLATED_ROOT}/{name}",
-                "sha256": sha256_hex(raw),
-                "body_sha256": compute_body_sha256(body),
-            }
-        )
-    manifest = tmp_path / "knowledge/manifest/document_manifest.jsonl"
-    manifest.parent.mkdir(parents=True)
-    manifest.write_text(
-        "\n".join(json.dumps(r) for r in records) + "\n", encoding="utf-8"
-    )
-    return LocalDocumentRepository(
-        LocalRepositoryConfig(repo_root=tmp_path, approved_roots=(ISOLATED_ROOT,))
+    return build_security_repository(
+        SECURITY_FIXTURES, tmp_path, schema_source=REPO_ROOT / SCHEMA
     )

@@ -36,7 +36,7 @@ def test_seed_corpus_loads_through_repository_abstraction() -> None:
     documents = asyncio.run(repository.list_documents())
 
     assert {d.document_id for d in documents} == SEED_IDS
-    assert len(documents) == 13
+    assert len(documents) == len(SEED_IDS)
     assert all(d.content and len(d.content_hash) == 64 for d in documents)
     assert all(d.access_scope is AccessScope.PUBLIC for d in documents)
 
@@ -107,7 +107,7 @@ def test_query_filters_are_applied() -> None:
     )
 
     assert none_staff == []
-    assert len(approved) == 13
+    assert len(approved) == len(SEED_IDS)
 
 
 def _copy_seed(tmp_path: Path) -> Path:
@@ -174,7 +174,7 @@ def test_repository_does_not_depend_on_working_directory(
 
     documents = asyncio.run(seed_repository().list_documents())
 
-    assert len(documents) == 13
+    assert len(documents) == len(SEED_IDS)
 
 
 def test_invalid_document_fails_load_without_leaking_paths(tmp_path: Path) -> None:

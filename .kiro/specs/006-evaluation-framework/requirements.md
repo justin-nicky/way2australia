@@ -1,6 +1,6 @@
 # 006 — Evaluation Framework Requirements
 
-Status: approved (2026-10-23)
+Status: approved (2026-10-24)
 
 ## Goal
 
@@ -225,6 +225,8 @@ Authorization regressions shall be caught deterministically, without the model a
 - The summary lists deferred security cases (R3). The command prints a summary and writes JSON only to `experiments/results/tmp/` (git-ignored, R13) or to `--output`.
 - `make verify` runs the same gate through a unit test, without the model or Docker. The in-memory gate (index build plus all queries) completes in under 10 seconds on a developer machine. A test asserts this bound.
 - A test proves the gate fails when a store drops the filter.
+- The isolated security repository is built from an explicit list of fixture file names. A fixture folder holding any other visible file, or missing a listed file, is refused (exit 2) before anything is copied; hidden (dot-prefixed) entries such as `.DS_Store` are ignored.
+- A violation report names the forbidden `document_id` also when `check_hit` raised; the ID comes from the error's attribute, never from parsing its message.
 
 ## R9 — Docker authorization isolation test
 
@@ -259,6 +261,7 @@ Two results shall be compared with an explicit, deterministic tolerance rule.
   - `document_count`;
 
   or when either file comes from a fake-embedder index.
+- A result file whose per-case rows repeat a `case_id` (any `case_version`) is refused (exit 2).
 - It prints:
   - overall and per-slice deltas for HitRate@k, Recall@k and MRR;
   - informational latency deltas;
@@ -287,7 +290,7 @@ The Spec 005 command shall keep working unchanged.
 
 - `make retrieval-baseline` keeps its options (including `--allow-fake`), its output format (`retrieval_baseline` 1.0), its default output path and its exit codes.
 - It is documented as legacy in `COMMANDS.md`, with `make eval-retrieval` named as the quality command.
-- The existing `retrieval/test_baseline.py` and the CLI tests pass unchanged, or only with import-path changes.
+- The existing `retrieval/test_baseline.py` and the CLI tests pass unchanged, or only with import-path changes, or with live-data counts replaced by consistency checks against the live sources (R15, T8a); what each test checks otherwise stays the same.
 
 ## R13 — Index and output isolation
 
@@ -332,6 +335,7 @@ Proposed fixes for evaluation-data gaps shall be recorded as inactive candidates
 - `make test-integration` passes against local Qdrant.
 - `COMMANDS.md` documents `eval-retrieval`, `eval-security`, `eval-compare`, `validate-evaluation` and legacy `retrieval-baseline`.
 - `ARCHITECTURE.md`, `DECISIONS.md` and `CURRENT_STATE.md` match the code as built.
+- Unit tests that read live `knowledge/` or `evaluation/` data assert consistency with their live sources (manifest entry count, suite `case_count`, counts derived from the datasets), never today's literal counts. Tests that need exact numbers use the frozen fixture copy `packages/rag/tests/retrieval/fixtures/legacy_baseline_repo/`. Adding one valid document and one active golden case (in a scratch copy of the repository) leaves `make test-unit` passing.
 
 ## Out of scope
 
@@ -377,24 +381,31 @@ Proposed fixes for evaluation-data gaps shall be recorded as inactive candidates
 
 | Requirement | Task(s) | Verification |
 |---|---|---|
-| R1 | T1 | `evaluation/test_suite_loader.py`; `make test-unit` |
-| R2 | T2, T7 | `evaluation/test_schemas.py`, `evaluation/test_validate.py`; `make validate-evaluation`; `make verify` |
-| R3 | T1, T2, T5 | `evaluation/test_status_handling.py`, `test_validate.py`, `test_security_eval.py` (deferred/unclassified); `evaluation/` hash before and after runs |
-| R4 | T3 | `evaluation/test_retrieval_eval.py` (fake refusals, binding, access), `evaluation/test_cli.py`; `make eval-retrieval` without the extra exits 2 |
+| R1 | T1, T8a | `evaluation/test_suite_loader.py` (counts from the manifest, T8a); `make test-unit` |
+| R2 | T2, T7, T8a, T8b | `evaluation/test_schemas.py`, `evaluation/test_validate.py` (T8a: `options`-only row, empty fields, ineligible candidate document, escaping dataset path); `make validate-evaluation`; `make verify` |
+| R3 | T1, T2, T5, T8a | `evaluation/test_status_handling.py`, `test_validate.py`, `test_security_eval.py` (deferred/unclassified); `evaluation/` hash before and after runs |
+| R4 | T3, T8a, T8b | `evaluation/test_retrieval_eval.py` (fake refusals, binding, access), `evaluation/test_cli.py` (T8a: non-default `W2A_TENANT_ID` reaches the search filter); `make eval-retrieval` without the extra exits 2 |
 | R5 | T3 | `evaluation/test_slices.py` (keys, `small_sample`, absent languages, no `ml` literal) |
-| R6 | T3 | `evaluation/test_sections.py` |
+| R6 | T3, T8b | `evaluation/test_sections.py` |
 | R7 | T3, T4 | `evaluation/test_retrieval_eval.py` (field superset, no text, no overwrite, partial cleanup) |
-| R8 | T5 | `evaluation/test_security_eval.py` (gate, sanity, fail closed, filter identity, under-10 s bound); `make eval-security` |
+| R8 | T5, T8a, T8b | `evaluation/test_security_eval.py` (gate, sanity, fail closed, filter identity, under-10 s bound; T8a: violation names the document from the error attribute, explicit fixture list, stray-file refusal, hidden files ignored); `make eval-security` |
 | R9 | T5 | `evaluation/test_security_integration.py`; `make test-integration` |
-| R10 | T4 | `evaluation/test_retrieval_eval.py` (not-evaluable marker, distributions) |
-| R11 | T6 | `evaluation/test_compare.py`; `make eval-compare` self-check on the committed 1.0 file |
-| R12 | T1, T8 | `retrieval/test_legacy_baseline_snapshot.py`; unchanged `retrieval/test_goldens.py`, `test_baseline.py`, `test_cli.py`; `COMMANDS.md` review |
-| R13 | T3, T5 | `test_security_eval.py` (builder refusals), `test_retrieval_eval.py` (read-only, default collection recorded); `.gitignore` check `git status --porcelain -- experiments` |
-| R14 | T2, T7 | `evaluation/test_validate.py` (candidate rules, real file); `make validate-evaluation` |
-| R15 | T2, T5, T7, T8 | `git status --porcelain -- evaluation knowledge config`; `git diff --stat main -- knowledge config evaluation`; `make verify`; `make test-integration`; doc review |
-| Definition of Done | T8 | `make verify`, `make test-integration`, `make eval-security`, `make eval-compare` self-check, protected-path diff |
+| R10 | T4, T8a | `evaluation/test_retrieval_eval.py` (not-evaluable marker, distributions) |
+| R11 | T6, T8a | `evaluation/test_compare.py` (T8a: n=3 MRR boundary, `9 -> 10` extra-case message, duplicate `case_id` refusal); `make eval-compare` self-check on the committed 1.0 file |
+| R12 | T1, T8a, T8b | `retrieval/test_legacy_baseline_snapshot.py`; `retrieval/test_goldens.py`, `test_baseline.py`, `test_cli.py` unchanged apart from T8a's live-data count checks; `COMMANDS.md` review |
+| R13 | T3, T5, T8b | `test_security_eval.py` (builder refusals), `test_retrieval_eval.py` (read-only, default collection recorded); `.gitignore` check `git status --porcelain -- experiments` |
+| R14 | T2, T7, T8a | `evaluation/test_validate.py` (candidate rules, real file; T8a: loaded count equals `case_count`, no `suggested` case loaded, owner review on the `g004`/`u001` row); `make validate-evaluation` |
+| R15 | T2, T5, T7, T8a, T8b | `git status --porcelain -- evaluation knowledge config`; `git diff --name-status main -- knowledge config evaluation`; `make verify`; `make test-integration`; live-data count check in a scratch copy (T8a); doc review |
+| Definition of Done | T8b | `make verify`, `make test-integration`, `make eval-security`, `make eval-compare` self-check, protected-path diff |
 
 ## Change log
 
 <!-- Approved amendments only, one dated line each:
 - YYYY-MM-DD — <R#/T#>: <what changed and why>. Re-opened <T#>. -->
+
+- 2026-10-23 — R12/T1: the legacy retrieval-baseline snapshot is built from a frozen fixture copy under packages/rag/tests/retrieval/fixtures/ (13 seed documents, manifest, small fixed golden suite), not from live knowledge/ or evaluation/, so approved data changes and Phase 2 releases never break it; it fails only when legacy code behaviour changes. T1 was reverted and re-planned; no other task re-opened.
+- 2026-10-23 — R11/T6: every eval-compare refusal names what differs and the next step (suggest a new baseline), with a test per refusal case; the Phase 2 'compare shared cases' mode is recorded as a note for the next spec, not built. No task re-opened.
+- 2026-10-23 — R1/R2/R4/R12/T2/T3/T8 (T1 review F1–F4): (F1) T2 `validate-evaluation` enforces case `status` values and required suite/case fields through the new schemas, because the tolerant T1 loader models keep `status` as a plain string with defaults (design updated); (F2) legacy `retrieval-baseline` now refuses malformed suites it used to ignore (exit 2; the real and fixture suites unaffected), recorded in the design and documented in COMMANDS.md by T8; (F4) T3 adds a test that a case's `access_context` never changes the access used for retrieval; T8 anchors the `.gitignore` `MANIFEST` rule to `/MANIFEST`, removes the now-redundant T1 negation line and checks with `git check-ignore`. R12 requirement text unchanged. T1 stays approved; no task re-opened.
+- 2026-10-24 — R2/R4/R8/R10/R11/R12/R14/R15/T8 (deferred task-review items from T2–T7, user-approved): T8 gains explicit boxes for the T2 F1–F5, T3 F1–F3, T4 F1, T5 F1–F4, T6 F1/F3/F5 and T7 (owner review, F1, F3) items, and for replacing hard-coded live-data counts in unit tests with consistency checks (exact numbers only on the frozen fixture copy). Requirements added: R12 allows the existing legacy tests to replace live-data counts with consistency checks; R8 explicit security-fixture file list with stray-file refusal, and violation `document_id` taken from the error attribute; R11 refusal of a result file with a repeated `case_id`; R15 live-data test rule. Design updated: the one minimal `retrieval/` change (`RetrievalAuthorizationError.document_id`, messages unchanged), allowed suite status values, section-key form, fixture list, duplicate `case_id` refusal, the live-data test rule and As-built notes (T3 F2, T5 F2/F3). T8 now also edits `evaluation/candidates/006-candidates.jsonl` (added by T7); the protected-path check allows that file's own content change only. D042–D046 numbering confirmed. T1–T7 stay approved; no task re-opened; T8 stays `not started`.
+- 2026-10-24 — T8 split (user decision, same amendment): T8 becomes T8a (deferred code/test fixes, live-count clean-up, scratch-copy check; owns the candidates-file content edit and the minimal `retrieval/` change; its verification includes the T1 legacy snapshot test passing unchanged after the `document_id` change) and T8b (docs, D042–D046, TECH_STACK, CURRENT_STATE, `.gitignore` `/MANIFEST`, spec-wide checks, final three-new-files protected-path check, hand-off last). The `g004`/`u001` owner-review box is test-only (existing `requires_review: ["owner_review"]` accepted, no schema change). R8/design: the security fixture builder ignores hidden (dot-prefixed) entries such as `.DS_Store` and refuses other unexpected visible files. The `referencing` box refreshes `uv.lock` through `make setup`. Both start `not started`, T8a first.
+- 2026-10-24 — R2/R8/T8b (T8a review F1/F2, user-approved): T8b gains two test-fix boxes: the T5 F1 security test injects the forbidden point through a store (not by wrapping `check_hit`) and asserts the `document_id` in both the `security_document` violation entry and the printed `VIOLATION` line; the ineligible-candidate test in `test_validate.py` asserts exit 1. T8b may now edit those two test files (tests only). T8a stays approved; T8b stays `not started`.

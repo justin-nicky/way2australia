@@ -8,6 +8,7 @@ This file records the currently selected implementation stack and intentional no
 - API framework: FastAPI
 - Data validation/settings: Pydantic / Pydantic Settings
 - Manifest schema validation: `jsonschema` (JSON Schema validation of the document manifest, `packages/rag`)
+- Evaluation schema references: `referencing` (JSON Schema `$ref` registry for the evaluation suite and case schemas, direct dependency of `packages/rag`, Spec 006)
 - Frontmatter parsing: `pyyaml` (YAML frontmatter of knowledge documents, `packages/rag`)
 - Runtime configuration: `pydantic-settings` (`QDRANT_URL`, `QDRANT_API_KEY`, `QDRANT_COLLECTION_BASE`, `W2A_TENANT_ID`; `RuntimeSettings` in `packages/rag`, built once per CLI run by `load_runtime_settings`, D034)
 - Qdrant client: `qdrant-client` (`packages/rag`)

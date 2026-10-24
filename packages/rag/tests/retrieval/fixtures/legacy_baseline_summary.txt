@@ -1,0 +1,11 @@
+index: way2australia-idx-v1 (index_version idx-v1; embedder fake-hash-embedder @ 1, fake=true, device=unknown)
+cases: 8 (excluded 1), documents: 13
+HitRate@5: 0.3750 (random 0.3846 = min(1, 5/13))
+Recall@5: 0.3125
+MRR: 0.1875
+latency p50 1.0 ms, p95 1.0 ms (warm-up 3.0 ms excluded)
+result: legacy-result.json
+note: Top-5 over 13 indexed documents is optimistic; compare HitRate@5 with the random expectation min(1, 5/13).
+note: The index was not verified against the declared release's document snapshot.
+note: Model load and the warm-up query are excluded from p50/p95.
+note: not a quality measurement

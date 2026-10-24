@@ -12,6 +12,7 @@ dependencies = [
   "pydantic-settings>=2.6.0",
   "pyyaml>=6.0",
   "qdrant-client>=1.19.0,<2.0",
+  "referencing>=0.35.0",
   "way2australia-core",
 ]
 
