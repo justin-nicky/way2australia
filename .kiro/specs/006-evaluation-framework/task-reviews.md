@@ -230,3 +230,59 @@ Append-only, newest at the bottom.
 
 ### User decision
 - 2026-10-24 — approved. Verbatim: "Approved T4. Add F1 (docstring) to the T8 list. For T5: include the access_context check in the security runner's tests, as flagged earlier."
+
+## T5 — round 1
+
+### Implementation
+- Model: claude-sonnet-5-5 (intended tier BEST_MINUS_ONE; run as a subagent, no user to ask).
+- Files changed:
+  - new `packages/rag/src/way2australia_rag/evaluation/security_corpus.py` (`build_security_repository`), `security_index.py` (`build_security_index`, `delete_security_index`, `SecurityIndex`, base and collection refusals, variant constants), `security_eval.py` (`RETRIEVAL_SIDE_ATTACK_TYPES`, `DEFERRED_OWNERS`, `FORBIDDEN_VARIANTS`, `select_security_queries`, `run_security_evaluation`, `security_document`);
+  - `evaluation/errors.py`: `EvaluationHarnessError`; `evaluation/cli.py`: `security` subcommand, `DEFAULT_FIXTURE_ROOT`, `format_security_summary`;
+  - `packages/rag/tests/conftest.py`: `security_repository` fixture now calls the library builder;
+  - new tests `packages/rag/tests/evaluation/test_security_eval.py` (25 tests incl. CLI) and `test_security_integration.py` (1, `integration`);
+  - `.gitignore` (`experiments/results/tmp/`), `Makefile` (`eval-security`, `.PHONY`), `tasks.md` (T5 State and checkboxes), this file.
+- Verification run:
+  - `make verify` -> exit 0 (ruff check and format, pyright, skills-check, validate-knowledge OK, validate-evaluation OK, pytest 572 passed, 1 skipped; the Docker integration tests ran because local Qdrant was reachable).
+  - `make eval-security` -> exit 0, PASS in about 450 ms, 68 queries (5 security cases, 63 golden), 5 deferred; JSON landed in `experiments/results/tmp/` (git-ignored).
+  - The new test file ran in about 5 s together with the integration test; the in-memory gate test asserts under 10 s.
+  - `git status --porcelain -- evaluation knowledge config experiments` -> empty. Qdrant container not started or stopped; `w2a-realcheck-*` untouched; `curl localhost:6333/collections` after the run lists only the two `w2a-realcheck-idx-v1*` collections (no `w2a-sectest-*` left behind).
+- Notes and decisions:
+  - `build_security_repository(fixture_root, work_dir, *, schema_source)`: a keyword-only `schema_source` was added to the design signature because library code must not know where the metadata schema lives; fixtures are discovered as `*.md` under `fixture_root` (no file names or fixture path in library code; the only `fixtures/security` literal is the CLI default, asserted by a test).
+  - Seed points are written by running the production `IngestionService` against the new collection (it calls `ensure_collection` and `replace_document`), instead of re-implementing the loop.
+  - Canary probe points use `point_id(canary, "query-probe", i)` so they cannot collide with the canary's own chunk-0 point ID; their payload is the canary payload with `chunk_position = i`.
+  - A `RetrievalAuthorizationError` is a violation; its document ID is parsed from the error message (names document ID and fields only) to fill `document_id` and variant. If the store drops the filter, `check_hit` raises first, so a second test bypasses `check_hit` (monkeypatch) to prove the forbidden-document path also fails the gate.
+  - The result is written on exit 0 and exit 1 (violation) and not on exit 2; documents hold IDs, counts, verdicts, deferred cases and `excluded_fixtures`, never query or chunk text (test scans).
+  - access_context check (user decision): `test_case_access_context_never_changes_the_filter` runs golden and security cases whose own `access_context` claims staff/admin/another tenant, with a spy index on `search`; every filter equals `build_access_filter(<server guest access>)` and carries only the server tenant. The CLI failure test also covers exit 1 with ids only.
+  - `eval-security` takes `--config`, `--suite`, `--repo-root` like `eval-retrieval`; the suite must be active.
+  - The in-memory missing-owner point is excluded by the filter as on Docker (the gate passes in memory and on Docker).
+- Deferred items: record `--fixture-root`, `--config`, `EvaluationHarnessError` and the security result document shape in T8 docs and design As-built notes.
+- Usage: 159K tokens · 35 tool uses · 18:00
+
+### Review
+- Model: claude-opus-5-5 (intended tier BEST = Opus; matches; implementer was Sonnet, so a different model).
+- Verdict: PASS
+- Commands: `make verify` → exit 0 (ruff check + format check, pyright 0 errors, skills-check, validate-knowledge, validate-evaluation; pytest 572 passed, 1 skipped; Docker integration tests ran, since local Qdrant was reachable); `make test-integration` → exit 0 (20 passed, 553 deselected, including `test_server_filter_keeps_every_forbidden_point_out`); `make eval-security` → exit 0, PASS in 425 ms, 68 queries (5 security, 63 golden), 5 deferred, JSON in `experiments/results/tmp/`; `curl -s localhost:6333/collections` before and after → only `w2a-realcheck-idx-v1` and `-settings` (no `w2a-sectest-*` left, realcheck untouched, container not started or stopped); `git status --porcelain -- experiments evaluation knowledge config packages/rag/src/way2australia_rag/retrieval` → empty; `grep -rn fixtures/security packages/*/src apps` → only the `cli.py` `DEFAULT_FIXTURE_ROOT` default.
+- Reviewer mutation checks (scratch script outside the repo, no file edited): with production `retriever.build_access_filter` patched to return an empty `Filter()`, `cli.main(["security", ...])` → exit 1 with VIOLATION lines (`owned`, `missing_owner`, `other_tenant`, ...); with the filter cut to its first condition and `check_hit` bypassed, each of `other_tenant`, `owned` and `missing_owner` is still reported. So the gate fails per dropped condition, not just when everything is removed. The `access_context` spy test is meaningful: cases claim staff/admin/another tenant, the spy records the filter actually passed to `DenseIndex.search`, and each filter must equal `build_access_filter(<server guest access>)` and contain neither `staff` nor `other-tenant`. A runner that built access from the case would fail it.
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R8] `security_eval.py` gets the violating `document_id` by parsing the `RetrievalAuthorizationError` message (regex `hit for document '...'`), which ties it to the message wording in `retrieval/access.py`. If the wording changes, the case still fails closed (variant `check_hit_failed`), but `document_id` is empty → optional: a test that pins the parse, or a structured attribute in a later retrieval spec.
+  - F2 [MINOR, IMPLEMENTATION, R8] The checklist item puts "the collection is deleted at the end" in `security_eval.py`, but deletion happens in the CLI's `finally` (`delete_security_index`), not in `run_security_evaluation`. The effect is equivalent for the CLI and for the Docker test (which also cleans up by name in `finally`) → record it in the T8 design As-built notes.
+  - F3 [MINOR, IMPLEMENTATION, R8] `security_document` hard-codes `"role": "guest"` instead of taking it from the resolved access. This is correct for Phase 1 only → record it, or take it from access when roles arrive.
+  - F4 [MINOR, IMPLEMENTATION, R8] `build_security_repository` now discovers fixtures by `*.md` glob instead of the fixed `FIXTURE_IDS` names, so a new `.md` dropped into `tests/fixtures/security/` would enter the security corpus (the directory holds only the two fixtures today; the Spec 002 tests pass unchanged) → nothing needed now; note it in T8 docs.
+- Summary for user (PASS only):
+  - Changed: new `evaluation/security_corpus.py`, `security_index.py` and `security_eval.py` build a throwaway `w2a-sectest-<8hex>` in-memory index (seed corpus through production ingestion, staff canary, four forbidden variants nearest by construction) and run every retrieval-side security case and golden query through `DenseRetriever` with the server guest access. `make eval-security` (`cli.py security`) exits 0/1/2. `.gitignore` ignores `experiments/results/tmp/`. A Docker test proves the real server applies the filter (closes Spec 005 retro F3).
+  - Verified by: `make verify` (572 passed, 1 skipped), `make test-integration` (20 passed), `make eval-security` (PASS, 425 ms), Qdrant collection listing before and after (clean), protected-path and `retrieval/` checks empty, and reviewer mutation runs (an empty or partial filter makes the gate exit 1).
+  - Worth your attention: `build_security_repository` gained a keyword-only `schema_source` and discovers fixtures by glob (F4). The builder runs the production `IngestionService` for seed points. Violations parse the document ID from the error message (F1). Deletion lives in the CLI, not in the runner (F2). T8 must document `--fixture-root`, `--config`, `EvaluationHarnessError` and the security result shape.
+  - Reading order (follow the flow: entry point → core logic → models/errors/config → tests):
+    1. `Makefile` → `eval-security`, then `packages/rag/src/way2australia_rag/evaluation/cli.py` → `_security`: in-memory client, random base, build, run, write, delete in `finally`; `format_security_summary`.
+    2. `packages/rag/src/way2australia_rag/evaluation/security_eval.py` → `select_security_queries`: retrieval-side vs deferred/unclassified split.
+    3. `packages/rag/src/way2australia_rag/evaluation/security_index.py` → `build_security_index`: base/existing refusals before any write, seed ingestion, canary probes, raw forbidden upserts (`_forbidden_payload`); `delete_security_index`.
+    4. `packages/rag/src/way2australia_rag/evaluation/security_eval.py` → `run_security_evaluation` and `_sanity_check`: unfiltered rank-1 check, guarded retrieval, violation recording; `security_document` (IDs only).
+    5. `packages/rag/src/way2australia_rag/evaluation/security_corpus.py` → `build_security_repository`: isolated copy of the fixtures with a generated manifest.
+    6. `packages/rag/src/way2australia_rag/evaluation/errors.py` → `EvaluationHarnessError`.
+    7. `packages/rag/tests/evaluation/test_security_eval.py`: `SpyIndex`, the filter-dropping and `check_hit`-bypass tests, `test_case_access_context_never_changes_the_filter`, refusals, the 10 s bound, CLI exit codes.
+    8. `packages/rag/tests/evaluation/test_security_integration.py`: Docker run with cleanup by name in `finally`.
+    9. Supporting edits: `packages/rag/tests/conftest.py` (fixture now calls the library builder), `.gitignore`, `tasks.md` State and checkboxes.
+- Usage: 124K tokens · 23 tool uses · 7:29
+
+### User decision
+- 2026-10-24 — approved. Verbatim: "Approved T5. Implementer decisions confirmed (schema_source, --config/--suite/--repo-root, --fixture-root as CLI-only default). Add to the T8 list: T5 F1: give `RetrievalAuthorizationError` a `document_id` attribute and read it in the security runner instead of regex-parsing the message; test that a violation report names the document. T5 F4: `build_security_repository` uses an explicit list of fixture files and refuses unexpected files in the fixture folder (e.g. a stray README.md); test both. T5 F3: no code change; record in As-built notes that `security_document` hard-codes role `guest` (Phase 1) and must change when other roles are added. (If not already added) the hard-coded live counts item: replace ~20 tests asserting 13 / 85 / 63 / 12 / 10 with consistency checks against live sources; exact-number tests use the frozen fixture; verify by adding one document and one golden in a scratch copy and running `make test-unit`."

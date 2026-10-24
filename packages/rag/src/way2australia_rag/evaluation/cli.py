@@ -4,6 +4,9 @@ Run as ``python -m way2australia_rag.evaluation.cli <subcommand>``.
 
 - ``validate`` (``make validate-evaluation``): exit 0 when valid, 1 on validation
   problems, 2 on configuration errors or an unexpected exception (class name only).
+- ``security`` (``make eval-security``): the authorization hard gate on a
+  throwaway in-memory index. Exit 0 pass, 1 violation (ids only, never text),
+  2 harness or configuration error.
 - ``retrieval`` (``make eval-retrieval``): exit 0 on success, 2 on refusal or
   error. Nothing is written on error. There is no flag for embedder, role, scope
   or tenant, and no ``--allow-fake``.
@@ -13,10 +16,16 @@ import argparse
 import asyncio
 import logging
 import sys
+import tempfile
+import uuid
+import warnings
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
+from time import perf_counter
 from typing import Any
+
+from qdrant_client import QdrantClient
 
 from way2australia_rag.evaluation.errors import (
     EvaluationConfigurationError,
@@ -33,9 +42,23 @@ from way2australia_rag.evaluation.retrieval_eval import (
     require_real_index,
     run_retrieval_evaluation,
 )
+from way2australia_rag.evaluation.security_corpus import SCHEMA as SECURITY_SCHEMA
+from way2australia_rag.evaluation.security_corpus import build_security_repository
+from way2australia_rag.evaluation.security_eval import (
+    run_security_evaluation,
+    security_document,
+    select_security_queries,
+)
+from way2australia_rag.evaluation.security_index import (
+    FAKE_VECTOR_SIZE,
+    SECURITY_COLLECTION_PREFIX,
+    build_security_index,
+    delete_security_index,
+)
 from way2australia_rag.evaluation.slices import active_registry_languages
 from way2australia_rag.evaluation.suite import declared_release_id, load_suite
 from way2australia_rag.evaluation.validate import validate_evaluation
+from way2australia_rag.ingestion.chunking import HeadingChunker
 from way2australia_rag.ingestion.cli import (
     ClientFactory,
     build_embedder,
@@ -47,7 +70,7 @@ from way2australia_rag.ingestion.config import (
     load_ingestion_config,
     load_runtime_settings,
 )
-from way2australia_rag.ingestion.embedding import Embedder
+from way2australia_rag.ingestion.embedding import Embedder, FakeEmbedder
 from way2australia_rag.ingestion.errors import IngestionError
 from way2australia_rag.repositories import (
     GUEST_PUBLIC_POLICY,
@@ -246,6 +269,125 @@ def _retrieval(
     return EXIT_OK
 
 
+DEFAULT_FIXTURE_ROOT = "tests/fixtures/security"
+
+
+def default_security_output_path(repo_root: Path, now: datetime) -> Path:
+    stamp = now.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
+    return repo_root / "experiments/results/tmp" / f"security-evaluation-{stamp}.json"
+
+
+def _security(args: argparse.Namespace) -> int:
+    logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stderr)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    # In-memory Qdrant warns that payload indexes have no effect; expected here.
+    warnings.filterwarnings("ignore", message="Payload indexes have no effect")
+    repo_root: Path = args.repo_root.resolve()
+    config_path: Path = args.config or repo_root / DEFAULT_CONFIG_PATH
+    fixture_root: Path = args.fixture_root or repo_root / DEFAULT_FIXTURE_ROOT
+    client: QdrantClient | None = None
+    index = None
+    try:
+        config = load_ingestion_config(config_path)
+        settings = load_runtime_settings(EvaluationConfigurationError)
+        suite = load_suite(repo_root, args.suite)
+        require_active_suite(suite)
+        now = datetime.now(UTC)
+        output: Path = args.output or default_security_output_path(repo_root, now)
+        check_output_free(output)
+        queries, deferred = select_security_queries(suite)
+        access = resolve_access(guest_access(settings))
+        started = perf_counter()
+        client = QdrantClient(location=":memory:")
+        base = f"{SECURITY_COLLECTION_PREFIX}{uuid.uuid4().hex[:8]}"
+        with tempfile.TemporaryDirectory(prefix="w2a-sectest-") as work:
+            security_repository = build_security_repository(
+                fixture_root,
+                Path(work),
+                schema_source=repo_root / SECURITY_SCHEMA,
+            )
+            index = build_security_index(
+                client,
+                base,
+                [q.text for q in queries],
+                FakeEmbedder(FAKE_VECTOR_SIZE),
+                HeadingChunker(config.chunker.max_chunk_chars),
+                seed_repository=LocalDocumentRepository(
+                    LocalRepositoryConfig(repo_root)
+                ),
+                security_repository=security_repository,
+                tenant_id=settings.tenant_id,
+            )
+            log.info(
+                "security index %s built; %d queries, %d deferred case(s)",
+                safe_text(index.collection),
+                len(queries),
+                len(deferred),
+            )
+            report = run_security_evaluation(index, access, queries, deferred)
+        duration_ms = (perf_counter() - started) * 1000.0
+        document = security_document(
+            index=index,
+            report=report,
+            suite=suite,
+            access=access,
+            duration_ms=duration_ms,
+            created_at=now.isoformat(),
+            repo_root=repo_root,
+        )
+        write_document(output, document)
+    except (
+        EvaluationError,
+        RetrievalError,
+        IngestionError,
+        DocumentRepositoryError,
+    ) as e:
+        print(f"ERROR {type(e).__name__}: {safe_text(e)}", file=sys.stderr)
+        return EXIT_ERROR
+    except Exception as error:  # noqa: BLE001 - class name only
+        print(f"ERROR {type(error).__name__}", file=sys.stderr)
+        return EXIT_ERROR
+    finally:
+        if index is not None:
+            delete_security_index(index)
+        if client is not None:
+            client.close()
+    try:
+        shown = output.resolve().relative_to(repo_root)
+    except ValueError:
+        shown = Path(output.name)
+    print(format_security_summary(document, shown))
+    return EXIT_OK if report.passed else EXIT_PROBLEMS
+
+
+def format_security_summary(document: dict[str, Any], shown: Path) -> str:
+    lines = [
+        f"suite: {document['evaluation_suite_id']} "
+        f"v{document['evaluation_suite_version']}",
+        f"throwaway index: {document['index']['collection']} (removed after the run)",
+        f"queries: {document['query_count']} "
+        f"({document['security_cases_run']} security cases, "
+        f"{document['golden_queries_run']} golden); "
+        f"deferred security cases: {len(document['deferred'])}",
+    ]
+    for item in document["deferred"]:
+        lines.append(
+            f"deferred {item['case_id']} ({item['attack_type']}): {item['owner']}"
+        )
+    for item in document["excluded_fixtures"]:
+        lines.append(f"excluded fixture {item['document_id']}")
+    for v in document["violations"]:
+        lines.append(
+            f"VIOLATION case {v['case_id']} document {v['document_id'] or '-'} "
+            f"variant {v['variant']}"
+        )
+    verdict = "PASS" if document["passed"] else "FAIL"
+    lines.append(
+        f"eval-security: {verdict} in {document['duration_ms']:.0f} ms; result: {shown}"
+    )
+    return "\n".join(safe_text(line) for line in lines)
+
+
 def main(
     argv: Sequence[str] | None = None,
     *,
@@ -281,9 +423,30 @@ def main(
         default=None,
         help="result file (default: experiments/results/retrieval-evaluation-*.json)",
     )
+    security = commands.add_parser(
+        "security",
+        help="authorization hard gate on a throwaway in-memory index",
+    )
+    security.add_argument("--repo-root", type=Path, default=Path.cwd())
+    security.add_argument("--config", type=Path, default=None)
+    security.add_argument("--suite", default=DEFAULT_SUITE)
+    security.add_argument(
+        "--fixture-root",
+        type=Path,
+        default=None,
+        help=f"fixture directory (default: <repo-root>/{DEFAULT_FIXTURE_ROOT})",
+    )
+    security.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="result file (default: experiments/results/tmp/security-*.json)",
+    )
     args = parser.parse_args(argv)
     if args.command == "validate":
         return _validate(args.repo_root.resolve())
+    if args.command == "security":
+        return _security(args)
     return _retrieval(args, client_factory, embedder_factory)
 
 

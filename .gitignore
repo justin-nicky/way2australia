@@ -93,3 +93,6 @@ Thumbs.db
 *.tmp
 *.swp
 *.swo
+
+# Throwaway evaluation output (eval-security, fake runs)
+experiments/results/tmp/

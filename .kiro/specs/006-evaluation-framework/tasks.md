@@ -205,35 +205,35 @@ Implement the tasks in order; each depends on the ones before it.
 
 ## T5 — Security corpus and index builder, `make eval-security`, hard gate and Docker isolation test
 
-**State:** not started
+**State:** approved (2026-10-24)
 **Requirements:** R8, R9, R13, R3, R15
 
-- [ ] Add `evaluation/security_corpus.py` with `build_security_repository(fixture_root, work_dir)`, moved from `tests/conftest.py`.
+- [x] Add `evaluation/security_corpus.py` with `build_security_repository(fixture_root, work_dir)`, moved from `tests/conftest.py`.
   - The fixture root is an explicit parameter. No `tests/fixtures/security` path appears in library code.
   - Make `tests/conftest.py`'s `security_repository` fixture call it. The existing Spec 002 tests pass unchanged.
-- [ ] Add `evaluation/security_index.py` with `build_security_index(...)` as in design data flow "make eval-security":
+- [x] Add `evaluation/security_index.py` with `build_security_index(...)` as in design data flow "make eval-security":
   - Fake-identity `IndexSettings` (`index_version` `sec-v1`) through `QdrantIndexStore.ensure_collection`.
   - Seed points from `list_eligible_documents` through the production chunker, `build_payload` and `replace_document` path.
   - `fixture_staff_canary` points: one with its own vector, plus one per query with that query's vector.
   - The four synthetic forbidden variants per query (`staff_scope`, `other_tenant`, `owned`, `missing_owner`), written with a raw `client.upsert`. Their vector is the query vector and their `chunk_text` is the `"forbidden fixture"` sentinel.
   - **Enforced in code, before any write:** refuse a collection base that does not match `^w2a-sectest-[0-9a-f]{8}$`, and refuse when the collection or its `-settings` already exists.
-- [ ] Add `evaluation/security_eval.py`:
+- [x] Add `evaluation/security_eval.py`:
   - constants `RETRIEVAL_SIDE_ATTACK_TYPES`, `DEFERRED_OWNERS` and `FORBIDDEN_VARIANTS`;
   - for each retrieval-side security case and each active golden query: an unfiltered sanity check (rank 1 must be forbidden, otherwise a harness error, exit 2), then `DenseRetriever.retrieve(query, access, top_k=MAX_TOP_K)` (50) with `resolve_access(guest_access(settings))`;
   - a forbidden `document_id`, or a `RetrievalAuthorizationError`, is a violation;
   - deferred and `unclassified` cases are listed;
   - `poisoned_public_document` is listed under `excluded_fixtures` with its reason;
   - the collection is deleted at the end.
-- [ ] Add the `security` subcommand to `evaluation/cli.py`:
+- [x] Add the `security` subcommand to `evaluation/cli.py`:
   - in-memory client and a `w2a-sectest-<uuid4 hex[:8]>` base;
   - `--fixture-root`, defaulting to `<repo-root>/tests/fixtures/security` (the CLI is the only place that default lives);
   - `--output`, with the default `experiments/results/tmp/security-evaluation-<UTC>.json`, written with the exclusive writer;
   - exit 0 pass, 1 violation (naming `case_id`, `document_id` and variant, never text), 2 harness or configuration error.
-- [ ] `.gitignore`: add `experiments/results/tmp/`.
-- [ ] `Makefile`:
+- [x] `.gitignore`: add `experiments/results/tmp/`.
+- [x] `Makefile`:
   - add the target `eval-security` (`EVAL_ARGS` pass-through);
   - add `eval-security` to `.PHONY`.
-- [ ] Add `packages/rag/tests/evaluation/test_security_eval.py`:
+- [x] Add `packages/rag/tests/evaluation/test_security_eval.py`:
   - the full in-memory gate passes on the seed corpus;
   - the sanity check holds for every query;
   - a filter-dropping index makes the gate fail with exit 1;
@@ -241,7 +241,7 @@ Implement the tasks in order; each depends on the ones before it.
   - builder refusals: the base `way2australia`, a `w2a-sectest-` base without 8 hex, an existing collection;
   - no fixture path literal in `evaluation/*.py`;
   - **the whole gate (index build plus all queries) finishes in under 10 s** (`perf_counter`).
-- [ ] Add `packages/rag/tests/evaluation/test_security_integration.py` (`integration` marker). It uses the same builder on Docker Qdrant with a unique `w2a-sectest-*` base and asserts that no forbidden point is returned. It removes the collection and its `-settings` in `finally`, and skips when Qdrant is unreachable (closes Spec 005 retro F3).
+- [x] Add `packages/rag/tests/evaluation/test_security_integration.py` (`integration` marker). It uses the same builder on Docker Qdrant with a unique `w2a-sectest-*` base and asserts that no forbidden point is returned. It removes the collection and its `-settings` in `finally`, and skips when Qdrant is unreachable (closes Spec 005 retro F3).
 
 ### Verification
 
