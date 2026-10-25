@@ -1,6 +1,6 @@
 # 007 — Hybrid Retrieval Tasks
 
-Status: approved (2026-10-25)
+Status: implementing (branch spec/007, base 06b1af9)
 
 Implement the tasks in order; each depends on the ones before it. Requirements: `requirements.md` (approved 2026-10-25). Design: `design.md` (approved 2026-10-25).
 
