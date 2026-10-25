@@ -142,6 +142,10 @@ Do not introduce these unless a later spec/decision explicitly changes direction
 - complex microservices
 - heavyweight framework abstractions that hide retrieval/evaluation behavior
 
+## Developer tooling
+
+- graphify (`graphifyy`): knowledge graph of code and docs for coding agents, in `graphify-out/` (D048). Not a product or RAG dependency.
+
 ## Tooling philosophy
 
 Prefer plain, inspectable Python and small replaceable interfaces.

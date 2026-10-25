@@ -94,3 +94,9 @@ Thumbs.db
 
 # Throwaway evaluation output (eval-security, fake runs)
 experiments/results/tmp/
+
+# graphify (D048): commit the graph, report, manifest and cache; ignore machine-local
+# interpreter/root paths and the regenerable HTML view (`graphify export html`).
+graphify-out/.graphify_python
+graphify-out/.graphify_root
+graphify-out/graph.html

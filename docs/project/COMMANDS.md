@@ -199,6 +199,26 @@ terraform apply
 
 Do not automate destructive infrastructure commands.
 
+## Knowledge graph (graphify, developer tooling, D048)
+
+```bash
+graphify update .
+```
+
+Refresh the graph after code changes (local, no model cost).
+
+```text
+/graphify . --update
+```
+
+In Claude Code: refresh after documentation changes (re-extracts changed docs; uses the model).
+
+```bash
+graphify query "<question>"
+```
+
+Query the graph; `graphify path "<A>" "<B>"` and `graphify explain "<concept>"` for relationships and concepts. Install once with `uv tool install graphifyy` and make sure `~/.local/bin` is on `PATH` (`uv tool update-shell`).
+
 ## Rule
 
 Do not invent alternative project command surfaces unless this file is intentionally updated.

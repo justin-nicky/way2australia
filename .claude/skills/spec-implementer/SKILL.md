@@ -69,9 +69,10 @@ A checked box means implemented and verified. Never tick with failing tests, unm
 ## 4. Finish
 
 1. Append the Implementation block for this round to `<spec>/task-reviews.md` (create the file if missing; format in `WORKFLOW.md` → "`task-reviews.md`"): model, files changed, verification run with test counts, notes on decisions/deviations.
-2. Set `**State:** in task review (round N)`.
-3. Do not commit, push or merge. Leave all changes uncommitted; the orchestrator commits and pushes them only after the user approves. Never stash, reset or switch branches.
-4. Update `docs/project/CURRENT_STATE.md` only if the task says so.
+2. If `graphify-out/graph.json` exists and you changed code, run `graphify update .` (local, no model cost) so the knowledge graph matches the code; if `graphify` is not installed, skip it and say so in the Implementation block.
+3. Set `**State:** in task review (round N)`.
+4. Do not commit, push or merge. Leave all changes uncommitted; the orchestrator commits and pushes them only after the user approves. Never stash, reset or switch branches.
+5. Update `docs/project/CURRENT_STATE.md` only if the task says so.
 
 ## Final message
 

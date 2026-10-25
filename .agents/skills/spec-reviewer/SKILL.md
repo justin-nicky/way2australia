@@ -21,7 +21,7 @@ Input: `<NNN-spec>` with `tasks.md` `Status: all tasks approved (…)`. Otherwis
 
 - `AGENTS.md`, `docs/project/CONSTITUTION.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `TECH_STACK.md`, `COMMANDS.md`, `CURRENT_STATE.md`;
 - the full spec (`requirements.md` with `## Change log`, `design.md`, `tasks.md`), `task-reviews.md`, earlier rounds in `review.md`;
-- the delta: `git diff --stat main...spec/<NNN>`, then files as needed.
+- the delta: `git diff --stat main...spec/<NNN> -- . ':(exclude)graphify-out'`, then files as needed (`graphify-out/` is the regenerated knowledge graph, not spec work).
 
 ## 2. Review cross-task concerns
 

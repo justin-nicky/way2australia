@@ -1,0 +1,22 @@
+# graphify: paths left out of the knowledge graph (gitignore syntax; .gitignore is honored too).
+
+# Generated skill mirrors of agent-skills/ (duplicates)
+.claude/skills/
+.agents/skills/
+.kiro/skills/
+
+# Frozen test copy of the seed corpus (duplicate of knowledge/)
+packages/rag/tests/retrieval/fixtures/
+
+# Evaluation and experiment outputs (generated data)
+experiments/results/
+
+# Raw, unapproved source material (not project knowledge)
+sources/raw/
+
+# Lockfile
+uv.lock
+
+# Security fixtures: synthetic canary and a deliberately poisoned prompt-injection document.
+# Never send them to an LLM extraction pass.
+tests/fixtures/security/
