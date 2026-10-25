@@ -211,7 +211,7 @@ Refresh the graph after code changes (local, no model cost).
 /graphify . --update
 ```
 
-In Claude Code: refresh after documentation changes (re-extracts changed docs; uses the model).
+In Claude Code: refresh after documentation changes (re-extracts changed docs; uses the model). Run by the user once per spec, after the merge to `main`; `spec-orchestrator` reminds you.
 
 ```bash
 graphify query "<question>"
