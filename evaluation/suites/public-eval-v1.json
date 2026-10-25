@@ -1,7 +1,7 @@
 {
   "evaluation_suite_id": "public-eval-v1",
   "version": 1,
-  "status": "active",
+  "status": "replaced",
   "introduced_in_release": "seed-v1",
   "datasets": [
     {

@@ -17,18 +17,18 @@ Rules for every task:
 
 ## T1 — Evaluation Suite `public-eval-v2`
 
-**State:** not started
+**State:** approved (2026-10-25)
 **Requirements:** R1, R14
 
-- [ ] Create `evaluation/datasets/v2/golden_public.jsonl`, `unanswerable_public.jsonl`, `security_public.jsonl`: every v1 row copied in order with only `evaluation_suite_id` set to `public-eval-v2`, keeping v1 key order and JSON style (UTF-8, `ensure_ascii=False`, v1 separators). A scratch script may generate them; it is not committed.
-- [ ] Append `g064`–`g069` to the v2 golden file, mapped in order from `cand006_ml_001`–`cand006_ml_006` (`g065`, `g066` with the reworded queries in `proposed_case.query`), with the fields listed in R1 and the v1 golden key order.
-- [ ] Create `evaluation/suites/public-eval-v2.json` (`version: 2`, `status: active`, `introduced_in_release: seed-v1`, `case_count` equal to the v2 rows, `replaces` v1, notes).
-- [ ] Change only `status` to `replaced` in `evaluation/suites/public-eval-v1.json`.
-- [ ] Add `review.promoted_as: {"suite_id": "public-eval-v2", "case_id": ...}` to the six promoted rows of `evaluation/candidates/006-candidates.jsonl`; no other byte of the file changes except those insertions (rows stay `status: suggested`).
-- [ ] `evaluation/validate.py`: the `promoted_as` transcription check (design R1); problem lines carry field names only.
-- [ ] `evaluation/cli.py`: `DEFAULT_SUITE` → `evaluation/suites/public-eval-v2.json`. `retrieval/baseline_cli.py` is not touched.
-- [ ] `evaluation/retrieval_eval.py`: neutral g004/u001 note text (design R1).
-- [ ] Tests (`packages/rag/tests/evaluation/test_suite_v2.py` and updates):
+- [x] Create `evaluation/datasets/v2/golden_public.jsonl`, `unanswerable_public.jsonl`, `security_public.jsonl`: every v1 row copied in order with only `evaluation_suite_id` set to `public-eval-v2`, keeping v1 key order and JSON style (UTF-8, `ensure_ascii=False`, v1 separators). A scratch script may generate them; it is not committed.
+- [x] Append `g064`–`g069` to the v2 golden file, mapped in order from `cand006_ml_001`–`cand006_ml_006` (`g065`, `g066` with the reworded queries in `proposed_case.query`), with the fields listed in R1 and the v1 golden key order.
+- [x] Create `evaluation/suites/public-eval-v2.json` (`version: 2`, `status: active`, `introduced_in_release: seed-v1`, `case_count` equal to the v2 rows, `replaces` v1, notes).
+- [x] Change only `status` to `replaced` in `evaluation/suites/public-eval-v1.json`.
+- [x] Add `review.promoted_as: {"suite_id": "public-eval-v2", "case_id": ...}` to the six promoted rows of `evaluation/candidates/006-candidates.jsonl`; no other byte of the file changes except those insertions (rows stay `status: suggested`).
+- [x] `evaluation/validate.py`: the `promoted_as` transcription check (design R1); problem lines carry field names only.
+- [x] `evaluation/cli.py`: `DEFAULT_SUITE` → `evaluation/suites/public-eval-v2.json`. `retrieval/baseline_cli.py` is not touched.
+- [x] `evaluation/retrieval_eval.py`: neutral g004/u001 note text (design R1).
+- [x] Tests (`packages/rag/tests/evaluation/test_suite_v2.py` and updates):
   - v2 `case_count` equals its dataset rows; v2 goldens = v1 goldens + promoted candidates; v2 unanswerable and security row counts equal v1's;
   - every copied row equals its v1 row except `evaluation_suite_id`;
   - the mapping and field equality for `g064`–`g069` against the candidates file;

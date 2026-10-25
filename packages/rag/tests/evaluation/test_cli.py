@@ -150,7 +150,7 @@ def test_non_active_suite_exits_2_before_qdrant(tmp_path: Path) -> None:
     root = tmp_path / "repo"
     for name in ("evaluation", "knowledge", "config"):
         shutil.copytree(REPO_ROOT / name, root / name)
-    suite = root / "evaluation/suites/public-eval-v1.json"
+    suite = root / "evaluation/suites/public-eval-v2.json"
     raw = json.loads(suite.read_text())
     raw["status"] = "draft"
     suite.write_text(json.dumps(raw))

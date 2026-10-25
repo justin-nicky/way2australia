@@ -326,7 +326,11 @@ def test_cli_with_allow_fake_writes_result_and_prints_summary(
     documents = manifest_document_count()
     assert doc["document_count"] == documents
     assert doc["case_count"] == len(
-        live_suite_rows("golden_answerable", active_only=True)
+        live_suite_rows(
+            "golden_answerable",
+            active_only=True,
+            suite="evaluation/suites/public-eval-v1.json",
+        )
     )
     assert doc["random_hit_rate_formula"] == f"min(1, 5/{documents})"
     assert "not a quality measurement" in doc["notes"]

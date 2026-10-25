@@ -157,8 +157,8 @@ def _notes(suite: LoadedSuite, *, top_k: int, document_count: int, n: int) -> li
     golden_id, unanswerable_id = OVERLAP_CASES
     if golden_id in active_golden and unanswerable_id in active_unanswerable:
         notes.append(
-            f"{golden_id} overlaps unanswerable {unanswerable_id} and stays a "
-            "counted miss until a human resolves it."
+            f"{golden_id} overlaps unanswerable {unanswerable_id}; "
+            "both are active cases."
         )
     return notes
 

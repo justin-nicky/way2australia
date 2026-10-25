@@ -1,0 +1,26 @@
+{
+  "evaluation_suite_id": "public-eval-v2",
+  "version": 2,
+  "status": "active",
+  "introduced_in_release": "seed-v1",
+  "datasets": [
+    {
+      "type": "golden_answerable",
+      "path": "evaluation/datasets/v2/golden_public.jsonl"
+    },
+    {
+      "type": "unanswerable_refusal",
+      "path": "evaluation/datasets/v2/unanswerable_public.jsonl"
+    },
+    {
+      "type": "security",
+      "path": "evaluation/datasets/v2/security_public.jsonl"
+    }
+  ],
+  "case_count": 91,
+  "replaces": {
+    "evaluation_suite_id": "public-eval-v1",
+    "version": 1
+  },
+  "notes": "Spec 007 suite. Every public-eval-v1 case is carried over unchanged except evaluation_suite_id, plus six owner-approved pure-Malayalam goldens (g064-g069) promoted from cand006_ml_001 to cand006_ml_006. g004 and u001 stay as in v1 (owner decision keep_both). Cases are versioned and human-governed."
+}

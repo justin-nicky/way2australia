@@ -69,7 +69,7 @@ pytestmark = pytest.mark.filterwarnings(
     "ignore:Payload indexes have no effect:UserWarning"
 )
 
-SUITE = "evaluation/suites/public-eval-v1.json"
+SUITE = "evaluation/suites/public-eval-v2.json"
 TENANT = "way2australia"
 EVAL_SRC = REPO_ROOT / "packages/rag/src/way2australia_rag/evaluation"
 
