@@ -100,3 +100,6 @@ experiments/results/tmp/
 graphify-out/.graphify_python
 graphify-out/.graphify_root
 graphify-out/graph.html
+
+# graphify per-session hook state (local)
+graphify-out/cache/hook_sessions/

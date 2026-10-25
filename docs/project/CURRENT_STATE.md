@@ -151,9 +151,9 @@ Spec 002 decisions made before approval:
 ## Known issues / deferred
 
 These are evaluation-data gaps, deliberately deferred for now (decision 2026-10-13). Changing them requires human-approved evaluation cases (C6).
-- No golden case is tagged pure Malayalam (`query_language: ml`). The 9 `mixed` cases include 8 written mostly in Malayalam script. Spec 006 added 6 agent-drafted pure-`ml` proposals in `evaluation/candidates/006-candidates.jsonl` (`status: suggested`, inactive); they need fluent-speaker correction and owner approval, then a new suite version, before they count.
+- No golden case is tagged pure Malayalam (`query_language: ml`). The 9 `mixed` cases include 8 written mostly in Malayalam script. Spec 006 added 6 agent-drafted pure-`ml` proposals in `evaluation/candidates/006-candidates.jsonl`; on 2026-10-25 the user (fluent speaker and owner) approved all six (`ml_002` and `ml_003` with reworded queries; review records on each row). They stay `status: suggested` and inactive until they are added to a new suite version.
 - `relevant_section_ids` is empty in every evaluation case, so `eval-retrieval` reports zero section-measurable cases (revisit with the chunking spec, roadmap 7).
-- `g004` overlaps unanswerable `u001` and stays an active golden and a counted miss until the owner decides on the `cand006_change_g004_u001` proposal.
+- `g004` overlaps unanswerable `u001`: the owner decided `keep_both` on 2026-10-25 (g004 tests the "no guarantee" statement, u001 a safe redirect for a time-bound promise). g004 stays an active golden and remains a real retrieval miss for dense search.
 
 Spec 006 retrospective (`.kiro/specs/006-evaluation-framework/review.md`, round 1), MINOR, no remediation tasks:
 - F1: the byte-identity check of `evaluation/` before and after a run is tested for the loader (`test_suite_loader.py`) and the validator (`test_validate.py`), not around the `eval-retrieval` and `eval-security` runners (the design's "each runner"). Both runners read evaluation data only through `load_suite`, and no evaluation code writes under `evaluation/`.
