@@ -42,3 +42,49 @@
 
 ### User decision
 - 2026-10-25 — approved. Verbatim: "T1 approved. Commit without the graphify-out/cache files and push. F1: add a task box (planner amendment) to fix it in the final docs/hand-off task. Remove LEGACY_SUITE or use it in test_baseline.py instead of the literal v1 path. F2: accepted while there is no CI. Add a known-issue line to CURRENT_STATE.md: in a shallow clone the v1 byte-identity tests skip, and nothing flags it. Revisit in the CI spec. F3: before T3 starts, find out why `graphify update .` refuses on main. Report the exact message and the node counts (current vs rebuilt). Do not use --force, and don't run /graphify . --update; report back first. T3–T6 add most of the spec's code, and the graph has to pick it up. Then start T2, my real dense run on v2: give me the exact commands."
+
+## T2 — round 1
+
+### Implementation
+- Model: claude-sonnet-5-5 (Sonnet 5.5); intended tier BEST_MINUS_ONE not compared against MODEL_PREFERENCES.md (subagent, no user to ask)
+- Files changed: `docs/project/CURRENT_STATE.md` (Spec 007 row, Next step items 3-4), `.kiro/specs/007-hybrid-retrieval/tasks.md` (T2 State and checkboxes), this file. The user-produced result `experiments/results/retrieval-evaluation-idx-v1-20261025T134659Z.json` is untracked and unedited; the orchestrator commits it. No code changed.
+- Verification run (scratch script `/private/tmp/claude-501/-Users-justin-Downloads-way2australia/611fedb3-fc3d-4a02-ba7f-6e57723f7512/scratchpad/t2check.py`, outside the repository):
+  - header: `kind` retrieval_evaluation, `schema_version` 2.0, suite `public-eval-v2` v2, `retrieval_strategy` dense, golden `case_count` 69 = active goldens in the v2 file, unanswerable `n` 12 = v2 rows, `embedder_is_fake` false, collection `w2a-realcheck-idx-v1`, `index_version` idx-v1, `top_k` 5, `document_count` 13, `git_dirty` false, model BAAI/bge-m3, device `mps:0`;
+  - metrics: overall 0.9565 / MRR 0.8816; `en` 0.963 / 0.9105; `mixed` 0.8889 / 0.6852; `ml` 1.0 / 0.9167; misses `g004`, `g026`, `g061`; p50 78.5 ms, p95 120.0 ms;
+  - continuity vs `retrieval-evaluation-idx-v1-20261024T193140Z.json`: 63 shared goldens, 60 hits and MRR 0.8783 on both sides, zero differing cases (hit, reciprocal rank and ranked document IDs all equal); 6 new cases `g064`-`g069`;
+  - `make eval-compare BASE=<T2> CANDIDATE=<T2>` → exit 0, `PASS (hits 66 -> 66, MRR 0.8816 -> 0.8816)`;
+  - `git status --porcelain -- evaluation knowledge config` → empty. `make verify` not run (no code change).
+- Notes:
+  - Known deviation, user-accepted: `git_commit` is `b024f5d`, not the T1 commit `19cbbc3`. `git diff --stat 19cbbc3 b024f5d` shows only `requirements.md` and `tasks.md` (docs-only amendment), so no code differs.
+  - "Document count equal to the eligible corpus size": 13 matches the seed corpus (13 public documents per CURRENT_STATE); not re-derived from the repository listing in the scratch script.
+  - Checkboxes left unticked: the first (orchestrator asks the user; the user did run it) and the last (result file committed with the task; the orchestrator commits).
+  - `graphify update .` skipped on the user's instruction (no code changed).
+- Usage: 88K tokens · 11 tool uses · 1:32
+
+### Review
+- Model: claude-opus-5-5 (Opus 5.5; matches the BEST tier for Claude Code)
+- Verdict: PASS
+- Commands: independent scratch script `/private/tmp/claude-501/-Users-justin-Downloads-way2australia/611fedb3-fc3d-4a02-ba7f-6e57723f7512/scratchpad/review/t2review.py` (outside the repository, `.venv/bin/python -I`) → all header, metric and continuity checks pass (below); `make eval-compare BASE=<T2> CANDIDATE=<T2>` → exit 0, `PASS (hits 66 -> 66, MRR 0.8816 -> 0.8816)`; `git status --porcelain -- evaluation knowledge config` → empty; `make lint typecheck skills-check validate-knowledge validate-evaluation test-unit` → pass (ruff clean, 124 files formatted, pyright 0 errors, `validate-knowledge: OK, 0 problems`, `validate-evaluation: OK, 0 problems`, 608 passed, 1 skipped, 20 deselected). The `make verify` test step was run as `test-unit` only: the caller forbade touching Qdrant, and the 20 integration tests would contact a local Qdrant if reachable; T2 changes no code, so this is not a finding.
+- Independent checks of `experiments/results/retrieval-evaluation-idx-v1-20261025T134659Z.json`:
+  - header: `kind` retrieval_evaluation, `schema_version` 2.0, suite `public-eval-v2` v2 (`status` active), `retrieval_strategy` dense, `top_k` 5, collection `w2a-realcheck-idx-v1`, `index_version` idx-v1, `embedder_is_fake` false (top level and `index_settings`), BAAI/bge-m3 @ `5617a9f`, device `mps:0`, `git_dirty` false;
+  - case sets: 69 evaluated cases = the 69 active rows of `evaluation/datasets/v2/golden_public.jsonl` (same IDs, no duplicates); unanswerable `n` 12 = the 12 v2 unanswerable rows (same IDs); `document_count` 13 = the 13 eligible rows (public, active, approved, retrieval-enabled) re-derived from `knowledge/manifest/document_manifest.jsonl`; every ranked and relevant document ID is eligible;
+  - metrics recomputed from the per-case rows: overall 66/69, HitRate 0.9565, MRR 0.8816; `en` 52/54, 0.963 / 0.9105; `mixed` 8/9, 0.8889 / 0.6852; `ml` 6/6, 1.0 / 0.9167; `absent_query_languages` empty (v1 had `ml`); misses `g004`, `g026`, `g061`;
+  - `git_commit` `b024f5d` (accepted deviation): `19cbbc3` is its ancestor, `git diff --stat 19cbbc3 b024f5d` touches only `requirements.md` and `tasks.md`, the v2 manifest exists in `b024f5d`, and `b024f5d` is the current `HEAD`;
+  - continuity vs `retrieval-evaluation-idx-v1-20261024T193140Z.json`: 63 shared `(case_id, case_version)` pairs (all v1 cases; only-new `g064`–`g069`), 60 hits and MRR 0.8783 on both sides; zero cases differ in `hit`, `reciprocal_rank`, `ranked_document_ids` or `relevant_document_ids`; collection, index settings, `top_k`, device and `document_count` equal between the files.
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R2] `docs/project/CURRENT_STATE.md` "Known issues" still says no golden case is tagged pure Malayalam and that the six candidates stay inactive until added to a new suite version; R2 says `ml` is no longer an absent query language, and v2 now has `g064`–`g069` active (the T2 file reports `ml` n=6). → Reword that bullet (e.g. resolved by `public-eval-v2`; candidate rows stay `suggested` with `promoted_as`), now or in T10.
+  - F2 [MINOR, IMPLEMENTATION, R2] The Spec 007 row in `CURRENT_STATE.md` repeats "T1 approved 2026-10-25" twice. → Drop the duplicate.
+  - F3 [MINOR, IMPLEMENTATION] The first T2 checkbox (orchestrator asks the user to run the commands) is unticked although the run happened and its file exists; the last one (commit) is legitimately the orchestrator's at commit time. → Tick the first box when committing.
+- Summary for user (PASS only):
+  - Changed: no code. Your real dense run on suite `public-eval-v2` is checked and recorded as the Spec 007 dense reference in `CURRENT_STATE.md` (Spec 007 row, Next step 3–4); T2 boxes ticked in `tasks.md`. The result file is untracked and goes into the T2 commit.
+  - Verified by: an independent scratch re-check of every R2 field, recomputed metrics and the continuity comparison (63 shared cases: 60 hits, MRR 0.8783 on both sides, no case differs at all, so no device noise); self `eval-compare` PASS; lint, typecheck, validators and 608 unit tests pass; protected paths untouched.
+  - Worth your attention: overall 66/69, MRR 0.8816; the six new Malayalam goldens all hit (`g065` at rank 2); misses unchanged (`g004`, `g026`, `g061`). Accepted deviation: `git_commit` is `b024f5d` (docs-only after T1). Three small doc nits (F1 stale "no pure Malayalam goldens" known issue, F2 duplicated phrase, F3 one unticked box), none blocking.
+  - Reading order (follow the flow: entry point → core logic → models/errors/config → tests):
+    1. `experiments/results/retrieval-evaluation-idx-v1-20261025T134659Z.json` → header fields (suite, strategy, collection, `embedder_is_fake`, `git_commit`, `git_dirty`), then `metrics.overall` and `metrics.by_query_language` (`ml`, `mixed`): the new dense reference.
+    2. This Review block's continuity line: the 63-case comparison with the closed v1 2.0 file.
+    3. `docs/project/CURRENT_STATE.md` diff → Next step item 3: the recorded reference numbers, continuity and the closed v1 reference.
+    4. Supporting edits: `.kiro/specs/007-hybrid-retrieval/tasks.md` (T2 State and boxes).
+- Usage: 104K tokens · 21 tool uses · 6:26
+
+### User decision
+- 2026-10-25 — approved. Verbatim: "T2 approved. 1. Fix F1, F2 and F3 at commit time. F1: rewrite the Known-issues bullet. g064–g069 are now active pure-ml goldens in public-eval-v2, and the candidate rows stay `suggested` with `promoted_as`. Then commit and push. 2. Graphify: after the T2 commit, run `graphify update . --force` and commit the graph on its own (\"Refresh code graph (graphify --force; drops 18 LLM concept nodes on files changed by T1)\"). Push. No /graphify . --update mid-spec; I'll run it after the merge. For T3 onward, the implementer runs `graphify update .` as usual. If it refuses only because LLM-derived nodes on files the task changed would be dropped, it may use --force, and records the dropped-node count in the handoff note. For any other refusal reason, stop and report it. 3. I've ran the make setup. Then start T3."

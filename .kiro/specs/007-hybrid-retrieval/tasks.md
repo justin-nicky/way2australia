@@ -53,21 +53,21 @@ Review reading order: `evaluation/suites/public-eval-v2.json` → `git diff eval
 
 ## T2 — v2 dense baseline (user-owned gate)
 
-**State:** not started
+**State:** approved (2026-10-25)
 **Requirements:** R2
 
 T1 must be approved, committed and pushed on `spec/007` first. No lexical or hybrid task starts before T2 is approved.
 
-- [ ] The orchestrator asks the user to run, from a clean `spec/007` checkout:
+- [x] The orchestrator asks the user to run, from a clean `spec/007` checkout:
   1. `make setup-bge-m3` (on a slow connection `UV_HTTP_TIMEOUT=600 make setup-bge-m3`);
   2. `QDRANT_COLLECTION_BASE=w2a-realcheck make eval-retrieval` (default suite v2, `top_k` 5, read-only on `w2a-realcheck-idx-v1`);
   3. `make setup`;
   and to report the result file name.
-- [ ] The implementer checks the file (scratch script outside the repository, not committed): `kind: retrieval_evaluation`, `schema_version` 2.0, suite `public-eval-v2` version 2, `retrieval_strategy: dense`, golden case count equal to the v2 manifest's active goldens, unanswerable `n` equal to the v2 unanswerable rows, `embedder_is_fake: false`, collection `w2a-realcheck-idx-v1`, `index_version: idx-v1`, `top_k: 5`, `document_count` equal to the eligible corpus size, `git_dirty: false`, `git_commit` equal to the T1 commit.
-- [ ] Continuity check (same scratch script): the shared goldens (same `case_id`, `case_version`) against `experiments/results/retrieval-evaluation-idx-v1-20261024T193140Z.json`: hits and MRR over the shared cases, plus every case whose `hit` or `reciprocal_rank` differs, by `case_id`. Expected: 60 hits, MRR 0.8783 over 63 shared cases; differences explained as device noise (D038) or flagged to the user.
-- [ ] `make eval-compare BASE=<T2 file> CANDIDATE=<T2 file>` passes (readability sanity check).
-- [ ] Update `CURRENT_STATE.md`: the T2 file as the Spec 007 reference (overall, `en`, `mixed`, `ml` metrics, misses by `case_id`, device, latency), the continuity result, the v1 2.0 file as a closed reference.
-- [ ] The result file is committed with the task (it is the only new file under `experiments/results/`).
+- [x] The implementer checks the file (scratch script outside the repository, not committed): `kind: retrieval_evaluation`, `schema_version` 2.0, suite `public-eval-v2` version 2, `retrieval_strategy: dense`, golden case count equal to the v2 manifest's active goldens, unanswerable `n` equal to the v2 unanswerable rows, `embedder_is_fake: false`, collection `w2a-realcheck-idx-v1`, `index_version: idx-v1`, `top_k: 5`, `document_count` equal to the eligible corpus size, `git_dirty: false`, `git_commit` equal to the T1 commit.
+- [x] Continuity check (same scratch script): the shared goldens (same `case_id`, `case_version`) against `experiments/results/retrieval-evaluation-idx-v1-20261024T193140Z.json`: hits and MRR over the shared cases, plus every case whose `hit` or `reciprocal_rank` differs, by `case_id`. Expected: 60 hits, MRR 0.8783 over 63 shared cases; differences explained as device noise (D038) or flagged to the user.
+- [x] `make eval-compare BASE=<T2 file> CANDIDATE=<T2 file>` passes (readability sanity check).
+- [x] Update `CURRENT_STATE.md`: the T2 file as the Spec 007 reference (overall, `en`, `mixed`, `ml` metrics, misses by `case_id`, device, latency), the continuity result, the v1 2.0 file as a closed reference.
+- [x] The result file is committed with the task (it is the only new file under `experiments/results/`).
 
 Allowed protected-path changes: none. New file: `experiments/results/retrieval-evaluation-idx-v1-<UTC>.json` (user-produced).
 
