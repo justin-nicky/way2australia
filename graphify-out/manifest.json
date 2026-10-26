@@ -354,10 +354,10 @@
     "semantic_hash": "a741ccb30b3c2bb53face75f3acd6321"
   },
   "packages/rag/src/way2australia_rag/ingestion/config.py": {
-    "mtime": 1792736843.5955586,
-    "seen": 1792912072.67136,
-    "ast_hash": "263be968677f35e6c574ea2eadc6d70e",
-    "semantic_hash": "263be968677f35e6c574ea2eadc6d70e"
+    "mtime": 1792937877.2437239,
+    "seen": 1792938182.933999,
+    "ast_hash": "c72d78be5fed0586bb1211dc363b532e",
+    "semantic_hash": ""
   },
   "packages/rag/src/way2australia_rag/ingestion/embedding.py": {
     "mtime": 1792736843.5958319,
@@ -498,10 +498,10 @@
     "semantic_hash": "565193d4dc108a9d271c4da0c4c1d74c"
   },
   "packages/rag/src/way2australia_rag/retrieval/index.py": {
-    "mtime": 1792736843.6014426,
-    "seen": 1792912072.671393,
-    "ast_hash": "07bbd05697303b75ac8538008ea56bbf",
-    "semantic_hash": "07bbd05697303b75ac8538008ea56bbf"
+    "mtime": 1792937850.536056,
+    "seen": 1792938182.934047,
+    "ast_hash": "a3def9ac1f6f79fcb9bfba69630fd5b5",
+    "semantic_hash": ""
   },
   "packages/rag/src/way2australia_rag/retrieval/metrics.py": {
     "mtime": 1792736843.6017487,
@@ -1254,27 +1254,27 @@
     "semantic_hash": ""
   },
   ".kiro/specs/007-hybrid-retrieval/design.md": {
-    "mtime": 1792919928.992541,
-    "seen": 1792937672.6717381,
-    "ast_hash": "77c635374dad48787563bc67ab0ad44d",
+    "mtime": 1792939881.820437,
+    "seen": 1792941143.517602,
+    "ast_hash": "6c9f785b4423b9da83d80e53da5a97cb",
     "semantic_hash": ""
   },
   ".kiro/specs/007-hybrid-retrieval/requirements.md": {
-    "mtime": 1792935847.752097,
-    "seen": 1792937672.6717389,
-    "ast_hash": "3868780ffa5f30a9d8ad8202feed2d67",
+    "mtime": 1792939881.8825066,
+    "seen": 1792941143.517604,
+    "ast_hash": "04a0454c6a82890482c1cd48cdb8ca44",
     "semantic_hash": ""
   },
   ".kiro/specs/007-hybrid-retrieval/task-reviews.md": {
-    "mtime": 1792937661.1393862,
-    "seen": 1792937672.671741,
-    "ast_hash": "7913bc89e915777e35ddfcb38381ce9f",
+    "mtime": 1792941138.4372394,
+    "seen": 1792941143.517605,
+    "ast_hash": "4ba49932082faed9e8f21956cd867bfa",
     "semantic_hash": ""
   },
   ".kiro/specs/007-hybrid-retrieval/tasks.md": {
-    "mtime": 1792937661.1389844,
-    "seen": 1792937672.671742,
-    "ast_hash": "32978476926b7336a558e53836d20e44",
+    "mtime": 1792941138.4378293,
+    "seen": 1792941143.517607,
+    "ast_hash": "016ddfc630dc90d2bcaaacd4f0923292",
     "semantic_hash": ""
   },
   "docs/project/COMMANDS.md": {
@@ -1293,6 +1293,66 @@
     "mtime": 1792911292.1290836,
     "seen": 1792937672.671809,
     "ast_hash": "fde64ecc57a4eb8b94f3656bf06d4ac5",
+    "semantic_hash": ""
+  },
+  "packages/rag/src/way2australia_rag/lexical/__init__.py": {
+    "mtime": 1792937814.0429087,
+    "seen": 1792938182.934013,
+    "ast_hash": "bbe804577718c1ef70997d831c796ddd",
+    "semantic_hash": ""
+  },
+  "packages/rag/src/way2australia_rag/lexical/build.py": {
+    "mtime": 1792937889.526465,
+    "seen": 1792938182.934015,
+    "ast_hash": "43f9b31bcf262179e754fc274faa5409",
+    "semantic_hash": ""
+  },
+  "packages/rag/src/way2australia_rag/lexical/cli.py": {
+    "mtime": 1792941066.1986215,
+    "seen": 1792941143.517437,
+    "ast_hash": "142753742cf9b0959d9c8578d96ba56b",
+    "semantic_hash": ""
+  },
+  "packages/rag/src/way2australia_rag/lexical/store.py": {
+    "mtime": 1792937946.9866254,
+    "seen": 1792938182.9340181,
+    "ast_hash": "6131ffd43a5317c77de96b86dd39c1e3",
+    "semantic_hash": ""
+  },
+  "packages/rag/src/way2australia_rag/lexical/tokenizer.py": {
+    "mtime": 1792939710.128233,
+    "seen": 1792939829.173883,
+    "ast_hash": "0591e96310b4d083d447f22158b521e0",
+    "semantic_hash": ""
+  },
+  "packages/rag/tests/lexical/lexical_support.py": {
+    "mtime": 1792938024.7025523,
+    "seen": 1792938182.934092,
+    "ast_hash": "5522fc6139b5e791c7f6b086cd5642a7",
+    "semantic_hash": ""
+  },
+  "packages/rag/tests/lexical/test_lexical_bind.py": {
+    "mtime": 1792938090.1751585,
+    "seen": 1792938182.934093,
+    "ast_hash": "96cf2b2a797f3c600c9ab4e65384501e",
+    "semantic_hash": ""
+  },
+  "packages/rag/tests/lexical/test_lexical_build.py": {
+    "mtime": 1792938090.1753702,
+    "seen": 1792938182.9340951,
+    "ast_hash": "1bf152bd4d33462f690f017ae9b87ad9",
+    "semantic_hash": ""
+  },
+  "packages/rag/tests/lexical/test_lexical_cli.py": {
+    "mtime": 1792941087.7456963,
+    "seen": 1792941143.517519,
+    "ast_hash": "732ce219b2620495f69ab3bd0c1ffc1d",
+    "semantic_hash": ""
+  },
+  "packages/rag/tests/lexical/test_lexical_tokenizer.py": {
+    "mtime": 1792939710.1287603,
+    "seen": 1792939829.17396,
+    "ast_hash": "948823f2394f8525fefebabbdef7c7d1",
     "semantic_hash": ""
   }
 }
