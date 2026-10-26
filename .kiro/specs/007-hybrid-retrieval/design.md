@@ -281,3 +281,11 @@ Results record strategy, fusion parameters, lexical identity, leg ranks for rele
 - A `bm25` strategy that runs without the `bge-m3` extra or without Qdrant — deferred; every strategy binds the dense index for identical identity (user decision at design approval). Note for the next spec: BM25 must be able to run without Qdrant before it can serve as the FTS5 fallback (roadmap 13); the `dense_identity` copy in the lexical settings is the starting point.
 - Incremental lexical updates, lexical index built inside `make ingest` — deferred; full atomic rebuild.
 - Stemming, stopwords, per-language analyzers — roadmap 8.
+
+## As-built notes
+
+Recorded by the 2026-10-25 amendment from the T3 task review (round 1, user decision: "Decisions accepted"). Each note describes code as built in T3.
+
+- **`make index-lexical` options (T3).** Besides the design's CLI signature, the command takes `--embedder {bge_m3,fake}` (like `make ingest`), `--output` and `--config`. The `fake` option exists so a throwaway collection ingested with the fake embedder gets a matching `dense_identity` in the lexical file. The default reads the BGE-M3 identity from `config/ingestion.yaml` without loading the model.
+- **`LexicalIndex.bind_to` compares `hash_contract` (T3).** The lexical binding compares `hash_contract` with the dense index settings, although dense binding records `IndexSettings.hash_contract` and never compares it.
+- **Relative paths (T3).** A relative `W2A_LEXICAL_INDEX_DIR` or `--output` resolves against `--repo-root`.

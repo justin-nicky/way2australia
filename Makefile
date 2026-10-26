@@ -6,7 +6,7 @@ UV_ENV = UV_CACHE_DIR=$(UV_CACHE_DIR) UV_PYTHON_INSTALL_DIR=$(UV_PYTHON_INSTALL_
 PYTHON_TARGETS ?= apps packages tests scripts
 UV_HTTP_TIMEOUT ?= 300
 
-.PHONY: setup setup-bge-m3 format lint typecheck test test-unit test-integration verify skills-sync skills-check validate-knowledge validate-evaluation ingest retrieve retrieval-baseline eval-retrieval eval-security eval-compare
+.PHONY: setup setup-bge-m3 format lint typecheck test test-unit test-integration verify skills-sync skills-check validate-knowledge validate-evaluation ingest index-lexical retrieve retrieval-baseline eval-retrieval eval-security eval-compare
 
 setup:
 	$(UV_ENV) $(UV) sync --all-packages --group dev
@@ -53,6 +53,11 @@ verify: lint typecheck skills-check validate-knowledge validate-evaluation test
 # e.g. make ingest INGEST_ARGS="--embedder fake".
 ingest:
 	@$(UV_ENV) $(UV) run python -m way2australia_rag.ingestion.cli --repo-root $(CURDIR) $(INGEST_ARGS)
+
+# Build the derived lexical (BM25) index for the configured collection. Extra
+# options go in LEXICAL_ARGS, e.g. make index-lexical LEXICAL_ARGS="--embedder fake".
+index-lexical:
+	@$(UV_ENV) $(UV) run python -m way2australia_rag.lexical.cli --repo-root $(CURDIR) $(LEXICAL_ARGS)
 
 # Dense retrieval over the guest/public index. Extra options go in RETRIEVE_ARGS,
 # e.g. make retrieve QUERY="Is coaching compulsory?" RETRIEVE_ARGS="--embedder fake".

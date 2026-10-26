@@ -81,15 +81,15 @@ Review reading order: the T2 result file (header fields, metrics, `ml`/`mixed` s
 
 ## T3 — `lexical-v1` tokenizer, lexical store and `make index-lexical`
 
-**State:** not started
+**State:** approved (2026-10-26)
 **Requirements:** R3, R4, R5, R14
 
-- [ ] `lexical/__init__.py`, `lexical/tokenizer.py`: `TOKENIZER_NAME`, `TOKENIZER_VERSION`, `tokenize`, `query_terms` returning `QueryTerms(terms, truncated)` with `MAX_QUERY_TERMS = 64` (design R3).
-- [ ] `lexical/store.py`, `lexical/build.py`: schema, `lexical_settings` (including `dense_identity`), `source_chunk_digest`, `build_lexical_index` (temp file, `os.replace`, cleanup on failure), `production_entries`, `LexicalIndex.open` (read-only URI), `bind_to(dense)`, `search(...)`, `LexicalIndexBindingError` (subclass of `IndexBindingError`) with rebuild advice.
-- [ ] `retrieval/index.py`: read-only `DenseIndex.chunk_identities()` (scroll; payload include `document_id`, `document_version`, `content_hash`; no text). No other change to `DenseIndex`.
-- [ ] `ingestion/config.py`: `RuntimeSettings.lexical_index_dir` from `W2A_LEXICAL_INDEX_DIR` (default `<repo-root>/.local/lexical`); not index-defining.
-- [ ] `lexical/cli.py` and `Makefile` target `index-lexical` (`LEXICAL_ARGS`, passes `--repo-root`); `.gitignore` adds `/.local/lexical/`.
-- [ ] Tests (`packages/rag/tests/lexical/`):
+- [x] `lexical/__init__.py`, `lexical/tokenizer.py`: `TOKENIZER_NAME`, `TOKENIZER_VERSION`, `tokenize`, `query_terms` returning `QueryTerms(terms, truncated)` with `MAX_QUERY_TERMS = 64` (design R3).
+- [x] `lexical/store.py`, `lexical/build.py`: schema, `lexical_settings` (including `dense_identity`), `source_chunk_digest`, `build_lexical_index` (temp file, `os.replace`, cleanup on failure), `production_entries`, `LexicalIndex.open` (read-only URI), `bind_to(dense)`, `search(...)`, `LexicalIndexBindingError` (subclass of `IndexBindingError`) with rebuild advice.
+- [x] `retrieval/index.py`: read-only `DenseIndex.chunk_identities()` (scroll; payload include `document_id`, `document_version`, `content_hash`; no text). No other change to `DenseIndex`.
+- [x] `ingestion/config.py`: `RuntimeSettings.lexical_index_dir` from `W2A_LEXICAL_INDEX_DIR` (default `<repo-root>/.local/lexical`); not index-defining.
+- [x] `lexical/cli.py` and `Makefile` target `index-lexical` (`LEXICAL_ARGS`, passes `--repo-root`); `.gitignore` adds `/.local/lexical/`.
+- [x] Tests (`packages/rag/tests/lexical/`):
   - tokenizer pins: real Malayalam words from `business_008_public_samples` and the queries of `g064`–`g069` (read from the v2 golden file by `case_id`, tokens pinned per word), `dialogue-ൽ`, English with punctuation and digits, NFD equals NFC, ZWJ/ZWNJ dropped, **legacy chillu sequence → consonant + virama, not equal to the atomic chillu letter**, no language-code literal in the module;
   - `query_terms`: de-duplication, first-seen order, a query with more than 64 distinct terms gives the first 64 and `truncated=True`;
   - build: entries, settings fields, digest stability and order independence, atomic replace (old file intact after an injected failure, no temp file left), the production builder reads only eligible documents (consistency with `list_eligible_documents`) and never `tests/fixtures/security/`;

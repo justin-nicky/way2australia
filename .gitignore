@@ -104,3 +104,8 @@ graphify-out/graph.html
 # graphify per-session hook state (local)
 graphify-out/cache/hook_sessions/
 graphify-out/cache/last_query_stamp
+
+# =============================================================================
+# Derived lexical (BM25) index files (Spec 007)
+# =============================================================================
+/.local/lexical/
