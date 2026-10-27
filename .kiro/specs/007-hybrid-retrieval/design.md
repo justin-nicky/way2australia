@@ -289,3 +289,10 @@ Recorded by the 2026-10-25 amendment from the T3 task review (round 1, user deci
 - **`make index-lexical` options (T3).** Besides the design's CLI signature, the command takes `--embedder {bge_m3,fake}` (like `make ingest`), `--output` and `--config`. The `fake` option exists so a throwaway collection ingested with the fake embedder gets a matching `dense_identity` in the lexical file. The default reads the BGE-M3 identity from `config/ingestion.yaml` without loading the model.
 - **`LexicalIndex.bind_to` compares `hash_contract` (T3).** The lexical binding compares `hash_contract` with the dense index settings, although dense binding records `IndexSettings.hash_contract` and never compares it.
 - **Relative paths (T3).** A relative `W2A_LEXICAL_INDEX_DIR` or `--output` resolves against `--repo-root`.
+
+Recorded by the 2026-10-27 amendment from the T4 task review (round 1, user decision: "Decisions accepted").
+
+- **`LexicalIdentity` location (T4).** The model lives in `retrieval/models.py`, next to `RetrievalResult`.
+- **BM25 score (T4).** The reported score is `-bm25() + 0.0`: higher is better, and `+ 0.0` turns a `-0.0` into `0.0`.
+- **Non-object `payload_json` (T4).** A row whose `payload_json` is not valid JSON or not a JSON object is passed to `check_hit` as an empty payload and fails closed.
+- **Latency rule (T6, from T4 review F2).** Every leg and strategy is timed by one span that starts just after `validate_request` and ends after the last `check_hit`, so dense and BM25 latency measure the same work. As built in T4, `BM25Retriever` follows this rule and `DenseRetriever` stops its clock before `check_hit`; T6 moves the dense stop to match. Hybrid per-leg latency (`latency_ms.legs`) is each leg's own span.

@@ -168,6 +168,7 @@ Review reading order: `retrieval/fusion.py` + fusion tests → `retrieval/hybrid
 - [ ] `retrieval/cli.py`: `--strategy` (choices from `Strategy`, default from `config/retrieval.yaml`), lexical open and bind for `bm25`/`hybrid`, header `strategy=`, hybrid leg ranks, truncation note; access unchanged.
 - [ ] `evaluation/cli.py` `retrieval`: `--strategy`, lexical open and bind after the dense binding; `retrieval_eval.py` takes a `Retriever` and writes result 2.1 (design R9: strategy, score kind, fusion, lexical identity, `leg_ranks`, `query_terms_truncated`, `truncated_query_count`, per-leg latency, `unanswerable.score_kind`).
 - [ ] `evaluation/results.py`: supports 1.0, 2.0 and 2.1 (1.0/2.0 read as strategy `dense`, no lexical identity).
+- [ ] T4 review F2 (user decision 2026-10-27): one latency span for every leg and strategy, from just after `validate_request` to after the last `check_hit`, so dense and BM25 are timed the same way (design As-built notes). `DenseRetriever.retrieve` moves its clock stop from before `check_hit` to after it; `BM25Retriever` already matches; hybrid per-leg latency is each leg's own span. Only where the dense clock stops changes: dense ranks, scores, document IDs and order stay identical, so the dense equivalence test below still holds (its latency values come from the patched `perf_counter`, whose call count does not change).
 - [ ] Tests:
   - dense equivalence: the 2.1 dense result's per-case 2.0 fields and aggregates equal the captured fixture;
   - 2.1 keys for each strategy; no query or chunk text, absolute paths or secrets; never overwritten;
@@ -228,6 +229,7 @@ Review reading order: `evaluation/compare.py` diff → `evaluation/results.py` d
   - the missing-owner row is excluded by `owner_present` (no `check_hit` violation in a correct run);
   - security result 1.1 keys, no text; the lexical file is gone after a run, including a failed one.
 - [ ] `packages/rag/tests/evaluation/test_security_integration.py`: parametrized over the three strategies on Docker Qdrant (unique `w2a-sectest-<8 hex>`, lexical file in `tmp_path`, cleanup in `finally`, skip when Qdrant is unreachable).
+- [ ] T4 review F1 (user decision 2026-10-27): parametrize the BM25 clause-dropping test (`test_a_store_without_the_clause_trips_check_hit` in `packages/rag/tests/retrieval/test_bm25.py`) over all four forbidden row types (staff scope, other tenant, owned, missing owner).
 
 Allowed protected-path changes: none.
 
@@ -282,6 +284,7 @@ Review reading order: compare outputs (step 2, step 5) → the rule check (ml/mi
 - [ ] Known issues in `CURRENT_STATE.md`: legacy chillu sequences do not match atomic chillu in `lexical-v1` (roadmap 8; dense unaffected); `seed-v1` release still names suite v1 (Phase 2 releases); BM25 needs Qdrant and the `bge-m3` extra in this spec.
 - [ ] T1 review F1 (user decision 2026-10-25): remove the unused `LEGACY_SUITE` constant from `packages/rag/tests/conftest.py`, or use it in `packages/rag/tests/retrieval/test_baseline.py` instead of the literal v1 suite path (implementer's choice; one test-only edit).
 - [ ] T3 round 3 review F1 (user decision 2026-10-26): in `packages/rag/src/way2australia_rag/lexical/cli.py`, `check_target_allowed` allows only targets that `git check-ignore` reports as ignored (inside a git work tree), replacing the tracked-file check; the protected `knowledge/`, `evaluation/`, `config/` guard (by real on-disk location) stays. Add a test that an existing un-ignored folder such as `.local/other/` is refused (exit 2, nothing written).
+- [ ] T4 review F3 (user decision 2026-10-27): move the lexical test helpers in `packages/rag/tests/lexical/lexical_support.py` into a shared fixture module or `conftest.py` (implementer's choice), and remove the `sys.path` insert and the pyright ignore from `packages/rag/tests/retrieval/test_bm25.py`. Test-only.
 - [ ] "Notes for the retrospective" (below) checked and extended with anything learned during implementation.
 - [ ] Spec-wide checks and protected-path check against `main`.
 - [ ] `graphify update .` after the last code change; doc changes refreshed per D048 if the user asks.
