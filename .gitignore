@@ -109,3 +109,7 @@ graphify-out/cache/last_query_stamp
 # Derived lexical (BM25) index files (Spec 007)
 # =============================================================================
 /.local/lexical/
+
+# graphify transient files
+/graphify-out/20??-??-??/
+/graphify-out/.graphify_labels.pending.json
