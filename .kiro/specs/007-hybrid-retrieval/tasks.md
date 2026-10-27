@@ -108,14 +108,14 @@ Review reading order: `lexical/tokenizer.py` + tokenizer tests → `lexical/stor
 
 ## T4 — BM25 retriever and SQL access clause
 
-**State:** not started
+**State:** approved (2026-10-27)
 **Requirements:** R6, R14
 
-- [ ] `retrieval/base.py`: `Retriever` Protocol, `Strategy` (`StrEnum`), `validate_request` shared with `DenseRetriever` (same messages; `DenseRetriever` calls it, behavior unchanged).
-- [ ] `retrieval/access.py`: `build_sql_access_clause(access)` (design R6), next to `build_access_filter`.
-- [ ] `retrieval/models.py`: the additive default fields (design "Interfaces / models"), including `query_terms_truncated`.
-- [ ] `retrieval/bm25.py`: `BM25Retriever` (quoted terms joined by `OR`, no `MATCH` for zero terms, `check_hit` on every row, `score_kind: "bm25"`, dense identity from the bound index, `query_terms_truncated`).
-- [ ] Tests (`packages/rag/tests/retrieval/test_bm25.py`, `test_access.py` additions):
+- [x] `retrieval/base.py`: `Retriever` Protocol, `Strategy` (`StrEnum`), `validate_request` shared with `DenseRetriever` (same messages; `DenseRetriever` calls it, behavior unchanged).
+- [x] `retrieval/access.py`: `build_sql_access_clause(access)` (design R6), next to `build_access_filter`.
+- [x] `retrieval/models.py`: the additive default fields (design "Interfaces / models"), including `query_terms_truncated`.
+- [x] `retrieval/bm25.py`: `BM25Retriever` (quoted terms joined by `OR`, no `MATCH` for zero terms, `check_hit` on every row, `score_kind: "bm25"`, dense identity from the bound index, `query_terms_truncated`).
+- [x] Tests (`packages/rag/tests/retrieval/test_bm25.py`, `test_access.py` additions):
   - ranking on a synthetic `tmp_path` corpus; deterministic tie-break by `point_id`;
   - authorization: staff scope, other tenant, owned and missing-owner rows (`owner_present = 0`) that contain the query terms are never returned; a store that drops the clause (test double) makes `check_hit` raise `RetrievalAuthorizationError`;
   - both builders cover the same three conditions for the same `ResolvedAccess`, and a different policy changes both;

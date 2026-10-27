@@ -59,6 +59,23 @@ def build_access_filter(access: ResolvedAccess) -> models.Filter:
     )
 
 
+def build_sql_access_clause(access: ResolvedAccess) -> tuple[str, tuple[str, ...]]:
+    """The SQLite rendering of the same policy as `build_access_filter`.
+
+    Returns a constant fragment for a policy (one `?` per allowed scope, scopes
+    sorted) and its bound parameters. `owner_present = 1` excludes a payload
+    without `owner_user_id`, like Qdrant's `is_null`; SQL cannot tell a missing
+    value from `NULL` otherwise.
+    """
+    scopes = sorted(str(scope) for scope in access.policy.allowed_access_scopes)
+    marks = ", ".join("?" for _ in scopes)
+    clause = (
+        f"c.access_scope IN ({marks}) AND c.tenant_id = ? "
+        "AND c.owner_present = 1 AND c.owner_user_id IS NULL"
+    )
+    return clause, (*scopes, access.tenant_id)
+
+
 def check_hit(payload: Mapping[str, object], access: ResolvedAccess) -> PointPayload:
     """Second line of defense: re-check a hit against the same policy.
 

@@ -24,6 +24,19 @@ class RetrievedChunk(BaseModel):
     source_url: str | None
     content_language: str
     lote_languages: list[str]
+    leg_ranks: dict[str, int | None] | None = None
+
+
+class LexicalIdentity(BaseModel):
+    """Which lexical index produced a result (file name only, never a path)."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    label: str
+    tokenizer_name: str
+    tokenizer_version: str
+    source_chunk_digest: str
+    chunk_count: int
 
 
 class RetrievalResult(BaseModel):
@@ -38,3 +51,8 @@ class RetrievalResult(BaseModel):
     device: str | None
     top_k: int
     latency_ms: float
+    strategy: str = "dense"
+    score_kind: str = "dense_cosine"
+    leg_latency_ms: dict[str, float] | None = None
+    lexical: LexicalIdentity | None = None
+    query_terms_truncated: bool | None = None
