@@ -305,3 +305,7 @@ Recorded by the 2026-10-28 amendment from the T5 task review (round 2, user deci
 Recorded by the amendment from the T6 task review (2026-10-28, round 2, user decision: "T6 approved").
 
 - **`RetrievalResult.leg_document_ranks` (T6).** `RetrievalResult` gains `leg_document_ranks: dict[str, list[str]] | None = None`: per leg, the deduplicated document IDs in leg order at candidate depth. Only `HybridRetriever` sets it. The result 2.1 per-case `leg_ranks` is derived from it: the document rank after dedupe, `null` only when the leg did not return the document within candidate depth. Chunk-level `leg_ranks` on hits (`FusedHit.leg_ranks`, CLI output) are unchanged. Dense output and dense `leg_ranks: null` are unchanged.
+
+Recorded by the 2026-10-28 amendment from the T10 implementation (user-accepted deviation).
+
+- **`make index-lexical` target outside a git work tree (T10).** `check_target_allowed` in `lexical/cli.py` always refuses a target in or under `knowledge/`, `evaluation/` or `config/`. Inside a git work tree it allows only a target that `git check-ignore` reports as ignored. Outside any git work tree there is nothing to check against, so an un-ignored target is allowed (R4 says "git-ignored location"; user-accepted deviation, 2026-10-28).
