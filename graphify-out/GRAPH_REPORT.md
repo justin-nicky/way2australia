@@ -1,36 +1,36 @@
-# Graph Report - way2australia  (2026-10-27)
+# Graph Report - way2australia  (2026-10-28)
 
 ## Corpus Check
-- 236 files · ~207,194 words
+- 239 files · ~213,018 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 31 file(s) not represented in the graph (top: (none) 20, .jsonl 9, .example 1)
 
 ## Summary
-- 2735 nodes · 7829 edges · 133 communities (112 shown, 21 thin omitted)
-- Extraction: 84% EXTRACTED · 16% INFERRED · 0% AMBIGUOUS · INFERRED: 1219 edges (avg confidence: 0.91)
+- 2805 nodes · 8191 edges · 137 communities (113 shown, 24 thin omitted)
+- Extraction: 84% EXTRACTED · 16% INFERRED · 0% AMBIGUOUS · INFERRED: 1314 edges (avg confidence: 0.91)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `d252a6b3`
+- Built from commit: `f2ed9316`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - QdrantIndexStore
 - evaluation/validate.py
-- evaluation/cli.py
+- EvaluationConfigurationError
 - HeadingChunker
 - test_validate.py
-- retrieval_eval.py
-- BM25Retriever
+- repositories/validate.py
+- dense
 - Eval Compare Gate
 - DenseRetriever
 - DenseRetriever
 - test_suite_v2.py
 - Model Tiers
 - KnowledgeDocument
-- FakeEmbedder
-- typing
+- test_retrieval_eval.py
+- ingestion/store.py
 - test_security_eval.py
 - Day-1 Data and Sources
 - Architecture Decisions
@@ -43,13 +43,13 @@
 - test_schemas.py
 - Legacy Snapshot Test
 - list_eligible_documents
-- check_target_allowed
-- Evaluation Error Hierarchy
+- EvaluationSchemas
+- suite.py
 - Architecture Components
 - FastAPI Health Endpoint
 - Manifest Loading
 - asyncio
-- documents/models.py
+- LocalDocumentRepository
 - test_lexical_tokenizer.py
 - Roadmap
 - json
@@ -67,7 +67,7 @@
 - Engineering Conventions
 - Phase 2 Governance
 - Project Commands
-- 007 — Hybrid Retrieval Tasks
+- service.py
 - Packages and Pricing
 - Agent Project Rules
 - retrieval/test_cli.py
@@ -93,7 +93,7 @@
 - Spec 002 Reviews
 - Spec 006 Overview
 - Versioning and Releases
-- lexical/cli.py
+- pathlib
 - Master Plan Overview
 - Deployment and Degradation Plan
 - Plan Repository Concepts
@@ -122,49 +122,54 @@
 - Observability Project
 - ingest_dense
 - test_repository_contract.py
-- build.py
-- test_slices.py
+- _insert
+- re
 - DenseIndex
 - fusion
-- RetrievalConfigurationError
-- test_non_guest_roles_refused
+- evaluation/cli.py
+- retrieval/test_access.py
 - AccessContext
 - test_hybrid.py
 - test_content_hash.py
 - test_lexical_cli.py
-- test_strategy.py
+- Strategy
 - sync_agent_skills.py
-- service.py
-- run_retrieval_evaluation
+- test_index_contract.py
+- test_failed_write_removes_partial_file
 - Development Workflow
-- make_document
-- chunking.py
-- document_fields
-- pytest
+- test_strategy_eval.py
+- FakeEmbedder
+- evaluation/test_cli.py
+- retrieval_eval.py
+- test_store_integration.py
+- dense_equivalence.py
+- metrics.py
+- CountingStore
+- Components / boundaries
 
 ## God Nodes (most connected - your core abstractions)
-1. `DenseIndex` - 86 edges
+1. `DenseIndex` - 88 edges
 2. `LocalDocumentRepository` - 61 edges
-3. `DenseRetriever` - 58 edges
-4. `EvaluationConfigurationError` - 54 edges
-5. `FakeEmbedder` - 54 edges
-6. `QdrantIndexStore` - 48 edges
-7. `HeadingChunker` - 47 edges
-8. `Architecture Decisions` - 47 edges
-9. `KnowledgeDocument` - 45 edges
-10. `RetrievalConfigurationError` - 43 edges
+3. `FakeEmbedder` - 56 edges
+4. `EvaluationConfigurationError` - 55 edges
+5. `DenseRetriever` - 51 edges
+6. `HeadingChunker` - 49 edges
+7. `QdrantIndexStore` - 49 edges
+8. `run_retrieval_evaluation()` - 48 edges
+9. `Architecture Decisions` - 47 edges
+10. `Strategy` - 46 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `R10 — `eval-compare` identity rules (`compare.py`)` --references--> `_refusals()`  [INFERRED]
   .kiro/specs/007-hybrid-retrieval/design.md → packages/rag/src/way2australia_rag/evaluation/compare.py
-- `Testing / evaluation strategy` --references--> `rrf_fuse()`  [INFERRED]
-  .kiro/specs/007-hybrid-retrieval/design.md → packages/rag/src/way2australia_rag/retrieval/fusion.py
-- `Dependencies` --references--> `AccessContext`  [INFERRED]
-  .kiro/specs/007-hybrid-retrieval/requirements.md → packages/core/src/way2australia_core/access.py
-- `R11 — Security gate (`security_index.py`, `security_eval.py`)` --references--> `EvaluationHarnessError`  [INFERRED]
-  .kiro/specs/007-hybrid-retrieval/design.md → packages/rag/src/way2australia_rag/evaluation/errors.py
-- `R1 — Suite v2` --references--> `_notes()`  [INFERRED]
-  .kiro/specs/007-hybrid-retrieval/design.md → packages/rag/src/way2australia_rag/evaluation/retrieval_eval.py
+- `R9 — Result format 2.1` --references--> `dense()`  [INFERRED]
+  .kiro/specs/007-hybrid-retrieval/design.md → packages/rag/tests/retrieval/test_bm25.py
+- `Acceptance criteria` --references--> `dense()`  [INFERRED]
+  .kiro/specs/007-hybrid-retrieval/requirements.md → packages/rag/tests/retrieval/test_bm25.py
+- `Acceptance criteria` --references--> `dense()`  [INFERRED]
+  .kiro/specs/007-hybrid-retrieval/requirements.md → packages/rag/tests/retrieval/test_bm25.py
+- `Acceptance criteria` --references--> `dense()`  [INFERRED]
+  .kiro/specs/007-hybrid-retrieval/requirements.md → packages/rag/tests/retrieval/test_bm25.py
 
 ## Import Cycles
 - None detected.
@@ -183,47 +188,47 @@
 - **Hybrid retrieval pipeline (dense, BM25, RRF, reranker)** — way2australia_ai_platform_implementation_plan_bge_m3, way2australia_ai_platform_implementation_plan_hybrid_rrf, way2australia_ai_platform_implementation_plan_reranker, way2australia_ai_platform_implementation_plan_qdrant [INFERRED 0.85]
 - **Task-gated spec workflow** — docs_project_decisions_d023, docs_project_decisions_d031, docs_project_workflow_task_gated_loop, docs_project_workflow_retrospective [INFERRED 0.85]
 
-## Communities (133 total, 21 thin omitted)
+## Communities (137 total, 24 thin omitted)
 
 ### Community 0 - "QdrantIndexStore"
-Cohesion: 0.07
-Nodes (41): IndexSettingsMismatchError, compare(), IndexSettings, mismatch_message(), IndexedDocument, QdrantIndexStore, read_index_settings(), base_settings() (+33 more)
+Cohesion: 0.19
+Nodes (21): QdrantIndexStore, client(), test_replace_and_delete_flows(), make_points(), make_settings(), snapshot(), store(), test_absent_creates_both_and_writes_settings() (+13 more)
 
 ### Community 1 - "evaluation/validate.py"
-Cohesion: 0.11
-Nodes (18): Review, EvaluationSchemas, _candidate_rules(), problem(), _describe(), _document_ids(), _document_problems(), EvaluationProblem (+10 more)
+Cohesion: 0.15
+Nodes (18): Implementation, Review, T1 — round 1, User decision, _candidate_rules(), problem(), _describe(), _document_problems() (+10 more)
 
-### Community 2 - "evaluation/cli.py"
-Cohesion: 0.14
-Nodes (14): _compare(), default_security_output_path(), format_security_summary(), format_summary(), main(), _retrieval(), _security(), _unanswerable_line() (+6 more)
+### Community 2 - "EvaluationConfigurationError"
+Cohesion: 0.25
+Nodes (7): EvaluationConfigurationError, declared_release_id(), inside(), read_dataset(), read_json(), read_manifest(), test_declared_release_id()
 
 ### Community 3 - "HeadingChunker"
-Cohesion: 0.08
-Nodes (48): R3 — Tokenizer `lexical-v1` (`lexical/tokenizer.py`), HeadingChunker, _is_word_char(), slugify(), ids(), make_document(), test_deterministic(), test_duplicate_headings_get_unique_ids_in_order() (+40 more)
+Cohesion: 0.07
+Nodes (52): R3 — Tokenizer `lexical-v1` (`lexical/tokenizer.py`), HeadingChunker, _is_word_char(), _parse_sections(), _Section, slugify(), _split_body(), _split_words() (+44 more)
 
 ### Community 4 - "test_validate.py"
+Cohesion: 0.15
+Nodes (30): edit_rows(), edit_suite(), root(), run(), test_active_golden_without_relevant_documents(), test_candidate_not_suggested(), test_candidate_referenced_by_suite(), test_candidate_unknown_and_ineligible_documents() (+22 more)
+
+### Community 5 - "repositories/validate.py"
 Cohesion: 0.13
-Nodes (31): edit_rows(), edit_suite(), root(), run(), test_active_golden_without_relevant_documents(), test_candidate_ineligible_document_is_not_unknown(), test_candidate_not_suggested(), test_candidate_referenced_by_suite() (+23 more)
+Nodes (12): DocumentNotFoundError, DocumentRepositoryError, DocumentValidationError, DuplicateDocumentError, under_root(), _duplicate_reason(), _error_problems(), main() (+4 more)
 
-### Community 5 - "retrieval_eval.py"
-Cohesion: 0.07
-Nodes (29): Review, T2 — v2 dense baseline (user-owned gate), Verification, require_real_embedder(), require_real_index(), run_retrieval_evaluation(), dedupe_sections(), section_key() (+21 more)
-
-### Community 6 - "BM25Retriever"
-Cohesion: 0.11
-Nodes (26): As-built notes, Package / file placement, R6 — `BM25Retriever` (`retrieval/bm25.py`), R7 — Fusion and `HybridRetriever` (`retrieval/fusion.py`, `hybrid.py`), R8 — Strategy and config (`retrieval/strategy.py`, `config/retrieval.yaml`), Implementation, Implementation, Review (+18 more)
+### Community 6 - "dense"
+Cohesion: 0.08
+Nodes (24): Acceptance criteria, Acceptance criteria, Decisions resolved before drafting, Implementation, Implementation, Review, T2 — round 1, T4 — round 1 (+16 more)
 
 ### Community 7 - "Eval Compare Gate"
-Cohesion: 0.10
-Nodes (48): _changed(), compare(), Comparison, _delta_line(), _fmt_key(), _hits(), _listed(), _mean() (+40 more)
+Cohesion: 0.08
+Nodes (49): _changed(), compare(), Comparison, _delta_line(), _fmt_key(), _hits(), _listed(), _mean() (+41 more)
 
 ### Community 8 - "DenseRetriever"
-Cohesion: 0.08
-Nodes (38): 007 — Hybrid Retrieval Design, Alternatives / deferred decisions, Data flow, Design summary, Error and failure behavior, Interfaces / models, Observability, Phase 2 compatibility / migration (+30 more)
+Cohesion: 0.09
+Nodes (39): 007 — Hybrid Retrieval Design, Alternatives / deferred decisions, As-built notes, Data flow, Design summary, Error and failure behavior, Interfaces / models, Observability (+31 more)
 
 ### Community 9 - "DenseRetriever"
 Cohesion: 0.05
-Nodes (49): IndexPoint, DenseRetriever, client_with_forbidden(), FilterDroppingIndex, test_forbidden_points_are_never_returned(), test_store_dropping_the_filter_fails_closed(), case(), clean_env() (+41 more)
+Nodes (48): IndexPoint, manifest_document_count(), client_with_forbidden(), FilterDroppingIndex, test_forbidden_points_are_never_returned(), test_store_dropping_the_filter_fails_closed(), case(), clean_env() (+40 more)
 
 ### Community 10 - "test_suite_v2.py"
 Cohesion: 0.14
@@ -234,20 +239,20 @@ Cohesion: 0.05
 Nodes (20): Model Preferences, Agent Skills README, Implementation Checklist, Spec Implementer Skill, task-reviews.md Implementation Block, Orchestrator State Machine, Spec Orchestrator Skill, Design Template (+12 more)
 
 ### Community 12 - "KnowledgeDocument"
-Cohesion: 0.07
-Nodes (10): _check_language_code(), KnowledgeDocument, DocumentQuery, DocumentNotFoundError, LocalDocumentRepository, security_repository(), test_real_fixture_folder_builds(), test_ineligible_document() (+2 more)
+Cohesion: 0.08
+Nodes (9): AccessScope, ApprovalStatus, LanguageScope, LifecycleStatus, SourceAuthority, _check_language_code(), KnowledgeDocument, ListRepository (+1 more)
 
-### Community 13 - "FakeEmbedder"
-Cohesion: 0.05
-Nodes (58): UnanswerableCase, score_distribution(), FakeEmbedder, clean_env(), index_factory(), real_factory(), run(), test_bad_top_k_exits_2() (+50 more)
+### Community 13 - "test_retrieval_eval.py"
+Cohesion: 0.17
+Nodes (27): basic_suite(), build(), golden(), run(), suite_of(), suite_with_unanswerable(), test_active_golden_without_relevant_documents_is_refused(), test_case_access_context_never_widens_access() (+19 more)
 
-### Community 14 - "typing"
-Cohesion: 0.12
-Nodes (5): EvaluationHarnessError, _forbidden_payload(), forbidden_variant(), EmbedderInfo, collection_name()
+### Community 14 - "ingestion/store.py"
+Cohesion: 0.11
+Nodes (7): IndexSettingsMismatchError, build_index_settings(), collection_name(), IndexSettings, IndexedDocument, read_index_settings(), test_collection_name_derivation()
 
 ### Community 15 - "test_security_eval.py"
-Cohesion: 0.05
-Nodes (40): run_security_evaluation(), _sanity_check(), security_document(), SecurityQuery, SecurityReport, delete_security_index(), is_forbidden_document(), require_security_base() (+32 more)
+Cohesion: 0.06
+Nodes (46): R11 — Security gate (`security_index.py`, `security_eval.py`), EvaluationHarnessError, run_security_evaluation(), _sanity_check(), security_document(), SecurityQuery, SecurityReport, select_security_queries() (+38 more)
 
 ### Community 16 - "Day-1 Data and Sources"
 Cohesion: 0.05
@@ -262,24 +267,24 @@ Cohesion: 0.17
 Nodes (28): IndexBindingError, client(), fake_info(), make_settings(), open_index(), payload(), scope_filter(), seed() (+20 more)
 
 ### Community 19 - "Document Model Tests"
-Cohesion: 0.18
-Nodes (19): assert_invalid(), test_blank_required_text_is_rejected(), test_duplicate_lote_languages_are_rejected(), test_effective_window_must_be_ordered(), test_empty_lote_languages_is_rejected(), test_flags_must_be_real_booleans(), test_global_scope_requires_wildcard(), test_invalid_content_hash_is_rejected() (+11 more)
+Cohesion: 0.12
+Nodes (31): assert_invalid(), document_fields(), make_document(), test_blank_required_text_is_rejected(), test_document_is_immutable(), test_duplicate_lote_languages_are_rejected(), test_effective_window_must_be_ordered(), test_empty_lote_languages_is_rejected() (+23 more)
 
 ### Community 20 - "rrf_fuse"
 Cohesion: 0.22
-Nodes (13): rrf_fuse(), chunk(), test_both_legs_empty(), test_duplicate_in_a_leg_counts_best_rank_only(), test_empty_leg_keeps_the_other_order(), test_equal_scores_and_ranks_break_by_point_id(), test_equal_scores_break_by_best_rank_before_point_id(), test_first_seen_chunk_is_kept() (+5 more)
+Nodes (13): Testing / evaluation strategy, rrf_fuse(), chunk(), test_both_legs_empty(), test_duplicate_in_a_leg_counts_best_rank_only(), test_empty_leg_keeps_the_other_order(), test_equal_scores_and_ranks_break_by_point_id(), test_equal_scores_break_by_best_rank_before_point_id() (+5 more)
 
 ### Community 21 - "Date and Policy Tests"
-Cohesion: 0.22
-Nodes (26): load(), test_bad_date_fails_loading_naming_document_and_field(), test_seed_corpus_still_loads(), test_valid_date_loads(), build_repo(), metadata(), problems_for(), run_cli() (+18 more)
+Cohesion: 0.21
+Nodes (27): load(), test_bad_date_fails_loading_naming_document_and_field(), test_guest_policy_agrees_with_access_policy_config(), test_seed_corpus_still_loads(), test_valid_date_loads(), build_repo(), metadata(), problems_for() (+19 more)
 
 ### Community 22 - "BGE-M3 Adapter"
-Cohesion: 0.09
-Nodes (15): BgeM3Embedder, _group_installed(), OptionalDependencyError, missing(), group_installed(), test_constructing_does_not_load_the_model(), test_device_none_before_load_and_recorded_after(), test_missing_group_at_load_raises_optional_dependency_error() (+7 more)
+Cohesion: 0.08
+Nodes (16): BgeM3Embedder, _group_installed(), EmbedderInfo, OptionalDependencyError, missing(), group_installed(), test_constructing_does_not_load_the_model(), test_device_none_before_load_and_recorded_after() (+8 more)
 
 ### Community 23 - "Live-count Test Helpers"
-Cohesion: 0.12
-Nodes (21): manifest_document_count(), clean_env(), _factory(), _run(), test_agrees_with_day1_baseline(), test_builds_exactly_one_embedder_per_run(), test_collection_base_comes_from_environment(), test_config_refuses_missing_or_floating_revision() (+13 more)
+Cohesion: 0.14
+Nodes (20): clean_env(), _factory(), _run(), test_agrees_with_day1_baseline(), test_builds_exactly_one_embedder_per_run(), test_collection_base_comes_from_environment(), test_config_refuses_missing_or_floating_revision(), test_config_refuses_unknown_field_and_missing_file() (+12 more)
 
 ### Community 24 - "test_schemas.py"
 Cohesion: 0.17
@@ -290,16 +295,12 @@ Cohesion: 0.12
 Nodes (15): clean_env(), _Factory, _FixedDatetime, _record_opens(), note(), wrap_func(), inner(), wrap_method() (+7 more)
 
 ### Community 26 - "list_eligible_documents"
-Cohesion: 0.13
-Nodes (19): _authority_map(), collect(), EligibilityPolicy, list_eligible_documents(), eligible_ids(), make_document(), test_active_approved_public_document_is_eligible(), test_language_filter_narrows_eligible_documents_only() (+11 more)
+Cohesion: 0.23
+Nodes (15): eligible_ids(), make_document(), test_active_approved_public_document_is_eligible(), test_language_filter_narrows_eligible_documents_only(), test_language_metadata_does_not_broaden_access(), test_local_repository_applies_the_policy_query(), test_non_active_lifecycle_is_excluded(), test_non_approved_status_is_excluded() (+7 more)
 
-### Community 27 - "check_target_allowed"
-Cohesion: 0.10
-Nodes (20): Implementation, Implementation, Implementation, Implementation, Review, T1 — round 1, T2 — round 1, T3 — round 2 (+12 more)
-
-### Community 28 - "Evaluation Error Hierarchy"
-Cohesion: 0.13
-Nodes (16): EvaluationConfigurationError, CaseBase, CaseStatus, DatasetRef, GoldenCase, SecurityCase, SuiteManifest, declared_release_id() (+8 more)
+### Community 28 - "suite.py"
+Cohesion: 0.14
+Nodes (13): CaseBase, CaseStatus, DatasetRef, DatasetType, GoldenCase, LoadedSuite, SecurityCase, SuiteManifest (+5 more)
 
 ### Community 29 - "Architecture Components"
 Cohesion: 0.09
@@ -310,20 +311,20 @@ Cohesion: 0.12
 Nodes (13): get_health(), HealthResponse, get_request_settings(), get_settings(), Settings, create_app(), isolate_settings_environment(), test_create_app_wires_settings() (+5 more)
 
 ### Community 31 - "Manifest Loading"
-Cohesion: 0.17
-Nodes (21): split_frontmatter(), _StringDateLoader, metadata(), record(), run(), test_duplicate_document_id_rejected(), test_duplicate_document_version_rejected(), test_frontmatter_errors() (+13 more)
+Cohesion: 0.29
+Nodes (18): metadata(), record(), run(), test_duplicate_document_id_rejected(), test_duplicate_document_version_rejected(), test_frontmatter_missing_required_field(), test_frontmatter_parsing_keeps_dates_as_strings(), test_frontmatter_schema_violation_names_document_and_field() (+10 more)
 
 ### Community 32 - "asyncio"
-Cohesion: 0.18
-Nodes (20): LocalRepositoryConfig, test_seed_corpus_is_entirely_eligible_for_guest(), _copy_seed(), seed_repository(), test_documents_outside_approved_roots_are_never_loaded(), test_get_document_by_id_and_version(), test_get_document_missing_raises_not_found(), test_invalid_document_fails_load_without_leaking_paths() (+12 more)
+Cohesion: 0.12
+Nodes (25): _authority_map(), format_summary(), main(), _parser(), LocalRepositoryConfig, test_repository_content_hash_is_content_hash_v1(), test_seed_corpus_is_entirely_eligible_for_guest(), _copy_seed() (+17 more)
 
-### Community 33 - "documents/models.py"
-Cohesion: 0.23
-Nodes (5): AccessScope, ApprovalStatus, LanguageScope, LifecycleStatus, SourceAuthority
+### Community 33 - "LocalDocumentRepository"
+Cohesion: 0.08
+Nodes (13): collect(), _document_ids(), collect(), DocumentQuery, DocumentRepository, EligibilityPolicy, list_eligible_documents(), LocalDocumentRepository (+5 more)
 
 ### Community 34 - "test_lexical_tokenizer.py"
-Cohesion: 0.10
-Nodes (18): _is_token_char(), query_terms(), QueryTerms, tokenize(), test_no_language_literal_in_evaluation_code(), test_no_malayalam_specific_lote_languages_in_ingestion_code(), test_business_008_words_stay_whole(), test_deterministic() (+10 more)
+Cohesion: 0.09
+Nodes (22): Implementation, Review, T3 — round 1, User decision, T3 — `lexical-v1` tokenizer, lexical store and `make index-lexical`, Verification, embedder_identity(), _is_token_char() (+14 more)
 
 ### Community 35 - "Roadmap"
 Cohesion: 0.17
@@ -334,24 +335,24 @@ Cohesion: 0.18
 Nodes (15): load_suite(), live_suite_rows(), golden_count(), suite_with_statuses(), test_exclusions_counted_by_status(), test_suggested_never_returned(), copy_suite(), test_access_context_is_loaded_but_ignored() (+7 more)
 
 ### Community 37 - "007 — Hybrid Retrieval Requirements"
-Cohesion: 0.05
-Nodes (40): Components / boundaries, R10 — `eval-compare` identity rules (`compare.py`), R12 — Docker test, R1 — Suite v2, R4 — `make index-lexical` (`lexical/cli.py`), R4/R5 — Lexical store (`lexical/store.py`, `lexical/build.py`), R9 — Result format 2.1, 007 — Hybrid Retrieval Requirements (+32 more)
+Cohesion: 0.06
+Nodes (30): 007 — Hybrid Retrieval Requirements, Acceptance criteria, Acceptance criteria, Acceptance criteria, Acceptance criteria, Acceptance criteria, Acceptance criteria, Acceptance criteria (+22 more)
 
 ### Community 38 - "test_lexical_build.py"
-Cohesion: 0.19
-Nodes (18): LexicalIndexBindingError, identity(), payload(), synthetic_entries(), build(), test_atomic_replace_keeps_old_file_after_failure(), test_build_production_helper_runs(), test_build_records_settings() (+10 more)
+Cohesion: 0.16
+Nodes (19): build_lexical_index(), LexicalIndexBindingError, LexicalIndexError, identity(), payload(), synthetic_entries(), build(), test_atomic_replace_keeps_old_file_after_failure() (+11 more)
 
 ### Community 39 - "LexicalIndex"
 Cohesion: 0.16
-Nodes (4): Change log, _differences(), LexicalIndex, _read_only_connection()
+Nodes (5): _differences(), LexicalIndex, LexicalSettings, _read_only_connection(), test_build_production_helper_runs()
 
 ### Community 40 - "test_goldens.py"
-Cohesion: 0.23
-Nodes (10): declared_release_id(), load_suite(), test_declared_release(), test_filtering_in_temporary_suite(), test_invalid_line_names_file_and_line_only(), test_path_escaping_repo_root_refused(), test_real_suite_loads_every_golden_case_and_leaves_evaluation_unchanged(), test_release_id_mismatch_refused() (+2 more)
+Cohesion: 0.19
+Nodes (12): declared_release_id(), load_golden_cases(), load_suite(), SuiteRef, test_declared_release(), test_filtering_in_temporary_suite(), test_invalid_line_names_file_and_line_only(), test_path_escaping_repo_root_refused() (+4 more)
 
 ### Community 41 - "repositories/__init__.py"
 Cohesion: 0.07
-Nodes (28): DocumentRepositoryError, DocumentValidationError, DuplicateDocumentError, ManifestValidationError, document_fields(), under_root(), check_integrity_hashes(), check_manifest_documents() (+20 more)
+Nodes (26): ManifestValidationError, split_frontmatter(), _StringDateLoader, canonical_json(), _canonical_value(), _canonical_value_mapping(), compute_body_sha256(), compute_content_hash() (+18 more)
 
 ### Community 42 - "Access Policy Config"
 Cohesion: 0.12
@@ -389,9 +390,9 @@ Nodes (12): Atomic publish and rollback, Phase 2 audit trail, Controlled documen
 Cohesion: 0.21
 Nodes (13): Project Commands, CLI exit code convention 0/1/2, make eval-compare, make eval-retrieval, make eval-security, make ingest, make retrieval-baseline (legacy), make retrieve (+5 more)
 
-### Community 51 - "007 — Hybrid Retrieval Tasks"
-Cohesion: 0.18
-Nodes (10): 007 — Hybrid Retrieval Tasks, Out of this spec, T1 — Evaluation Suite `public-eval-v2`, T7 — `eval-compare` identity rules, T8 — Security gate for BM25 and hybrid, Docker isolation test, T9 — Strategy comparison and default-strategy decision (user-owned gate), Verification, Verification (+2 more)
+### Community 51 - "service.py"
+Cohesion: 0.11
+Nodes (12): _canary_points(), Chunk, Chunker, build_payload(), DocumentFailure, IngestionService, _reason(), RunReport (+4 more)
 
 ### Community 52 - "Packages and Pricing"
 Cohesion: 0.15
@@ -493,9 +494,9 @@ Nodes (6): 006 Evaluation Framework Design, Decision Brief Q1-Q10, 006 Evaluatio
 Cohesion: 0.33
 Nodes (5): Evaluation case_id and case_version, Versioning and Releases, document_id and document_version, Phase 2 Knowledge Release Candidates, Release seed-v1
 
-### Community 77 - "lexical/cli.py"
-Cohesion: 0.08
-Nodes (18): build_chunker(), build_embedder(), default_client_factory(), format_summary(), main(), _parser(), ChunkerConfig, EmbedderConfig (+10 more)
+### Community 77 - "pathlib"
+Cohesion: 0.14
+Nodes (10): build_chunker(), default_lexical_dir(), lexical_index_path(), production_entries(), main(), _parser(), shown_path(), DenseIdentity (+2 more)
 
 ### Community 78 - "Master Plan Overview"
 Cohesion: 0.33
@@ -550,88 +551,96 @@ Cohesion: 0.67
 Nodes (3): Canonical document metadata, Chunk metadata, Source authority precedence
 
 ### Community 111 - "ingest_dense"
-Cohesion: 0.16
-Nodes (14): collect(), build_production(), ingest_dense(), open_lexical(), repository(), rewrite_settings(), test_bind_does_not_write_to_qdrant(), test_bind_refuses_chunk_set_mismatch_with_counts() (+6 more)
+Cohesion: 0.18
+Nodes (12): source_chunk_digest(), build_production(), ingest_dense(), open_lexical(), rewrite_settings(), test_bind_does_not_write_to_qdrant(), test_bind_refuses_chunk_set_mismatch_with_counts(), test_bind_refuses_identity_and_chunker_mismatch() (+4 more)
 
 ### Community 112 - "test_repository_contract.py"
 Cohesion: 0.19
 Nodes (11): InMemoryDocumentRepository, make_document(), test_document_query_has_no_filesystem_concepts(), test_document_query_is_immutable(), test_get_document_missing_raises_not_found(), test_get_document_returns_latest_or_requested_version(), test_in_memory_repository_satisfies_protocol(), test_list_documents_applies_query_filters() (+3 more)
 
-### Community 113 - "build.py"
-Cohesion: 0.10
-Nodes (20): Implementation, Review, T3 — round 1, User decision, T3 — `lexical-v1` tokenizer, lexical store and `make index-lexical`, Verification, build_lexical_index(), default_lexical_dir() (+12 more)
-
-### Community 114 - "test_slices.py"
-Cohesion: 0.22
-Nodes (8): active_registry_languages(), row(), test_absent_languages_from_a_temp_registry(), test_missing_registry_section_is_a_configuration_error(), test_real_registry_lists_en_and_the_active_product_language(), test_slice_keys_come_from_data_and_carry_n(), test_small_sample_threshold_is_ten(), test_source_authority_key_is_sorted_and_joined()
+### Community 114 - "re"
+Cohesion: 0.11
+Nodes (15): active_registry_languages(), aggregate(), _mean(), slice_by(), source_authority_key(), row(), test_absent_languages_from_a_temp_registry(), test_missing_registry_section_is_a_configuration_error() (+7 more)
 
 ### Community 115 - "DenseIndex"
-Cohesion: 0.16
-Nodes (24): LexicalRow, DenseIndex, build(), DroppedClauseIndex, guest(), pub(), retriever(), _shape() (+16 more)
+Cohesion: 0.06
+Nodes (35): LexicalRow, DenseIndex, OddIdStore, SpyIndex, __init__(), build(), DroppedClauseIndex, guest() (+27 more)
 
 ### Community 116 - "fusion"
 Cohesion: 0.20
 Nodes (9): default_strategy, fusion, candidate_depth, k, method, weights, schema_version, bm25 (+1 more)
 
-### Community 117 - "RetrievalConfigurationError"
-Cohesion: 0.16
-Nodes (10): resolve_access(), BaselineResult, check_output_free(), format_summary(), main(), _parser(), default_output_path(), write_result() (+2 more)
+### Community 117 - "evaluation/cli.py"
+Cohesion: 0.06
+Nodes (33): _compare(), default_security_output_path(), format_security_summary(), format_summary(), main(), _retrieval(), _security(), _unanswerable_line() (+25 more)
 
-### Community 118 - "test_non_guest_roles_refused"
-Cohesion: 0.29
-Nodes (3): clean_env(), test_empty_tenant_setting_refused(), test_non_guest_roles_refused()
+### Community 118 - "retrieval/test_access.py"
+Cohesion: 0.16
+Nodes (16): clean_env(), guest(), payload(), _policy(), test_a_different_policy_changes_both_builders(), test_both_builders_cover_the_same_three_conditions(), test_check_hit_accepts_valid_payload(), test_check_hit_rejects_malformed_payload() (+8 more)
 
 ### Community 119 - "AccessContext"
-Cohesion: 0.14
-Nodes (8): AccessContext, Role, test_blank_tenant_refused(), test_empty_tenant_refused(), test_no_language_or_scope_fields(), test_tenant_is_stripped(), test_unknown_role_refused(), test_valid_context_is_frozen()
+Cohesion: 0.13
+Nodes (9): AccessContext, Role, test_blank_tenant_refused(), test_empty_tenant_refused(), test_no_language_or_scope_fields(), test_roles_match_policy_file(), test_tenant_is_stripped(), test_unknown_role_refused() (+1 more)
 
 ### Community 120 - "test_hybrid.py"
-Cohesion: 0.16
-Nodes (13): chunk(), dense_pair(), production_lexical(), pub_chunk(), real_hybrid(), stub_result(), test_any_other_leg_error_propagates_without_fallback(), retrieve() (+5 more)
+Cohesion: 0.31
+Nodes (6): chunk(), pub_chunk(), stub_result(), test_any_other_leg_error_propagates_without_fallback(), retrieve(), retrieve()
 
 ### Community 121 - "test_content_hash.py"
-Cohesion: 0.09
-Nodes (25): build_security_repository(), _fixture_files(), canonical_json(), _canonical_value(), _canonical_value_mapping(), compute_body_sha256(), compute_content_hash(), normalize_body() (+17 more)
+Cohesion: 0.21
+Nodes (14): _copy_seed(), h(), _load(), test_absent_optional_fields_hash_as_null(), test_body_change_changes_content_hash(), test_canonical_json_is_sorted_compact_and_keeps_unicode(), test_content_hash_is_stable_and_pinned(), test_crlf_and_lf_bodies_hash_identically() (+6 more)
 
 ### Community 122 - "test_lexical_cli.py"
-Cohesion: 0.16
-Nodes (23): Review, _git_repo(), lexical_dir(), _no_qdrant(), run(), test_bad_config_exits_2(), test_cased_name_cannot_write_into_the_real_repository(), test_default_embedder_identity_equals_the_bge_m3_adapter_identity() (+15 more)
+Cohesion: 0.09
+Nodes (36): Implementation, Implementation, Review, Review, T3 — round 2, T3 — round 3, User decision, T10 — Documentation, decisions and hand-off (+28 more)
 
-### Community 123 - "test_strategy.py"
-Cohesion: 0.19
-Nodes (12): test_roles_match_policy_file(), load_retrieval_config(), test_build_retriever_converts_a_string_value_and_refuses_unknown(), test_build_retriever_maps_each_strategy(), test_committed_config_loads(), test_good_config_loads(), test_invalid_config_is_refused_naming_the_field(), test_lexical_strategies_need_the_lexical_index() (+4 more)
+### Community 123 - "Strategy"
+Cohesion: 0.09
+Nodes (32): R7 — Fusion and `HybridRetriever` (`retrieval/fusion.py`, `hybrid.py`), R8 — Strategy and config (`retrieval/strategy.py`, `config/retrieval.yaml`), Change log, Implementation, Implementation, Review, Review, T5 — round 1 (+24 more)
 
 ### Community 124 - "sync_agent_skills.py"
-Cohesion: 0.31
-Nodes (9): discover_skills(), expected_tree(), find_problems(), inject_frontmatter(), main(), managed_skills(), read_tree(), remove() (+1 more)
+Cohesion: 0.14
+Nodes (12): build_security_repository(), _fixture_files(), security_repository(), discover_skills(), expected_tree(), find_problems(), inject_frontmatter(), main() (+4 more)
 
-### Community 125 - "service.py"
-Cohesion: 0.07
-Nodes (28): R11 — Security gate (`security_index.py`, `security_eval.py`), Acceptance criteria, R4 — Lexical index build (`make index-lexical`), build_security_index(), _canary_points(), Chunk, Chunker, Embedder (+20 more)
-
-### Community 126 - "run_retrieval_evaluation"
-Cohesion: 0.19
-Nodes (8): DatasetType, LoadedSuite, active_golden_cases(), _notes(), unanswerable_report(), select_security_queries(), test_attack_types_are_split_into_run_deferred_and_unclassified(), case()
+### Community 125 - "test_index_contract.py"
+Cohesion: 0.12
+Nodes (17): Acceptance criteria, point_id(), PointPayload, compare(), mismatch_message(), base_settings(), test_build_index_settings_records_embedder_and_chunker(), test_compare_equal_and_ignores_hash_contract() (+9 more)
 
 ### Community 127 - "Development Workflow"
 Cohesion: 0.21
 Nodes (12): Branching and commits (spec/NNN, Spec-Task trailer), Development Workflow, Multi-agent handoff, Implementation rule: BLOCKED spec issue, Phase discipline, Protected source-of-truth data, Required spec-reviewer retrospective, Agent skills (orchestrator, planner, implementer, task-reviewer, spec-reviewer) (+4 more)
 
-### Community 128 - "make_document"
-Cohesion: 0.22
-Nodes (9): make_document(), test_document_is_immutable(), test_future_language_needs_no_code_change(), test_language_metadata_is_independent_of_access_scope(), test_new_version_keeps_stable_identity(), test_non_url_source_reference_is_allowed(), test_user_private_document_requires_owner(), test_valid_global_document_parses_typed_fields() (+1 more)
+### Community 128 - "test_strategy_eval.py"
+Cohesion: 0.12
+Nodes (27): build_lexical(), eval_world(), leg_order(), lexical_env(), make_world(), retrieve(), retrieve_world(), run_strategy() (+19 more)
 
-### Community 129 - "chunking.py"
-Cohesion: 0.32
-Nodes (4): _parse_sections(), _Section, _split_body(), _split_words()
+### Community 129 - "FakeEmbedder"
+Cohesion: 0.11
+Nodes (13): FakeEmbedder, __init__(), test_conforms_to_protocol(), test_declared_vector_size(), test_default_size_is_64(), test_fake_device_is_none(), test_info_reports_fake_identity(), test_invalid_vector_size_rejected() (+5 more)
 
-### Community 130 - "document_fields"
-Cohesion: 0.67
-Nodes (3): document_fields(), test_missing_required_field_is_rejected(), test_optional_fields_default_to_none()
+### Community 130 - "evaluation/test_cli.py"
+Cohesion: 0.19
+Nodes (15): clean_env(), index_factory(), real_factory(), run(), test_bad_top_k_exits_2(), test_existing_output_exits_2_before_qdrant(), test_fake_embedder_exits_2_before_qdrant(), test_filter_carries_the_server_tenant() (+7 more)
 
-### Community 138 - "pytest"
-Cohesion: 0.17
-Nodes (9): live_client(), chunk(), test_dedupe_keeps_first_rank(), test_hit_rate_and_cutoff(), test_percentile_nearest_rank(), test_random_hit_rate_cap_and_minimum(), test_recall_with_several_relevant(), test_reciprocal_rank() (+1 more)
+### Community 132 - "retrieval_eval.py"
+Cohesion: 0.06
+Nodes (37): Review, T2 — v2 dense baseline (user-owned gate), Verification, write_document(), document_leg_ranks(), _fusion_report(), _leg_latency(), _leg_ranks_for() (+29 more)
+
+### Community 136 - "test_store_integration.py"
+Cohesion: 0.36
+Nodes (7): _keyword_indexed(), live_client(), store(), test_collection_has_keyword_indexes_and_cosine_dense_vector(), test_empty_without_settings_recreates_dropped_indexes(), test_repeated_create_payload_index_is_harmless(), test_settings_storage_and_refusal()
+
+### Community 137 - "dense_equivalence.py"
+Cohesion: 0.28
+Nodes (3): deterministic_clock(), equivalence_suite(), unanswerable()
+
+### Community 138 - "metrics.py"
+Cohesion: 0.24
+Nodes (8): chunk(), test_dedupe_keeps_first_rank(), test_hit_rate_and_cutoff(), test_percentile_nearest_rank(), test_random_hit_rate_cap_and_minimum(), test_recall_with_several_relevant(), test_reciprocal_rank(), test_frontmatter_errors()
+
+### Community 141 - "Components / boundaries"
+Cohesion: 0.29
+Nodes (7): Components / boundaries, R10 — `eval-compare` identity rules (`compare.py`), R12 — Docker test, R1 — Suite v2, R4 — `make index-lexical` (`lexical/cli.py`), R4/R5 — Lexical store (`lexical/store.py`, `lexical/build.py`), R9 — Result format 2.1
 
 ## Ambiguous Edges - Review These
 - `Task-gated agent workflow loop` → `graphify skill pointer`  [AMBIGUOUS]
@@ -639,22 +648,22 @@ Nodes (9): live_client(), chunk(), test_dedupe_keeps_first_rank(), test_hit_rate
 
 ## Knowledge Gaps
 - **186 isolated node(s):** `way2australia-api`, `way2australia-core`, `way2australia-observability`, `way2australia-rag`, `way2australia` (+181 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 847 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **21 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 860 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **24 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `DenseIndex` connect `DenseIndex` to `QdrantIndexStore`, `evaluation/cli.py`, `retrieval_eval.py`, `BM25Retriever`, `DenseRetriever`, `DenseRetriever`, `FakeEmbedder`, `typing`, `test_security_eval.py`, `Index Binding Errors`, `007 — Hybrid Retrieval Requirements`, `LexicalIndex`, `retrieval/test_cli.py`, `lexical/cli.py`, `ingest_dense`, `build.py`, `RetrievalConfigurationError`, `test_hybrid.py`, `service.py`?**
-  _High betweenness centrality (0.053) - this node is a cross-community bridge._
-- **Are the 58 inferred relationships involving `DenseIndex` (e.g. with `Design summary` and `Decisions resolved before drafting`) actually correct?**
-  _`DenseIndex` has 58 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `DenseIndex` connect `DenseIndex` to `test_strategy_eval.py`, `evaluation/test_cli.py`, `retrieval_eval.py`, `dense`, `DenseRetriever`, `DenseRetriever`, `test_retrieval_eval.py`, `ingestion/store.py`, `test_security_eval.py`, `Index Binding Errors`, `BGE-M3 Adapter`, `test_lexical_tokenizer.py`, `LexicalIndex`, `service.py`, `retrieval/test_cli.py`, `pathlib`, `ingest_dense`, `evaluation/cli.py`, `Strategy`?**
+  _High betweenness centrality (0.047) - this node is a cross-community bridge._
+- **Are the 60 inferred relationships involving `DenseIndex` (e.g. with `Design summary` and `Decisions resolved before drafting`) actually correct?**
+  _`DenseIndex` has 60 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `way2australia-api`, `way2australia-core`, `way2australia-observability` to the rest of the system?**
   _186 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `QdrantIndexStore` be split into smaller, more focused modules?**
-  _Cohesion score 0.07140538786108407 - nodes in this community are weakly interconnected._
-- **Why does `LocalDocumentRepository` connect `KnowledgeDocument` to `asyncio`, `evaluation/validate.py`, `evaluation/cli.py`, `HeadingChunker`, `test_validate.py`, `DenseRetriever`, `repositories/__init__.py`, `lexical/cli.py`, `test_security_eval.py`, `ingest_dense`, `build.py`, `Date and Policy Tests`, `test_content_hash.py`, `list_eligible_documents`, `Evaluation Error Hierarchy`, `service.py`?**
-  _High betweenness centrality (0.019) - this node is a cross-community bridge._
+- **Should `evaluation/validate.py` be split into smaller, more focused modules?**
+  _Cohesion score 0.14942528735632185 - nodes in this community are weakly interconnected._
+- **Why does `FakeEmbedder` connect `FakeEmbedder` to `test_strategy_eval.py`, `QdrantIndexStore`, `test_lexical_tokenizer.py`, `evaluation/test_cli.py`, `dense`, `test_lexical_build.py`, `DenseRetriever`, `pathlib`, `test_retrieval_eval.py`, `test_security_eval.py`, `ingest_dense`, `Index Binding Errors`, `DenseIndex`, `service.py`, `evaluation/cli.py`, `Live-count Test Helpers`, `Strategy`, `test_index_contract.py`?**
+  _High betweenness centrality (0.022) - this node is a cross-community bridge._
 - **Are the 15 inferred relationships involving `LocalDocumentRepository` (e.g. with `Dependencies` and `DocumentQuery`) actually correct?**
   _`LocalDocumentRepository` has 15 INFERRED edges - model-reasoned connections that need verification._
 
