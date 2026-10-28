@@ -296,3 +296,8 @@ Recorded by the 2026-10-27 amendment from the T4 task review (round 1, user deci
 - **BM25 score (T4).** The reported score is `-bm25() + 0.0`: higher is better, and `+ 0.0` turns a `-0.0` into `0.0`.
 - **Non-object `payload_json` (T4).** A row whose `payload_json` is not valid JSON or not a JSON object is passed to `check_hit` as an empty payload and fails closed.
 - **Latency rule (T6, from T4 review F2).** Every leg and strategy is timed by one span that starts just after `validate_request` and ends after the last `check_hit`, so dense and BM25 latency measure the same work. As built in T4, `BM25Retriever` follows this rule and `DenseRetriever` stops its clock before `check_hit`; T6 moves the dense stop to match. Hybrid per-leg latency (`latency_ms.legs`) is each leg's own span.
+
+Recorded by the 2026-10-28 amendment from the T5 task review (round 2, user decision: "T5 approved").
+
+- **`FusionConfig` location (T5).** `FusionConfig` lives in `retrieval/fusion.py`, not `retrieval/strategy.py`, which avoids an import cycle with `hybrid.py`.
+- **`HybridRetriever` legs (T5).** `HybridRetriever` takes `Retriever` Protocol legs, not the concrete `DenseRetriever` and `BM25Retriever` classes, so tests can use stub legs. The hybrid result identity (collection, index version, embedder, device) comes from the dense leg, and a point listed twice in one leg counts only its first rank.
