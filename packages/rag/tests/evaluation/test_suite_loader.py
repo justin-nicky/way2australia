@@ -15,7 +15,7 @@ from way2australia_rag.evaluation.suite import (
     read_manifest,
 )
 
-SUITE = "evaluation/suites/public-eval-v1.json"
+SUITE = "evaluation/suites/public-eval-v2.json"
 
 
 def tree_hashes() -> dict[str, str]:
@@ -34,7 +34,7 @@ def copy_suite(tmp_path: Path) -> Path:
 def test_real_suite_loads_every_declared_case_and_is_read_only() -> None:
     before = tree_hashes()
     suite = load_suite(REPO_ROOT, SUITE)
-    assert suite.manifest.evaluation_suite_id == "public-eval-v1"
+    assert suite.manifest.evaluation_suite_id == "public-eval-v2"
     counts = (
         len(live_suite_rows("golden_answerable")),
         len(live_suite_rows("unanswerable_refusal")),
@@ -69,7 +69,7 @@ def test_escaping_path_refused(tmp_path: Path) -> None:
 
 def test_malformed_line_names_file_and_line_only(tmp_path: Path) -> None:
     root = copy_suite(tmp_path)
-    (root / "evaluation/datasets/security_public.jsonl").write_text(
+    (root / "evaluation/datasets/v2/security_public.jsonl").write_text(
         '{"case_id": "SECRET-QUERY"}\n'
     )
     with pytest.raises(EvaluationConfigurationError, match="line 1") as info:
@@ -92,7 +92,7 @@ def test_access_context_is_loaded_but_ignored() -> None:
 
 def test_extra_fields_tolerated(tmp_path: Path) -> None:
     root = copy_suite(tmp_path)
-    path = root / "evaluation/datasets/unanswerable_public.jsonl"
+    path = root / "evaluation/datasets/v2/unanswerable_public.jsonl"
     rows = [json.loads(x) for x in path.read_text().splitlines() if x.strip()]
     rows[0]["brand_new_field"] = {"a": 1}
     path.write_text("\n".join(json.dumps(r) for r in rows) + "\n")

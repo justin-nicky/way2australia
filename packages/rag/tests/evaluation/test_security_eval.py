@@ -9,6 +9,7 @@ import dataclasses
 import json
 import re
 import shutil
+import sqlite3
 import uuid
 from pathlib import Path
 from time import perf_counter
@@ -52,6 +53,8 @@ from way2australia_rag.evaluation.suite import load_suite
 from way2australia_rag.ingestion.chunking import HeadingChunker
 from way2australia_rag.ingestion.embedding import FakeEmbedder
 from way2australia_rag.ingestion.payload import PointPayload
+from way2australia_rag.lexical.store import LexicalRow
+from way2australia_rag.lexical.tokenizer import query_terms
 from way2australia_rag.repositories import (
     DocumentQuery,
     LocalDocumentRepository,
@@ -60,18 +63,32 @@ from way2australia_rag.repositories import (
 from way2australia_rag.retrieval.access import (
     ResolvedAccess,
     build_access_filter,
+    build_sql_access_clause,
     resolve_access,
 )
+from way2australia_rag.retrieval.base import Strategy
+from way2australia_rag.retrieval.bm25 import match_expression
 from way2australia_rag.retrieval.index import DenseIndex
+from way2australia_rag.retrieval.strategy import load_retrieval_config
 from way2australia_rag.retrieval.text import safe_text
 
 pytestmark = pytest.mark.filterwarnings(
     "ignore:Payload indexes have no effect:UserWarning"
 )
 
-SUITE = "evaluation/suites/public-eval-v1.json"
+SUITE = "evaluation/suites/public-eval-v2.json"
 TENANT = "way2australia"
+RETRIEVAL_CONFIG = load_retrieval_config(REPO_ROOT / "config/retrieval.yaml")
 EVAL_SRC = REPO_ROOT / "packages/rag/src/way2australia_rag/evaluation"
+
+
+_WORK: dict[str, Path] = {}
+
+
+@pytest.fixture(autouse=True)
+def _lexical_work_dir(tmp_path: Path) -> None:
+    """Every `build` call writes its lexical file under the test's tmp_path."""
+    _WORK["dir"] = tmp_path / "lexical"
 
 
 def new_base() -> str:
@@ -91,6 +108,7 @@ def build(
     security_repository: LocalDocumentRepository,
     client: QdrantClient | None = None,
     base: str | None = None,
+    lexical_dir: Path | None = None,
 ) -> SecurityIndex:
     return build_security_index(
         client or QdrantClient(":memory:"),
@@ -101,6 +119,7 @@ def build(
         seed_repository=seed_repository(),
         security_repository=security_repository,
         tenant_id=TENANT,
+        lexical_dir=lexical_dir or _WORK["dir"],
     )
 
 
@@ -137,7 +156,9 @@ def test_full_gate_passes_on_the_seed_corpus(
 ) -> None:
     queries, deferred = real_queries()
     index = build([q.text for q in queries], security_repository)
-    report = run_security_evaluation(index, guest_access(), queries, deferred)
+    report = run_security_evaluation(
+        index, guest_access(), queries, deferred, RETRIEVAL_CONFIG
+    )
     assert report.passed
     assert report.violations == []
     security = live_suite_rows("security", active_only=True)
@@ -201,7 +222,7 @@ def test_sanity_check_failure_is_a_harness_error(
         ),
     )
     with pytest.raises(EvaluationHarnessError, match="sanity check"):
-        run_security_evaluation(index, guest_access(), queries, [])
+        run_security_evaluation(index, guest_access(), queries, [], RETRIEVAL_CONFIG)
 
 
 def test_a_filter_dropping_index_fails_the_gate(
@@ -210,7 +231,9 @@ def test_a_filter_dropping_index_fails_the_gate(
     queries, deferred = real_queries()
     index = build([q.text for q in queries], security_repository)
     broken, _ = spied(index, drop_filter=True)
-    report = run_security_evaluation(broken, guest_access(), queries, deferred)
+    report = run_security_evaluation(
+        broken, guest_access(), queries, deferred, RETRIEVAL_CONFIG
+    )
     assert not report.passed
     first = report.violations[0]
     assert first["case_id"] == queries[0].case_id
@@ -231,7 +254,9 @@ def test_forbidden_documents_are_caught_even_if_check_hit_is_bypassed(
     queries, deferred = real_queries()
     index = build([q.text for q in queries], security_repository)
     broken, _ = spied(index, drop_filter=True)
-    report = run_security_evaluation(broken, guest_access(), queries, deferred)
+    report = run_security_evaluation(
+        broken, guest_access(), queries, deferred, RETRIEVAL_CONFIG
+    )
     assert not report.passed
     variants = {v["variant"] for v in report.violations}
     assert variants <= {*FORBIDDEN_VARIANTS, "staff_canary"}
@@ -245,14 +270,17 @@ def test_filter_is_identical_for_every_query_including_after_s003(
     queries, deferred = real_queries()
     index = build([q.text for q in queries], security_repository)
     spied_index, spy = spied(index)
-    report = run_security_evaluation(spied_index, guest_access(), queries, deferred)
+    report = run_security_evaluation(
+        spied_index, guest_access(), queries, deferred, RETRIEVAL_CONFIG
+    )
     assert report.passed
     expected = build_access_filter(guest_access())
-    assert len(spy.filters) == len(queries)
+    # the dense leg runs twice per query: `dense`, then inside `hybrid`
+    assert len(spy.filters) == 2 * len(queries)
     assert all(f == expected for f in spy.filters)
     s003 = next(i for i, q in enumerate(queries) if q.case_id == "s003")
     assert "staff" in queries[s003].text  # the injection-style query really is there
-    assert all(f == spy.filters[0] for f in spy.filters[s003:])
+    assert all(f == spy.filters[0] for f in spy.filters[2 * s003 :])
 
 
 def test_case_access_context_never_changes_the_filter(
@@ -296,10 +324,12 @@ def test_case_access_context_never_changes_the_filter(
     assert len(queries) == 4
     index = build([q.text for q in queries], security_repository)
     spied_index, spy = spied(index)
-    report = run_security_evaluation(spied_index, guest_access(), queries, deferred)
+    report = run_security_evaluation(
+        spied_index, guest_access(), queries, deferred, RETRIEVAL_CONFIG
+    )
     assert report.passed
     expected = build_access_filter(guest_access())
-    assert len(spy.filters) == 4
+    assert len(spy.filters) == 8  # 4 queries x (dense + the hybrid dense leg)
     assert all(f == expected for f in spy.filters)
     for f in spy.filters:
         dumped = json.dumps(f.model_dump(mode="json"))
@@ -392,6 +422,7 @@ def test_builder_refuses_a_real_embedder_identity(
             seed_repository=seed_repository(),
             security_repository=security_repository,
             tenant_id=TENANT,
+            lexical_dir=_WORK["dir"],
         )
 
 
@@ -402,8 +433,10 @@ def test_the_security_index_records_a_fake_embedder_and_is_removed(
     assert index.dense.settings.embedder_is_fake is True
     assert index.dense.index_version == "sec-v1"
     assert len(index.client.get_collections().collections) == 2
+    assert index.lexical_path.is_file()
     delete_security_index(index)
     assert index.client.get_collections().collections == []
+    assert not index.lexical_path.exists()
 
 
 def copy_fixtures(tmp_path: Path) -> Path:
@@ -490,7 +523,9 @@ def test_violation_names_the_document_from_the_error_attribute(
     queries, deferred = real_queries()
     index = build([q.text for q in queries], security_repository)
     broken = dataclasses.replace(index, dense=OddIdStore(index.dense))
-    report = run_security_evaluation(broken, guest_access(), queries, deferred)
+    report = run_security_evaluation(
+        broken, guest_access(), queries, deferred, RETRIEVAL_CONFIG
+    )
     assert not report.passed
     expected = safe_text(OddIdStore.odd)
     assert report.violations
@@ -530,7 +565,9 @@ def test_result_document_has_ids_only(
 ) -> None:
     queries, deferred = real_queries()
     index = build([q.text for q in queries], security_repository)
-    report = run_security_evaluation(index, guest_access(), queries, deferred)
+    report = run_security_evaluation(
+        index, guest_access(), queries, deferred, RETRIEVAL_CONFIG
+    )
     document = security_document(
         index=index,
         report=report,
@@ -555,10 +592,225 @@ def test_the_whole_gate_finishes_under_ten_seconds(
     started = perf_counter()
     queries, deferred = real_queries()
     index = build([q.text for q in queries], security_repository)
-    report = run_security_evaluation(index, guest_access(), queries, deferred)
+    report = run_security_evaluation(
+        index, guest_access(), queries, deferred, RETRIEVAL_CONFIG
+    )
     elapsed = perf_counter() - started
     assert report.passed
     assert elapsed < 10.0, f"gate took {elapsed:.1f}s"
+
+
+# --- Spec 007 R11: lexical leg and strategies -----------------------------
+
+
+class DroppedClauseLexical:
+    """A lexical store double that ignores the access clause."""
+
+    def __init__(self, inner: Any) -> None:
+        self.inner = inner
+        self.settings = inner.settings
+        self.label = inner.label
+
+    def search(
+        self, match: str, where: str, params: tuple[Any, ...], limit: int
+    ) -> list[LexicalRow]:
+        return self.inner.search(match, "1 = 1", (), limit)
+
+    def close(self) -> None:
+        self.inner.close()
+
+
+def test_the_gate_runs_all_three_strategies_on_v2(
+    security_repository: LocalDocumentRepository, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[str] = []
+    real = security_eval.build_retriever
+
+    def counting(strategy: Strategy, *args: Any) -> Any:
+        inner = real(strategy, *args)
+
+        class Counting:
+            def retrieve(self, *a: Any, **k: Any) -> Any:
+                calls.append(strategy.value)
+                assert k["top_k"] == 50
+                return inner.retrieve(*a, **k)
+
+        return Counting()
+
+    monkeypatch.setattr(security_eval, "build_retriever", counting)
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    report = run_security_evaluation(
+        index, guest_access(), queries, deferred, RETRIEVAL_CONFIG
+    )
+    assert report.passed
+    assert report.strategies == ("dense", "bm25", "hybrid")
+    for strategy in report.strategies:
+        assert calls.count(strategy) == len(queries)
+    goldens = live_suite_rows("golden_answerable", active_only=True)
+    assert {"g064", "g069"} <= {r["case_id"] for r in goldens}  # v2 queries are in
+
+
+def test_lexical_rows_mirror_the_forbidden_points(
+    security_repository: LocalDocumentRepository,
+) -> None:
+    queries, _ = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    assert index.lexical_rows_per_variant == index.points_per_variant
+    assert (
+        index.lexical.settings.chunk_count == index.client.count(index.collection).count
+    )
+    connection = sqlite3.connect(index.lexical_path)
+    try:
+        missing = connection.execute(
+            "SELECT owner_present FROM chunks WHERE document_id = ?",
+            ("forbidden_missing_owner",),
+        ).fetchall()
+    finally:
+        connection.close()
+    assert missing and {row[0] for row in missing} == {0}
+
+
+FORBIDDEN_ROWS = (
+    "SELECT rowid FROM chunks WHERE document_id = 'fixture_staff_canary' "
+    "OR document_id LIKE 'forbidden\\_%' ESCAPE '\\'"
+)
+
+
+def strip_forbidden_terms(lexical_path: Path) -> None:
+    """Keep the forbidden rows but remove the query terms from them."""
+    connection = sqlite3.connect(lexical_path)
+    try:
+        with connection:
+            changed = connection.execute(
+                f"UPDATE chunk_terms SET terms = 'zzzqqqxxx' "
+                f"WHERE rowid IN ({FORBIDDEN_ROWS})"
+            ).rowcount
+            assert changed > 0
+            kept = connection.execute(
+                f"SELECT COUNT(*) FROM chunks WHERE rowid IN ({FORBIDDEN_ROWS})"
+            ).fetchone()[0]
+            assert kept == changed
+    finally:
+        connection.close()
+
+
+def test_a_lexical_sanity_failure_is_a_harness_error(
+    security_repository: LocalDocumentRepository,
+) -> None:
+    queries, _ = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    # Forbidden rows without the query terms: BM25 would not rank them first.
+    strip_forbidden_terms(index.lexical_path)
+    with pytest.raises(EvaluationHarnessError, match="lexical sanity check"):
+        run_security_evaluation(index, guest_access(), queries, [], RETRIEVAL_CONFIG)
+
+
+def test_zero_term_queries_skip_the_lexical_sanity_and_are_counted(
+    security_repository: LocalDocumentRepository,
+) -> None:
+    queries = [
+        SecurityQuery("z1", 1, "security", "???"),
+        SecurityQuery("z2", 1, "security", "show me the staff canary"),
+    ]
+    assert query_terms("???").terms == []
+    index = build([q.text for q in queries], security_repository)
+    report = run_security_evaluation(
+        index, guest_access(), queries, [], RETRIEVAL_CONFIG
+    )
+    assert report.passed
+    assert report.bm25_no_term_queries == 1
+    assert report.query_count == 2
+
+
+def test_a_lexical_store_without_the_clause_fails_bm25_and_hybrid(
+    security_repository: LocalDocumentRepository,
+) -> None:
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    broken = dataclasses.replace(index, lexical=DroppedClauseLexical(index.lexical))
+    report = run_security_evaluation(
+        broken, guest_access(), queries, deferred, RETRIEVAL_CONFIG
+    )
+    assert not report.passed
+    by_strategy = {v["strategy"] for v in report.violations}
+    assert by_strategy == {"bm25", "hybrid"}  # the dense leg is intact
+    assert all(v["document_id"] for v in report.violations)
+    assert all(v["case_id"] for v in report.violations)
+
+
+@pytest.mark.parametrize("variant", ["staff_scope", "other_tenant", "owned"])
+def test_each_forbidden_row_type_is_in_the_lexical_file(
+    variant: str, security_repository: LocalDocumentRepository
+) -> None:
+    queries, _ = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    rows = index.lexical.search(
+        match_expression(query_terms(queries[0].text).terms), "1 = 1", (), 200
+    )
+    ids = {json.loads(r.payload_json)["document_id"] for r in rows}
+    assert f"forbidden_{variant}" in ids
+
+
+def test_the_missing_owner_row_is_excluded_by_owner_present_not_check_hit(
+    security_repository: LocalDocumentRepository,
+) -> None:
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    access = guest_access()
+    where, params = build_sql_access_clause(access)
+    loose = (
+        "c.access_scope IN (?) AND c.tenant_id = ? AND c.owner_user_id IS NULL",
+        ("public", TENANT),
+    )
+    match = match_expression(query_terms(queries[0].text).terms)
+
+    def documents(where_sql: str, bound: tuple[Any, ...]) -> set[str]:
+        rows = index.lexical.search(match, where_sql, bound, 200)
+        return {json.loads(r.payload_json)["document_id"] for r in rows}
+
+    assert "forbidden_missing_owner" not in documents(where, params)
+    assert "forbidden_missing_owner" in documents(*loose)  # only owner_present stops it
+    report = run_security_evaluation(index, access, queries, deferred, RETRIEVAL_CONFIG)
+    assert not [v for v in report.violations if v["variant"] == "check_hit_failed"]
+    assert report.passed
+
+
+def test_security_result_1_1_has_strategies_and_no_text(
+    security_repository: LocalDocumentRepository,
+) -> None:
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    broken = dataclasses.replace(index, lexical=DroppedClauseLexical(index.lexical))
+    for candidate, passed in ((index, True), (broken, False)):
+        report = run_security_evaluation(
+            candidate, guest_access(), queries, deferred, RETRIEVAL_CONFIG
+        )
+        document = security_document(
+            index=candidate,
+            report=report,
+            suite=load_suite(REPO_ROOT, SUITE),
+            access=guest_access(),
+            duration_ms=1.0,
+            created_at="2026-01-01T00:00:00+00:00",
+            repo_root=REPO_ROOT,
+        )
+        assert document["schema_version"] == "1.1"
+        assert document["passed"] is passed
+        assert document["strategies"] == ["dense", "bm25", "hybrid"]
+        assert document["bm25_no_term_queries"] == 0
+        assert (
+            document["index"]["lexical_rows_per_variant"]
+            == (document["index"]["forbidden_points_per_variant"])
+        )
+        assert all(
+            v["strategy"] in document["strategies"] for v in document["violations"]
+        )
+        text = json.dumps(document, ensure_ascii=False)
+        assert all(q.text not in text for q in queries)
+        assert "forbidden fixture" not in text
+        lines = cli.format_security_summary(document, Path("r.json")).splitlines()
+        assert "strategies: dense, bm25, hybrid" in lines
 
 
 # --- CLI ------------------------------------------------------------------
@@ -637,3 +889,109 @@ def test_cli_harness_error_exits_two_and_writes_nothing(
     assert code == 2
     assert not output.exists()
     assert "EvaluationConfigurationError" in capsys.readouterr().err
+
+
+def spy_lexical_path(
+    monkeypatch: pytest.MonkeyPatch, paths: list[Path], *, drop_clause: bool = False
+) -> None:
+    real = cli.build_security_index
+
+    def wrapper(*args: Any, **kwargs: Any) -> SecurityIndex:
+        index = real(*args, **kwargs)
+        assert index.lexical_path.is_file()
+        paths.append(index.lexical_path)
+        if drop_clause:
+            return dataclasses.replace(
+                index, lexical=DroppedClauseLexical(index.lexical)
+            )
+        return index
+
+    monkeypatch.setattr(cli, "build_security_index", wrapper)
+
+
+def test_cli_lexical_file_is_removed_after_a_pass(
+    clean_env: None,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    paths: list[Path] = []
+    spy_lexical_path(monkeypatch, paths)
+    output = tmp_path / "security.json"
+    code = cli.main(
+        ["security", "--repo-root", str(REPO_ROOT), "--output", str(output)]
+    )
+    assert code == 0
+    assert len(paths) == 1
+    assert not paths[0].exists() and not paths[0].parent.exists()
+    assert "strategies: dense, bm25, hybrid" in capsys.readouterr().out
+    assert json.loads(output.read_text(encoding="utf-8"))["schema_version"] == "1.1"
+
+
+def test_cli_clause_less_lexical_store_exits_one_naming_strategies(
+    clean_env: None,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    paths: list[Path] = []
+    spy_lexical_path(monkeypatch, paths, drop_clause=True)
+    output = tmp_path / "security.json"
+    code = cli.main(
+        ["security", "--repo-root", str(REPO_ROOT), "--output", str(output)]
+    )
+    assert code == 1
+    document = json.loads(output.read_text(encoding="utf-8"))
+    assert {v["strategy"] for v in document["violations"]} == {"bm25", "hybrid"}
+    assert "eval-security: FAIL" in capsys.readouterr().out
+    assert not paths[0].exists()
+
+
+def test_cli_lexical_file_is_removed_after_a_failed_run(
+    clean_env: None,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    paths: list[Path] = []
+    spy_lexical_path(monkeypatch, paths)
+
+    def failing(*args: Any, **kwargs: Any) -> Any:
+        raise EvaluationHarnessError("lexical sanity check failed for case 'x'")
+
+    monkeypatch.setattr(cli, "run_security_evaluation", failing)
+    output = tmp_path / "security.json"
+    code = cli.main(
+        ["security", "--repo-root", str(REPO_ROOT), "--output", str(output)]
+    )
+    assert code == 2
+    assert not output.exists()
+    assert len(paths) == 1
+    assert not paths[0].exists() and not paths[0].parent.exists()
+    assert "EvaluationHarnessError" in capsys.readouterr().err
+
+
+def test_cli_real_lexical_sanity_failure_exits_two_and_writes_nothing(
+    clean_env: None,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    real = cli.build_security_index
+    paths: list[Path] = []
+
+    def wrapper(*args: Any, **kwargs: Any) -> SecurityIndex:
+        index = real(*args, **kwargs)
+        paths.append(index.lexical_path)
+        strip_forbidden_terms(index.lexical_path)  # a real, unstubbed failure
+        return index
+
+    monkeypatch.setattr(cli, "build_security_index", wrapper)
+    output = tmp_path / "security.json"
+    code = cli.main(
+        ["security", "--repo-root", str(REPO_ROOT), "--output", str(output)]
+    )
+    assert code == 2
+    assert not output.exists()
+    assert "lexical sanity check" in capsys.readouterr().err
+    assert len(paths) == 1 and not paths[0].exists()

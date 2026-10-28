@@ -135,3 +135,56 @@ def test_empty_tenant_setting_refused(
 
 def test_default_tenant() -> None:
     assert RuntimeSettings().tenant_id == "way2australia"
+
+
+# --- Spec 007 T4: SQL access clause ---------------------------------------
+
+
+def _policy(*scopes: AccessScope) -> ResolvedAccess:
+    return ResolvedAccess(
+        policy=EligibilityPolicy(allowed_access_scopes=frozenset(scopes)),
+        tenant_id="way2australia",
+    )
+
+
+def test_sql_clause_is_constant_and_parameterised() -> None:
+    from way2australia_rag.retrieval.access import build_sql_access_clause
+
+    clause, params = build_sql_access_clause(guest())
+    assert clause == (
+        "c.access_scope IN (?) AND c.tenant_id = ? "
+        "AND c.owner_present = 1 AND c.owner_user_id IS NULL"
+    )
+    assert params == ("public", "way2australia")
+    assert "way2australia" not in clause
+
+
+def test_both_builders_cover_the_same_three_conditions() -> None:
+    from way2australia_rag.retrieval.access import build_sql_access_clause
+
+    for access in (guest(), _policy(AccessScope.PUBLIC, AccessScope.STAFF)):
+        scopes = sorted(str(s) for s in access.policy.allowed_access_scopes)
+        qdrant = build_access_filter(access)
+        clause, params = build_sql_access_clause(access)
+        conditions = qdrant.must
+        assert isinstance(conditions, list) and len(conditions) == 3
+        scope_cond, tenant_cond, owner_cond = conditions
+        assert isinstance(scope_cond, models.FieldCondition)
+        assert isinstance(scope_cond.match, models.MatchAny)
+        assert scope_cond.match.any == scopes
+        assert isinstance(tenant_cond, models.FieldCondition)
+        assert isinstance(tenant_cond.match, models.MatchValue)
+        assert tenant_cond.match.value == access.tenant_id
+        assert isinstance(owner_cond, models.IsNullCondition)
+        assert owner_cond.is_null.key == "owner_user_id"
+        assert params == (*scopes, access.tenant_id)
+        assert clause.count("?") == len(scopes) + 1
+        assert "owner_present = 1 AND c.owner_user_id IS NULL" in clause
+
+
+def test_a_different_policy_changes_both_builders() -> None:
+    from way2australia_rag.retrieval.access import build_sql_access_clause
+
+    wider = _policy(AccessScope.PUBLIC, AccessScope.STAFF)
+    assert build_access_filter(wider) != build_access_filter(guest())
+    assert build_sql_access_clause(wider) != build_sql_access_clause(guest())

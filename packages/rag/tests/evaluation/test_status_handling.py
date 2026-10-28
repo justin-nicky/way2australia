@@ -8,7 +8,7 @@ from conftest import REPO_ROOT, live_suite_rows
 from way2australia_rag.evaluation.models import DatasetType
 from way2australia_rag.evaluation.suite import load_suite
 
-SUITE = "evaluation/suites/public-eval-v1.json"
+SUITE = "evaluation/suites/public-eval-v2.json"
 
 
 def golden_count() -> int:
@@ -17,7 +17,7 @@ def golden_count() -> int:
 
 def suite_with_statuses(tmp_path: Path, statuses: list[str]):  # noqa: ANN201
     shutil.copytree(REPO_ROOT / "evaluation", tmp_path / "evaluation")
-    path = tmp_path / "evaluation/datasets/golden_public.jsonl"
+    path = tmp_path / "evaluation/datasets/v2/golden_public.jsonl"
     rows = [json.loads(x) for x in path.read_text().splitlines() if x.strip()]
     for row, status in zip(rows, statuses, strict=False):
         row["status"] = status

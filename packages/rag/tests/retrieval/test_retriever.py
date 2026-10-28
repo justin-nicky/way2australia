@@ -154,7 +154,13 @@ def test_all_result_fields_present(retriever: DenseRetriever) -> None:
         "source_url": None,
         "content_language": "en",
         "lote_languages": ["*"],
+        "leg_ranks": None,
     }
+    assert result.strategy == "dense"
+    assert result.score_kind == "dense_cosine"
+    assert result.leg_latency_ms is None
+    assert result.lexical is None
+    assert result.query_terms_truncated is None
     assert result.collection == "w2a-test-v1"
     assert result.index_version == VERSION
     assert result.embedder_model_id == EMBEDDER.info.model_id

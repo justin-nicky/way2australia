@@ -97,6 +97,18 @@ class RuntimeSettings(BaseSettings):
         default="way2australia", validation_alias="QDRANT_COLLECTION_BASE"
     )
     tenant_id: str = Field(default="way2australia", validation_alias="W2A_TENANT_ID")
+    # Directory of the derived lexical index files (Spec 007 R4). None means the
+    # default `<repo-root>/.local/lexical`. Not index-defining.
+    lexical_index_dir: Path | None = Field(
+        default=None, validation_alias="W2A_LEXICAL_INDEX_DIR"
+    )
+
+    @field_validator("lexical_index_dir", mode="before")
+    @classmethod
+    def _blank_lexical_dir_is_default(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
 
     @field_validator("tenant_id")
     @classmethod

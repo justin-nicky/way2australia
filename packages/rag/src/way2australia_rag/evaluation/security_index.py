@@ -10,8 +10,10 @@ any write. The security index records `embedder_is_fake: true`, so
 
 import asyncio
 import re
+from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from qdrant_client import QdrantClient, models
@@ -33,10 +35,23 @@ from way2australia_rag.ingestion.store import (
     IndexPoint,
     QdrantIndexStore,
 )
+from way2australia_rag.lexical.build import (
+    Entry,
+    build_lexical_index,
+    lexical_index_path,
+    production_entries,
+)
+from way2australia_rag.lexical.store import (
+    DenseIdentity,
+    LexicalIdentityInput,
+    LexicalIndex,
+)
+from way2australia_rag.lexical.tokenizer import query_terms
 from way2australia_rag.repositories import (
     GUEST_PUBLIC_POLICY,
     DocumentRepository,
 )
+from way2australia_rag.repositories.hashing import HASH_CONTRACT
 from way2australia_rag.retrieval.index import DenseIndex
 
 SECURITY_COLLECTION_PREFIX = "w2a-sectest-"
@@ -59,9 +74,12 @@ class SecurityIndex:
     collection: str
     embedder: Embedder
     dense: DenseIndex
+    lexical: LexicalIndex
+    lexical_path: Path
     queries: tuple[str, ...]
     seed_document_ids: frozenset[str]
     points_per_variant: dict[str, int]
+    lexical_rows_per_variant: dict[str, int]
 
 
 def is_forbidden_document(document_id: str) -> bool:
@@ -129,11 +147,14 @@ def build_security_index(
     seed_repository: DocumentRepository,
     security_repository: DocumentRepository,
     tenant_id: str,
+    lexical_dir: Path,
 ) -> SecurityIndex:
-    """Build a fresh throwaway index: seed corpus, canary and forbidden points.
+    """Build a fresh throwaway index: seed corpus, canary and forbidden points,
+    plus a lexical file in `lexical_dir` holding the same point IDs.
 
     Refuses, before any write, a base that does not match the throwaway pattern
-    and any target collection that already exists.
+    and any target collection that already exists. The caller owns `lexical_dir`
+    (the CLI removes it with its temporary directory).
     """
     require_security_base(collection_base)
     if not embedder.info.is_fake:
@@ -187,6 +208,44 @@ def build_security_index(
     dense = DenseIndex.open(
         client, collection_base, SECURITY_INDEX_VERSION, embedder.info
     )
+
+    # 4. the lexical file: same point IDs, built by the production builder
+    seed_entries = asyncio.run(production_entries(seed_repository, chunker))
+    entries = [
+        *seed_entries,
+        *_lexical_forbidden_entries(canary_points, queries, tenant_id),
+    ]
+    lexical_path = lexical_index_path(lexical_dir, collection)
+    build_lexical_index(
+        entries,
+        lexical_path,
+        LexicalIdentityInput(
+            collection=collection,
+            index_version=SECURITY_INDEX_VERSION,
+            dense_identity=DenseIdentity(
+                collection=collection,
+                index_version=SECURITY_INDEX_VERSION,
+                embedder_model_id=embedder.info.model_id,
+                embedder_revision=embedder.info.revision,
+            ),
+            chunker_name=chunker.name,
+            chunker_version=chunker.version,
+            chunker_max_chunk_chars=chunker.max_chunk_chars,
+            hash_contract=HASH_CONTRACT,
+        ),
+    )
+    lexical = LexicalIndex.open(lexical_path, collection, SECURITY_INDEX_VERSION)
+    try:
+        lexical.bind_to(dense)  # the production binding: identity and chunk set
+    except BaseException:
+        lexical.close()
+        raise
+    lexical_rows = Counter(
+        forbidden_variant(str(payload["document_id"]))
+        for _, payload in entries
+        if is_forbidden_document(str(payload["document_id"]))
+    )
+
     counts = {variant: len(vectors) for variant in FORBIDDEN_VARIANTS}
     counts["staff_canary"] = len(canary_points)
     return SecurityIndex(
@@ -195,10 +254,42 @@ def build_security_index(
         collection=store.collection,
         embedder=embedder,
         dense=dense,
+        lexical=lexical,
+        lexical_path=lexical_path,
         queries=tuple(queries),
         seed_document_ids=seed_ids,
         points_per_variant=counts,
+        lexical_rows_per_variant=dict(lexical_rows),
     )
+
+
+def lexical_probe_text(query: str) -> str:
+    """The query's own `lexical-v1` terms, 3 times: a row with this text outranks
+    any seed chunk for that query, so BM25 ranks it first without the filter."""
+    return " ".join(query_terms(query).terms * 3)
+
+
+def _lexical_forbidden_entries(
+    canary_points: Sequence[IndexPoint],
+    queries: Sequence[str],
+    tenant_id: str,
+) -> list[Entry]:
+    """Lexical rows for exactly the forbidden Qdrant points (same point IDs)."""
+    entries: list[Entry] = []
+    own = len(canary_points) - len(queries)
+    for i, point in enumerate(canary_points):
+        payload = point.payload.model_dump(mode="json")
+        if i >= own:  # a query probe: the query's terms, not the canary's text
+            payload["chunk_text"] = lexical_probe_text(queries[i - own])
+        entries.append((point.point_id, payload))
+    for variant in FORBIDDEN_VARIANTS:
+        for i, query in enumerate(queries):
+            payload = _forbidden_payload(variant, i, tenant_id)
+            payload["chunk_text"] = lexical_probe_text(query)
+            entries.append(
+                (point_id(f"{FORBIDDEN_DOCUMENT_PREFIX}{variant}", "main", i), payload)
+            )
+    return entries
 
 
 def _canary_points(
@@ -230,8 +321,11 @@ def _canary_points(
 
 
 def delete_security_index(index: SecurityIndex) -> None:
-    """Remove the throwaway collection and its settings record (only ever these)."""
+    """Remove the throwaway collection and its settings record, close the lexical
+    file and delete it (only ever these)."""
     require_security_base(index.collection_base)
+    index.lexical.close()
+    index.lexical_path.unlink(missing_ok=True)
     for name in (index.collection, index.collection + SETTINGS_COLLECTION_SUFFIX):
         if index.client.collection_exists(name):
             index.client.delete_collection(name)

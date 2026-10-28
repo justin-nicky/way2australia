@@ -10,13 +10,20 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from way2australia_rag.evaluation.errors import NotComparableError
-from way2australia_rag.evaluation.results import CaseRow, ComparableRun
+from way2australia_rag.evaluation.results import (
+    AUTHORITY_VERSIONS,
+    CaseRow,
+    ComparableRun,
+)
 from way2australia_rag.retrieval.text import safe_text
 
 HIT_TOLERANCE_CASES = 1
 MRR_EPSILON = 1e-9
 MAX_LISTED = 10
 NEW_BASELINE = "run `make eval-retrieval` on the current system to set a new baseline."
+IDENTITY_STEP = (
+    "compare runs on the same collection, index_version, embedder and lexical index."
+)
 FAKE_STEP = (
     "run `make eval-retrieval` with a real embedder (BGE-M3) to produce a "
     "comparable file."
@@ -47,6 +54,52 @@ def _listed(items: list[str]) -> str:
     shown = ", ".join(items[:MAX_LISTED])
     extra = len(items) - MAX_LISTED
     return f"{shown} and {extra} more" if extra > 0 else shown
+
+
+def _embedder_pair(run: ComparableRun) -> tuple[object, object]:
+    return run.info.get("embedder_model_id"), run.info.get("embedder_revision")
+
+
+def _embedder(run: ComparableRun) -> str:
+    model_id, revision = _embedder_pair(run)
+    return f"{model_id}@{revision}"
+
+
+def _lexical_identity(run: ComparableRun) -> tuple[object, object, object] | None:
+    lexical = run.info.get("lexical")
+    if not isinstance(lexical, dict):
+        return None
+    return (
+        lexical.get("tokenizer_name"),
+        lexical.get("tokenizer_version"),
+        lexical.get("source_chunk_digest"),
+    )
+
+
+def _lexical_text(identity: tuple[object, object, object] | None) -> str:
+    if identity is None:
+        return "none"
+    name, version, digest = identity
+    return f"{name} v{version} digest {digest}"
+
+
+def _identity_problems(base: ComparableRun, cand: ComparableRun) -> list[str]:
+    """Spec 007 R10: unlike systems are refused, unlike strategies are not."""
+    problems: list[str] = []
+    old_c, new_c = base.info.get("collection"), cand.info.get("collection")
+    if old_c is not None and new_c is not None and old_c != new_c:
+        problems.append(f"collection changed {old_c} -> {new_c}")
+    old_i, new_i = base.info.get("index_version"), cand.info.get("index_version")
+    if old_i != new_i:
+        problems.append(f"index_version changed {old_i} -> {new_i}")
+    if _embedder_pair(base) != _embedder_pair(cand):
+        problems.append(f"embedder changed {_embedder(base)} -> {_embedder(cand)}")
+    old_l, new_l = _lexical_identity(base), _lexical_identity(cand)
+    if old_l is not None and new_l is not None and old_l != new_l:
+        problems.append(
+            f"lexical index changed {_lexical_text(old_l)} -> {_lexical_text(new_l)}"
+        )
+    return problems
 
 
 def _refusals(base: ComparableRun, cand: ComparableRun) -> list[str]:
@@ -99,6 +152,10 @@ def _refusals(base: ComparableRun, cand: ComparableRun) -> list[str]:
         )
     if changed:
         steps.append(NEW_BASELINE)
+    identity = _identity_problems(base, cand)
+    if identity:
+        problems.extend(identity)
+        steps.append(IDENTITY_STEP)
     if not problems:
         return []
     unique_steps = list(dict.fromkeys(steps))
@@ -190,7 +247,10 @@ def compare(base: ComparableRun, candidate: ComparableRun) -> Comparison:
         ("query_language", lambda r: r.query_language),
         ("category", lambda r: r.category),
     ]
-    both_v2 = base.schema_version == "2.0" and candidate.schema_version == "2.0"
+    both_v2 = (
+        base.schema_version in AUTHORITY_VERSIONS
+        and candidate.schema_version in AUTHORITY_VERSIONS
+    )
     if both_v2:
         sliced.append(("source_authority", lambda r: r.source_authority or "unknown"))
     for name, key_of in sliced:
@@ -207,7 +267,7 @@ def compare(base: ComparableRun, candidate: ComparableRun) -> Comparison:
     if not both_v2:
         lines.append(
             "note: the source_authority slice was not compared "
-            "(it exists only in 2.0 files; both files must be 2.0)."
+            "(it exists only in 2.0 and 2.1 files; both files must be one of them)."
         )
     for label in ("latency_p50", "latency_p95"):
         old, new = base.info.get(label), candidate.info.get(label)
@@ -216,10 +276,21 @@ def compare(base: ComparableRun, candidate: ComparableRun) -> Comparison:
                 f"latency {label[8:]} (informational): {old:.1f} ms -> {new:.1f} ms "
                 f"({new - old:+.1f} ms)"
             )
-    for label in ("collection", "index_version", "embedder", "device", "git_commit"):
+    for run in (base, candidate):
+        if run.info.get("collection") is None:
+            lines.append(
+                f"collection not recorded in {run.name}; compared by index_version only"
+            )
+    for label in ("retrieval_strategy", "device", "git_commit"):
         diff = _changed(label, base.info.get(label), candidate.info.get(label))
         if diff:
             lines.append(f"identity differs, {diff}")
+    old_l, new_l = _lexical_identity(base), _lexical_identity(candidate)
+    if old_l != new_l:
+        lines.append(
+            "identity differs, lexical_index: "
+            f"{_lexical_text(old_l)} -> {_lexical_text(new_l)}"
+        )
     for key in keys:
         old, new = base.cases[key].hit, candidate.cases[key].hit
         if old and not new:

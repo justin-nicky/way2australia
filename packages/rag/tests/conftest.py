@@ -23,12 +23,18 @@ FIXTURE_IDS = {
 }
 
 
-LIVE_SUITE = "evaluation/suites/public-eval-v1.json"
+LIVE_SUITE = "evaluation/suites/public-eval-v2.json"
 
 
-def live_suite_rows(dataset_type: str, *, active_only: bool = False) -> list[dict]:
-    """Raw rows of the live suite's datasets of one type (never a literal count)."""
-    manifest = json.loads((REPO_ROOT / LIVE_SUITE).read_text(encoding="utf-8"))
+LEGACY_SUITE = "evaluation/suites/public-eval-v1.json"
+
+
+def live_suite_rows(
+    dataset_type: str, *, active_only: bool = False, suite: str = LIVE_SUITE
+) -> list[dict]:
+    """Raw rows of a suite's datasets of one type (default: the live suite;
+    never a literal count)."""
+    manifest = json.loads((REPO_ROOT / suite).read_text(encoding="utf-8"))
     rows: list[dict] = []
     for ref in manifest["datasets"]:
         if ref["type"] != dataset_type:

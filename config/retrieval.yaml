@@ -1,0 +1,8 @@
+# Retrieval strategy and fusion (Spec 007). Reviewed like other config.
+schema_version: "1.0"
+default_strategy: hybrid         # dense | bm25 | hybrid
+fusion:
+  method: rrf
+  k: 60
+  weights: {dense: 1.0, bm25: 1.0}
+  candidate_depth: 50            # 1..50 (MAX_TOP_K)

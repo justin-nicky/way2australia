@@ -1,6 +1,6 @@
 # 007 — Hybrid Retrieval Tasks
 
-Status: approved (2026-10-25)
+Status: all tasks approved (2026-10-28)
 
 Implement the tasks in order; each depends on the ones before it. Requirements: `requirements.md` (approved 2026-10-25). Design: `design.md` (approved 2026-10-25).
 
@@ -17,18 +17,18 @@ Rules for every task:
 
 ## T1 — Evaluation Suite `public-eval-v2`
 
-**State:** not started
+**State:** approved (2026-10-25)
 **Requirements:** R1, R14
 
-- [ ] Create `evaluation/datasets/v2/golden_public.jsonl`, `unanswerable_public.jsonl`, `security_public.jsonl`: every v1 row copied in order with only `evaluation_suite_id` set to `public-eval-v2`, keeping v1 key order and JSON style (UTF-8, `ensure_ascii=False`, v1 separators). A scratch script may generate them; it is not committed.
-- [ ] Append `g064`–`g069` to the v2 golden file, mapped in order from `cand006_ml_001`–`cand006_ml_006` (`g065`, `g066` with the reworded queries in `proposed_case.query`), with the fields listed in R1 and the v1 golden key order.
-- [ ] Create `evaluation/suites/public-eval-v2.json` (`version: 2`, `status: active`, `introduced_in_release: seed-v1`, `case_count` equal to the v2 rows, `replaces` v1, notes).
-- [ ] Change only `status` to `replaced` in `evaluation/suites/public-eval-v1.json`.
-- [ ] Add `review.promoted_as: {"suite_id": "public-eval-v2", "case_id": ...}` to the six promoted rows of `evaluation/candidates/006-candidates.jsonl`; no other byte of the file changes except those insertions (rows stay `status: suggested`).
-- [ ] `evaluation/validate.py`: the `promoted_as` transcription check (design R1); problem lines carry field names only.
-- [ ] `evaluation/cli.py`: `DEFAULT_SUITE` → `evaluation/suites/public-eval-v2.json`. `retrieval/baseline_cli.py` is not touched.
-- [ ] `evaluation/retrieval_eval.py`: neutral g004/u001 note text (design R1).
-- [ ] Tests (`packages/rag/tests/evaluation/test_suite_v2.py` and updates):
+- [x] Create `evaluation/datasets/v2/golden_public.jsonl`, `unanswerable_public.jsonl`, `security_public.jsonl`: every v1 row copied in order with only `evaluation_suite_id` set to `public-eval-v2`, keeping v1 key order and JSON style (UTF-8, `ensure_ascii=False`, v1 separators). A scratch script may generate them; it is not committed.
+- [x] Append `g064`–`g069` to the v2 golden file, mapped in order from `cand006_ml_001`–`cand006_ml_006` (`g065`, `g066` with the reworded queries in `proposed_case.query`), with the fields listed in R1 and the v1 golden key order.
+- [x] Create `evaluation/suites/public-eval-v2.json` (`version: 2`, `status: active`, `introduced_in_release: seed-v1`, `case_count` equal to the v2 rows, `replaces` v1, notes).
+- [x] Change only `status` to `replaced` in `evaluation/suites/public-eval-v1.json`.
+- [x] Add `review.promoted_as: {"suite_id": "public-eval-v2", "case_id": ...}` to the six promoted rows of `evaluation/candidates/006-candidates.jsonl`; no other byte of the file changes except those insertions (rows stay `status: suggested`).
+- [x] `evaluation/validate.py`: the `promoted_as` transcription check (design R1); problem lines carry field names only.
+- [x] `evaluation/cli.py`: `DEFAULT_SUITE` → `evaluation/suites/public-eval-v2.json`. `retrieval/baseline_cli.py` is not touched.
+- [x] `evaluation/retrieval_eval.py`: neutral g004/u001 note text (design R1).
+- [x] Tests (`packages/rag/tests/evaluation/test_suite_v2.py` and updates):
   - v2 `case_count` equals its dataset rows; v2 goldens = v1 goldens + promoted candidates; v2 unanswerable and security row counts equal v1's;
   - every copied row equals its v1 row except `evaluation_suite_id`;
   - the mapping and field equality for `g064`–`g069` against the candidates file;
@@ -53,21 +53,21 @@ Review reading order: `evaluation/suites/public-eval-v2.json` → `git diff eval
 
 ## T2 — v2 dense baseline (user-owned gate)
 
-**State:** not started
+**State:** approved (2026-10-25)
 **Requirements:** R2
 
 T1 must be approved, committed and pushed on `spec/007` first. No lexical or hybrid task starts before T2 is approved.
 
-- [ ] The orchestrator asks the user to run, from a clean `spec/007` checkout:
+- [x] The orchestrator asks the user to run, from a clean `spec/007` checkout:
   1. `make setup-bge-m3` (on a slow connection `UV_HTTP_TIMEOUT=600 make setup-bge-m3`);
   2. `QDRANT_COLLECTION_BASE=w2a-realcheck make eval-retrieval` (default suite v2, `top_k` 5, read-only on `w2a-realcheck-idx-v1`);
   3. `make setup`;
   and to report the result file name.
-- [ ] The implementer checks the file (scratch script outside the repository, not committed): `kind: retrieval_evaluation`, `schema_version` 2.0, suite `public-eval-v2` version 2, `retrieval_strategy: dense`, golden case count equal to the v2 manifest's active goldens, unanswerable `n` equal to the v2 unanswerable rows, `embedder_is_fake: false`, collection `w2a-realcheck-idx-v1`, `index_version: idx-v1`, `top_k: 5`, `document_count` equal to the eligible corpus size, `git_dirty: false`, `git_commit` equal to the T1 commit.
-- [ ] Continuity check (same scratch script): the shared goldens (same `case_id`, `case_version`) against `experiments/results/retrieval-evaluation-idx-v1-20261024T193140Z.json`: hits and MRR over the shared cases, plus every case whose `hit` or `reciprocal_rank` differs, by `case_id`. Expected: 60 hits, MRR 0.8783 over 63 shared cases; differences explained as device noise (D038) or flagged to the user.
-- [ ] `make eval-compare BASE=<T2 file> CANDIDATE=<T2 file>` passes (readability sanity check).
-- [ ] Update `CURRENT_STATE.md`: the T2 file as the Spec 007 reference (overall, `en`, `mixed`, `ml` metrics, misses by `case_id`, device, latency), the continuity result, the v1 2.0 file as a closed reference.
-- [ ] The result file is committed with the task (it is the only new file under `experiments/results/`).
+- [x] The implementer checks the file (scratch script outside the repository, not committed): `kind: retrieval_evaluation`, `schema_version` 2.0, suite `public-eval-v2` version 2, `retrieval_strategy: dense`, golden case count equal to the v2 manifest's active goldens, unanswerable `n` equal to the v2 unanswerable rows, `embedder_is_fake: false`, collection `w2a-realcheck-idx-v1`, `index_version: idx-v1`, `top_k: 5`, `document_count` equal to the eligible corpus size, `git_dirty: false`, `git_commit` equal to the T1 commit.
+- [x] Continuity check (same scratch script): the shared goldens (same `case_id`, `case_version`) against `experiments/results/retrieval-evaluation-idx-v1-20261024T193140Z.json`: hits and MRR over the shared cases, plus every case whose `hit` or `reciprocal_rank` differs, by `case_id`. Expected: 60 hits, MRR 0.8783 over 63 shared cases; differences explained as device noise (D038) or flagged to the user.
+- [x] `make eval-compare BASE=<T2 file> CANDIDATE=<T2 file>` passes (readability sanity check).
+- [x] Update `CURRENT_STATE.md`: the T2 file as the Spec 007 reference (overall, `en`, `mixed`, `ml` metrics, misses by `case_id`, device, latency), the continuity result, the v1 2.0 file as a closed reference.
+- [x] The result file is committed with the task (it is the only new file under `experiments/results/`).
 
 Allowed protected-path changes: none. New file: `experiments/results/retrieval-evaluation-idx-v1-<UTC>.json` (user-produced).
 
@@ -81,15 +81,15 @@ Review reading order: the T2 result file (header fields, metrics, `ml`/`mixed` s
 
 ## T3 — `lexical-v1` tokenizer, lexical store and `make index-lexical`
 
-**State:** not started
+**State:** approved (2026-10-26)
 **Requirements:** R3, R4, R5, R14
 
-- [ ] `lexical/__init__.py`, `lexical/tokenizer.py`: `TOKENIZER_NAME`, `TOKENIZER_VERSION`, `tokenize`, `query_terms` returning `QueryTerms(terms, truncated)` with `MAX_QUERY_TERMS = 64` (design R3).
-- [ ] `lexical/store.py`, `lexical/build.py`: schema, `lexical_settings` (including `dense_identity`), `source_chunk_digest`, `build_lexical_index` (temp file, `os.replace`, cleanup on failure), `production_entries`, `LexicalIndex.open` (read-only URI), `bind_to(dense)`, `search(...)`, `LexicalIndexBindingError` (subclass of `IndexBindingError`) with rebuild advice.
-- [ ] `retrieval/index.py`: read-only `DenseIndex.chunk_identities()` (scroll; payload include `document_id`, `document_version`, `content_hash`; no text). No other change to `DenseIndex`.
-- [ ] `ingestion/config.py`: `RuntimeSettings.lexical_index_dir` from `W2A_LEXICAL_INDEX_DIR` (default `<repo-root>/.local/lexical`); not index-defining.
-- [ ] `lexical/cli.py` and `Makefile` target `index-lexical` (`LEXICAL_ARGS`, passes `--repo-root`); `.gitignore` adds `/.local/lexical/`.
-- [ ] Tests (`packages/rag/tests/lexical/`):
+- [x] `lexical/__init__.py`, `lexical/tokenizer.py`: `TOKENIZER_NAME`, `TOKENIZER_VERSION`, `tokenize`, `query_terms` returning `QueryTerms(terms, truncated)` with `MAX_QUERY_TERMS = 64` (design R3).
+- [x] `lexical/store.py`, `lexical/build.py`: schema, `lexical_settings` (including `dense_identity`), `source_chunk_digest`, `build_lexical_index` (temp file, `os.replace`, cleanup on failure), `production_entries`, `LexicalIndex.open` (read-only URI), `bind_to(dense)`, `search(...)`, `LexicalIndexBindingError` (subclass of `IndexBindingError`) with rebuild advice.
+- [x] `retrieval/index.py`: read-only `DenseIndex.chunk_identities()` (scroll; payload include `document_id`, `document_version`, `content_hash`; no text). No other change to `DenseIndex`.
+- [x] `ingestion/config.py`: `RuntimeSettings.lexical_index_dir` from `W2A_LEXICAL_INDEX_DIR` (default `<repo-root>/.local/lexical`); not index-defining.
+- [x] `lexical/cli.py` and `Makefile` target `index-lexical` (`LEXICAL_ARGS`, passes `--repo-root`); `.gitignore` adds `/.local/lexical/`.
+- [x] Tests (`packages/rag/tests/lexical/`):
   - tokenizer pins: real Malayalam words from `business_008_public_samples` and the queries of `g064`–`g069` (read from the v2 golden file by `case_id`, tokens pinned per word), `dialogue-ൽ`, English with punctuation and digits, NFD equals NFC, ZWJ/ZWNJ dropped, **legacy chillu sequence → consonant + virama, not equal to the atomic chillu letter**, no language-code literal in the module;
   - `query_terms`: de-duplication, first-seen order, a query with more than 64 distinct terms gives the first 64 and `truncated=True`;
   - build: entries, settings fields, digest stability and order independence, atomic replace (old file intact after an injected failure, no temp file left), the production builder reads only eligible documents (consistency with `list_eligible_documents`) and never `tests/fixtures/security/`;
@@ -108,14 +108,14 @@ Review reading order: `lexical/tokenizer.py` + tokenizer tests → `lexical/stor
 
 ## T4 — BM25 retriever and SQL access clause
 
-**State:** not started
+**State:** approved (2026-10-27)
 **Requirements:** R6, R14
 
-- [ ] `retrieval/base.py`: `Retriever` Protocol, `Strategy` (`StrEnum`), `validate_request` shared with `DenseRetriever` (same messages; `DenseRetriever` calls it, behavior unchanged).
-- [ ] `retrieval/access.py`: `build_sql_access_clause(access)` (design R6), next to `build_access_filter`.
-- [ ] `retrieval/models.py`: the additive default fields (design "Interfaces / models"), including `query_terms_truncated`.
-- [ ] `retrieval/bm25.py`: `BM25Retriever` (quoted terms joined by `OR`, no `MATCH` for zero terms, `check_hit` on every row, `score_kind: "bm25"`, dense identity from the bound index, `query_terms_truncated`).
-- [ ] Tests (`packages/rag/tests/retrieval/test_bm25.py`, `test_access.py` additions):
+- [x] `retrieval/base.py`: `Retriever` Protocol, `Strategy` (`StrEnum`), `validate_request` shared with `DenseRetriever` (same messages; `DenseRetriever` calls it, behavior unchanged).
+- [x] `retrieval/access.py`: `build_sql_access_clause(access)` (design R6), next to `build_access_filter`.
+- [x] `retrieval/models.py`: the additive default fields (design "Interfaces / models"), including `query_terms_truncated`.
+- [x] `retrieval/bm25.py`: `BM25Retriever` (quoted terms joined by `OR`, no `MATCH` for zero terms, `check_hit` on every row, `score_kind: "bm25"`, dense identity from the bound index, `query_terms_truncated`).
+- [x] Tests (`packages/rag/tests/retrieval/test_bm25.py`, `test_access.py` additions):
   - ranking on a synthetic `tmp_path` corpus; deterministic tie-break by `point_id`;
   - authorization: staff scope, other tenant, owned and missing-owner rows (`owner_present = 0`) that contain the query terms are never returned; a store that drops the clause (test double) makes `check_hit` raise `RetrievalAuthorizationError`;
   - both builders cover the same three conditions for the same `ResolvedAccess`, and a different policy changes both;
@@ -137,13 +137,13 @@ Review reading order: `retrieval/access.py` diff → `retrieval/bm25.py` → inj
 
 ## T5 — RRF fusion, hybrid retriever and `config/retrieval.yaml`
 
-**State:** not started
+**State:** approved (2026-10-28)
 **Requirements:** R7, R8, R14
 
-- [ ] `retrieval/fusion.py`: pure `rrf_fuse` and `FusedHit` (design R7).
-- [ ] `retrieval/hybrid.py`: `HybridRetriever` (sequential legs at `candidate_depth`, no catch, cut to `top_k`, re-rank, `score_kind: "rrf"`, `leg_ranks`, `leg_latency_ms`, `query_terms_truncated` from the BM25 leg).
-- [ ] `config/retrieval.yaml` (design R8, `default_strategy: dense`) and `retrieval/strategy.py`: `RetrievalConfig` (Pydantic, `extra="forbid"`), `load_retrieval_config`, `build_retriever(strategy, ...)` as the only strategy-to-retriever mapping.
-- [ ] Tests (`test_fusion.py`, `test_hybrid.py`, `test_strategy.py`):
+- [x] `retrieval/fusion.py`: pure `rrf_fuse` and `FusedHit` (design R7).
+- [x] `retrieval/hybrid.py`: `HybridRetriever` (sequential legs at `candidate_depth`, no catch, cut to `top_k`, re-rank, `score_kind: "rrf"`, `leg_ranks`, `leg_latency_ms`, `query_terms_truncated` from the BM25 leg).
+- [x] `config/retrieval.yaml` (design R8, `default_strategy: dense`) and `retrieval/strategy.py`: `RetrievalConfig` (Pydantic, `extra="forbid"`), `load_retrieval_config`, `build_retriever(strategy, ...)` as the only strategy-to-retriever mapping.
+- [x] Tests (`test_fusion.py`, `test_hybrid.py`, `test_strategy.py`):
   - hand-computed fused scores and orders for two small legs, ties broken by best rank then `point_id`, weights;
   - empty BM25 leg (pure-`ml` query with no matching terms, and a zero-term query): hybrid order equals the dense order;
   - fail closed: a stub leg whose store returns a forbidden payload makes the hybrid query raise and return nothing; any other leg exception propagates (no single-leg fallback);
@@ -161,14 +161,15 @@ Review reading order: `retrieval/fusion.py` + fusion tests → `retrieval/hybrid
 
 ## T6 — Strategy option in the CLIs and result format 2.1
 
-**State:** not started
+**State:** approved (2026-10-28)
 **Requirements:** R8, R9, R14
 
-- [ ] Before any T6 code change: capture a fixture of the dense evaluation result produced by the unchanged runner (fake embedder, in-memory Qdrant, fixed clock, patched `git_state` and `perf_counter`) under `packages/rag/tests/evaluation/fixtures/`, for the equivalence test.
-- [ ] `retrieval/cli.py`: `--strategy` (choices from `Strategy`, default from `config/retrieval.yaml`), lexical open and bind for `bm25`/`hybrid`, header `strategy=`, hybrid leg ranks, truncation note; access unchanged.
-- [ ] `evaluation/cli.py` `retrieval`: `--strategy`, lexical open and bind after the dense binding; `retrieval_eval.py` takes a `Retriever` and writes result 2.1 (design R9: strategy, score kind, fusion, lexical identity, `leg_ranks`, `query_terms_truncated`, `truncated_query_count`, per-leg latency, `unanswerable.score_kind`).
-- [ ] `evaluation/results.py`: supports 1.0, 2.0 and 2.1 (1.0/2.0 read as strategy `dense`, no lexical identity).
-- [ ] Tests:
+- [x] Before any T6 code change: capture a fixture of the dense evaluation result produced by the unchanged runner (fake embedder, in-memory Qdrant, fixed clock, patched `git_state` and `perf_counter`) under `packages/rag/tests/evaluation/fixtures/`, for the equivalence test.
+- [x] `retrieval/cli.py`: `--strategy` (choices from `Strategy`, default from `config/retrieval.yaml`), lexical open and bind for `bm25`/`hybrid`, header `strategy=`, hybrid leg ranks, truncation note; access unchanged.
+- [x] `evaluation/cli.py` `retrieval`: `--strategy`, lexical open and bind after the dense binding; `retrieval_eval.py` takes a `Retriever` and writes result 2.1 (design R9: strategy, score kind, fusion, lexical identity, `leg_ranks`, `query_terms_truncated`, `truncated_query_count`, per-leg latency, `unanswerable.score_kind`).
+- [x] `evaluation/results.py`: supports 1.0, 2.0 and 2.1 (1.0/2.0 read as strategy `dense`, no lexical identity).
+- [x] T4 review F2 (user decision 2026-10-27): one latency span for every leg and strategy, from just after `validate_request` to after the last `check_hit`, so dense and BM25 are timed the same way (design As-built notes). `DenseRetriever.retrieve` moves its clock stop from before `check_hit` to after it; `BM25Retriever` already matches; hybrid per-leg latency is each leg's own span. Only where the dense clock stops changes: dense ranks, scores, document IDs and order stay identical, so the dense equivalence test below still holds (its latency values come from the patched `perf_counter`, whose call count does not change).
+- [x] Tests:
   - dense equivalence: the 2.1 dense result's per-case 2.0 fields and aggregates equal the captured fixture;
   - 2.1 keys for each strategy; no query or chunk text, absolute paths or secrets; never overwritten;
   - `leg_ranks` for relevant documents; truncation flag and count with a synthetic long query;
@@ -188,12 +189,14 @@ Review reading order: equivalence fixture and test → `evaluation/retrieval_eva
 
 ## T7 — `eval-compare` identity rules
 
-**State:** not started
+**State:** approved (2026-10-28)
 **Requirements:** R10
 
-- [ ] `evaluation/results.py`: `ComparableRun.info` gains `retrieval_strategy`, `embedder_model_id`, `embedder_revision`, `lexical`.
-- [ ] `evaluation/compare.py`: the R10 table in the design (collection with the missing-collection rule, `index_version`, embedder, lexical identity, strategy identity line), new next-step text.
-- [ ] Tests (`test_compare.py` additions):
+> Note (T6 review, user decision 2026-10-28): `info["retrieval_strategy"]`, the `info["lexical"]` identity keys and the `source_authority` compare for 2.1 were already implemented in T6 (`evaluation/results.py`, `evaluation/compare.py`). T7 treats them as done and does not re-add them; T7 still owns the R10 rules, the refusal messages and the tests below.
+
+- [x] `evaluation/results.py`: `ComparableRun.info` gains `retrieval_strategy`, `embedder_model_id`, `embedder_revision`, `lexical`.
+- [x] `evaluation/compare.py`: the R10 table in the design (collection with the missing-collection rule, `index_version`, embedder, lexical identity, strategy identity line), new next-step text.
+- [x] Tests (`test_compare.py` additions):
   - the committed pair `retrieval-baseline-idx-v1-20261023T063534Z.json` (1.0) vs `retrieval-evaluation-idx-v1-20261024T193140Z.json` (2.0) passes (read from the repository, not modified);
   - dense vs hybrid (2.1) on the same identity passes with a `retrieval_strategy` identity line;
   - a collection difference is refused naming both collections;
@@ -215,19 +218,20 @@ Review reading order: `evaluation/compare.py` diff → `evaluation/results.py` d
 
 ## T8 — Security gate for BM25 and hybrid, Docker isolation test
 
-**State:** not started
+**State:** approved (2026-10-28)
 **Requirements:** R11, R12, R14
 
-- [ ] `evaluation/security_index.py`: lexical file in the work directory with the same point IDs as the throwaway collection (seed, canary and probes, forbidden rows with the query's terms repeated 3 times, `missing_owner` without the key), opened and bound through the production `LexicalIndex`.
-- [ ] `evaluation/security_eval.py`: per-leg unfiltered sanity checks (zero-term queries counted in `bm25_no_term_queries`), gate over `dense`, `bm25`, `hybrid` through `build_retriever` at `top_k` 50, violations with `strategy`, security result 1.1.
-- [ ] `evaluation/cli.py` `security`: the lexical file lives and is removed with the existing `TemporaryDirectory`; summary names the strategies.
-- [ ] Tests (`test_security_eval.py` additions):
+- [x] `evaluation/security_index.py`: lexical file in the work directory with the same point IDs as the throwaway collection (seed, canary and probes, forbidden rows with the query's terms repeated 3 times, `missing_owner` without the key), opened and bound through the production `LexicalIndex`.
+- [x] `evaluation/security_eval.py`: per-leg unfiltered sanity checks (zero-term queries counted in `bm25_no_term_queries`), gate over `dense`, `bm25`, `hybrid` through `build_retriever` at `top_k` 50, violations with `strategy`, security result 1.1.
+- [x] `evaluation/cli.py` `security`: the lexical file lives and is removed with the existing `TemporaryDirectory`; summary names the strategies.
+- [x] Tests (`test_security_eval.py` additions):
   - the gate passes on v2 for all three strategies;
   - a lexical sanity-check failure (forbidden rows without the query terms) is a harness error (exit 2);
   - a BM25 store that drops the SQL clause produces violations (exit 1) naming `bm25` and `hybrid`;
   - the missing-owner row is excluded by `owner_present` (no `check_hit` violation in a correct run);
   - security result 1.1 keys, no text; the lexical file is gone after a run, including a failed one.
-- [ ] `packages/rag/tests/evaluation/test_security_integration.py`: parametrized over the three strategies on Docker Qdrant (unique `w2a-sectest-<8 hex>`, lexical file in `tmp_path`, cleanup in `finally`, skip when Qdrant is unreachable).
+- [x] `packages/rag/tests/evaluation/test_security_integration.py`: parametrized over the three strategies on Docker Qdrant (unique `w2a-sectest-<8 hex>`, lexical file in `tmp_path`, cleanup in `finally`, skip when Qdrant is unreachable).
+- [x] T4 review F1 (user decision 2026-10-27): parametrize the BM25 clause-dropping test (`test_a_store_without_the_clause_trips_check_hit` in `packages/rag/tests/retrieval/test_bm25.py`) over all four forbidden row types (staff scope, other tenant, owned, missing owner).
 
 Allowed protected-path changes: none.
 
@@ -242,12 +246,12 @@ Review reading order: `evaluation/security_index.py` diff → `evaluation/securi
 
 ## T9 — Strategy comparison and default-strategy decision (user-owned gate)
 
-**State:** not started
+**State:** approved (2026-10-28)
 **Requirements:** R13
 
 T1–T8 must be approved, committed and pushed on `spec/007` first.
 
-- [ ] The orchestrator asks the user to run, from a clean `spec/007` checkout, with `QDRANT_COLLECTION_BASE=w2a-realcheck`:
+- [x] The orchestrator asks the user to run, from a clean `spec/007` checkout, with `QDRANT_COLLECTION_BASE=w2a-realcheck`:
   1. `make setup-bge-m3`;
   2. `make eval-retrieval EVAL_ARGS="--strategy dense"` then `make eval-compare BASE=<T2 file> CANDIDATE=<dense 2.1 file>`: must exit 0 with **no** `WARNING flipped` line. If not, stop here; the dense change goes back to T4/T6 through `changes requested`;
   3. `make index-lexical` (writes only the local git-ignored file; no Qdrant writes);
@@ -255,11 +259,15 @@ T1–T8 must be approved, committed and pushed on `spec/007` first.
   5. `make eval-compare BASE=<T2 file> CANDIDATE=<hybrid file>` and the same for the BM25 file (informational);
   6. `make setup`;
   and to report the file names and the compare output.
-- [ ] The implementer checks each file like T2 (suite v2, not fake, `git_dirty: false`, same collection, `index_version`, embedder, `top_k`, document count, strategy as named, lexical identity present for `bm25`/`hybrid`).
-- [ ] Apply the R13 rule from the per-case rows (scratch script): hybrid passes the gate; hybrid improves hits or MRR over T2; no `ml` or `mixed` case flips hit to miss. Only if all three hold, set `default_strategy: hybrid` in `config/retrieval.yaml`; otherwise leave `dense`.
-- [ ] Record in `CURRENT_STATE.md`: overall, `en`, `mixed`, `ml` for dense (T2 and 2.1), BM25 and hybrid; every flip by `case_id`; `g004`, `g026`, `g061`; per-leg latency; truncated query count; the rule outcome. The decision text itself is written in T10.
-- [ ] Commit the four result files with the task.
-- [ ] If the default changes, tests that depend on the default read it from `config/retrieval.yaml` (no literal); `make verify` passes.
+- [x] The implementer checks each file like T2 (suite v2, not fake, `git_dirty: false`, same collection, `index_version`, embedder, `top_k`, document count, strategy as named, lexical identity present for `bm25`/`hybrid`). (`git_dirty: true` in the BM25 and hybrid files accepted by the user 2026-10-28; see CURRENT_STATE.)
+  - Round 1 finding (not ticked): suite, collection, `index_version`, embedder, `top_k`, document count, strategy and lexical identity all match, but `git_dirty` is `true` in the BM25 and hybrid files (false in dense 2.1). Likely cause: the earlier result files were untracked when the later runs started. Code is identical to commit `6ed6e70` (only untracked result files in the tree). Needs the user's acceptance, like the T2 `git_commit` deviation.
+- [x] Apply the R13 rule from the per-case rows (scratch script): hybrid passes the gate; hybrid improves hits or MRR over T2; no `ml` or `mixed` case flips hit to miss. Only if all three hold, set `default_strategy: hybrid` in `config/retrieval.yaml`; otherwise leave `dense`.
+- [x] Record in `CURRENT_STATE.md`: overall, `en`, `mixed`, `ml` for dense (T2 and 2.1), BM25 and hybrid; every flip by `case_id`; `g004`, `g026`, `g061`; per-leg latency; truncated query count; the rule outcome. The decision text itself is written in T10.
+- [x] T6 review F2 (user decision 2026-10-28), analysis only (no code change in this spec): for every case where hybrid ranks a relevant document lower than dense (T2), show that document's dense and BM25 `leg_ranks` from the hybrid file and whether the query's BM25 matches were only very common terms (scratch script: the query's `lexical-v1` terms and each term's chunk count in the local lexical file, read-only; "very common" means present in more than half the chunks, where FTS5 floors the IDF). Record the list in `CURRENT_STATE.md` with the other T9 numbers.
+- [x] T6 review F2: report the number of BM25 candidates per query (or the median), by query language (`en`, `mixed`, `ml`), from the same read-only scratch script at the hybrid candidate depth.
+- [x] T6 review F2: if the R13 rule above leaves `dense` because of cases where the BM25 matches were only very common terms, add "stopword list or minimum BM25 score/IDF floor" to "Notes for the retrospective" below (checked by the T10 box and carried into "Notes for the next spec"). Do not fix it in Spec 007; the R13 rule and the `config/retrieval.yaml` change are unchanged.
+- [x] Commit the three new result files (dense 2.1, BM25, hybrid) with the task.
+- [x] If the default changes, tests that depend on the default read it from `config/retrieval.yaml` (no literal); `make verify` passes.
 
 Allowed protected-path changes: `config/retrieval.yaml` (`default_strategy` line only, and only if the R13 rule holds). New files: the dense 2.1, BM25 and hybrid result files under `experiments/results/`.
 
@@ -274,15 +282,27 @@ Review reading order: compare outputs (step 2, step 5) → the rule check (ml/mi
 
 ## T10 — Documentation, decisions and hand-off
 
-**State:** not started
+**State:** approved (2026-10-28)
 **Requirements:** R15, R14, Definition of Done
 
-- [ ] `DECISIONS.md` from D049: v2 suite promotion and the closed v1 reference; SQLite FTS5 lexical store (vs Qdrant sparse), location, binding, `dense_identity` copy (self-describing file); `lexical-v1` tokenizer rule (ZWJ/ZWNJ dropped, legacy chillu distinct from atomic); RRF parameters, sequential legs, fail-closed fusion, empty-leg rule; result 2.1 and security 1.1; the `eval-compare` identity rules (missing-collection rule, lexical identity); corpus-wide BM25 statistics and future roles; the T9 default-strategy outcome with its numbers.
-- [ ] `ARCHITECTURE.md` (retrieval section with the `lexical/` package and both legs; target flow marks dense, BM25 and RRF implemented), `COMMANDS.md` (`make index-lexical`, `W2A_LEXICAL_INDEX_DIR`, `--strategy`, new refusals, result 2.1, security coverage), `TECH_STACK.md` (FTS5 as BM25 store, no new dependency), `CURRENT_STATE.md` (implemented reality, spec status row, known issues).
-- [ ] Known issues in `CURRENT_STATE.md`: legacy chillu sequences do not match atomic chillu in `lexical-v1` (roadmap 8; dense unaffected); `seed-v1` release still names suite v1 (Phase 2 releases); BM25 needs Qdrant and the `bge-m3` extra in this spec.
-- [ ] "Notes for the retrospective" (below) checked and extended with anything learned during implementation.
-- [ ] Spec-wide checks and protected-path check against `main`.
-- [ ] `graphify update .` after the last code change; doc changes refreshed per D048 if the user asks.
+- [x] `DECISIONS.md` from D049: v2 suite promotion and the closed v1 reference; SQLite FTS5 lexical store (vs Qdrant sparse), location, binding, `dense_identity` copy (self-describing file); `lexical-v1` tokenizer rule (ZWJ/ZWNJ dropped, legacy chillu distinct from atomic); RRF parameters, sequential legs, fail-closed fusion, empty-leg rule; result 2.1 and security 1.1; the `eval-compare` identity rules (missing-collection rule, lexical identity); corpus-wide BM25 statistics and future roles; the T9 default-strategy outcome with its numbers.
+- [x] `ARCHITECTURE.md` (retrieval section with the `lexical/` package and both legs; target flow marks dense, BM25 and RRF implemented), `COMMANDS.md` (`make index-lexical`, `W2A_LEXICAL_INDEX_DIR`, `--strategy`, new refusals, result 2.1, security coverage), `TECH_STACK.md` (FTS5 as BM25 store, no new dependency), `CURRENT_STATE.md` (implemented reality, spec status row, known issues).
+- [x] Known issues in `CURRENT_STATE.md`: legacy chillu sequences do not match atomic chillu in `lexical-v1` (roadmap 8; dense unaffected); `seed-v1` release still names suite v1 (Phase 2 releases); BM25 needs Qdrant and the `bge-m3` extra in this spec.
+- [x] T1 review F1 (user decision 2026-10-25): remove the unused `LEGACY_SUITE` constant from `packages/rag/tests/conftest.py`, or use it in `packages/rag/tests/retrieval/test_baseline.py` instead of the literal v1 suite path (implementer's choice; one test-only edit).
+- [x] T3 round 3 review F1 (user decision 2026-10-26): in `packages/rag/src/way2australia_rag/lexical/cli.py`, `check_target_allowed` allows only targets that `git check-ignore` reports as ignored (inside a git work tree), replacing the tracked-file check; the protected `knowledge/`, `evaluation/`, `config/` guard (by real on-disk location) stays. Add a test that an existing un-ignored folder such as `.local/other/` is refused (exit 2, nothing written).
+- [x] T4 review F3 (user decision 2026-10-27): move the lexical test helpers in `packages/rag/tests/lexical/lexical_support.py` into a shared fixture module or `conftest.py` (implementer's choice), and remove the `sys.path` insert and the pyright ignore from `packages/rag/tests/retrieval/test_bm25.py`. Test-only.
+- [x] T6 round 2 review F1 (user decision 2026-10-28): in `packages/rag/tests/evaluation/test_strategy_eval.py`, remove the leftover `# noqa: E402` comments and pin the exact hybrid dense rank in `test_leg_ranks_cover_the_relevant_documents` (replacing the loose `in range(1, 9)`). Test-only.
+- [x] T7 round 1 review F1 (user decision 2026-10-28): the `eval-compare` identity check (`_identity_problems` in `packages/rag/src/way2australia_rag/evaluation/compare.py`) compares the (embedder model ID, revision) pair, not the joined `model@revision` string; the joined form is kept only for the refusal message.
+- [x] T7 round 1 review F2 (user decision 2026-10-28): `eval-compare` refuses (exit 2) a 2.1 `bm25` or `hybrid` result whose `lexical_index` is `null` (or not an object); a malformed file must never skip a refusal. Add a test.
+- [x] T8 round 1 review F1 (user decision 2026-10-28): `test_a_lexical_sanity_failure_is_a_harness_error` in `packages/rag/tests/evaluation/test_security_eval.py` keeps the forbidden rows in the lexical file but strips the query terms from them (instead of deleting them), so it tests a real sanity failure. Add one CLI test where a real sanity failure (not a stubbed harness error) gives exit 2. Test-only.
+- [x] T8 round 1 review F2 (user decision 2026-10-28): type the `retriever` parameter of `security_eval._gate` (`packages/rag/src/way2australia_rag/evaluation/security_eval.py`) as `Retriever` (`retrieval/base.py`), not `Any`.
+- [x] T8 round 1 review, fusion fallback (user decision 2026-10-28): `run_security_evaluation` either has no built-in fusion default (the caller must pass a `FusionConfig`), or a test asserts that its default equals the fusion settings in `config/retrieval.yaml` (implementer's choice).
+- [x] T9 round 1 review F1 (user decision 2026-10-28): untracked files under `experiments/results/` must not mark a run `git_dirty`. Either `git_state` (`packages/rag/src/way2australia_rag/retrieval/baseline.py`) excludes them, or the documented run order (`COMMANDS.md` and the runbook wording) commits or moves each result before the next run (implementer's choice). Add a test either way (for the code option: a tree whose only change is an untracked result file reports `git_dirty` false, and any other change still reports true).
+- [x] T9 review, default strategy (user decision 2026-10-28): document in `COMMANDS.md` and `CURRENT_STATE.md` (within the documentation boxes above) that the default strategy `hybrid` needs the local lexical file, so `make retrieve` and `make eval-retrieval` without `--strategy` refuse without it; setup order is `make ingest`, then `make index-lexical`.
+- [x] T9 review, missing lexical file error (user decision 2026-10-28): the refusal when the lexical file is missing names `make index-lexical`. Existing tests cover this only with an explicit `--strategy bm25`/`hybrid` (`test_eval_cli_missing_lexical_file_exits_2_and_writes_nothing` in `tests/evaluation/test_strategy_eval.py`, the `make retrieve --strategy hybrid` case in the same file, and the `test_lexical_bind.py`/`test_lexical_build.py` binding errors); add a test that the default strategy (no `--strategy`, committed `config/retrieval.yaml`) with a missing lexical file exits 2 and names `make index-lexical`, for `make retrieve` and `make eval-retrieval`.
+- [x] "Notes for the retrospective" (below) checked and extended with anything learned during implementation.
+- [x] Spec-wide checks and protected-path check against `main`.
+- [x] `graphify update .` after the last code change; doc changes refreshed per D048 if the user asks.
 
 Allowed protected-path changes: none (docs only).
 
@@ -314,3 +334,6 @@ Not a task. The `spec-reviewer` carries these into "Notes for the next spec" in 
 - `lexical-v1` keeps legacy chillu sequences distinct from atomic chillu letters; revisit with multilingual retrieval (roadmap 8).
 - BM25 statistics are corpus-wide per file; a roles spec needs per-scope files or an accepted statistics leak.
 - The Phase 2 "compare shared cases" mode is still not built; v1 results are a closed reference.
+- (T10) Malayalam has no stemming in `lexical-v1`: BM25 alone lost `g067`–`g069`, and hybrid keeps all `ml` hits but with lower reciprocal ranks (MRR 0.9167 -> 0.7917, 6 cases). Revisit with multilingual retrieval (roadmap 8). The stopword list / minimum BM25 score or IDF floor idea was not needed (the R13 rule held; no case had only very common matches).
+- (T10) Default strategy `hybrid` makes the local lexical file a prerequisite of `make retrieve` and `make eval-retrieval` (setup: `make ingest`, then `make index-lexical`); an automatic lexical rebuild or a freshness check on ingest is a candidate for the fallback spec.
+- (T10) Untracked result files under `experiments/results/` no longer mark a run `git_dirty` (`git_state`); the T2 `git_commit` deviation and the T9 `git_dirty: true` files stay recorded as accepted.

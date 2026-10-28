@@ -14,14 +14,22 @@ from way2australia_rag.retrieval.access import (
     build_access_filter,
     check_hit,
 )
-from way2australia_rag.retrieval.errors import RetrievalConfigurationError
+from way2australia_rag.retrieval.base import (
+    DEFAULT_TOP_K,
+    MAX_TOP_K,
+    MIN_TOP_K,
+    Strategy,
+    validate_request,
+)
 from way2australia_rag.retrieval.index import DenseIndex
 from way2australia_rag.retrieval.models import RetrievalResult, RetrievedChunk
 
-MIN_TOP_K, MAX_TOP_K, DEFAULT_TOP_K = 1, 50, 5
+__all__ = ["DEFAULT_TOP_K", "MAX_TOP_K", "MIN_TOP_K", "DenseRetriever"]
 
 
 class DenseRetriever:
+    strategy = Strategy.DENSE
+
     def __init__(self, index: DenseIndex, embedder: Embedder) -> None:
         self._index = index
         self._embedder = embedder
@@ -32,21 +40,13 @@ class DenseRetriever:
         access: ResolvedAccess,
         top_k: int = DEFAULT_TOP_K,
     ) -> RetrievalResult:
-        if not isinstance(query_text, str) or not query_text.strip():
-            raise RetrievalConfigurationError("the query must not be empty.")
-        if (
-            isinstance(top_k, bool)
-            or not isinstance(top_k, int)
-            or not MIN_TOP_K <= top_k <= MAX_TOP_K
-        ):
-            raise RetrievalConfigurationError(
-                f"top_k must be an integer from {MIN_TOP_K} to {MAX_TOP_K}."
-            )
+        validate_request(query_text, top_k)
         started = perf_counter()
         vector = self._embedder.embed_query(query_text)
         points = self._index.search(vector, build_access_filter(access), top_k)
-        latency_ms = (perf_counter() - started) * 1000.0
         checked = [(point, check_hit(point.payload or {}, access)) for point in points]
+        # One span for every strategy (T4 review F2): after the last check_hit.
+        latency_ms = (perf_counter() - started) * 1000.0
         checked.sort(key=lambda pair: pair[0].score, reverse=True)
         hits = [
             RetrievedChunk(

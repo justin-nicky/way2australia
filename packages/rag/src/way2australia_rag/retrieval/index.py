@@ -150,3 +150,41 @@ class DenseIndex:
             if offset is None:
                 break
         return len(seen)
+
+    def chunk_identities(self) -> list[tuple[str, str, int, str]]:
+        """`(point_id, document_id, document_version, content_hash)` of every point.
+
+        Read-only scroll without a filter and without text; used to bind a
+        lexical index to this one (Spec 007 R5).
+        """
+        identities: list[tuple[str, str, int, str]] = []
+        offset: Any = None
+        while True:
+            records, offset = self._client.scroll(
+                self.collection,
+                limit=_SCROLL_PAGE,
+                offset=offset,
+                with_payload=models.PayloadSelectorInclude(
+                    include=["document_id", "document_version", "content_hash"]
+                ),
+                with_vectors=False,
+            )
+            for record in records:
+                payload = record.payload or {}
+                try:
+                    identities.append(
+                        (
+                            str(record.id),
+                            str(payload["document_id"]),
+                            int(payload["document_version"]),
+                            str(payload["content_hash"]),
+                        )
+                    )
+                except (KeyError, TypeError, ValueError):
+                    raise IndexBindingError(
+                        f"a point in collection '{self.collection}' has no "
+                        "readable document_id, document_version or content_hash."
+                    ) from None
+            if offset is None:
+                break
+        return identities

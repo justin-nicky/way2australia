@@ -281,3 +281,39 @@ Results record strategy, fusion parameters, lexical identity, leg ranks for rele
 - A `bm25` strategy that runs without the `bge-m3` extra or without Qdrant — deferred; every strategy binds the dense index for identical identity (user decision at design approval). Note for the next spec: BM25 must be able to run without Qdrant before it can serve as the FTS5 fallback (roadmap 13); the `dense_identity` copy in the lexical settings is the starting point.
 - Incremental lexical updates, lexical index built inside `make ingest` — deferred; full atomic rebuild.
 - Stemming, stopwords, per-language analyzers — roadmap 8.
+
+## As-built notes
+
+Recorded by the 2026-10-25 amendment from the T3 task review (round 1, user decision: "Decisions accepted"). Each note describes code as built in T3.
+
+- **`make index-lexical` options (T3).** Besides the design's CLI signature, the command takes `--embedder {bge_m3,fake}` (like `make ingest`), `--output` and `--config`. The `fake` option exists so a throwaway collection ingested with the fake embedder gets a matching `dense_identity` in the lexical file. The default reads the BGE-M3 identity from `config/ingestion.yaml` without loading the model.
+- **`LexicalIndex.bind_to` compares `hash_contract` (T3).** The lexical binding compares `hash_contract` with the dense index settings, although dense binding records `IndexSettings.hash_contract` and never compares it.
+- **Relative paths (T3).** A relative `W2A_LEXICAL_INDEX_DIR` or `--output` resolves against `--repo-root`.
+
+Recorded by the 2026-10-27 amendment from the T4 task review (round 1, user decision: "Decisions accepted").
+
+- **`LexicalIdentity` location (T4).** The model lives in `retrieval/models.py`, next to `RetrievalResult`.
+- **BM25 score (T4).** The reported score is `-bm25() + 0.0`: higher is better, and `+ 0.0` turns a `-0.0` into `0.0`.
+- **Non-object `payload_json` (T4).** A row whose `payload_json` is not valid JSON or not a JSON object is passed to `check_hit` as an empty payload and fails closed.
+- **Latency rule (T6, from T4 review F2).** Every leg and strategy is timed by one span that starts just after `validate_request` and ends after the last `check_hit`, so dense and BM25 latency measure the same work. As built in T4, `BM25Retriever` follows this rule and `DenseRetriever` stops its clock before `check_hit`; T6 moves the dense stop to match. Hybrid per-leg latency (`latency_ms.legs`) is each leg's own span.
+
+Recorded by the 2026-10-28 amendment from the T5 task review (round 2, user decision: "T5 approved").
+
+- **`FusionConfig` location (T5).** `FusionConfig` lives in `retrieval/fusion.py`, not `retrieval/strategy.py`, which avoids an import cycle with `hybrid.py`.
+- **`HybridRetriever` legs (T5).** `HybridRetriever` takes `Retriever` Protocol legs, not the concrete `DenseRetriever` and `BM25Retriever` classes, so tests can use stub legs. The hybrid result identity (collection, index version, embedder, device) comes from the dense leg, and a point listed twice in one leg counts only its first rank.
+
+Recorded by the amendment from the T6 task review (2026-10-28, round 2, user decision: "T6 approved").
+
+- **`RetrievalResult.leg_document_ranks` (T6).** `RetrievalResult` gains `leg_document_ranks: dict[str, list[str]] | None = None`: per leg, the deduplicated document IDs in leg order at candidate depth. Only `HybridRetriever` sets it. The result 2.1 per-case `leg_ranks` is derived from it: the document rank after dedupe, `null` only when the leg did not return the document within candidate depth. Chunk-level `leg_ranks` on hits (`FusedHit.leg_ranks`, CLI output) are unchanged. Dense output and dense `leg_ranks: null` are unchanged.
+
+Recorded by the 2026-10-28 amendment from the T10 implementation (user-accepted deviation).
+
+- **`make index-lexical` target outside a git work tree (T10).** `check_target_allowed` in `lexical/cli.py` always refuses a target in or under `knowledge/`, `evaluation/` or `config/`. Inside a git work tree it allows only a target that `git check-ignore` reports as ignored. Outside any git work tree there is nothing to check against, so an un-ignored target is allowed (R4 says "git-ignored location"; user-accepted deviation, 2026-10-28).
+
+Recorded by the `spec-reviewer` retrospective, round 1 (2026-10-28). Each note describes code as built and names where the change was approved.
+
+- **`retrieval/baseline.py` edited (T10).** The "Not changed" list above names `baseline.py`, but T10 changed `git_state` there: `git status --porcelain --untracked-files=all`, and an untracked file under `experiments/results/` no longer makes a run dirty (a tracked or staged change there still does). Approved by the 2026-10-28 change-log line (T9 round 1 review F1, code option chosen in T10); the legacy characterization test still passes, and the legacy `make retrieval-baseline` `git_dirty` follows the same rule (T10 review F3, accepted).
+- **`query_terms` return type (T3).** The "Interfaces / models" sketch shows `query_terms(text: str) -> list[str]`; as built (and as the R3 section says) it returns `QueryTerms(terms, truncated)`.
+- **2.1 file without a lexical identity (T10).** `evaluation/results.py` refuses at read time (exit 2 in `eval-compare`) a 2.1 `bm25` or `hybrid` file whose `lexical_index` is not an object; this check is not in the R10 table above. Approved by the 2026-10-28 change-log line (T7 round 1 review F2); recorded in D054.
+- **`run_security_evaluation` takes the retrieval config (T10).** It has no built-in fusion default; the CLI passes the `RetrievalConfig` loaded from `config/retrieval.yaml`. Approved by the 2026-10-28 change-log line (T8 round 1 review); recorded in D053.
+- **Shared lexical test helpers (T10).** The helpers live in `packages/rag/tests/lexical_support.py` (next to `conftest.py`), not in a fixture; test-only (T4 review F3, implementer's choice allowed by the box).

@@ -40,6 +40,7 @@ CANDIDATES_DIR = "evaluation/candidates"
 DEFAULT_LANGUAGE = "en"
 OWNER_REVIEW = "owner_review"
 GOLDEN_TYPE = "golden_answerable"
+PROMOTED_FIELDS = ("query", "relevant_document_ids", "expected_facts", "query_language")
 
 
 @dataclass(frozen=True)
@@ -199,6 +200,7 @@ def _validate_suite(
     known: set[str],
     eligible: set[str],
     case_ids_by_suite: dict[str, set[str]],
+    cases_by_suite: dict[str, dict[str, dict[str, Any]]],
 ) -> list[EvaluationProblem]:
     relative = suite_path.relative_to(repo_root).as_posix()
     manifest = read_json(suite_path)
@@ -214,6 +216,7 @@ def _validate_suite(
 
     seen_paths: set[str] = set()
     seen_case_ids: dict[str, str] = {}
+    case_rows: dict[str, dict[str, Any]] = {}
     case_lines = 0
     for dataset in datasets:
         if not isinstance(dataset, dict):
@@ -274,6 +277,7 @@ def _validate_suite(
                     )
                 else:
                     seen_case_ids[case_id] = dataset_path
+                    case_rows[case_id] = row
             row_suite = row.get("evaluation_suite_id")
             if (
                 isinstance(row_suite, str)
@@ -319,6 +323,7 @@ def _validate_suite(
         )
     if isinstance(suite_id, str) and suite_id:
         case_ids_by_suite[suite_id] = set(seen_case_ids)
+        cases_by_suite[suite_id] = case_rows
     return problems
 
 
@@ -328,6 +333,7 @@ def _validate_candidates(
     known: set[str],
     eligible: set[str],
     case_ids_by_suite: dict[str, set[str]],
+    cases_by_suite: dict[str, dict[str, dict[str, Any]]],
 ) -> list[EvaluationProblem]:
     directory = repo_root / CANDIDATES_DIR
     if not directory.is_dir():
@@ -370,6 +376,7 @@ def _validate_candidates(
                     known,
                     eligible,
                     case_ids_by_suite,
+                    cases_by_suite,
                 )
             )
     return problems
@@ -383,6 +390,7 @@ def _candidate_rules(
     known: set[str],
     eligible: set[str],
     case_ids_by_suite: dict[str, set[str]],
+    cases_by_suite: dict[str, dict[str, dict[str, Any]]],
 ) -> Iterator[EvaluationProblem]:
     def problem(field: str, reason: str) -> EvaluationProblem:
         return EvaluationProblem(relative, number, candidate_id, field, reason)
@@ -400,6 +408,7 @@ def _candidate_rules(
     proposed = row.get("proposed_case")
     if not isinstance(proposed, dict):
         return
+    yield from _promotion_problems(row, proposed, problem, cases_by_suite)
     yield from _document_problems(
         proposed.get("relevant_document_ids"),
         known,
@@ -425,6 +434,35 @@ def _candidate_rules(
             )
 
 
+def _promotion_problems(
+    row: dict[str, Any],
+    proposed: dict[str, Any],
+    problem: Any,
+    cases_by_suite: dict[str, dict[str, dict[str, Any]]],
+) -> Iterator[EvaluationProblem]:
+    """`review.promoted_as` must name a loaded suite and case that transcribe the
+    candidate. Messages carry field names only, never case text."""
+    review = row.get("review")
+    promoted = review.get("promoted_as") if isinstance(review, dict) else None
+    if promoted is None:
+        return
+    field = "review.promoted_as"
+    if not isinstance(promoted, dict):
+        yield problem(field, "must be an object with suite_id and case_id")
+        return
+    suite_id, case_id = promoted.get("suite_id"), promoted.get("case_id")
+    if not isinstance(suite_id, str) or suite_id not in cases_by_suite:
+        yield problem(field, "does not name a known suite")
+        return
+    case = cases_by_suite[suite_id].get(case_id) if isinstance(case_id, str) else None
+    if case is None:
+        yield problem(field, "does not name a case in that suite")
+        return
+    for name in PROMOTED_FIELDS:
+        if case.get(name) != proposed.get(name):
+            yield problem(f"{field}.{name}", "differs from the promoted case")
+
+
 def validate_evaluation(
     repo_root: Path, repository: DocumentRepository | None = None
 ) -> list[EvaluationProblem]:
@@ -439,13 +477,22 @@ def validate_evaluation(
     known, eligible = _document_ids(repo)
     problems: list[EvaluationProblem] = []
     case_ids_by_suite: dict[str, set[str]] = {}
+    cases_by_suite: dict[str, dict[str, dict[str, Any]]] = {}
     for suite_path in _suite_paths(root):
         problems.extend(
             _validate_suite(
-                root, suite_path, schemas, known, eligible, case_ids_by_suite
+                root,
+                suite_path,
+                schemas,
+                known,
+                eligible,
+                case_ids_by_suite,
+                cases_by_suite,
             )
         )
     problems.extend(
-        _validate_candidates(root, schemas, known, eligible, case_ids_by_suite)
+        _validate_candidates(
+            root, schemas, known, eligible, case_ids_by_suite, cases_by_suite
+        )
     )
     return problems

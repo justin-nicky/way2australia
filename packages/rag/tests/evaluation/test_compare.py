@@ -342,3 +342,138 @@ def test_cli_exit_codes(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> N
     err = capsys.readouterr().err
     assert err.startswith("not comparable:") and "13 -> 14" in err
     assert str(tmp_path) not in err and SECRET_QUERY not in err
+
+
+# --- Spec 007 R10: identity rules across strategies ---------------------------
+
+LEXICAL = {
+    "label": "c1.sqlite",
+    "tokenizer_name": "lexical-v1",
+    "tokenizer_version": "1",
+    "source_chunk_digest": "d" * 64,
+    "chunk_count": 13,
+}
+COMMITTED_V2 = (
+    REPO_ROOT / "experiments/results/retrieval-evaluation-idx-v1-20261024T193140Z.json"
+)
+
+
+def doc21(strategy: str = "hybrid", **over: Any) -> dict[str, Any]:
+    lexical = None if strategy == "dense" else dict(LEXICAL)
+    return doc(
+        schema_version="2.1",
+        retrieval_strategy=strategy,
+        lexical_index=lexical,
+        **over,
+    )
+
+
+def test_committed_1_0_versus_2_0_passes_with_identity_rules() -> None:
+    base = read_result(COMMITTED, "BASE")
+    result = compare(base, read_result(COMMITTED_V2, "CANDIDATE"))
+    assert result.passed
+    differs = [x for x in result.lines if "identity differs" in x]
+    assert all("git_commit" in x or "device" in x for x in differs)
+
+
+def test_dense_versus_hybrid_passes_with_identity_lines(tmp_path: Path) -> None:
+    result = run(tmp_path, doc21("dense"), doc21("hybrid"))
+    text = "\n".join(result.lines)
+    assert result.passed
+    assert "identity differs, retrieval_strategy: dense -> hybrid" in text
+    assert "identity differs, lexical_index: none -> lexical-v1 v1 digest" in text
+
+
+def test_dense_versus_bm25_is_not_refused(tmp_path: Path) -> None:
+    assert run(tmp_path, doc21("dense"), doc21("bm25")).passed
+    assert run(tmp_path, doc(), doc21("bm25")).passed  # 2.0 dense vs 2.1 bm25
+
+
+def test_collection_difference_names_both(tmp_path: Path) -> None:
+    message = refusal(tmp_path, doc(collection="w2a-a"), doc(collection="w2a-b"))
+    assert "collection changed w2a-a -> w2a-b" in message
+    assert "same collection, index_version, embedder and lexical index" in message
+
+
+@pytest.mark.parametrize("missing", ["absent", "null"])
+def test_missing_collection_compares_by_index_version(
+    tmp_path: Path, missing: str
+) -> None:
+    base = doc()
+    if missing == "absent":
+        del base["collection"]
+    else:
+        base["collection"] = None
+    result = run(tmp_path, base, doc(collection="other"))
+    text = "\n".join(result.lines)
+    assert result.passed
+    assert (
+        "collection not recorded in base.json; compared by index_version only" in text
+    )
+    assert "cand.json; compared" not in text
+    message = refusal(tmp_path, base, doc(collection="other", index_version="idx-v2"))
+    assert "index_version changed idx-v1 -> idx-v2" in message
+
+
+def test_index_version_difference_is_refused(tmp_path: Path) -> None:
+    message = refusal(tmp_path, doc(), doc(index_version="idx-v2"))
+    assert "index_version changed idx-v1 -> idx-v2" in message
+
+
+@pytest.mark.parametrize(
+    ("field", "value"), [("embedder_model_id", "m2"), ("embedder_revision", "r2")]
+)
+def test_embedder_difference_is_refused(tmp_path: Path, field: str, value: str) -> None:
+    settings = {"embedder_model_id": "m", "embedder_revision": "r1", field: value}
+    message = refusal(tmp_path, doc(), doc(index_settings=settings))
+    assert "embedder changed m@r1 -> " in message and value in message
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("source_chunk_digest", "e" * 64),
+        ("tokenizer_name", "lexical-v2"),
+        ("tokenizer_version", "2"),
+    ],
+)
+def test_lexical_identity_difference_is_refused(
+    tmp_path: Path, key: str, value: str
+) -> None:
+    other = doc21("bm25")
+    other["lexical_index"] = {**LEXICAL, key: value}
+    message = refusal(tmp_path, doc21("hybrid"), other)
+    assert "lexical index changed lexical-v1 v1 digest" in message
+    assert value in message
+
+
+def test_lexical_label_difference_alone_is_not_refused(tmp_path: Path) -> None:
+    other = doc21("bm25")
+    other["lexical_index"] = {**LEXICAL, "label": "renamed.sqlite", "chunk_count": 13}
+    assert run(tmp_path, doc21("hybrid"), other).passed
+
+
+def test_identity_refusals_join_existing_ones(tmp_path: Path) -> None:
+    message = refusal(tmp_path, doc(), doc(top_k=3, collection="x"))
+    assert "top_k changed 5 -> 3" in message
+    assert "collection changed c1 -> x" in message
+
+
+def test_embedder_pair_is_compared_not_the_joined_string(tmp_path: Path) -> None:
+    left = doc(index_settings={"embedder_model_id": "a@b", "embedder_revision": "c"})
+    right = doc(index_settings={"embedder_model_id": "a", "embedder_revision": "b@c"})
+    message = refusal(tmp_path, left, right)
+    assert "embedder changed a@b@c -> a@b@c" in message
+
+
+@pytest.mark.parametrize("strategy", ["bm25", "hybrid"])
+@pytest.mark.parametrize("lexical", [None, "text", ["x"]])
+def test_lexical_run_without_a_lexical_object_is_refused(
+    tmp_path: Path, strategy: str, lexical: object
+) -> None:
+    broken = doc21(strategy)
+    broken["lexical_index"] = lexical
+    message = refusal(tmp_path, doc21("hybrid"), broken)
+    assert f"is a {strategy} run without a lexical_index object" in message
+    message = refusal(tmp_path, broken, doc21("hybrid"))
+    assert "without a lexical_index object" in message

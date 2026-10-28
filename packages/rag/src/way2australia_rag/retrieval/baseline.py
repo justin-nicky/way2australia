@@ -41,6 +41,17 @@ class BaselineResult:
     document: dict[str, Any]
 
 
+RESULTS_DIR_PREFIX = "experiments/results/"
+
+
+def _is_untracked_result(porcelain_line: str) -> bool:
+    """An untracked file under ``experiments/results/`` (an earlier result file of
+    the same session) does not make a run dirty; a tracked change there does."""
+    return porcelain_line.startswith("?? ") and porcelain_line[3:].startswith(
+        RESULTS_DIR_PREFIX
+    )
+
+
 def git_state(repo_root: Path) -> tuple[str | None, bool | None]:
     """(commit, dirty) from git in `repo_root`; (None, None) if unavailable."""
     try:
@@ -53,7 +64,7 @@ def git_state(repo_root: Path) -> tuple[str | None, bool | None]:
             timeout=10,
         ).stdout.strip()
         status = subprocess.run(
-            ["git", "status", "--porcelain"],
+            ["git", "status", "--porcelain", "--untracked-files=all"],
             cwd=repo_root,
             capture_output=True,
             text=True,
@@ -62,7 +73,9 @@ def git_state(repo_root: Path) -> tuple[str | None, bool | None]:
         ).stdout
     except (OSError, subprocess.SubprocessError):
         return None, None
-    return head or None, bool(status.strip())
+    return head or None, any(
+        line.strip() and not _is_untracked_result(line) for line in status.splitlines()
+    )
 
 
 def _mean(values: list[float]) -> float:
