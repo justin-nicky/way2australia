@@ -137,13 +137,13 @@ Review reading order: `retrieval/access.py` diff → `retrieval/bm25.py` → inj
 
 ## T5 — RRF fusion, hybrid retriever and `config/retrieval.yaml`
 
-**State:** not started
+**State:** approved (2026-10-28)
 **Requirements:** R7, R8, R14
 
-- [ ] `retrieval/fusion.py`: pure `rrf_fuse` and `FusedHit` (design R7).
-- [ ] `retrieval/hybrid.py`: `HybridRetriever` (sequential legs at `candidate_depth`, no catch, cut to `top_k`, re-rank, `score_kind: "rrf"`, `leg_ranks`, `leg_latency_ms`, `query_terms_truncated` from the BM25 leg).
-- [ ] `config/retrieval.yaml` (design R8, `default_strategy: dense`) and `retrieval/strategy.py`: `RetrievalConfig` (Pydantic, `extra="forbid"`), `load_retrieval_config`, `build_retriever(strategy, ...)` as the only strategy-to-retriever mapping.
-- [ ] Tests (`test_fusion.py`, `test_hybrid.py`, `test_strategy.py`):
+- [x] `retrieval/fusion.py`: pure `rrf_fuse` and `FusedHit` (design R7).
+- [x] `retrieval/hybrid.py`: `HybridRetriever` (sequential legs at `candidate_depth`, no catch, cut to `top_k`, re-rank, `score_kind: "rrf"`, `leg_ranks`, `leg_latency_ms`, `query_terms_truncated` from the BM25 leg).
+- [x] `config/retrieval.yaml` (design R8, `default_strategy: dense`) and `retrieval/strategy.py`: `RetrievalConfig` (Pydantic, `extra="forbid"`), `load_retrieval_config`, `build_retriever(strategy, ...)` as the only strategy-to-retriever mapping.
+- [x] Tests (`test_fusion.py`, `test_hybrid.py`, `test_strategy.py`):
   - hand-computed fused scores and orders for two small legs, ties broken by best rank then `point_id`, weights;
   - empty BM25 leg (pure-`ml` query with no matching terms, and a zero-term query): hybrid order equals the dense order;
   - fail closed: a stub leg whose store returns a forbidden payload makes the hybrid query raise and return nothing; any other leg exception propagates (no single-leg fallback);

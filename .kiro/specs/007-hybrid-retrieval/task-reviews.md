@@ -259,3 +259,91 @@
 
 ### User decision
 - 2026-10-27 — approved. Verbatim: "T4 approved. Commit and push, then commit the graph separately. Decisions accepted: LexicalIdentity in retrieval/models.py; the BM25 score as -bm25() + 0.0; a non-object payload_json failing closed. Add these as explicit task boxes (planner amendment), not a running list: - F1 → T8: parametrize the clause-dropping test over all four forbidden row types (staff scope, other tenant, owned, missing owner). - F2 → T6: one latency span for every leg, ending after check_hit, so dense and BM25 are timed the same way. Update dense to match, and record the rule in the design. - F3 → T10: move the lexical test helpers into a shared fixture module or conftest.py, and remove the sys.path insert and the pyright ignore. Graphify: leave the stale community labels alone. `graphify label` uses the model, so it waits until the post-merge /graphify . --update. Don't commit the dated backup folder or the pending-labels file; add them to .gitignore if they keep appearing. dont start T5 yet."
+
+## T5 — round 1
+
+### Implementation
+- Model: claude-sonnet-5-5 (Sonnet 5.5); intended tier BEST_MINUS_ONE not compared against MODEL_PREFERENCES.md (subagent, no user to ask)
+- Files changed:
+  - new `packages/rag/src/way2australia_rag/retrieval/fusion.py` (`FusionConfig`, `FusedHit`, pure `rrf_fuse`), `retrieval/hybrid.py` (`HybridRetriever`), `retrieval/strategy.py` (`RetrievalConfig`, `load_retrieval_config`, `build_retriever`, `DEFAULT_CONFIG_PATH`);
+  - new `config/retrieval.yaml` (design R8, `default_strategy: dense`);
+  - new tests `packages/rag/tests/retrieval/test_fusion.py`, `test_hybrid.py`, `test_strategy.py`;
+  - `tasks.md` (T5 State and boxes), this file.
+- Verification run: `make verify` -> pass (ruff, format check, pyright 0 errors, skills-check, validate-knowledge OK, validate-evaluation OK, 780 passed, 1 skipped; 730 before); `git status --porcelain -- evaluation knowledge config` -> `?? config/retrieval.yaml` only. Not run: real BGE-M3; Qdrant server and `w2a-realcheck-*` untouched (tests use in-memory Qdrant and `tmp_path` lexical files); no CLI wiring (T6).
+- Notes:
+  - `FusionConfig` lives in `fusion.py` (not `strategy.py`) so `hybrid.py` can import it without a cycle; `RetrievalConfig` (in `strategy.py`) embeds it. Design names the type but not its home.
+  - `HybridRetriever` takes `Retriever` Protocol legs (the design says `DenseRetriever`, `BM25Retriever`; the Protocol accepts both and allows test stubs). Result identity (collection, index version, embedder, device) comes from the dense leg; `lexical` and `query_terms_truncated` from the BM25 leg; `latency_ms` is the hybrid span, `leg_latency_ms` each leg's own `latency_ms`.
+  - `rrf_fuse` keeps the first-seen chunk in `legs` iteration order (hybrid passes dense first); a point listed twice in one leg counts only its first rank; `leg_ranks` has one entry per leg, `None` when absent. Weights must be `> 0`, finite, with exactly the keys `dense` and `bm25`.
+  - Tests use real dense (fake embedder, in-memory Qdrant) and real BM25 (production seed corpus lexical file) for the shape and empty-leg cases (`zzqqxx`, punctuation-only queries: hybrid order equals the dense order), the clause-dropping BM25 double and a staff-point dense store double for fail closed, stub legs for the exception-propagation, depth/cut and validation cases, and a spy on `hybrid.rrf_fuse` for the "only checked hits reach fusion" test (plus an import check that `fusion.py` has no access/Qdrant/SQLite imports).
+  - `test_hybrid.py` imports helpers from `test_bm25` (relative import) and keeps the `tests/lexical` `sys.path` insert; both are T10's shared-helpers clean-up (T4 review F3).
+  - `graphify update .` ran without `--force` (2731 nodes, 7789 edges, 127 communities); a dated backup directory was created under `graphify-out/` (git-ignored). `graphify-out/` changes are uncommitted and not part of the task.
+- Usage: 132K tokens · 23 tool uses · 8:53
+
+### Review
+- Model: claude-opus-5-5 (Opus 5.5; matches the BEST tier for Claude Code)
+- Verdict: FAIL
+- Commands: `make verify` → pass, exit 0 (ruff check, `ruff format --check` 143 files, pyright 0 errors, skills-check 5 skills, `validate-knowledge` OK, `validate-evaluation` OK, 780 passed, 1 skipped; the Docker integration tests ran against the local Qdrant with their own throwaway collections); `make test-integration` → 20 passed, 761 deselected; `git status --porcelain -- evaluation knowledge config` → `?? config/retrieval.yaml` only (matches the allowed list). Reviewer probes (scratch directory, no repository file changed): (1) mutation of the tie-break: re-sorting `rrf_fuse` output by `(-score, point_id)` only (no best-rank step) and running every `test_fusion.py` ordering test against it → all pass; (2) `FusionConfig` coercion: `k: true` loads as `k=1`, `k: "60"` and `candidate_depth: "50"` load as integers, `k: 60.5` is refused. No Qdrant collection touched by the reviewer, no `w2a-realcheck-*`, no real model run.
+- Checks against the task and design:
+  - `rrf_fuse` is pure (imports only `base` constants, `models`, pydantic): `fused = Σ weights[leg] / (k + rank)` over the legs that returned the point, first rank only for a duplicate within a leg, first-seen chunk kept (dense passed first), `leg_ranks` with one entry per leg (`None` when absent), sort key `(-fused, best_rank, point_id)`. Arithmetic pinned by hand-computed scores (`1/61 + 1/62`, etc.) and weights.
+  - `HybridRetriever.retrieve`: `validate_request` before any leg (tested), dense then BM25 sequentially at `fusion.candidate_depth` (tested: both legs called with 50), no `try`/`except` anywhere (a forbidden BM25 row via the clause-dropping store, a forbidden dense point via a filter-ignoring store and a `RuntimeError` from either leg all propagate; nothing is returned), fuse, cut to `top_k`, re-rank 1..n, `score_kind: "rrf"`, `leg_ranks`, `leg_latency_ms` per leg, `lexical` and `query_terms_truncated` from the BM25 leg, dense identity from the dense leg. Authorization happens only inside each leg (`build_access_filter`/`build_sql_access_clause` plus `check_hit`); the spy test shows `rrf_fuse` receives exactly the dense leg's checked hits (D040).
+  - Empty BM25 leg: a no-match query and two zero-term queries give a hybrid order equal to the dense order (strictly decreasing `1/(60 + r)`).
+  - `config/retrieval.yaml` equals the design R8 block (`schema_version "1.0"`, `default_strategy: dense`, `rrf`, `k: 60`, equal weights `1.0`, `candidate_depth: 50`); `RetrievalConfig`/`FusionConfig` are `extra="forbid"` at both levels; refusals name the field and never the absolute path; the committed file loads (tested). `build_retriever` is the only strategy-to-retriever mapping and refuses `bm25`/`hybrid` without a lexical index.
+  - Scope: T5 file set only (no CLI wiring, result 2.1 or compare work); no new dependency; dense code untouched; the only protected-path change is the new `config/retrieval.yaml`; `graphify-out/` regenerated after the code change (not reviewed as task work).
+  - Design deviations recorded in the Implementation notes, judged acceptable: `FusionConfig` lives in `fusion.py`; `HybridRetriever` takes `Retriever` Protocol legs instead of the concrete classes.
+- Findings:
+  - F1 [MAJOR, IMPLEMENTATION, R7] The best-rank tie-break is not pinned by any test. `test_equal_scores_break_by_best_rank_before_point_id` gives `p` (best rank 1) and `z` (best rank 2) equal scores, but `"p" < "z"`, so ordering by `point_id` alone gives the same order; its comment ("`z` < `p` alphabetically would put z first") is wrong. Reviewer probe: dropping the best-rank step from the sort key leaves every `test_fusion.py` test passing. R7 requires "fused score descending, then best rank in either leg, then `point_id`", with unit tests pinning the orders, and the task box "ties broken by best rank then `point_id`" is checked. → Make the tied pair disagree between the two rules, for example rename `z` to a `point_id` that sorts before `p` (such as `a`) so best rank must win, and fix the comment. No product-code change is needed; the code is correct.
+  - F2 [MINOR, IMPLEMENTATION, R7] The task box and design ask for the empty-BM25-leg test on "a pure-`ml` query with no matching terms"; the test uses `zzqqxx` (Latin script) and two zero-term punctuation queries. Behavior does not depend on script, but the case the spec names is not exercised. → Add a Malayalam-script query whose `lexical-v1` terms match nothing in the production lexical file (assert `bm25.hits == []` first, as the test already does).
+  - F3 [MINOR, IMPLEMENTATION, R8] `build_retriever` compares with `is` and falls through to `HybridRetriever` for any value that is not `Strategy.DENSE` or `Strategy.BM25`. Pyright blocks a plain `str` today, but if T6 passes an argparse string (`"bm25"`) without converting it to `Strategy`, the factory would silently build a hybrid retriever (or refuse `"dense"` for a missing lexical index). → Optional: compare by value (`==`) or `Strategy(strategy)` first, add an explicit `HYBRID` branch, and raise `RetrievalConfigurationError` for anything else; or note it for T6.
+  - F4 [MINOR, IMPLEMENTATION, R8] `RetrievalConfig`/`FusionConfig` use pydantic lax mode: `k: true` loads as `k = 1`, and quoted numbers such as `k: "60"` are accepted. R8 says an unknown value is a configuration error. → Optional: `strict=True` on the numeric fields (or the models), with a test for `k: true`.
+- Summary for user (PASS only): not applicable (FAIL). For orientation in round 2, reading order of the change:
+  1. `packages/rag/src/way2australia_rag/retrieval/fusion.py` → `rrf_fuse`, `FusionConfig`, `FusedHit`: the pure RRF step and fusion settings.
+  2. `packages/rag/tests/retrieval/test_fusion.py`: hand-computed scores, tie-breaks (F1), weights, config validation.
+  3. `packages/rag/src/way2australia_rag/retrieval/hybrid.py` → `HybridRetriever.retrieve`: two legs at depth 50, no catch, fuse, cut, re-rank.
+  4. `packages/rag/tests/retrieval/test_hybrid.py`: fail-closed legs, error propagation, empty BM25 leg (F2), depth and cut, fusion spy.
+  5. `config/retrieval.yaml`: default `dense`, `k` 60, equal weights, depth 50.
+  6. `packages/rag/src/way2australia_rag/retrieval/strategy.py` → `load_retrieval_config`, `build_retriever` (F3, F4).
+  7. `packages/rag/tests/retrieval/test_strategy.py`: config refusals and the factory mapping; supporting edit: `tasks.md` State and boxes.
+- Usage: 121K tokens · 20 tool uses · 8:02
+
+## T5 — round 2
+
+### Implementation
+- Model: claude-sonnet-5-5 (Sonnet 5.5); intended tier BEST_MINUS_ONE not compared against MODEL_PREFERENCES.md (subagent, no user to ask)
+- Files changed: `retrieval/fusion.py` (strict numeric fields), `retrieval/strategy.py` (`build_retriever`), `tests/retrieval/test_fusion.py`, `test_hybrid.py`, `test_strategy.py`, `tasks.md` (State), this file.
+- Findings fixed:
+  - F1: the tie test now uses `a` (sorts before `p`) so best rank must win; comment corrected. Mutation check: sort key changed to `(-score, point_id)` -> `test_equal_scores_break_by_best_rank_before_point_id` fails (1 failed, 17 passed); key restored.
+  - F2: empty-BM25-leg test gains a Malayalam-script query (`ആനക്കൊമ്പ് ശില്പം`); the test's existing `bm25.hits == []` assertion confirms no match.
+  - F3: `build_retriever` converts with `Strategy(strategy)` (unknown value -> `RetrievalConfigurationError`), compares by value, has an explicit `HYBRID` branch, refuses anything else; tests for a string value, an unknown string and a string `hybrid` without lexical.
+  - F4: `k` and `candidate_depth` are `StrictInt`; weights are `StrictInt | StrictFloat` (`> 0`, finite), so `true` and quoted numbers are refused; six new config-refusal cases (`k` bool/quoted, depth bool/quoted, weight bool/quoted).
+- Verification run: `make verify` -> pass, exit 0 (788 passed, 1 skipped; 780 before); `git status --porcelain -- evaluation knowledge config` -> `?? config/retrieval.yaml` only. Not run: real BGE-M3; Qdrant server and `w2a-realcheck-*` untouched.
+- `graphify update .` ran without `--force` (2735 nodes, 7829 edges, 133 communities).
+- Usage: 89K tokens · 12 tool uses · 3:43
+
+### Review
+- Model: claude-opus-5-5 (Opus 5.5; matches the BEST tier for Claude Code)
+- Verdict: PASS
+- Commands: `make verify` → pass (ruff check, `ruff format --check` 143 files, pyright 0 errors, skills-check 5 skills, `validate-knowledge` OK, `validate-evaluation` OK, pytest 788 passed, 1 skipped; the 1 skip is the opt-in BGE-M3 smoke test, so the 20 integration tests ran inside it on their own throwaway collections); the non-test steps were re-run separately with exit 0. `make test-integration` was not run on its own (the permission classifier refused that call); `pytest -m integration --collect-only` → 20 collected, and they passed inside `make verify`. `git status --porcelain -- evaluation knowledge config` → `?? config/retrieval.yaml` only (matches the allowed list). Reviewer probes, no repository file changed: (1) F1 mutation in a scratch copy of `way2australia_rag` outside the repo (put first on `PYTHONPATH`, import path confirmed), sort key changed to `(-score, point_id)` → `test_fusion.py` 1 failed (`test_equal_scores_break_by_best_rank_before_point_id`, `'a' != 'p'`), 17 passed; (2) `query_terms("ആനക്കൊമ്പ് ശില്പം")` gives two Malayalam terms, so the new F2 case is a pure-`ml` query with terms that match nothing (not a zero-term query); the two punctuation queries are the zero-term cases. No Qdrant collection touched directly by the reviewer, no `w2a-realcheck-*`, no real model run.
+- Round 1 findings:
+  - F1 (MAJOR): fixed. The tied pair `p` (best rank 1) and `a` (best rank 2) both score exactly 0.5 with `k = 1` and weights 1.0/1.5; `point_id` alone would put `a` first, so the test pins best rank before `point_id`. Confirmed by the reviewer's own mutation check above.
+  - F2 (MINOR): fixed (Malayalam-script no-match query added; `bm25.hits == []` asserted before comparing with the dense order).
+  - F3 (MINOR): fixed. `build_retriever` converts with `Strategy(strategy)`, compares by value, refuses an unknown value with `RetrievalConfigurationError`, has explicit `BM25`/`HYBRID` branches; tests cover `"dense"`, `"semantic"` and `"hybrid"` without a lexical index.
+  - F4 (MINOR): fixed. `k` and `candidate_depth` are `StrictInt`, weights `StrictInt | StrictFloat` (`> 0`, finite); six new refusal cases (bool and quoted `k`, depth, weight), each naming the field and not the path.
+- Whole-task re-check: `rrf_fuse` pure, `(-fused, best_rank, point_id)`, first-seen chunk, one rank per leg; `HybridRetriever` validates first, runs dense then BM25 at `candidate_depth`, no catch, cuts to `top_k`, re-ranks, `score_kind: "rrf"`, `leg_ranks`, `leg_latency_ms`, `lexical`/`query_terms_truncated` from the BM25 leg; authorization only inside each leg (spy test). `config/retrieval.yaml` equals design R8. Scope stays within T5; no new dependency; `graphify-out/` regenerated.
+- Findings: none.
+- Summary for user (PASS only):
+  - Changed: new pure RRF fusion (`retrieval/fusion.py`), `HybridRetriever` (`retrieval/hybrid.py`), the strategy config and factory (`retrieval/strategy.py`, `config/retrieval.yaml`, default `dense`), with three new test files. Round 2 tightened the tie-break test, added a Malayalam empty-leg case, made `build_retriever` safe for plain strings and made config numbers strict.
+  - Verified by: `make verify` (788 passed, 1 skipped, integration tests included), protected-path check, and a reviewer mutation check showing the tie-break test fails without the best-rank step.
+  - Worth your attention: `FusionConfig` lives in `fusion.py` (not `strategy.py`) to avoid an import cycle; `HybridRetriever` takes `Retriever` Protocol legs rather than the concrete classes (design names the concrete ones). `test_hybrid.py` imports helpers from `test_bm25` and inserts a `sys.path` entry; that clean-up is already assigned to T10. Nothing is wired to a CLI yet (T6).
+  - Reading order:
+    1. `config/retrieval.yaml`: the settings everything reads (default `dense`, `k` 60, equal weights, depth 50).
+    2. `packages/rag/src/way2australia_rag/retrieval/strategy.py` → `load_retrieval_config`, `build_retriever`: config validation and the only strategy-to-retriever mapping.
+    3. `packages/rag/src/way2australia_rag/retrieval/hybrid.py` → `HybridRetriever.retrieve`: two legs at depth 50, no catch, fuse, cut, re-rank.
+    4. `packages/rag/src/way2australia_rag/retrieval/fusion.py` → `rrf_fuse`, `FusionConfig`, `FusedHit`: the pure RRF step and strict fusion settings.
+    5. `packages/rag/tests/retrieval/test_fusion.py`: hand-computed scores, both tie-breaks, weights, config bounds.
+    6. `packages/rag/tests/retrieval/test_hybrid.py`: fail-closed legs, error propagation, empty BM25 leg (Latin, Malayalam, zero-term), depth and cut, fusion spy.
+    7. `packages/rag/tests/retrieval/test_strategy.py`: config refusals (including strict numbers) and the factory mapping.
+    8. Supporting edits: `tasks.md` State and boxes.
+- Usage: 110K tokens · 27 tool uses · 6:48
+
+### User decision
+- 2026-10-28 — approved. Verbatim: "T5 approved. Commit and push, then commit the graph separately. Record in the design As-built notes, now or in T10: FusionConfig lives in fusion.py (avoids an import cycle), and HybridRetriever takes Retriever Protocol legs, not the concrete classes. Then start T6."
