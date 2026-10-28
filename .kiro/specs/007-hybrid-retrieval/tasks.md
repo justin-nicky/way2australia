@@ -1,6 +1,6 @@
 # 007 — Hybrid Retrieval Tasks
 
-Status: all tasks approved (2026-10-28)
+Status: verified (2026-10-28, merged 3cf70eb)
 
 Implement the tasks in order; each depends on the ones before it. Requirements: `requirements.md` (approved 2026-10-25). Design: `design.md` (approved 2026-10-25).
 
