@@ -1,656 +1,852 @@
 # Graph Report - way2australia  (2026-10-28)
 
 ## Corpus Check
-- 239 files · ~225,755 words
+- 65 files · ~230,763 words
 - Verdict: corpus is large enough that graph structure adds value.
-- Unclassified: 31 file(s) not represented in the graph (top: (none) 20, .jsonl 9, .example 1)
 
 ## Summary
-- 2892 nodes · 8599 edges · 135 communities (110 shown, 25 thin omitted)
-- Extraction: 84% EXTRACTED · 16% INFERRED · 0% AMBIGUOUS · INFERRED: 1409 edges (avg confidence: 0.92)
+- 3294 nodes · 8702 edges · 175 communities (146 shown, 29 thin omitted)
+- Extraction: 86% EXTRACTED · 14% INFERRED · 0% AMBIGUOUS · INFERRED: 1192 edges (avg confidence: 0.91)
 - Token cost: 0 input · 0 output
 
-## Graph Freshness
-- Built from commit: `7dfb160a`
-- Run `git rev-parse HEAD` and compare to check if the graph is stale.
-- Run `graphify update .` after code changes (no API cost).
-
 ## Community Hubs (Navigation)
-- QdrantIndexStore
-- asyncio
-- Strategy
-- HeadingChunker
-- test_validate.py
-- test_lexical_tokenizer.py
-- test_legacy_baseline_snapshot.py
-- Eval Compare Gate
-- 007 — Hybrid Retrieval Tasks
-- test_baseline.py
-- test_suite_v2.py
+- Access and Hybrid Design
+- Task Review Log (T7)
+- Security Fixture Corpus
+- Baseline Test Helpers
+- Evaluation Schemas
+- Spec 007 Requirements
+- Review Log Imports
+- Fake Embedder
+- Dense Index Design
+- Runtime Settings and CLI
+- Index Settings Mismatch
+- Strategy and Results
+- Lexical Tokenizer
+- Task Review Log (T8)
 - Model Tiers
-- KnowledgeDocument
-- test_retrieval_eval.py
-- build_security_index
-- test_server_filter_keeps_every_forbidden_point_out
 - Day-1 Data and Sources
-- Architecture Decisions
+- Strategy Eval Tests
+- Document Model Validation
 - Index Binding Errors
-- test_document_models.py
-- rrf_fuse
-- test_validate_knowledge.py
+- Document Model Tests
+- Retrieval Eval Tests
+- Ingestion Service Tests
+- Date and Policy Tests
 - BGE-M3 Adapter
-- Live-count Test Helpers
-- lexical_support.py
-- test_lexical_build.py
-- list_eligible_documents
-- AccessContext
-- suite.py
-- Architecture Components
-- FastAPI Health Endpoint
-- Manifest Loading
-- DenseIndex
-- check_target_allowed
-- test_content_hash.py
-- Roadmap
-- json
-- 007 — Hybrid Retrieval Requirements
-- lexical/store.py
-- sync_agent_skills.py
-- test_goldens.py
-- repositories/__init__.py
-- Access Policy Config
-- Constitution Principles
-- Docker Compose Qdrant
-- Authorization Design
-- Agent Workflow Skills
-- Ingestion Config File
-- Engineering Conventions
-- Phase 2 Governance
-- Project Commands
-- documents/__init__.py
-- Packages and Pricing
-- Agent Project Rules
-- retrieval/test_cli.py
-- Spec 002 Repository Design
-- Language Onboarding
-- Current State
-- Spec 001 Foundation
-- Spec 005 Retrieval Design
-- Spec 006 Loader and Snapshot
-- Tech Stack
-- CCL Booking and Fees
-- Retrieval Roadmap Ideas
-- Spec 006 Security Gate
-- Source Precedence Config
-- CCL Candidate Rules
-- Planned Apps and AWS
-- Spec 004 Eligibility Design
-- Product Context
-- CCL Format and Scoring
-- Spec 006 Validation Design
-- Spec 006 Retrieval Eval Design
-- Vocabulary and Free Access
-- Spec 002 Reviews
-- Spec 006 Overview
-- Versioning and Releases
-- typing
-- Master Plan Overview
-- Deployment and Degradation Plan
-- Plan Repository Concepts
-- Spec 004-005 Retros
-- Spec 006 Compare Design
-- Payments and Support
-- Migration Points
-- Security Plan
-- Multilingual Plan
-- Mission
-- Business Overview
-- Materials and Practice
-- Implementer Codex Policy
-- Orchestrator Codex Policy
-- Spec Reviewer Codex Policy
-- Task Reviewer Codex Policy
-- Analytics Schemas
-- Source Truth Principles
-- Plan Metadata
-- Docs Reading Order
-- Workspace Packages
-- Analytics Plan
-- Plan Spec Sequence
-- Root Project
-- API Project
-- Observability Project
-- CountingEmbedder
-- test_repository_contract.py
-- pytest
-- test_bm25.py
-- fusion
-- evaluation/cli.py
-- retrieval/test_access.py
-- SpyIndex
-- embedder_identity
-- test_status_handling.py
-- test_lexical_cli.py
-- Strategy
-- hashing.py
-- test_security_eval.py
-- test_failed_write_removes_partial_file
-- Development Workflow
-- test_strategy_eval.py
-- FakeEmbedder
-- evaluation/test_cli.py
-- RuntimeSettings
-- retrieval_eval.py
-- test_forbidden_bm25_hit_fails_the_whole_query
-- dense_equivalence.py
+- Lexical Package
+- Lexical Build and Payload
+- Chunker
+- BGE-M3 Embedder Module
+- Manifest Validation
+- Evaluation CLI Tests
+- Security Gate Design
+- Eligibility Policy
+- Retrieval Package
+- Content Hashing
+- Lexical CLI Tests
+- Orchestrator and Phase 2
+- Task Review Log (T9)
+- Lexical Test Support
+- Health Endpoint
+- Evaluation Slices
+- Community 40
+- Community 41
+- Community 42
+- Community 43
+- Community 44
+- Community 45
+- Community 46
+- Community 47
+- Community 48
+- Community 49
+- Community 50
+- Community 51
+- Community 52
+- Community 53
+- Community 54
+- Community 55
+- Community 56
+- Community 57
+- Community 58
+- Community 59
+- Community 60
+- Community 61
+- Community 62
+- Community 63
+- Community 64
+- Community 65
+- Community 66
+- Community 67
+- Community 68
+- Community 69
+- Community 70
+- Community 71
+- Community 72
+- Community 73
+- Community 74
+- Community 75
+- Community 76
+- Community 77
+- Community 78
+- Community 79
+- Community 80
+- Community 81
+- Community 82
+- Community 83
+- Community 84
+- Community 85
+- Community 86
+- Community 87
+- Community 88
+- Community 89
+- Community 90
+- Community 91
+- Community 92
+- Community 93
+- Community 94
+- Community 95
+- Community 96
+- Community 97
+- Community 98
+- Community 99
+- Community 100
+- Community 101
+- Community 102
+- Community 103
+- Community 104
+- Community 105
+- Community 106
+- Community 107
+- Community 108
+- Community 109
+- Community 110
+- Community 111
+- Community 112
+- Community 113
+- Community 114
+- Community 115
+- Community 116
+- Community 117
+- Community 118
+- Community 119
+- Community 120
+- Community 121
+- Community 122
+- Community 123
+- Community 124
+- Community 125
+- Community 126
+- Community 127
+- Community 128
+- Community 129
+- Community 130
+- Community 131
+- Community 132
+- Community 133
+- Community 134
+- Community 135
+- Community 136
+- Community 137
+- Community 138
+- Community 139
+- Community 140
+- Community 141
+- Community 142
+- Community 143
+- Community 144
+- Community 145
+- Community 146
+- Community 147
+- Community 148
+- Community 149
+- Community 150
+- Community 151
+- Community 152
+- Community 153
+- Community 154
+- Community 155
+- Community 156
+- Community 157
+- Community 158
+- Community 160
+- Community 163
+- Community 164
+- Community 165
+- Community 166
+- Community 169
+- Community 172
+- Community 173
+- Community 174
 
 ## God Nodes (most connected - your core abstractions)
-1. `DenseIndex` - 88 edges
-2. `LocalDocumentRepository` - 69 edges
-3. `FakeEmbedder` - 56 edges
-4. `EvaluationConfigurationError` - 55 edges
-5. `Strategy` - 53 edges
-6. `run_retrieval_evaluation()` - 49 edges
-7. `HeadingChunker` - 49 edges
-8. `QdrantIndexStore` - 49 edges
-9. `DenseRetriever` - 49 edges
-10. `Architecture Decisions` - 47 edges
+1. `DenseIndex` - 84 edges
+2. `Architecture Decisions (DECISIONS.md)` - 55 edges
+3. `Strategy` - 53 edges
+4. `DenseRetriever` - 48 edges
+5. `KnowledgeDocument` - 44 edges
+6. `QdrantIndexStore` - 42 edges
+7. `ResolvedAccess` - 42 edges
+8. `run_security_evaluation()` - 38 edges
+9. `LocalDocumentRepository` - 34 edges
+10. `HeadingChunker` - 34 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `R10 — `eval-compare` identity rules (`compare.py`)` --references--> `_refusals()`  [INFERRED]
-  .kiro/specs/007-hybrid-retrieval/design.md → packages/rag/src/way2australia_rag/evaluation/compare.py
-- `User decision` --references--> `git_state()`  [INFERRED]
-  .kiro/specs/007-hybrid-retrieval/task-reviews.md → packages/rag/src/way2australia_rag/retrieval/baseline.py
 - `Testing / evaluation strategy` --references--> `rrf_fuse()`  [INFERRED]
   .kiro/specs/007-hybrid-retrieval/design.md → packages/rag/src/way2australia_rag/retrieval/fusion.py
-- `Dependencies` --references--> `AccessContext`  [INFERRED]
-  .kiro/specs/007-hybrid-retrieval/requirements.md → packages/core/src/way2australia_core/access.py
-- `Review` --references--> `_security()`  [INFERRED]
-  .kiro/specs/007-hybrid-retrieval/task-reviews.md → packages/rag/src/way2australia_rag/evaluation/cli.py
+- `R10 — `eval-compare` identity rules (`compare.py`)` --references--> `_refusals()`  [INFERRED]
+  .kiro/specs/007-hybrid-retrieval/design.md → packages/rag/src/way2australia_rag/evaluation/compare.py
+- `Acceptance criteria` --references--> `dense()`  [INFERRED]
+  .kiro/specs/007-hybrid-retrieval/requirements.md → packages/rag/tests/retrieval/test_bm25.py
+- `Acceptance criteria` --references--> `dense()`  [INFERRED]
+  .kiro/specs/007-hybrid-retrieval/requirements.md → packages/rag/tests/retrieval/test_bm25.py
+- `Acceptance criteria` --references--> `dense()`  [INFERRED]
+  .kiro/specs/007-hybrid-retrieval/requirements.md → packages/rag/tests/retrieval/test_bm25.py
 
 ## Import Cycles
 - None detected.
 
 ## Hyperedges (group relationships)
-- **Authorization enforced inside every retrieval leg** — docs_project_decisions_d035, docs_project_decisions_d040, docs_project_architecture_check_hit, docs_project_architecture_build_access_filter [EXTRACTED 1.00]
 - **Evaluation make targets sharing the suite loader** — _kiro_specs_006_evaluation_framework_design_validate_evaluation, _kiro_specs_006_evaluation_framework_design_eval_retrieval, _kiro_specs_006_evaluation_framework_design_eval_security, _kiro_specs_006_evaluation_framework_design_eval_compare, _kiro_specs_006_evaluation_framework_design_suite_loader [EXTRACTED 1.00]
 - **Guest authorization path (resolve, filter, re-check)** — _kiro_specs_005_dense_retrieval_baseline_design_accesscontext, _kiro_specs_005_dense_retrieval_baseline_design_resolve_access, _kiro_specs_005_dense_retrieval_baseline_design_build_access_filter, _kiro_specs_005_dense_retrieval_baseline_design_check_hit [EXTRACTED 1.00]
 - **Ingestion pipeline components** — _kiro_specs_004_ingestion_baseline_design_ingestionservice, _kiro_specs_004_ingestion_baseline_design_headingchunker, _kiro_specs_004_ingestion_baseline_design_embedder_protocol, _kiro_specs_004_ingestion_baseline_design_qdrantindexstore [EXTRACTED 1.00]
 - **Authorization hard gate construction** — _kiro_specs_006_evaluation_framework_design_eval_security, _kiro_specs_006_evaluation_framework_design_security_index, _kiro_specs_006_evaluation_framework_design_forbidden_variants, _kiro_specs_006_evaluation_framework_design_one_access_path, _kiro_specs_006_evaluation_framework_design_security_gate [EXTRACTED 1.00]
-- **Task-gated spec workflow roles** — agent_skills_spec_orchestrator_skill_spec_orchestrator_skill, agent_skills_spec_planner_skill_spec_planner_skill, agent_skills_spec_implementer_skill_spec_implementer_skill, agent_skills_task_reviewer_skill_task_reviewer_skill, agent_skills_spec_reviewer_skill_spec_reviewer_skill [EXTRACTED 1.00]
+- **Task-gated spec workflow roles** — agent_skills_spec_planner_skill_spec_planner_skill, agent_skills_spec_implementer_skill_spec_implementer_skill, agent_skills_task_reviewer_skill_task_reviewer_skill, agent_skills_spec_reviewer_skill_spec_reviewer_skill [EXTRACTED 1.00]
 - **Task-gated workflow roles** — _kiro_specs_003_task_gated_workflow_design_spec_orchestrator, _kiro_specs_003_task_gated_workflow_design_spec_implementer, _kiro_specs_003_task_gated_workflow_design_task_reviewer, _kiro_specs_003_task_gated_workflow_design_spec_planner, _kiro_specs_003_task_gated_workflow_design_spec_reviewer [EXTRACTED 1.00]
 - **Language, access and source authority separation** — docs_knowledge_schema_and_metadata_access_scope, docs_knowledge_schema_and_metadata_lote_languages, docs_knowledge_schema_and_metadata_authorization_vs_language_independence, docs_knowledge_source_of_truth_source_precedence [INFERRED 0.75]
 - **Knowledge Release composition** — way2australia_ai_platform_implementation_plan_knowledge_release, way2australia_ai_platform_implementation_plan_evaluation_suite, way2australia_ai_platform_implementation_plan_release_manifest, way2australia_ai_platform_implementation_plan_document_manifest [INFERRED 0.75]
 - **Security regression controls** — way2australia_ai_platform_implementation_plan_staff_only_canary, way2australia_ai_platform_implementation_plan_poisoned_public_document, way2australia_ai_platform_implementation_plan_graceful_degradation, way2australia_ai_platform_implementation_plan_authorization_before_generation [INFERRED 0.75]
 - **Hybrid retrieval pipeline (dense, BM25, RRF, reranker)** — way2australia_ai_platform_implementation_plan_bge_m3, way2australia_ai_platform_implementation_plan_hybrid_rrf, way2australia_ai_platform_implementation_plan_reranker, way2australia_ai_platform_implementation_plan_qdrant [INFERRED 0.85]
 - **Task-gated spec workflow** — docs_project_decisions_d023, docs_project_decisions_d031, docs_project_workflow_task_gated_loop, docs_project_workflow_retrospective [INFERRED 0.85]
+- **Authorization applied inside every retrieval leg before fusion** — docs_project_decisions_d035, docs_project_decisions_d040, kiro_specs_007_hybrid_retrieval_design_bm25_retriever, kiro_specs_007_hybrid_retrieval_design_hybrid_retriever [EXTRACTED 0.95]
+- **Lexical stack: tokenizer, FTS5 store and index-lexical command** — kiro_specs_007_hybrid_retrieval_design_lexical_v1_tokenizer, kiro_specs_007_hybrid_retrieval_design_sqlite_fts5_lexical_store, docs_project_commands_make_index_lexical [INFERRED 0.85]
+- **Default strategy decision: R13 rule, T9 runs, D055** — kiro_specs_007_hybrid_retrieval_requirements_r13_default_strategy_decision, kiro_specs_007_hybrid_retrieval_tasks_t9_comparison_gate, docs_project_decisions_d055 [EXTRACTED 0.95]
+- **Strategy retrievers sharing the Retriever Protocol** — docs_project_architecture_dense_retriever, docs_project_architecture_bm25_retriever, docs_project_architecture_hybrid_retriever, docs_project_architecture_retriever_protocol [INFERRED 0.85]
+- **Authorization enforcement chain inside retrievers** — docs_project_architecture_resolve_access, docs_project_architecture_build_access_filter, docs_project_architecture_sql_access_clause, docs_project_architecture_check_hit [EXTRACTED 1.00]
+- **Knowledge Release components** — docs_project_architecture_document_snapshot, docs_project_decisions_c_evaluation_suite, docs_project_architecture_rag_config, docs_project_architecture_index_version, docs_project_architecture_knowledge_release [EXTRACTED 1.00]
+- **Hybrid retrieval setup order: ingest, index-lexical, retrieve/eval** — docs_project_commands_make_ingest, docs_project_commands_make_index_lexical, docs_project_commands_make_retrieve, docs_project_commands_make_eval_retrieval [EXTRACTED 1.00]
+- **Evaluation command group sharing evaluation.cli module** — docs_project_commands_make_validate_evaluation, docs_project_commands_make_eval_retrieval, docs_project_commands_make_eval_security, docs_project_commands_make_eval_compare, docs_project_commands_evaluation_cli_module [EXTRACTED 1.00]
+- **Checks composing make verify** — docs_project_commands_make_verify, docs_project_commands_make_lint, docs_project_commands_make_typecheck, docs_project_commands_make_test, docs_project_commands_make_skills_check, docs_project_commands_make_validate_knowledge, docs_project_commands_make_validate_evaluation [INFERRED 0.85]
+- **Spec 007 real strategy comparison (dense, BM25, hybrid) on public-eval-v2** — docs_project_current_state_result_dense_2_1, docs_project_current_state_result_bm25, docs_project_current_state_result_hybrid, docs_project_current_state_baseline_dense_v2_20261025 [EXTRACTED 1.00]
+- **Hybrid retrieval stack implemented by Spec 007** — docs_project_current_state_cap_lexical_index, docs_project_current_state_cap_bm25_retriever, docs_project_current_state_cap_hybrid_rrf, docs_project_current_state_cap_strategy_flag, docs_project_current_state_cap_dense_retrieval [EXTRACTED 1.00]
+- **Evaluation toolchain: eval-retrieval, eval-security, eval-compare, suite v2** — docs_project_current_state_cap_eval_framework, docs_project_current_state_cap_eval_security, docs_project_current_state_cap_eval_compare, docs_project_current_state_cap_suite_v2 [EXTRACTED 1.00]
+- **Authorization-during-retrieval chain** — docs_project_decisions_d006, docs_project_decisions_d035, docs_project_decisions_d040, docs_project_decisions_d045, docs_project_decisions_d052 [INFERRED 0.85]
+- **Spec-driven workflow decisions** — docs_project_decisions_d021, docs_project_decisions_d022, docs_project_decisions_d023, docs_project_decisions_d031 [INFERRED 0.85]
+- **Evaluation format and gates** — docs_project_decisions_d037, docs_project_decisions_d043, docs_project_decisions_d044, docs_project_decisions_d047, docs_project_decisions_d053, docs_project_decisions_d054 [INFERRED 0.85]
+- **Hybrid retrieval pipeline: dense, lexical, fusion, rerank** — docs_project_tech_stack_qdrant, docs_project_tech_stack_bge_m3, docs_project_tech_stack_sqlite_fts5, docs_project_tech_stack_bm25, docs_project_tech_stack_rrf, docs_project_tech_stack_reranking [INFERRED 0.85]
+- **Intentionally avoided choices group** — docs_project_tech_stack_langgraph, docs_project_tech_stack_bedrock_kb, docs_project_tech_stack_bedrock_agents, docs_project_tech_stack_kubernetes, docs_project_tech_stack_multi_vector_db, docs_project_tech_stack_agent_orchestration, docs_project_tech_stack_fine_tuning, docs_project_tech_stack_microservices, docs_project_tech_stack_heavy_frameworks [EXTRACTED 1.00]
+- **Phase 1 AWS deployment stack** — docs_project_tech_stack_mumbai_region, docs_project_tech_stack_phase1_aws_services, docs_project_tech_stack_terraform, docs_project_tech_stack_github_actions, docs_project_tech_stack_cloudwatch [INFERRED 0.75]
 
-## Communities (135 total, 25 thin omitted)
+## Communities (175 total, 29 thin omitted)
 
-### Community 0 - "QdrantIndexStore"
+### Community 0 - "Access and Hybrid Design"
 Cohesion: 0.05
-Nodes (51): Acceptance criteria, R4 — Lexical index build (`make index-lexical`), IndexSettingsMismatchError, PointPayload, build_index_settings(), compare(), IndexSettings, mismatch_message() (+43 more)
+Nodes (60): 007 — Hybrid Retrieval Design, Alternatives / deferred decisions, As-built notes, Data flow, Design summary, Error and failure behavior, Interfaces / models, Observability (+52 more)
 
-### Community 1 - "asyncio"
-Cohesion: 0.16
-Nodes (21): LocalRepositoryConfig, test_repository_content_hash_is_content_hash_v1(), test_seed_corpus_is_entirely_eligible_for_guest(), _copy_seed(), seed_repository(), test_documents_outside_approved_roots_are_never_loaded(), test_get_document_by_id_and_version(), test_get_document_missing_raises_not_found() (+13 more)
+### Community 1 - "Task Review Log (T7)"
+Cohesion: 0.07
+Nodes (69): Implementation, Review, T7 — round 1, User decision, _changed(), compare(), Comparison, _delta_line() (+61 more)
 
-### Community 2 - "Strategy"
+### Community 2 - "Security Fixture Corpus"
 Cohesion: 0.05
-Nodes (66): 007 — Hybrid Retrieval Design, Alternatives / deferred decisions, As-built notes, Data flow, Design summary, Error and failure behavior, Interfaces / models, Observability (+58 more)
+Nodes (31): build_security_repository(), _fixture_files(), DocumentRepositoryError, DocumentValidationError, DuplicateDocumentError, split_frontmatter(), _StringDateLoader, compute_body_sha256() (+23 more)
 
-### Community 3 - "HeadingChunker"
-Cohesion: 0.05
-Nodes (62): R3 — Tokenizer `lexical-v1` (`lexical/tokenizer.py`), _canary_points(), Chunk, Chunker, HeadingChunker, _is_word_char(), _parse_sections(), _Section (+54 more)
-
-### Community 4 - "test_validate.py"
+### Community 3 - "Baseline Test Helpers"
 Cohesion: 0.06
-Nodes (51): R1 — Suite v2, Implementation, Review, T1 — round 1, User decision, EvaluationSchemas, _candidate_rules(), problem() (+43 more)
+Nodes (46): retrieve_world(), case(), clean_env(), cli_run(), DeviceStub, _git(), run(), seeded() (+38 more)
 
-### Community 5 - "test_lexical_tokenizer.py"
-Cohesion: 0.12
-Nodes (14): _is_token_char(), QueryTerms, tokenize(), test_business_008_words_stay_whole(), test_deterministic(), test_english_punctuation_digits_and_case(), test_golden_file_is_the_source_of_the_pins(), test_golden_queries_pin_exact_tokens() (+6 more)
+### Community 4 - "Evaluation Schemas"
+Cohesion: 0.06
+Nodes (51): Implementation, Review, T1 — round 1, User decision, _candidate_rules(), problem(), _describe(), _document_ids() (+43 more)
 
-### Community 6 - "test_legacy_baseline_snapshot.py"
-Cohesion: 0.13
-Nodes (15): clean_env(), _Factory, _FixedDatetime, _record_opens(), note(), wrap_func(), inner(), wrap_method() (+7 more)
+### Community 5 - "Spec 007 Requirements"
+Cohesion: 0.06
+Nodes (48): Components / boundaries, R10 — `eval-compare` identity rules (`compare.py`), R12 — Docker test, R1 — Suite v2, R4 — `make index-lexical` (`lexical/cli.py`), R4/R5 — Lexical store (`lexical/store.py`, `lexical/build.py`), R6 — `BM25Retriever` (`retrieval/bm25.py`), R7 — Fusion and `HybridRetriever` (`retrieval/fusion.py`, `hybrid.py`) (+40 more)
 
-### Community 7 - "Eval Compare Gate"
-Cohesion: 0.07
-Nodes (70): Implementation, Review, T7 — round 1, User decision, _changed(), compare(), Comparison, _delta_line() (+62 more)
-
-### Community 8 - "007 — Hybrid Retrieval Tasks"
-Cohesion: 0.15
-Nodes (12): 007 — Hybrid Retrieval Tasks, Out of this spec, T1 — Evaluation Suite `public-eval-v2`, T2 — v2 dense baseline (user-owned gate), T7 — `eval-compare` identity rules, T8 — Security gate for BM25 and hybrid, Docker isolation test, T9 — Strategy comparison and default-strategy decision (user-owned gate), Verification (+4 more)
-
-### Community 9 - "test_baseline.py"
+### Community 6 - "Review Log Imports"
 Cohesion: 0.05
-Nodes (51): IndexPoint, DenseRetriever, client_with_forbidden(), FilterDroppingIndex, test_forbidden_points_are_never_returned(), test_store_dropping_the_filter_fails_closed(), case(), clean_env() (+43 more)
+Nodes (26): Implementation, Review, T2 — round 1, User decision, T2 — v2 dense baseline (user-owned gate), Verification, dedupe_sections(), section_key() (+18 more)
 
-### Community 10 - "test_suite_v2.py"
+### Community 7 - "Fake Embedder"
+Cohesion: 0.06
+Nodes (40): FakeEmbedder, clean_env(), _factory(), _run(), test_agrees_with_day1_baseline(), test_builds_exactly_one_embedder_per_run(), test_collection_base_comes_from_environment(), test_config_refuses_missing_or_floating_revision() (+32 more)
+
+### Community 8 - "Dense Index Design"
 Cohesion: 0.09
-Nodes (30): load_schemas(), test_existing_schema_is_referenced_not_copied(), test_missing_schema_is_configuration_error(), test_per_type_required_field_enforced(), test_schema_files_are_valid_draft_2020_12(), test_valid_rows_pass(), committed(), edit_jsonl() (+22 more)
+Nodes (29): Decisions resolved before drafting, DenseIndex, DenseRetriever, client_with_forbidden(), FilterDroppingIndex, test_forbidden_points_are_never_returned(), test_store_dropping_the_filter_fails_closed(), test_formula_shows_the_cap_when_k_reaches_document_count() (+21 more)
 
-### Community 11 - "Model Tiers"
-Cohesion: 0.05
-Nodes (20): Model Preferences, Agent Skills README, Implementation Checklist, Spec Implementer Skill, task-reviews.md Implementation Block, Orchestrator State Machine, Spec Orchestrator Skill, Design Template (+12 more)
+### Community 9 - "Runtime Settings and CLI"
+Cohesion: 0.08
+Nodes (23): _authority_map(), _compare(), default_security_output_path(), format_security_summary(), format_summary(), main(), _retrieval(), _security() (+15 more)
 
-### Community 12 - "KnowledgeDocument"
-Cohesion: 0.07
-Nodes (9): _check_language_code(), KnowledgeDocument, _document_ids(), collect(), DocumentQuery, DocumentRepository, DocumentNotFoundError, ListRepository (+1 more)
+### Community 10 - "Index Settings Mismatch"
+Cohesion: 0.14
+Nodes (25): IndexSettingsMismatchError, IndexSettings, QdrantIndexStore, read_index_settings(), client(), test_replace_and_delete_flows(), test_settings_storage_and_refusal(), make_points() (+17 more)
 
-### Community 13 - "test_retrieval_eval.py"
-Cohesion: 0.19
-Nodes (25): basic_suite(), build(), golden(), run(), suite_of(), suite_with_unanswerable(), test_active_golden_without_relevant_documents_is_refused(), test_case_access_context_never_widens_access() (+17 more)
+### Community 11 - "Strategy and Results"
+Cohesion: 0.08
+Nodes (19): Acceptance criteria, R8 — Strategy selection and configuration, default_output_path(), write_document(), default_client_factory(), _aggregate(), BaselineResult, check_output_free() (+11 more)
 
-### Community 14 - "build_security_index"
-Cohesion: 0.09
-Nodes (20): Implementation, Review, Review, T3 — round 1, T3 — `lexical-v1` tokenizer, lexical store and `make index-lexical`, Verification, build_security_index(), point_id() (+12 more)
+### Community 12 - "Lexical Tokenizer"
+Cohesion: 0.11
+Nodes (30): R3 — Tokenizer `lexical-v1` (`lexical/tokenizer.py`), HeadingChunker, _is_word_char(), _parse_sections(), _Section, slugify(), _split_body(), _split_words() (+22 more)
 
-### Community 16 - "Day-1 Data and Sources"
+### Community 13 - "Task Review Log (T8)"
+Cohesion: 0.08
+Nodes (21): Implementation, Review, T8 — round 1, User decision, _gate(), _lexical_sanity_check(), _open_lexical_sanity(), _sanity_check() (+13 more)
+
+### Community 14 - "Model Tiers"
+Cohesion: 0.06
+Nodes (18): Model Preferences, Agent Skills README, Implementation Checklist, Spec Implementer Skill, task-reviews.md Implementation Block, Design Template, Change Log, Requirements Template (+10 more)
+
+### Community 15 - "Day-1 Data and Sources"
 Cohesion: 0.05
 Nodes (33): Day-1 Usage, document_manifest.jsonl, golden_public.jsonl, Source-of-Truth Policy, chunking, overlap_tokens, strategy, target_tokens (+25 more)
 
-### Community 17 - "Architecture Decisions"
+### Community 16 - "Strategy Eval Tests"
+Cohesion: 0.12
+Nodes (27): User decision, eval_world(), leg_order(), lexical_env(), make_world(), retrieve(), run_strategy(), strategy_suite() (+19 more)
+
+### Community 17 - "Document Model Validation"
 Cohesion: 0.08
-Nodes (37): eval-compare quality gate, D001 - Python-first backend, D002 - RAG as reusable internal package, D003 - Knowledge outside RAG package, D006 - Authorization during retrieval, D007 - Public-only Phase 1, D008 - Language and authorization are independent, D009 - Source precedence (+29 more)
+Nodes (9): _check_language_code(), KnowledgeDocument, DocumentQuery, DocumentNotFoundError, LocalDocumentRepository, _corpus_problems(), test_ineligible_document(), ListRepository (+1 more)
 
 ### Community 18 - "Index Binding Errors"
-Cohesion: 0.14
-Nodes (29): EmbedderInfo, IndexBindingError, client(), fake_info(), make_settings(), open_index(), payload(), scope_filter() (+21 more)
+Cohesion: 0.17
+Nodes (28): IndexBindingError, client(), fake_info(), make_settings(), open_index(), payload(), scope_filter(), seed() (+20 more)
 
-### Community 19 - "test_document_models.py"
+### Community 19 - "Document Model Tests"
 Cohesion: 0.12
 Nodes (31): assert_invalid(), document_fields(), make_document(), test_blank_required_text_is_rejected(), test_document_is_immutable(), test_duplicate_lote_languages_are_rejected(), test_effective_window_must_be_ordered(), test_empty_lote_languages_is_rejected() (+23 more)
 
-### Community 20 - "rrf_fuse"
-Cohesion: 0.24
-Nodes (12): rrf_fuse(), chunk(), test_both_legs_empty(), test_duplicate_in_a_leg_counts_best_rank_only(), test_empty_leg_keeps_the_other_order(), test_equal_scores_and_ranks_break_by_point_id(), test_equal_scores_break_by_best_rank_before_point_id(), test_first_seen_chunk_is_kept() (+4 more)
+### Community 20 - "Retrieval Eval Tests"
+Cohesion: 0.17
+Nodes (25): basic_suite(), build(), golden(), run(), suite_of(), suite_with_unanswerable(), test_active_golden_without_relevant_documents_is_refused(), test_case_access_context_never_widens_access() (+17 more)
 
-### Community 21 - "test_validate_knowledge.py"
+### Community 21 - "Ingestion Service Tests"
+Cohesion: 0.16
+Nodes (21): CountingEmbedder, doc(), Harness, test_bumped_document_version_updates(), test_changed_body_updates(), test_changed_metadata_field_updates(), test_chunk_shrink_leaves_no_orphan(), test_delete_failure_is_reported_and_run_continues() (+13 more)
+
+### Community 22 - "Date and Policy Tests"
 Cohesion: 0.22
 Nodes (26): load(), test_bad_date_fails_loading_naming_document_and_field(), test_seed_corpus_still_loads(), test_valid_date_loads(), build_repo(), metadata(), problems_for(), run_cli() (+18 more)
 
-### Community 22 - "BGE-M3 Adapter"
-Cohesion: 0.09
-Nodes (15): BgeM3Embedder, _group_installed(), OptionalDependencyError, missing(), group_installed(), test_constructing_does_not_load_the_model(), test_device_none_before_load_and_recorded_after(), test_missing_group_at_load_raises_optional_dependency_error() (+7 more)
+### Community 23 - "BGE-M3 Adapter"
+Cohesion: 0.10
+Nodes (12): BgeM3Embedder, group_installed(), test_constructing_does_not_load_the_model(), test_device_none_before_load_and_recorded_after(), test_missing_group_at_load_raises_optional_dependency_error(), test_missing_group_refused_at_construction(), test_model_loaded_once_with_revision_and_batches(), fake_loader() (+4 more)
 
-### Community 23 - "Live-count Test Helpers"
-Cohesion: 0.08
-Nodes (29): row(), test_absent_languages_from_a_temp_registry(), test_missing_registry_section_is_a_configuration_error(), test_no_language_literal_in_evaluation_code(), test_real_registry_lists_en_and_the_active_product_language(), test_slice_keys_come_from_data_and_carry_n(), test_small_sample_threshold_is_ten(), clean_env() (+21 more)
+### Community 24 - "Lexical Package"
+Cohesion: 0.12
+Nodes (22): collect(), LexicalIndexBindingError, identity(), payload(), repository(), synthetic_entries(), build(), test_atomic_replace_keeps_old_file_after_failure() (+14 more)
 
-### Community 24 - "lexical_support.py"
+### Community 25 - "Lexical Build and Payload"
+Cohesion: 0.10
+Nodes (19): Acceptance criteria, R4 — Lexical index build (`make index-lexical`), PointPayload, collection_name(), compare(), mismatch_message(), base_settings(), test_build_index_settings_records_embedder_and_chunker() (+11 more)
+
+### Community 26 - "Chunker"
+Cohesion: 0.10
+Nodes (15): Chunk, Chunker, IngestionError, OptionalDependencyError, point_id(), build_payload(), DocumentFailure, IngestionService (+7 more)
+
+### Community 27 - "BGE-M3 Embedder Module"
+Cohesion: 0.10
+Nodes (11): _group_installed(), build_chunker(), build_embedder(), format_summary(), main(), _parser(), IngestionConfig, Embedder (+3 more)
+
+### Community 28 - "Manifest Validation"
+Cohesion: 0.18
+Nodes (23): ManifestValidationError, load_manifest(), load_schema(), validate_manifest(), metadata(), record(), run(), test_duplicate_document_id_rejected() (+15 more)
+
+### Community 29 - "Evaluation CLI Tests"
+Cohesion: 0.14
+Nodes (17): clean_env(), index_factory(), real_factory(), run(), test_bad_top_k_exits_2(), test_existing_output_exits_2_before_qdrant(), test_fake_embedder_exits_2_before_qdrant(), test_filter_carries_the_server_tenant() (+9 more)
+
+### Community 30 - "Security Gate Design"
 Cohesion: 0.19
+Nodes (27): T10 — Documentation, decisions and hand-off, Verification, run_security_evaluation(), build(), guest_access(), real_queries(), spied(), test_a_filter_dropping_index_fails_the_gate() (+19 more)
+
+### Community 31 - "Eligibility Policy"
+Cohesion: 0.12
+Nodes (19): EligibilityPolicy, list_eligible_documents(), manifest_document_count(), test_seed_corpus_is_one_main_chunk_per_document(), eligible_ids(), make_document(), test_active_approved_public_document_is_eligible(), test_language_filter_narrows_eligible_documents_only() (+11 more)
+
+### Community 32 - "Retrieval Package"
+Cohesion: 0.12
+Nodes (15): clean_env(), _Factory, _FixedDatetime, _record_opens(), note(), wrap_func(), inner(), wrap_method() (+7 more)
+
+### Community 33 - "Content Hashing"
+Cohesion: 0.13
+Nodes (19): canonical_json(), _canonical_value(), _canonical_value_mapping(), compute_content_hash(), _copy_seed(), h(), _load(), test_absent_optional_fields_hash_as_null() (+11 more)
+
+### Community 34 - "Lexical CLI Tests"
+Cohesion: 0.17
+Nodes (22): _git_repo(), lexical_dir(), _no_qdrant(), run(), test_bad_config_exits_2(), test_cased_name_cannot_write_into_the_real_repository(), test_differently_cased_protected_name_is_refused(), test_env_dir_into_tracked_directory_is_refused() (+14 more)
+
+### Community 35 - "Orchestrator and Phase 2"
+Cohesion: 0.09
+Nodes (31): Spec orchestrator loop (route, role subagents, user approval, merge), Portable agent skills (agent-skills/ mirrors), Phase 2 analytics event contracts, BGE-M3 embedder, DenseIndex / DenseRetriever, Heading chunker (2000-char cap), Index settings and index_version, Python/FastAPI backend and Next.js frontend (+23 more)
+
+### Community 36 - "Task Review Log (T9)"
+Cohesion: 0.11
+Nodes (16): Implementation, Review, T9 — round 1, User decision, active_golden_cases(), _fusion_report(), _leg_latency(), _lexical_report() (+8 more)
+
+### Community 37 - "Lexical Test Support"
+Cohesion: 0.14
 Nodes (11): build_production(), ingest_dense(), open_lexical(), rewrite_settings(), test_bind_does_not_write_to_qdrant(), test_bind_refuses_chunk_set_mismatch_with_counts(), test_bind_refuses_identity_and_chunker_mismatch(), test_bind_refuses_when_qdrant_content_changed() (+3 more)
 
-### Community 25 - "test_lexical_build.py"
-Cohesion: 0.21
-Nodes (17): identity(), payload(), synthetic_entries(), build(), test_atomic_replace_keeps_old_file_after_failure(), test_build_production_helper_runs(), test_build_records_settings(), test_digest_is_stable_and_order_independent() (+9 more)
-
-### Community 26 - "list_eligible_documents"
-Cohesion: 0.13
-Nodes (18): collect(), EligibilityPolicy, list_eligible_documents(), eligible_ids(), make_document(), test_active_approved_public_document_is_eligible(), test_language_filter_narrows_eligible_documents_only(), test_language_metadata_does_not_broaden_access() (+10 more)
-
-### Community 27 - "AccessContext"
-Cohesion: 0.14
-Nodes (9): AccessContext, Role, test_blank_tenant_refused(), test_empty_tenant_refused(), test_no_language_or_scope_fields(), test_roles_match_policy_file(), test_tenant_is_stripped(), test_unknown_role_refused() (+1 more)
-
-### Community 28 - "suite.py"
-Cohesion: 0.07
-Nodes (27): EvaluationConfigurationError, CaseBase, CaseStatus, DatasetRef, DatasetType, GoldenCase, LoadedSuite, SecurityCase (+19 more)
-
-### Community 29 - "Architecture Components"
-Cohesion: 0.09
-Nodes (28): AccessContext and Role, apps/api FastAPI layer, Amazon Bedrock Runtime, BGE-M3, Architecture, DocumentRepository Protocol, HeadingChunker, Ingestion pipeline (Spec 004) (+20 more)
-
-### Community 30 - "FastAPI Health Endpoint"
+### Community 38 - "Health Endpoint"
 Cohesion: 0.12
 Nodes (13): get_health(), HealthResponse, get_request_settings(), get_settings(), Settings, create_app(), isolate_settings_environment(), test_create_app_wires_settings() (+5 more)
 
-### Community 31 - "Manifest Loading"
-Cohesion: 0.21
-Nodes (22): load_schema(), manifest_document_count(), metadata(), record(), run(), test_duplicate_document_id_rejected(), test_duplicate_document_version_rejected(), test_frontmatter_errors() (+14 more)
+### Community 39 - "Evaluation Slices"
+Cohesion: 0.10
+Nodes (16): absent_query_languages(), active_registry_languages(), aggregate(), _mean(), slice_by(), source_authority_key(), row(), test_absent_languages_from_a_temp_registry() (+8 more)
 
-### Community 32 - "DenseIndex"
-Cohesion: 0.14
-Nodes (9): DenseIndex, OddIdStore, dense_pair(), production_lexical(), real_hybrid(), test_empty_bm25_leg_keeps_the_dense_order(), test_fusion_receives_only_the_legs_checked_hits(), spy() (+1 more)
+### Community 40 - "Community 40"
+Cohesion: 0.15
+Nodes (18): clean_env(), copy_fixtures(), _lexical_work_dir(), spy_lexical_path(), wrapper(), strip_forbidden_terms(), test_cli_clause_less_lexical_store_exits_one_naming_strategies(), test_cli_harness_error_exits_two_and_writes_nothing() (+10 more)
 
-### Community 33 - "check_target_allowed"
-Cohesion: 0.16
-Nodes (14): Implementation, T3 — round 3, User decision, check_target_allowed(), _inside_git_work_tree(), _is_git_ignored(), LexicalTargetRefusedError, _git_repo() (+6 more)
-
-### Community 34 - "test_content_hash.py"
-Cohesion: 0.24
-Nodes (13): _copy_seed(), h(), _load(), test_absent_optional_fields_hash_as_null(), test_body_change_changes_content_hash(), test_content_hash_is_stable_and_pinned(), test_crlf_and_lf_bodies_hash_identically(), test_lote_languages_keep_stored_order() (+5 more)
-
-### Community 35 - "Roadmap"
-Cohesion: 0.17
-Nodes (21): Roadmap, Evaluation Governance (keep/modify/deprecate/replace), Future capabilities, Phase 0 bootstrap, Roadmap item 1 - Project foundation, Roadmap item 10 - Grounded generation + citations, Roadmap item 11 - Observability, Roadmap item 12 - Security (+13 more)
-
-### Community 36 - "json"
-Cohesion: 0.19
-Nodes (12): load_suite(), live_suite_rows(), security_repository(), copy_suite(), test_access_context_is_loaded_but_ignored(), test_dataset_types_loaded_by_type(), test_escaping_path_refused(), test_extra_fields_tolerated() (+4 more)
-
-### Community 37 - "007 — Hybrid Retrieval Requirements"
-Cohesion: 0.05
-Nodes (40): Components / boundaries, R10 — `eval-compare` identity rules (`compare.py`), R11 — Security gate (`security_index.py`, `security_eval.py`), R12 — Docker test, R4 — `make index-lexical` (`lexical/cli.py`), R8 — Strategy and config (`retrieval/strategy.py`, `config/retrieval.yaml`), R9 — Result format 2.1, 007 — Hybrid Retrieval Requirements (+32 more)
-
-### Community 38 - "lexical/store.py"
+### Community 41 - "Community 41"
 Cohesion: 0.13
-Nodes (8): R4/R5 — Lexical store (`lexical/store.py`, `lexical/build.py`), Implementation, _differences(), LexicalIndex, LexicalIndexBindingError, LexicalSettings, _read_only_connection(), source_chunk_digest()
+Nodes (12): build_lexical_index(), default_lexical_dir(), _identity(), _insert(), lexical_index_path(), main(), _parser(), shown_path() (+4 more)
 
-### Community 39 - "sync_agent_skills.py"
-Cohesion: 0.31
-Nodes (9): discover_skills(), expected_tree(), find_problems(), inject_frontmatter(), main(), managed_skills(), read_tree(), remove() (+1 more)
+### Community 42 - "Community 42"
+Cohesion: 0.13
+Nodes (15): chunk(), dense_pair(), ForbiddenDenseIndex, production_lexical(), pub_chunk(), real_hybrid(), stub_result(), retrieve() (+7 more)
 
-### Community 40 - "test_goldens.py"
-Cohesion: 0.33
-Nodes (8): test_declared_release(), test_filtering_in_temporary_suite(), test_invalid_line_names_file_and_line_only(), test_path_escaping_repo_root_refused(), test_real_suite_loads_every_golden_case_and_leaves_evaluation_unchanged(), test_release_id_mismatch_refused(), tree_hashes(), write_suite()
+### Community 43 - "Community 43"
+Cohesion: 0.21
+Nodes (18): _copy_seed(), seed_repository(), test_documents_outside_approved_roots_are_never_loaded(), test_get_document_by_id_and_version(), test_get_document_missing_raises_not_found(), test_invalid_document_fails_load_without_leaking_paths(), test_invalid_schema_raises_repository_error(), test_language_filter_is_data_driven_and_does_not_affect_access() (+10 more)
 
-### Community 41 - "repositories/__init__.py"
-Cohesion: 0.06
-Nodes (28): DocumentRepositoryError, DocumentValidationError, DuplicateDocumentError, ManifestValidationError, split_frontmatter(), _StringDateLoader, document_fields(), under_root() (+20 more)
-
-### Community 42 - "Access Policy Config"
+### Community 44 - "Community 44"
 Cohesion: 0.12
-Nodes (16): allowed_scopes, current_release, default_role, implemented_roles, allowed_scopes, allowed_scopes, roles, admin (+8 more)
+Nodes (13): Implementation, Implementation, Review, Review, T3 — round 1, T3 — round 2, User decision, T3 — `lexical-v1` tokenizer, lexical store and `make index-lexical` (+5 more)
 
-### Community 43 - "Constitution Principles"
-Cohesion: 0.15
-Nodes (3): Constitution, D014 - Evaluation Suite model, D015 - Human-governed LLM suggestions
-
-### Community 44 - "Docker Compose Qdrant"
+### Community 45 - "Community 45"
 Cohesion: 0.13
-Nodes (14): interval, retries, start_period, test, timeout, container_name, healthcheck, image (+6 more)
+Nodes (12): DocumentRepository, InMemoryDocumentRepository, make_document(), test_document_query_has_no_filesystem_concepts(), test_document_query_is_immutable(), test_get_document_missing_raises_not_found(), test_get_document_returns_latest_or_requested_version(), test_in_memory_repository_satisfies_protocol() (+4 more)
 
-### Community 45 - "Authorization Design"
+### Community 46 - "Community 46"
 Cohesion: 0.14
-Nodes (14): build_access_filter, check_hit fail-closed re-check, DenseIndex, DenseRetriever, Evaluation framework (Spec 006), Retrieval fallback paths, Security gate (eval-security), Target RAG query flow (+6 more)
+Nodes (15): _is_token_char(), query_terms(), QueryTerms, tokenize(), test_business_008_words_stay_whole(), test_deterministic(), test_english_punctuation_digits_and_case(), test_golden_file_is_the_source_of_the_pins() (+7 more)
 
-### Community 46 - "Agent Workflow Skills"
-Cohesion: 0.14
-Nodes (12): graphify skill pointer, spec/NNN branch and Spec-Task trailers, spec-implementer skill (one task per run), spec-orchestrator skill, spec-planner skill, spec-reviewer retrospective skill, Task-gated agent workflow loop, task-reviewer skill (read-only) (+4 more)
-
-### Community 47 - "Ingestion Config File"
-Cohesion: 0.14
-Nodes (13): chunker, max_chunk_chars, name, version, embedder, batch_size, fake_vector_size, model_id (+5 more)
-
-### Community 48 - "Engineering Conventions"
-Cohesion: 0.14
-Nodes (13): Authorization metadata (access_scope, owner_user_id, tenant_id), Engineering Conventions, IDs and versions conventions, Knowledge files with provenance, Language metadata (content_language, lote_languages), Logging and tracing hygiene, Domain naming terms, Prompts as versioned assets (+5 more)
-
-### Community 49 - "Phase 2 Governance"
-Cohesion: 0.15
-Nodes (12): Atomic publish and rollback, Phase 2 audit trail, Controlled document-change workflow (Release Candidate), Evaluation governance states, Evaluation slices, Evaluation Suite (public-eval-v1), Generation metrics, Evaluation impact detection (+4 more)
-
-### Community 50 - "Project Commands"
-Cohesion: 0.21
-Nodes (13): Project Commands, CLI exit code convention 0/1/2, make eval-compare, make eval-retrieval, make eval-security, make ingest, make retrieval-baseline (legacy), make retrieve (+5 more)
-
-### Community 51 - "documents/__init__.py"
-Cohesion: 0.21
-Nodes (5): AccessScope, ApprovalStatus, LanguageScope, LifecycleStatus, SourceAuthority
-
-### Community 52 - "Packages and Pricing"
-Cohesion: 0.15
-Nodes (12): Approved packages, pricing and validity, Six approved packages and prices, 60-day package validity, 24-hour cancellation notice, Personal coaching package, 60-minute coaching session on Google Meet, Individual coaching and live appointments, Mock assessments, scoring, feedback and review windows (+4 more)
-
-### Community 53 - "Agent Project Rules"
-Cohesion: 0.18
-Nodes (12): AGENTS.md Project Rules, DocumentRepository Abstraction, Evaluation Governance Rules, Language Separation Rules, Phase 1 Scope, Task-gated Spec Loop, CLAUDE.md Project Instructions, graphify Knowledge Graph Rules (+4 more)
-
-### Community 54 - "retrieval/test_cli.py"
-Cohesion: 0.16
-Nodes (22): _advice_ok(), clean_env(), Factory, indexed(), ingest(), retrieve(), test_bad_args_exit_2_without_client(), test_bad_config_exit_2_without_client() (+14 more)
-
-### Community 55 - "Spec 002 Repository Design"
-Cohesion: 0.18
-Nodes (10): content-hash-v1 (sole change-detection signal), LocalDocumentRepository, Document manifest and JSON Schema validation, make validate-knowledge, persona_scope spec defect (F2), BgeM3Embedder (optional extra, pinned revision), Embedder Protocol and FakeEmbedder, HeadingChunker and slugify rule (+2 more)
-
-### Community 56 - "Language Onboarding"
-Cohesion: 0.20
-Nodes (8): Adding a New Language Guide, language_registry.json, Public Assistant Content Boundaries, access_scope, content_language, Knowledge Schema and Metadata, language_scope, lote_languages
-
-### Community 57 - "Current State"
-Cohesion: 0.29
-Nodes (11): Current State, Known issues: no pure ml golden, empty relevant_section_ids, Next step: Spec 007 hybrid retrieval, Not yet implemented list, Real BGE-M3 retrieval baseline (HitRate@5 0.952, MRR 0.878), Spec 001 project foundation, Spec 002 document model and repository, Spec 003 task-gated agent workflow (+3 more)
-
-### Community 58 - "Spec 001 Foundation"
-Cohesion: 0.22
-Nodes (10): Local Qdrant Docker Compose service, Make command surface (setup, lint, typecheck, test, verify), Python monorepo foundation (FastAPI, uv, Makefile), Typed runtime Settings (Pydantic Settings), Spec 001 Project Foundation (implemented), IndexSettings and mismatch refusal, UUIDv5 point identity (INGESTION_NAMESPACE), QdrantIndexStore (+2 more)
-
-### Community 59 - "Spec 005 Retrieval Design"
-Cohesion: 0.22
-Nodes (8): Baseline runner and result JSON, build_access_filter (single filter builder), check_hit (fail-closed re-check), DenseRetriever, Read-only golden loader (stand-in for Spec 006), Document-level metrics (HitRate, Recall, MRR, random k/N), safe_text output sanitizer, Real BGE-M3 baseline (user-owned, pending)
-
-### Community 60 - "Spec 006 Loader and Snapshot"
-Cohesion: 0.24
-Nodes (8): Legacy goldens.py Compatibility Wrapper, Legacy Baseline Snapshot Test, Governed Suite Loader, 006 Task Reviews, 006 Evaluation Framework Tasks, T1 Snapshot, Models, Loader, T8a Deferred Fixes, T8b Docs and Handoff
-
-### Community 61 - "Tech Stack"
-Cohesion: 0.20
-Nodes (9): Intentionally avoided choices, AWS Mumbai ap-south-1 target, Backend: Python, FastAPI, Pydantic, Tech Stack, Evaluation tooling: pytest, custom metrics, Generation: Amazon Bedrock Runtime, graphify developer tooling, Observability: Langfuse and CloudWatch (+1 more)
-
-### Community 62 - "CCL Booking and Fees"
-Cohesion: 0.29
-Nodes (10): NAATI CCL booking, fees, cancellation, results and credential validity, One week advance booking, 75% refund for cancellation one hour before, CCL test fee A$814, Credential validity five years from 9 August 2022, myNAATI, Expired credential not extended, Rescheduling up to eight days before test (+2 more)
-
-### Community 63 - "Retrieval Roadmap Ideas"
-Cohesion: 0.22
-Nodes (10): Small documents and chunking strategy, Citation strategy (backend-owned validation), FAQ-aware retrieval experiment, Hybrid retrieval (dense + BM25 + RRF), Production knowledge corpus, Phase 1 RAG query pipeline, Raw sources (sources/raw), Multilingual reranker (+2 more)
-
-### Community 64 - "Spec 006 Security Gate"
-Cohesion: 0.25
-Nodes (7): RetrievalAuthorizationError.document_id, eval-security, Forbidden Point Variants, Authorization Hard Gate, Throwaway Security Index (w2a-sectest-*), T5 Security Gate, Authorization Rules
-
-### Community 65 - "Source Precedence Config"
-Cohesion: 0.22
-Nodes (8): last_reviewed_at, precedence, business_information, language_specific_exam_policy, migration_points_and_visa_rules, official_exam_rules, rules, schema_version
-
-### Community 66 - "CCL Candidate Rules"
-Cohesion: 0.33
-Nodes (9): NAATI CCL candidate rules and test-day setup, Direct first-person speech requirement, Report technical incidents within 24 hours, NAATI, Online proctoring with separate phone or tablet, Prohibited materials and tools, Recording under 20 minutes, One repeated segment per dialogue without penalty (+1 more)
-
-### Community 67 - "Planned Apps and AWS"
-Cohesion: 0.28
-Nodes (9): apps/api, apps/web, CloudWatch, Future multimodal mock-test evaluation, Langfuse tracing, packages/core, packages/observability, packages/rag (+1 more)
-
-### Community 68 - "Spec 004 Eligibility Design"
-Cohesion: 0.29
-Nodes (7): EligibilityPolicy / GUEST_PUBLIC_POLICY, Security fixtures (valid but ineligible), config/ingestion.yaml and RuntimeSettings, Ingestion pipeline (target vs current state diff), AccessContext and Role (core), resolve_access / ResolvedAccess, W2A_TENANT_ID server tenant setting
-
-### Community 69 - "Product Context"
-Cohesion: 0.25
-Nodes (8): Phase 2 basic analytics, Assistant behavior rules, Product Context, English and Malayalam language scope, Future personas, Phase 1 guest-only scope, Way2Australia AI product, Source-of-truth priorities
-
-### Community 70 - "CCL Format and Scoring"
-Cohesion: 0.39
-Nodes (8): NAATI CCL test format, scoring and results, NAATI CCL test, Deduction-based assessment, Begin interpreting within five seconds of chime, NAATI, CCL is not professional interpreter certification, Pass requirement 63/90 overall and 29/45 per dialogue, Results within 4-6 weeks
-
-### Community 71 - "Spec 006 Validation Design"
-Cohesion: 0.38
-Nodes (6): Evaluation Candidates File, Evaluation Package (evaluation/), Evaluation Suite and Case-type Schemas, validate-evaluation, T2 Schemas and validate-evaluation, T7 Candidates
-
-### Community 72 - "Spec 006 Retrieval Eval Design"
-Cohesion: 0.29
-Nodes (7): eval-retrieval, Retrieval Result Document 2.0, Section-level Metrics, Slices and small_sample, Unanswerable Reporting, T3 Retrieval Runner, T4 Unanswerable Reporting
-
-### Community 73 - "Vocabulary and Free Access"
-Cohesion: 0.29
-Nodes (6): Vocabulary, flashcards and free access, Spaced-repetition flashcards, Free access allowance, 12 subject domains plus General vocabulary, Approved public learning samples, Sample neighbour-greeting dialogue
-
-### Community 74 - "Spec 002 Reviews"
-Cohesion: 0.33
-Nodes (6): DocumentRepository Protocol (async), KnowledgeDocument model, Spec 002 retrospective round 1, Spec 002 task review log (T3-T9), Spec 002 Document model and repository (verified), Acceptance dry run on Spec 002 T3
-
-### Community 75 - "Spec 006 Overview"
-Cohesion: 0.33
-Nodes (6): 006 Evaluation Framework Design, Decision Brief Q1-Q10, 006 Evaluation Framework Requirements, Evaluation Framework Goal, 006 Spec Retrospective Review, Retrospective Round 1 PASS
-
-### Community 76 - "Versioning and Releases"
-Cohesion: 0.33
-Nodes (5): Evaluation case_id and case_version, Versioning and Releases, document_id and document_version, Phase 2 Knowledge Release Candidates, Release seed-v1
-
-### Community 77 - "typing"
-Cohesion: 0.09
-Nodes (15): build_chunker(), format_summary(), ChunkerConfig, EmbedderConfig, IngestionConfig, Embedder, IngestionConfigurationError, IngestionError (+7 more)
-
-### Community 78 - "Master Plan Overview"
-Cohesion: 0.33
-Nodes (6): Way2Australia AI Platform Master Implementation Plan, Phase 1 Definition of Done, Phase 1 Scope (public/guest RAG), Recruiter / portfolio story, Project Mission, Seven-day Phase 1 execution plan
-
-### Community 79 - "Deployment and Degradation Plan"
-Cohesion: 0.33
-Nodes (6): AWS deployment architecture (ap-south-1), CI/CD pipeline, Graceful degradation, Qdrant, SQLite FTS5 fallback, Terraform scope
-
-### Community 80 - "Plan Repository Concepts"
-Cohesion: 0.33
-Nodes (5): Document manifest, DocumentRepository, LocalDocumentRepository, Phase 2 Knowledge Operations, S3DocumentRepository
-
-### Community 81 - "Spec 004-005 Retros"
-Cohesion: 0.40
-Nodes (5): Spec 004 retrospective round 1 (PASS), Spec 004 Ingestion baseline (verified), retrieval package (dense baseline), Spec 005 retrospective round 1 (PASS), Spec 005 Dense retrieval baseline (verified)
-
-### Community 82 - "Spec 006 Compare Design"
-Cohesion: 0.40
-Nodes (4): eval-compare, Quality Gate (1 case, MRR 1/n), Release Candidates Need Compare-shared-cases, T6 eval-compare
-
-### Community 83 - "Payments and Support"
-Cohesion: 0.40
-Nodes (4): Public contact channels, Payments, account access and support boundaries, Payments non-refundable, One active login session
-
-### Community 84 - "Migration Points"
-Cohesion: 0.70
-Nodes (5): Home Affairs credentialled community language points, 5 points for credentialled community language, Australian Department of Home Affairs, Refer to Home Affairs or migration adviser, No automatic visa eligibility from passing CCL
-
-### Community 85 - "Security Plan"
-Cohesion: 0.40
-Nodes (4): Authorization model (guest/public), Poisoned public document fixture, Security plan (threats and controls), Staff-only canary fixture
-
-### Community 86 - "Multilingual Plan"
-Cohesion: 0.40
-Nodes (4): Amazon Bedrock Runtime, BGE-M3 embeddings, Multilingual design (lote_languages), Technology stack
-
-### Community 87 - "Mission"
-Cohesion: 0.50
-Nodes (4): Mission, Phase 1 public/guest vs Phase 2 Knowledge Operations, Mission purpose: grounded multilingual RAG assistant, Useful product, engineering learning, portfolio evidence
-
-### Community 88 - "Business Overview"
-Cohesion: 0.50
-Nodes (3): Coaching is optional, Way2Australia public offering and assistant scope, English-Malayalam CCL preparation offering
-
-### Community 89 - "Materials and Practice"
-Cohesion: 0.50
-Nodes (4): 120+ practice dialogues, Materials and dialogue practice, Recordings stay in browser, No automatic score in ordinary practice
-
-### Community 96 - "Plan Metadata"
-Cohesion: 0.67
-Nodes (3): Canonical document metadata, Chunk metadata, Source authority precedence
-
-### Community 112 - "test_repository_contract.py"
-Cohesion: 0.20
-Nodes (11): InMemoryDocumentRepository, make_document(), test_document_query_has_no_filesystem_concepts(), test_document_query_is_immutable(), test_get_document_missing_raises_not_found(), test_get_document_returns_latest_or_requested_version(), test_in_memory_repository_satisfies_protocol(), test_list_documents_applies_query_filters() (+3 more)
-
-### Community 114 - "pytest"
-Cohesion: 0.27
-Nodes (8): test_declared_release_id(), chunk(), test_dedupe_keeps_first_rank(), test_hit_rate_and_cutoff(), test_percentile_nearest_rank(), test_random_hit_rate_cap_and_minimum(), test_recall_with_several_relevant(), test_reciprocal_rank()
-
-### Community 115 - "test_bm25.py"
+### Community 47 - "Community 47"
 Cohesion: 0.29
 Nodes (18): build(), guest(), pub(), retriever(), _shape(), test_a_store_without_the_clause_trips_check_hit(), test_base_names(), test_forbidden_rows_are_never_returned() (+10 more)
 
-### Community 116 - "fusion"
+### Community 48 - "Community 48"
+Cohesion: 0.12
+Nodes (24): --allow-fake, BASELINE_ARGS (--allow-fake, --suite, --release, --output), retrieval-baseline-<index_version>-<UTC>.json (format 1.0), evaluation/candidates/ candidate files, eval-compare gate rule (more than 1 fewer hits or MRR drop above 1/n), retrieval-evaluation result format (kind retrieval_evaluation, schema 2.1), python -m way2australia_rag.evaluation.cli {validate,retrieval,security,compare}, evaluation schemas (evaluation_suite, evaluation_case_types, evaluation_case) (+16 more)
+
+### Community 49 - "Community 49"
+Cohesion: 0.08
+Nodes (23): 007 — Hybrid Retrieval Requirements, Acceptance criteria, Acceptance criteria, Acceptance criteria, Acceptance criteria, Acceptance criteria, Acceptance criteria, Acceptance criteria (+15 more)
+
+### Community 50 - "Community 50"
+Cohesion: 0.09
+Nodes (20): Atomic publish and rollback, Phase 2 audit trail, AWS deployment architecture (ap-south-1), Controlled document-change workflow (Release Candidate), CI/CD pipeline, Document manifest, DocumentRepository, Evaluation governance states (+12 more)
+
+### Community 51 - "Community 51"
+Cohesion: 0.11
+Nodes (22): Chunks, embeddings and indexes as derived artifacts, content-hash-v1 change detection, DocumentRepository Protocol, EligibilityPolicy, 17-field index payload and point IDs, IngestionService, Language vs authorization separation, LocalDocumentRepository (+14 more)
+
+### Community 52 - "Community 52"
+Cohesion: 0.17
+Nodes (21): Roadmap, Evaluation Governance (keep/modify/deprecate/replace), Future capabilities, Phase 0 bootstrap, Roadmap item 1 - Project foundation, Roadmap item 10 - Grounded generation + citations, Roadmap item 11 - Observability, Roadmap item 12 - Security (+13 more)
+
+### Community 53 - "Community 53"
+Cohesion: 0.13
+Nodes (9): AccessContext, Role, test_blank_tenant_refused(), test_empty_tenant_refused(), test_no_language_or_scope_fields(), test_roles_match_policy_file(), test_tenant_is_stripped(), test_unknown_role_refused() (+1 more)
+
+### Community 54 - "Community 54"
+Cohesion: 0.11
+Nodes (3): OddIdStore, SpyIndex, broken()
+
+### Community 55 - "Community 55"
+Cohesion: 0.24
+Nodes (13): committed(), lines(), manifest(), read_lines(), test_candidates_differ_only_in_promoted_as(), test_copied_rows_equal_v1_except_suite_id(), test_promoted_goldens_map_from_candidates(), test_v1_dataset_files_are_unchanged() (+5 more)
+
+### Community 56 - "Community 56"
+Cohesion: 0.12
+Nodes (19): Completion: retrospective, Spec-Review commit, merge, verified status, graphify knowledge graph, D031 Required retrospective that reconciles documentation, D048 graphify knowledge graph for coding agents (developer tooling), Branching and commits (spec/NNN, Spec-Task trailer), Development Workflow, Multi-agent handoff, Implementation rule: BLOCKED spec issue (+11 more)
+
+### Community 57 - "Community 57"
+Cohesion: 0.19
+Nodes (6): AccessScope, ApprovalStatus, LanguageScope, LifecycleStatus, SourceAuthority, test_guest_policy_agrees_with_access_policy_config()
+
+### Community 58 - "Community 58"
+Cohesion: 0.11
+Nodes (16): Admin review actions (keep, modify, deprecate, replace, accept, reject), Atomic publish, Document Snapshot, Evaluation architecture (Evaluation Suite), Deterministic impact analysis, Knowledge Release, LLM gap analysis / suggested cases, Phase 2 Knowledge Release workflow (+8 more)
+
+### Community 59 - "Community 59"
+Cohesion: 0.20
+Nodes (10): live_suite_rows(), copy_suite(), test_dataset_types_loaded_by_type(), test_declared_release_id(), test_escaping_path_refused(), test_extra_fields_tolerated(), test_malformed_line_names_file_and_line_only(), test_real_suite_loads_every_declared_case_and_is_read_only() (+2 more)
+
+### Community 60 - "Community 60"
+Cohesion: 0.12
+Nodes (17): COMMANDS.md (project command surface), agent-skills/ canonical source and mirrors (.claude/.agents/.kiro skills), optional bge-m3 extra (sentence-transformers, PyTorch), Experiment result record fields (commit, release, suite, chunker, embedding, strategy, reranker, prompt, metrics), graphify developer tooling (update, query, path, explain, /graphify . --update), make experiment CONFIG=..., make format, make lint (ruff check + ruff format --check) (+9 more)
+
+### Community 61 - "Community 61"
+Cohesion: 0.22
+Nodes (12): rrf_fuse(), chunk(), test_both_legs_empty(), test_duplicate_in_a_leg_counts_best_rank_only(), test_empty_leg_keeps_the_other_order(), test_equal_scores_and_ranks_break_by_point_id(), test_equal_scores_break_by_best_rank_before_point_id(), test_first_seen_chunk_is_kept() (+4 more)
+
+### Community 62 - "Community 62"
+Cohesion: 0.24
+Nodes (10): load_retrieval_config(), test_build_retriever_converts_a_string_value_and_refuses_unknown(), test_build_retriever_maps_each_strategy(), test_committed_config_loads(), test_good_config_loads(), test_invalid_config_is_refused_naming_the_field(), test_lexical_strategies_need_the_lexical_index(), test_unreadable_and_non_mapping_files_are_refused() (+2 more)
+
+### Community 63 - "Community 63"
+Cohesion: 0.12
+Nodes (16): allowed_scopes, current_release, default_role, implemented_roles, allowed_scopes, allowed_scopes, roles, admin (+8 more)
+
+### Community 64 - "Community 64"
+Cohesion: 0.17
+Nodes (6): load_schemas(), test_existing_schema_is_referenced_not_copied(), test_missing_schema_is_configuration_error(), test_per_type_required_field_enforced(), test_schema_files_are_valid_draft_2020_12(), test_valid_rows_pass()
+
+### Community 65 - "Community 65"
+Cohesion: 0.17
+Nodes (15): BM25Retriever, build_access_filter, build_retriever, check_hit (fail-closed re-check), Dense query flow, DenseRetriever, HybridRetriever, resolve_access / ResolvedAccess / guest_access (+7 more)
+
+### Community 66 - "Community 66"
+Cohesion: 0.22
+Nodes (11): edit_jsonl(), problems(), root(), test_changed_query_is_a_problem_without_text(), change(), test_changed_relevant_documents_is_a_problem(), test_clean_copy_has_no_problems(), test_missing_promoted_case_is_a_problem() (+3 more)
+
+### Community 67 - "Community 67"
+Cohesion: 0.15
+Nodes (16): AccessContext, Role and resolve_access, Guest/public access scope, Human-governed LLM suggestions (candidates), Suite public-eval-v2, Governed suite loader and validator, D007 Public-only Phase 1, D015 Human-governed LLM suggestions, D033 AccessContext and Role live in core; guest resolver returns identical policy object (Spec 005) (+8 more)
+
+### Community 68 - "Community 68"
+Cohesion: 0.18
+Nodes (10): Implementation, Review, T3 — round 3, User decision, check_target_allowed(), _inside_git_work_tree(), _is_git_ignored(), LexicalTargetRefusedError (+2 more)
+
+### Community 69 - "Community 69"
+Cohesion: 0.23
+Nodes (10): test_declared_release(), test_filtering_in_temporary_suite(), test_invalid_line_names_file_and_line_only(), test_path_escaping_repo_root_refused(), test_real_suite_loads_every_golden_case_and_leaves_evaluation_unchanged(), test_release_id_mismatch_refused(), tree_hashes(), write_suite() (+2 more)
+
+### Community 70 - "Community 70"
+Cohesion: 0.13
+Nodes (15): Authorization model (guest/public), Small documents and chunking strategy, Citation strategy (backend-owned validation), FAQ-aware retrieval experiment, Graceful degradation, Hybrid retrieval (dense + BM25 + RRF), Production knowledge corpus, Poisoned public document fixture (+7 more)
+
+### Community 71 - "Community 71"
+Cohesion: 0.13
+Nodes (14): interval, retries, start_period, test, timeout, container_name, healthcheck, image (+6 more)
+
+### Community 72 - "Community 72"
+Cohesion: 0.15
+Nodes (15): Decisions D042-D047, eval-compare quality gate and identity refusals, Evaluation schemas (referencing registry), Evaluation framework (Spec 006), load_suite (read-only suite loader), make eval-compare, make eval-retrieval, make eval-security (+7 more)
+
+### Community 73 - "Community 73"
+Cohesion: 0.16
+Nodes (15): docker compose up/down, --embedder {bge_m3,fake}, Fake embedder needs throwaway QDRANT_COLLECTION_BASE, Guest/public access (server-resolved, no role/scope/tenant option), INGEST_ARGS (--embedder, --config), Stale lexical file refusal (LexicalIndexBindingError), make ingest, make retrieve (+7 more)
+
+### Community 75 - "Community 75"
+Cohesion: 0.23
+Nodes (15): Result: real BGE-M3 dense baseline 2026-10-23 (HitRate@5 0.952, MRR 0.878, 63 cases), Result: dense reference on public-eval-v2, 2026-10-25 (66/69 hits, MRR 0.8816), Golden g004 (business_001_overview_scope): dense miss, hybrid hit, Golden g026 (business_006_mock_assessments): dense miss, hybrid hit, Golden g061 (official_002_candidate_rules_setup): miss in dense, BM25 and hybrid, Unanswerable case u001 (overlaps g004; owner decided keep_both), Finding: hybrid ranks relevant doc lower than dense in g006, g029, g064, g065, Known issue: BM25/hybrid need Qdrant and bge-m3 extra (no graceful degradation, roadmap 13) (+7 more)
+
+### Community 76 - "Community 76"
+Cohesion: 0.18
+Nodes (15): Result: eval-retrieval 2.0 on public-eval-v1, 2026-10-24 (60 hits, MRR 0.8783), Capability: BM25Retriever with SQL access clause; Retriever Protocol and Strategy (retrieval/base.py), Capability: make eval-compare (1/n MRR gate, identity refusals), Capability: make eval-security authorization hard gate (throwaway w2a-sectest collection; dense, bm25, hybrid; result 1.1), Capability: rrf_fuse, HybridRetriever, config/retrieval.yaml (RRF k 60, depth 50), build_retriever, Capability: lexical-v1 tokenizer, SQLite FTS5 lexical store, make index-lexical, W2A_LEXICAL_INDEX_DIR, Capability: --strategy flag on make retrieve / eval-retrieval, result format 2.1, Decisions D042-D046 (Spec 006 evaluation framework) (+7 more)
+
+### Community 77 - "Community 77"
+Cohesion: 0.14
+Nodes (15): Evaluation candidate rows file 006-candidates.jsonl (7 suggested rows), Evaluation suite public-eval-v2 (91 cases, Malayalam goldens g064-g069; v1 replaced), Decision D049: public-eval-v2 replaces v1; releases are Phase 2, Decision D050: lexical index design; one lexical file per access scope in future, Decision D051: lexical-v1 tokenizer and chillu handling, Known issue: BM25 statistics span all rows of a lexical file (safe today; per-scope files needed for roles), Deferred: fluent-speaker/owner review of agent-drafted Malayalam candidates and g004/u001 proposal, Known issue: lexical-v1 legacy chillu sequence not matched with atomic chillu (+7 more)
+
+### Community 78 - "Community 78"
+Cohesion: 0.14
+Nodes (14): BM25Retriever with SQL access clause, eval-compare identity rules (R10), HybridRetriever (dense leg then BM25 leg, no single-leg fallback), lexical-v1 tokenizer (NFC, ZWJ/ZWNJ dropped, L/N/Mn/Mc token chars, 64-term cap), Result format 2.1 and security result 1.1, config/retrieval.yaml and build_retriever strategy factory, RRF fusion (k 60, equal weights, depth 50, fail closed), Security gate over dense, bm25 and hybrid (+6 more)
+
+### Community 79 - "Community 79"
+Cohesion: 0.14
+Nodes (12): graphify skill pointer, spec/NNN branch and Spec-Task trailers, spec-implementer skill (one task per run), spec-orchestrator skill, spec-planner skill, spec-reviewer retrospective skill, Task-gated agent workflow loop, task-reviewer skill (read-only) (+4 more)
+
+### Community 80 - "Community 80"
+Cohesion: 0.14
+Nodes (13): chunker, max_chunk_chars, name, version, embedder, batch_size, fake_vector_size, model_id (+5 more)
+
+### Community 81 - "Community 81"
+Cohesion: 0.20
+Nodes (12): apps/api (FastAPI layer), apps/web (Next.js frontend), Repository boundaries, apps/api, apps/web, CloudWatch, Future multimodal mock-test evaluation, Langfuse tracing (+4 more)
+
+### Community 82 - "Community 82"
+Cohesion: 0.16
+Nodes (14): Chunker Protocol, Decisions D025-D030, D032, HeadingChunker (heading v1), Ingestion pipeline (Spec 004), ingestion cli (exit codes 0/1/2), IngestionConfig / config/ingestion.yaml, Ingestion data flow, IngestionService / RunReport (+6 more)
+
+### Community 83 - "Community 83"
+Cohesion: 0.14
+Nodes (13): Derived artifacts (chunks, embeddings, sparse index, Qdrant points), DocumentRepository Protocol, KnowledgeDocument, Knowledge model metadata, LocalDocumentRepository, Metadata database (Phase 2), Phase 2 audit records, Phase 2 storage separation (+5 more)
+
+### Community 84 - "Community 84"
+Cohesion: 0.14
+Nodes (13): Authorization metadata (access_scope, owner_user_id, tenant_id), Engineering Conventions, IDs and versions conventions, Knowledge files with provenance, Language metadata (content_language, lote_languages), Logging and tracing hygiene, Domain naming terms, Prompts as versioned assets (+5 more)
+
+### Community 85 - "Community 85"
+Cohesion: 0.24
+Nodes (14): Server-created authorization filter, build_access_filter and check_hit, Lexical FTS5 file and index-lexical, Qdrant primary vector index, Reciprocal Rank Fusion / HybridRetriever, SQLite FTS5 lexical store, D006 Authorization during retrieval, D010 Qdrant primary, SQLite FTS5 fallback (+6 more)
+
+### Community 86 - "Community 86"
+Cohesion: 0.23
+Nodes (14): Baseline result format 1.0, Default retrieval strategy hybrid, eval-compare quality gate, Retrieval evaluation result 2.0/2.1, make eval-security hard gate, D037 Baseline result format (Spec 005), D043 Result format 2.0 for retrieval evaluation; compare still reads 1.0 (Spec 006), D044 Quality gate for eval-compare (Spec 006) (+6 more)
+
+### Community 87 - "Community 87"
+Cohesion: 0.30
+Nodes (7): CaseBase, DatasetRef, GoldenCase, SecurityCase, SuiteManifest, UnanswerableCase, load_suite()
+
+### Community 88 - "Community 88"
+Cohesion: 0.20
+Nodes (5): CaseStatus, declared_release_id(), load_golden_cases(), load_suite(), SuiteRef
+
+### Community 89 - "Community 89"
+Cohesion: 0.14
+Nodes (4): select_security_queries(), test_attack_types_are_split_into_run_deferred_and_unclassified(), live_client(), test_server_filter_keeps_every_forbidden_point_out()
+
+### Community 90 - "Community 90"
+Cohesion: 0.17
+Nodes (12): build_lexical_index / production_entries, D050 per-scope lexical files, D055 default strategy hybrid, Decisions D049-D055, GUEST_PUBLIC_POLICY / EligibilityPolicy, Hybrid retrieval flow (default strategy), LexicalIndex (SQLite FTS5 store), lexical package (Spec 007) (+4 more)
+
+### Community 91 - "Community 91"
+Cohesion: 0.18
+Nodes (13): Capability: dense retrieval (AccessContext, DenseIndex, build_access_filter, check_hit, DenseRetriever, make retrieve), Capability: Pydantic document models, DocumentRepository, LocalDocumentRepository, content-hash-v1, EligibilityPolicy, make validate-knowledge, Capability: evaluation suite loader, make validate-evaluation, make eval-retrieval (result 2.0), Capability: ingestion (HeadingChunker, Embedder Protocol + fake/BGE-M3, QdrantIndexStore, IngestionService, make ingest), Capability: make retrieval-baseline (legacy, frozen; HitRate@k, Recall@k, MRR, latency), Decisions D025-D030 and D032 (ingestion; persona_scope informational, one version per document_id, chunking), Decisions D033-D041 (Spec 005; D040/D041 added by retrospective), Section: Ingestion operating notes (+5 more)
+
+### Community 92 - "Community 92"
+Cohesion: 0.15
+Nodes (12): Approved packages, pricing and validity, Six approved packages and prices, 60-day package validity, 24-hour cancellation notice, Personal coaching package, 60-minute coaching session on Google Meet, Individual coaching and live appointments, Mock assessments, scoring, feedback and review windows (+4 more)
+
+### Community 93 - "Community 93"
+Cohesion: 0.27
+Nodes (6): EvaluationConfigurationError, declared_release_id(), inside(), read_dataset(), read_json(), read_manifest()
+
+### Community 94 - "Community 94"
+Cohesion: 0.18
+Nodes (12): AGENTS.md Project Rules, DocumentRepository Abstraction, Evaluation Governance Rules, Language Separation Rules, Phase 1 Scope, Task-gated Spec Loop, CLAUDE.md Project Instructions, graphify Knowledge Graph Rules (+4 more)
+
+### Community 95 - "Community 95"
+Cohesion: 0.23
+Nodes (11): BM25 lexical retrieval, dense retrieval strategy, hybrid retrieval (RRF fusion of dense and BM25), LEXICAL_ARGS (--embedder, --output, --config), lexical SQLite FTS5 file (.local/lexical/<collection>.sqlite), Lexical output target refusal rules (knowledge/, evaluation/, config/, non-ignored in git), lexical-v1 tokenizer, make index-lexical (+3 more)
+
+### Community 96 - "Community 96"
+Cohesion: 0.18
+Nodes (10): content-hash-v1 (sole change-detection signal), LocalDocumentRepository, Document manifest and JSON Schema validation, make validate-knowledge, persona_scope spec defect (F2), BgeM3Embedder (optional extra, pinned revision), Embedder Protocol and FakeEmbedder, HeadingChunker and slugify rule (+2 more)
+
+### Community 97 - "Community 97"
+Cohesion: 0.25
+Nodes (4): deterministic_clock(), equivalence_suite(), run_equivalence(), unanswerable()
+
+### Community 98 - "Community 98"
+Cohesion: 0.20
+Nodes (8): Adding a New Language Guide, language_registry.json, Public Assistant Content Boundaries, access_scope, content_language, Knowledge Schema and Metadata, language_scope, lote_languages
+
+### Community 99 - "Community 99"
+Cohesion: 0.20
+Nodes (9): Section: Current goal (Spec 007 merged, next spec not chosen), Decision D038: BGE-M3 device recorded in results, not pinned, Decision D055: default strategy hybrid, Outcome: default_strategy set to hybrid (R13 rule satisfied), Section: Finalized high-level decisions, Section: Current implementation status, Known issue: BGE-M3 device (mps) not pinned; reproducibility across machines, Section: Seed data status (+1 more)
+
+### Community 100 - "Community 100"
+Cohesion: 0.22
+Nodes (10): Local Qdrant Docker Compose service, Make command surface (setup, lint, typecheck, test, verify), Python monorepo foundation (FastAPI, uv, Makefile), Typed runtime Settings (Pydantic Settings), Spec 001 Project Foundation (implemented), IndexSettings and mismatch refusal, UUIDv5 point identity (INGESTION_NAMESPACE), QdrantIndexStore (+2 more)
+
+### Community 101 - "Community 101"
+Cohesion: 0.22
+Nodes (8): Baseline runner and result JSON, build_access_filter (single filter builder), check_hit (fail-closed re-check), DenseRetriever, Read-only golden loader (stand-in for Spec 006), Document-level metrics (HitRate, Recall, MRR, random k/N), safe_text output sanitizer, Real BGE-M3 baseline (user-owned, pending)
+
+### Community 102 - "Community 102"
+Cohesion: 0.24
+Nodes (8): Legacy goldens.py Compatibility Wrapper, Legacy Baseline Snapshot Test, Governed Suite Loader, 006 Task Reviews, 006 Evaluation Framework Tasks, T1 Snapshot, Models, Loader, T8a Deferred Fixes, T8b Docs and Handoff
+
+### Community 103 - "Community 103"
 Cohesion: 0.20
 Nodes (9): default_strategy, fusion, candidate_depth, k, method, weights, schema_version, bm25 (+1 more)
 
-### Community 117 - "evaluation/cli.py"
-Cohesion: 0.06
-Nodes (34): _authority_map(), _compare(), default_security_output_path(), format_security_summary(), format_summary(), main(), _retrieval(), _security() (+26 more)
+### Community 104 - "Community 104"
+Cohesion: 0.20
+Nodes (10): AccessContext and Role, Baseline runner (baseline.py), D035 fallbacks take the same ResolvedAccess, Decisions D033-D041, make retrieval-baseline (legacy), make retrieve, Document-level metrics (HitRate@k, Recall@k, MRR), Retrieval package (Spec 005 and 007) (+2 more)
 
-### Community 118 - "retrieval/test_access.py"
-Cohesion: 0.16
-Nodes (16): clean_env(), guest(), payload(), _policy(), test_a_different_policy_changes_both_builders(), test_both_builders_cover_the_same_three_conditions(), test_check_hit_accepts_valid_payload(), test_check_hit_rejects_malformed_payload() (+8 more)
+### Community 105 - "Community 105"
+Cohesion: 0.22
+Nodes (10): Foundation: uv workspace, FastAPI /health, settings, pytest, Ruff/Pyright, make verify, local Qdrant compose, Task-gated spec skills (spec-orchestrator, planner, implementer, task-reviewer, spec-reviewer) and make skills-sync/check, Section: Current phase (Phase 1 foundation complete), Decision D023: task state lifecycle and spec Status values, Decision D031: spec-reviewer retrospective required, Spec 002 retrospective round 1 (F1-F6, handled by Spec 004 or open), Spec 001 - project foundation (implemented, no review.md), Spec 002 - document model and repository (verified 2026-10-15, merged dca6cbd) (+2 more)
 
-### Community 119 - "SpyIndex"
+### Community 106 - "Community 106"
+Cohesion: 0.20
+Nodes (10): Containers layer, Docker, Docker Compose, Kubernetes / EKS (avoided), Multiple vector databases (avoided), Phase 2 storage direction, Qdrant (vector database), qdrant-client (+2 more)
+
+### Community 107 - "Community 107"
+Cohesion: 0.24
+Nodes (4): R11 — Security gate (`security_index.py`, `security_eval.py`), EvaluationError, EvaluationHarnessError, NotComparableError
+
+### Community 108 - "Community 108"
+Cohesion: 0.29
+Nodes (10): NAATI CCL booking, fees, cancellation, results and credential validity, One week advance booking, 75% refund for cancellation one hour before, CCL test fee A$814, Credential validity five years from 9 August 2022, myNAATI, Expired credential not extended, Rescheduling up to eight days before test (+2 more)
+
+### Community 109 - "Community 109"
+Cohesion: 0.29
+Nodes (3): _differences(), LexicalSettings, _read_only_connection()
+
+### Community 110 - "Community 110"
+Cohesion: 0.22
+Nodes (5): DroppedClauseLexical, new_base(), seed_repository(), test_builder_refuses_a_real_embedder_identity(), __init__()
+
+### Community 111 - "Community 111"
+Cohesion: 0.40
+Nodes (6): _keyword_indexed(), live_client(), store(), test_collection_has_keyword_indexes_and_cosine_dense_vector(), test_empty_without_settings_recreates_dropped_indexes(), test_repeated_create_payload_index_is_harmless()
+
+### Community 112 - "Community 112"
+Cohesion: 0.25
+Nodes (7): RetrievalAuthorizationError.document_id, eval-security, Forbidden Point Variants, Authorization Hard Gate, Throwaway Security Index (w2a-sectest-*), T5 Security Gate, Authorization Rules
+
+### Community 113 - "Community 113"
+Cohesion: 0.22
+Nodes (8): last_reviewed_at, precedence, business_information, language_specific_exam_policy, migration_points_and_visa_rules, official_exam_rules, rules, schema_version
+
+### Community 114 - "Community 114"
+Cohesion: 0.25
+Nodes (9): Answerability / insufficient-evidence decision, Amazon Bedrock generation, Citation validation, Context builder (planned), Langfuse AI observability, LanguageContext, Primary stack, Multilingual reranker (planned) (+1 more)
+
+### Community 115 - "Community 115"
+Cohesion: 0.22
+Nodes (8): Amazon Bedrock Runtime generator, D012 Bedrock Runtime for generation, Bedrock Knowledge Bases as core RAG (avoided), Amazon CloudWatch (infrastructure/application operations), Langfuse (RAG/application tracing), AWS Mumbai ap-south-1 initial region, Observability layer, Likely Phase 1 AWS services: EC2, ECR, EBS, S3, IAM, CloudWatch, SSM, Bedrock Runtime
+
+### Community 116 - "Community 116"
+Cohesion: 0.25
+Nodes (8): AWS target, Developer tooling, Frontend layer, GitHub Actions (CI/CD), graphify (graphifyy) knowledge graph for coding agents, D048; not a product dependency, Next.js, Terraform (Infrastructure as Code), TypeScript
+
+### Community 117 - "Community 117"
+Cohesion: 0.28
+Nodes (9): Backend layer, FastAPI, httpx, jsonschema (manifest validation), Pandas (where useful), Pydantic / Pydantic Settings, Python, pyyaml (frontmatter parsing) (+1 more)
+
+### Community 118 - "Community 118"
+Cohesion: 0.33
+Nodes (9): NAATI CCL candidate rules and test-day setup, Direct first-person speech requirement, Report technical incidents within 24 hours, NAATI, Online proctoring with separate phone or tablet, Prohibited materials and tools, Recording under 20 minutes, One repeated segment per dialogue without penalty (+1 more)
+
+### Community 120 - "Community 120"
 Cohesion: 0.31
 Nodes (3): LexicalRow, DroppedClauseIndex, SpyIndex
 
-### Community 120 - "embedder_identity"
-Cohesion: 0.33
-Nodes (6): Implementation, Review, T3 — round 2, User decision, embedder_identity(), test_default_embedder_identity_equals_the_bge_m3_adapter_identity()
+### Community 121 - "Community 121"
+Cohesion: 0.29
+Nodes (7): EligibilityPolicy / GUEST_PUBLIC_POLICY, Security fixtures (valid but ineligible), config/ingestion.yaml and RuntimeSettings, Ingestion pipeline (target vs current state diff), AccessContext and Role (core), resolve_access / ResolvedAccess, W2A_TENANT_ID server tenant setting
 
-### Community 121 - "test_status_handling.py"
+### Community 122 - "Community 122"
+Cohesion: 0.25
+Nodes (7): BgeM3Embedder, Embedder Protocol, FakeEmbedder, Amazon Bedrock Runtime, BGE-M3 embeddings, Multilingual design (lote_languages), Technology stack
+
+### Community 123 - "Community 123"
+Cohesion: 0.32
+Nodes (8): Embedder and index settings binding, DenseIndex, IndexSettings, index_version (new version means new collection), QdrantIndexStore, companion <collection>-settings collection, Qdrant, SQLite FTS5 fallback
+
+### Community 124 - "Community 124"
+Cohesion: 0.25
+Nodes (8): Phase 2 basic analytics, Assistant behavior rules, Product Context, English and Malayalam language scope, Future personas, Phase 1 guest-only scope, Way2Australia AI product, Source-of-truth priorities
+
+### Community 125 - "Community 125"
+Cohesion: 0.36
+Nodes (7): Full agent orchestration (avoided), Intentionally avoided choices, Bedrock Agents / AgentCore for Phase 1 (avoided), Fine-tuning (avoided), Heavyweight framework abstractions hiding retrieval/evaluation (avoided), LangGraph (avoided), Complex microservices (avoided)
+
+### Community 126 - "Community 126"
+Cohesion: 0.32
+Nodes (7): Custom retrieval metrics (HitRate@k, Recall@k, MRR; plain Python, Spec 005), DeepEval (where useful, not yet a dependency), Evaluation layer, Generation/e2e metrics: correctness, faithfulness, answer relevance, citation correctness/coverage, refusal quality, failure rate, Primary retrieval metrics: Recall@5, MRR, HitRate@5, pytest, referencing (evaluation schema $ref registry, Spec 006)
+
+### Community 127 - "Community 127"
+Cohesion: 0.39
+Nodes (8): NAATI CCL test format, scoring and results, NAATI CCL test, Deduction-based assessment, Begin interpreting within five seconds of chime, NAATI, CCL is not professional interpreter certification, Pass requirement 63/90 overall and 29/45 per dialogue, Results within 4-6 weeks
+
+### Community 130 - "Community 130"
+Cohesion: 0.38
+Nodes (6): Evaluation Candidates File, Evaluation Package (evaluation/), Evaluation Suite and Case-type Schemas, validate-evaluation, T2 Schemas and validate-evaluation, T7 Candidates
+
+### Community 131 - "Community 131"
+Cohesion: 0.29
+Nodes (7): eval-retrieval, Retrieval Result Document 2.0, Section-level Metrics, Slices and small_sample, Unanswerable Reporting, T3 Retrieval Runner, T4 Unanswerable Reporting
+
+### Community 132 - "Community 132"
+Cohesion: 0.43
+Nodes (6): Sparse retrieval: BM25 via FTS5 bm25() over lexical-v1 tokens (D051), make index-lexical, RAG core layer, Reranking: local multilingual BGE reranker (planned), Reciprocal Rank Fusion (RRF), D052, config/retrieval.yaml, SQLite FTS5 lexical store (Spec 007, D050)
+
+### Community 133 - "Community 133"
+Cohesion: 0.29
+Nodes (6): Vocabulary, flashcards and free access, Spaced-repetition flashcards, Free access allowance, 12 subject domains plus General vocabulary, Approved public learning samples, Sample neighbour-greeting dialogue
+
+### Community 136 - "Community 136"
 Cohesion: 0.57
 Nodes (4): golden_count(), suite_with_statuses(), test_exclusions_counted_by_status(), test_suggested_never_returned()
 
-### Community 122 - "test_lexical_cli.py"
-Cohesion: 0.20
-Nodes (17): lexical_dir(), _no_qdrant(), run(), test_bad_config_exits_2(), test_cased_name_cannot_write_into_the_real_repository(), test_env_dir_into_tracked_directory_is_refused(), test_file_holds_the_identity_and_no_chunk_text_is_printed(), test_missing_config_exits_2() (+9 more)
+### Community 137 - "Community 137"
+Cohesion: 0.33
+Nodes (6): DocumentRepository Protocol (async), KnowledgeDocument model, Spec 002 retrospective round 1, Spec 002 task review log (T3-T9), Spec 002 Document model and repository (verified), Acceptance dry run on Spec 002 T3
 
-### Community 123 - "Strategy"
-Cohesion: 0.22
-Nodes (11): load_retrieval_config(), test_build_retriever_converts_a_string_value_and_refuses_unknown(), test_build_retriever_maps_each_strategy(), test_committed_config_loads(), test_good_config_loads(), test_invalid_config_is_refused_naming_the_field(), test_lexical_strategies_need_the_lexical_index(), test_unreadable_and_non_mapping_files_are_refused() (+3 more)
+### Community 138 - "Community 138"
+Cohesion: 0.33
+Nodes (6): 006 Evaluation Framework Design, Decision Brief Q1-Q10, 006 Evaluation Framework Requirements, Evaluation Framework Goal, 006 Spec Retrospective Review, Retrospective Round 1 PASS
 
-### Community 124 - "hashing.py"
-Cohesion: 0.16
-Nodes (11): build_security_repository(), _fixture_files(), canonical_json(), _canonical_value(), _canonical_value_mapping(), compute_body_sha256(), compute_content_hash(), normalize_body() (+3 more)
+### Community 139 - "Community 139"
+Cohesion: 0.33
+Nodes (5): Evaluation case_id and case_version, Versioning and Releases, document_id and document_version, Phase 2 Knowledge Release Candidates, Release seed-v1
 
-### Community 125 - "test_security_eval.py"
-Cohesion: 0.05
-Nodes (73): Review, T8 — round 1, User decision, T10 — Documentation, decisions and hand-off, Verification, EvaluationHarnessError, _gate(), _lexical_sanity_check() (+65 more)
+### Community 140 - "Community 140"
+Cohesion: 0.33
+Nodes (6): Authorization hard gate (forbidden points never returned), EVAL_ARGS, make eval-security, throwaway collection w2a-sectest-<8 hex>, security fixtures (poisoned_public_document.md, staff_only_canary.md), security-evaluation result (kind security_evaluation, schema 1.1)
 
-### Community 127 - "Development Workflow"
-Cohesion: 0.11
-Nodes (20): Branching and commits (spec/NNN, Spec-Task trailer), Development Workflow, Multi-agent handoff, Implementation rule: BLOCKED spec issue, Phase discipline, Protected source-of-truth data, Required spec-reviewer retrospective, Agent skills (orchestrator, planner, implementer, task-reviewer, spec-reviewer) (+12 more)
+### Community 141 - "Community 141"
+Cohesion: 0.40
+Nodes (5): BGE-M3 (initial embedding model), Embeddings, Deterministic fake embedder (tests and CI), Pinned model revision (commit SHA in config/ingestion.yaml); device not pinned, recorded (D038), sentence-transformers (optional bge-m3 extra, brings PyTorch)
 
-### Community 128 - "test_strategy_eval.py"
-Cohesion: 0.13
-Nodes (27): User decision, eval_world(), leg_order(), lexical_env(), make_world(), retrieve(), retrieve_world(), run_strategy() (+19 more)
+### Community 142 - "Community 142"
+Cohesion: 0.33
+Nodes (6): Way2Australia AI Platform Master Implementation Plan, Phase 1 Definition of Done, Phase 1 Scope (public/guest RAG), Recruiter / portfolio story, Project Mission, Seven-day Phase 1 execution plan
 
-### Community 129 - "FakeEmbedder"
-Cohesion: 0.16
-Nodes (12): FakeEmbedder, __init__(), test_conforms_to_protocol(), test_declared_vector_size(), test_default_size_is_64(), test_fake_device_is_none(), test_info_reports_fake_identity(), test_invalid_vector_size_rejected() (+4 more)
+### Community 143 - "Community 143"
+Cohesion: 0.40
+Nodes (5): Spec 004 retrospective round 1 (PASS), Spec 004 Ingestion baseline (verified), retrieval package (dense baseline), Spec 005 retrospective round 1 (PASS), Spec 005 Dense retrieval baseline (verified)
 
-### Community 130 - "evaluation/test_cli.py"
-Cohesion: 0.17
-Nodes (16): clean_env(), index_factory(), real_factory(), run(), test_bad_top_k_exits_2(), test_existing_output_exits_2_before_qdrant(), test_fake_embedder_exits_2_before_qdrant(), test_filter_carries_the_server_tenant() (+8 more)
+### Community 144 - "Community 144"
+Cohesion: 0.40
+Nodes (4): eval-compare, Quality Gate (1 case, MRR 1/n), Release Candidates Need Compare-shared-cases, T6 eval-compare
 
-### Community 132 - "retrieval_eval.py"
-Cohesion: 0.05
-Nodes (44): Implementation, Review, Review, T6 — round 2, default_output_path(), write_document(), document_leg_ranks(), _fusion_report() (+36 more)
+### Community 145 - "Community 145"
+Cohesion: 0.40
+Nodes (4): Public contact channels, Payments, account access and support boundaries, Payments non-refundable, One active login session
 
-### Community 136 - "test_forbidden_bm25_hit_fails_the_whole_query"
-Cohesion: 0.25
-Nodes (3): ForbiddenDenseIndex, test_forbidden_bm25_hit_fails_the_whole_query(), test_forbidden_dense_hit_fails_the_whole_query()
+### Community 146 - "Community 146"
+Cohesion: 0.70
+Nodes (5): Home Affairs credentialled community language points, 5 points for credentialled community language, Australian Department of Home Affairs, Refer to Home Affairs or migration adviser, No automatic visa eligibility from passing CCL
 
-### Community 137 - "dense_equivalence.py"
-Cohesion: 0.17
-Nodes (9): Review, UnanswerableCase, deterministic_clock(), equivalence_suite(), run_equivalence(), unanswerable(), unanswerable(), test_dense_2_1_equals_the_pre_change_2_0_result() (+1 more)
+### Community 147 - "Community 147"
+Cohesion: 0.50
+Nodes (4): integration-marked tests (skip when Qdrant unreachable), make test, make test-integration, make test-unit
+
+### Community 148 - "Community 148"
+Cohesion: 0.50
+Nodes (4): Mission, Phase 1 public/guest vs Phase 2 Knowledge Operations, Mission purpose: grounded multilingual RAG assistant, Useful product, engineering learning, portfolio evidence
+
+### Community 149 - "Community 149"
+Cohesion: 0.50
+Nodes (3): Coaching is optional, Way2Australia public offering and assistant scope, English-Malayalam CCL preparation offering
+
+### Community 150 - "Community 150"
+Cohesion: 0.50
+Nodes (4): 120+ practice dialogues, Materials and dialogue practice, Recordings stay in browser, No automatic score in ordinary practice
+
+### Community 157 - "Community 157"
+Cohesion: 0.67
+Nodes (3): Canonical document metadata, Chunk metadata, Source authority precedence
 
 ## Ambiguous Edges - Review These
 - `Task-gated agent workflow loop` → `graphify skill pointer`  [AMBIGUOUS]
   .claude/CLAUDE.md · relation: conceptually_related_to
 
 ## Knowledge Gaps
-- **186 isolated node(s):** `way2australia-api`, `way2australia-core`, `way2australia-observability`, `way2australia-rag`, `way2australia` (+181 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 876 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **25 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **282 isolated node(s):** `way2australia-core`, `way2australia-rag`, `way2australia`, `way2australia-api`, `way2australia-observability` (+277 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1021 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **29 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `DenseIndex` connect `DenseIndex` to `QdrantIndexStore`, `test_strategy_eval.py`, `Strategy`, `evaluation/test_cli.py`, `retrieval_eval.py`, `HeadingChunker`, `test_forbidden_bm25_hit_fails_the_whole_query`, `test_baseline.py`, `test_retrieval_eval.py`, `build_security_index`, `Index Binding Errors`, `lexical_support.py`, `007 — Hybrid Retrieval Requirements`, `lexical/store.py`, `retrieval/test_cli.py`, `typing`, `test_violation_names_the_document_from_the_error_attribute`, `test_bm25.py`, `evaluation/cli.py`, `test_security_eval.py`?**
-  _High betweenness centrality (0.035) - this node is a cross-community bridge._
-- **Are the 60 inferred relationships involving `DenseIndex` (e.g. with `Design summary` and `Decisions resolved before drafting`) actually correct?**
-  _`DenseIndex` has 60 INFERRED edges - model-reasoned connections that need verification._
-- **What connects `way2australia-api`, `way2australia-core`, `way2australia-observability` to the rest of the system?**
-  _186 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `QdrantIndexStore` be split into smaller, more focused modules?**
-  _Cohesion score 0.054871220604703244 - nodes in this community are weakly interconnected._
-- **Why does `FakeEmbedder` connect `FakeEmbedder` to `test_strategy_eval.py`, `QdrantIndexStore`, `evaluation/test_cli.py`, `HeadingChunker`, `007 — Hybrid Retrieval Tasks`, `test_baseline.py`, `test_retrieval_eval.py`, `build_security_index`, `test_server_filter_keeps_every_forbidden_point_out`, `Index Binding Errors`, `Live-count Test Helpers`, `lexical_support.py`, `test_lexical_build.py`, `typing`, `CountingEmbedder`, `test_bm25.py`, `evaluation/cli.py`, `embedder_identity`, `Strategy`, `test_security_eval.py`?**
-  _High betweenness centrality (0.019) - this node is a cross-community bridge._
-- **Are the 15 inferred relationships involving `LocalDocumentRepository` (e.g. with `Dependencies` and `DocumentQuery`) actually correct?**
-  _`LocalDocumentRepository` has 15 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `As-built notes` connect `Access and Hybrid Design` to `Spec 007 Requirements`, `Dense Index Design`, `Community 44`, `Community 78`, `Community 56`?**
+  _High betweenness centrality (0.099) - this node is a cross-community bridge._
+- **Are the 56 inferred relationships involving `DenseIndex` (e.g. with `Design summary` and `Decisions resolved before drafting`) actually correct?**
+  _`DenseIndex` has 56 INFERRED edges - model-reasoned connections that need verification._
+- **What connects `way2australia-core`, `way2australia-rag`, `way2australia` to the rest of the system?**
+  _282 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `Access and Hybrid Design` be split into smaller, more focused modules?**
+  _Cohesion score 0.04566544566544566 - nodes in this community are weakly interconnected._
+- **Why does `Spec 007 retrospective round 1 PASS` connect `Community 56` to `Access and Hybrid Design`?**
+  _High betweenness centrality (0.098) - this node is a cross-community bridge._
+- **Should `Task Review Log (T7)` be split into smaller, more focused modules?**
+  _Cohesion score 0.07429718875502007 - nodes in this community are weakly interconnected._
 
 ### Low-confidence Hints
 _AMBIGUOUS edges — the extractor was unsure. Verify before acting on these._
