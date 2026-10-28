@@ -420,7 +420,7 @@ def test_eval_cli_default_strategy_comes_from_the_config(
     config.write_text(
         (REPO_ROOT / "config/retrieval.yaml")
         .read_text(encoding="utf-8")
-        .replace("default_strategy: dense", "default_strategy: bm25"),
+        .replace("default_strategy: hybrid", "default_strategy: bm25"),
         encoding="utf-8",
     )
     out = tmp_path / "r.json"
@@ -539,7 +539,8 @@ def test_retrieve_default_strategy_is_the_config_default(
     retrieve_world, capsys: pytest.CaptureFixture[str]
 ) -> None:
     assert retrieve(retrieve_world) == 0
-    assert "strategy=dense" in capsys.readouterr().out.splitlines()[1]
+    out = capsys.readouterr().out.splitlines()[1]
+    assert f"strategy={RETRIEVAL_CONFIG.default_strategy.value}" in out
 
 
 def test_retrieve_prints_a_truncation_note(

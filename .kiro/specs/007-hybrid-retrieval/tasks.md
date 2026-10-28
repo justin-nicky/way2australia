@@ -246,12 +246,12 @@ Review reading order: `evaluation/security_index.py` diff → `evaluation/securi
 
 ## T9 — Strategy comparison and default-strategy decision (user-owned gate)
 
-**State:** not started
+**State:** approved (2026-10-28)
 **Requirements:** R13
 
 T1–T8 must be approved, committed and pushed on `spec/007` first.
 
-- [ ] The orchestrator asks the user to run, from a clean `spec/007` checkout, with `QDRANT_COLLECTION_BASE=w2a-realcheck`:
+- [x] The orchestrator asks the user to run, from a clean `spec/007` checkout, with `QDRANT_COLLECTION_BASE=w2a-realcheck`:
   1. `make setup-bge-m3`;
   2. `make eval-retrieval EVAL_ARGS="--strategy dense"` then `make eval-compare BASE=<T2 file> CANDIDATE=<dense 2.1 file>`: must exit 0 with **no** `WARNING flipped` line. If not, stop here; the dense change goes back to T4/T6 through `changes requested`;
   3. `make index-lexical` (writes only the local git-ignored file; no Qdrant writes);
@@ -259,14 +259,15 @@ T1–T8 must be approved, committed and pushed on `spec/007` first.
   5. `make eval-compare BASE=<T2 file> CANDIDATE=<hybrid file>` and the same for the BM25 file (informational);
   6. `make setup`;
   and to report the file names and the compare output.
-- [ ] The implementer checks each file like T2 (suite v2, not fake, `git_dirty: false`, same collection, `index_version`, embedder, `top_k`, document count, strategy as named, lexical identity present for `bm25`/`hybrid`).
-- [ ] Apply the R13 rule from the per-case rows (scratch script): hybrid passes the gate; hybrid improves hits or MRR over T2; no `ml` or `mixed` case flips hit to miss. Only if all three hold, set `default_strategy: hybrid` in `config/retrieval.yaml`; otherwise leave `dense`.
-- [ ] Record in `CURRENT_STATE.md`: overall, `en`, `mixed`, `ml` for dense (T2 and 2.1), BM25 and hybrid; every flip by `case_id`; `g004`, `g026`, `g061`; per-leg latency; truncated query count; the rule outcome. The decision text itself is written in T10.
-- [ ] T6 review F2 (user decision 2026-10-28), analysis only (no code change in this spec): for every case where hybrid ranks a relevant document lower than dense (T2), show that document's dense and BM25 `leg_ranks` from the hybrid file and whether the query's BM25 matches were only very common terms (scratch script: the query's `lexical-v1` terms and each term's chunk count in the local lexical file, read-only; "very common" means present in more than half the chunks, where FTS5 floors the IDF). Record the list in `CURRENT_STATE.md` with the other T9 numbers.
-- [ ] T6 review F2: report the number of BM25 candidates per query (or the median), by query language (`en`, `mixed`, `ml`), from the same read-only scratch script at the hybrid candidate depth.
-- [ ] T6 review F2: if the R13 rule above leaves `dense` because of cases where the BM25 matches were only very common terms, add "stopword list or minimum BM25 score/IDF floor" to "Notes for the retrospective" below (checked by the T10 box and carried into "Notes for the next spec"). Do not fix it in Spec 007; the R13 rule and the `config/retrieval.yaml` change are unchanged.
-- [ ] Commit the four result files with the task.
-- [ ] If the default changes, tests that depend on the default read it from `config/retrieval.yaml` (no literal); `make verify` passes.
+- [x] The implementer checks each file like T2 (suite v2, not fake, `git_dirty: false`, same collection, `index_version`, embedder, `top_k`, document count, strategy as named, lexical identity present for `bm25`/`hybrid`). (`git_dirty: true` in the BM25 and hybrid files accepted by the user 2026-10-28; see CURRENT_STATE.)
+  - Round 1 finding (not ticked): suite, collection, `index_version`, embedder, `top_k`, document count, strategy and lexical identity all match, but `git_dirty` is `true` in the BM25 and hybrid files (false in dense 2.1). Likely cause: the earlier result files were untracked when the later runs started. Code is identical to commit `6ed6e70` (only untracked result files in the tree). Needs the user's acceptance, like the T2 `git_commit` deviation.
+- [x] Apply the R13 rule from the per-case rows (scratch script): hybrid passes the gate; hybrid improves hits or MRR over T2; no `ml` or `mixed` case flips hit to miss. Only if all three hold, set `default_strategy: hybrid` in `config/retrieval.yaml`; otherwise leave `dense`.
+- [x] Record in `CURRENT_STATE.md`: overall, `en`, `mixed`, `ml` for dense (T2 and 2.1), BM25 and hybrid; every flip by `case_id`; `g004`, `g026`, `g061`; per-leg latency; truncated query count; the rule outcome. The decision text itself is written in T10.
+- [x] T6 review F2 (user decision 2026-10-28), analysis only (no code change in this spec): for every case where hybrid ranks a relevant document lower than dense (T2), show that document's dense and BM25 `leg_ranks` from the hybrid file and whether the query's BM25 matches were only very common terms (scratch script: the query's `lexical-v1` terms and each term's chunk count in the local lexical file, read-only; "very common" means present in more than half the chunks, where FTS5 floors the IDF). Record the list in `CURRENT_STATE.md` with the other T9 numbers.
+- [x] T6 review F2: report the number of BM25 candidates per query (or the median), by query language (`en`, `mixed`, `ml`), from the same read-only scratch script at the hybrid candidate depth.
+- [x] T6 review F2: if the R13 rule above leaves `dense` because of cases where the BM25 matches were only very common terms, add "stopword list or minimum BM25 score/IDF floor" to "Notes for the retrospective" below (checked by the T10 box and carried into "Notes for the next spec"). Do not fix it in Spec 007; the R13 rule and the `config/retrieval.yaml` change are unchanged.
+- [x] Commit the three new result files (dense 2.1, BM25, hybrid) with the task.
+- [x] If the default changes, tests that depend on the default read it from `config/retrieval.yaml` (no literal); `make verify` passes.
 
 Allowed protected-path changes: `config/retrieval.yaml` (`default_strategy` line only, and only if the R13 rule holds). New files: the dense 2.1, BM25 and hybrid result files under `experiments/results/`.
 

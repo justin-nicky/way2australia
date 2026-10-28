@@ -1,6 +1,6 @@
 # Retrieval strategy and fusion (Spec 007). Reviewed like other config.
 schema_version: "1.0"
-default_strategy: dense          # dense | bm25 | hybrid
+default_strategy: hybrid         # dense | bm25 | hybrid
 fusion:
   method: rrf
   k: 60

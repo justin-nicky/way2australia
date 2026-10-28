@@ -81,7 +81,7 @@ def test_success_writes_result_prints_collection_and_summary(
 ) -> None:
     factory = index_factory(RealStub())
     out = tmp_path / "e.json"
-    assert run(factory, "--output", str(out)) == 0
+    assert run(factory, "--strategy", "dense", "--output", str(out)) == 0
     doc = json.loads(out.read_text())
     goldens = len(live_suite_rows("golden_answerable", active_only=True))
     unanswerable = len(live_suite_rows("unanswerable_refusal", active_only=True))
@@ -191,7 +191,7 @@ def test_filter_carries_the_server_tenant(
     monkeypatch.setattr(DenseIndex, "search", spy)
     factory = index_factory(RealStub(), "tenant-eval-x")
     out = tmp_path / "e.json"
-    assert run(factory, "--output", str(out)) == 0
+    assert run(factory, "--strategy", "dense", "--output", str(out)) == 0
     expected = build_access_filter(
         resolve_access(guest_access(RuntimeSettings(tenant_id="tenant-eval-x")))
     )

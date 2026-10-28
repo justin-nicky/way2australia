@@ -69,7 +69,7 @@ def indexed() -> Factory:
 def test_success_prints_header_and_hit_lines(
     indexed: Factory, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    assert retrieve(indexed, "--top-k", "3") == 0
+    assert retrieve(indexed, "--strategy", "dense", "--top-k", "3") == 0
     out = capsys.readouterr().out
     lines = out.strip().splitlines()
     assert lines[0].startswith("index: way2australia-idx-v1 (index_version idx-v1;")
@@ -85,7 +85,7 @@ def test_output_has_no_secret_path_or_chunk_text(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("QDRANT_API_KEY", SECRET)
-    assert retrieve(indexed) == 0
+    assert retrieve(indexed, "--strategy", "dense") == 0
     captured = capsys.readouterr()
     text = captured.out + captured.err
     assert SECRET not in text
@@ -278,7 +278,7 @@ def test_hit_failing_recheck_exits_2(
         return points
 
     monkeypatch.setattr(DenseIndex, "search", tampered)
-    assert retrieve(indexed) == 2
+    assert retrieve(indexed, "--strategy", "dense") == 2
     err = capsys.readouterr().err
     assert "RetrievalAuthorizationError" in err and "tenant_id" in err
 
@@ -289,7 +289,7 @@ def test_other_tenant_gets_zero_hits_and_exit_0(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.setenv("W2A_TENANT_ID", "another-tenant")
-    assert retrieve(indexed) == 0
+    assert retrieve(indexed, "--strategy", "dense") == 0
     assert "hits: 0" in capsys.readouterr().out
 
 
@@ -339,7 +339,7 @@ def test_error_line_is_a_single_safe_line(
         return points
 
     monkeypatch.setattr(DenseIndex, "search", malformed)
-    assert retrieve(indexed) == 2
+    assert retrieve(indexed, "--strategy", "dense") == 2
     err = capsys.readouterr().err.rstrip("\n")
     assert "RetrievalAuthorizationError" in err and "malformed payload" in err
     assert "\n" not in err and "\x1b" not in err
