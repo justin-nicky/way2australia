@@ -167,20 +167,35 @@ class DroppedClauseIndex(SpyIndex):
         return self.inner.search(match, "1 = 1", (), limit)
 
 
+CLAUSE_DROP_VARIANTS = [
+    ("staff scope", {"access_scope": "staff"}, "access_scope", False),
+    ("other tenant", {"tenant_id": "other"}, "tenant_id", False),
+    ("owned", {"owner_user_id": "u1"}, "owner_user_id", False),
+    ("missing owner", {}, "owner_user_id", True),
+]
+
+
+@pytest.mark.parametrize(
+    "name,over,field,drop_owner",
+    CLAUSE_DROP_VARIANTS,
+    ids=[v[0] for v in CLAUSE_DROP_VARIANTS],
+)
 def test_a_store_without_the_clause_trips_check_hit(
-    tmp_path: Path, dense: DenseIndex
+    tmp_path: Path,
+    dense: DenseIndex,
+    name: str,
+    over: dict[str, Any],
+    field: str,
+    drop_owner: bool,
 ) -> None:
-    lexical = build(
-        tmp_path,
-        [
-            ("px", pub("doc_x", "secret", access_scope="staff")),
-            ("pa", pub("doc_a", "secret")),
-        ],
-    )
+    forbidden = pub("doc_x", "secret", **over)
+    if drop_owner:
+        del forbidden["owner_user_id"]
+    lexical = build(tmp_path, [("px", forbidden), ("pa", pub("doc_a", "secret"))])
     with pytest.raises(RetrievalAuthorizationError) as caught:
         retriever(dense, DroppedClauseIndex(lexical)).retrieve("secret", guest(), 5)
     assert caught.value.document_id == "doc_x"
-    assert "access_scope" in str(caught.value)
+    assert field in str(caught.value)
 
 
 HOSTILE = [

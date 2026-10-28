@@ -319,6 +319,9 @@ def _security(args: argparse.Namespace) -> int:
     try:
         config = load_ingestion_config(config_path)
         settings = load_runtime_settings(EvaluationConfigurationError)
+        retrieval_config = load_retrieval_config(
+            args.retrieval_config or repo_root / DEFAULT_RETRIEVAL_CONFIG
+        )
         suite = load_suite(repo_root, args.suite)
         require_active_suite(suite)
         now = datetime.now(UTC)
@@ -346,6 +349,7 @@ def _security(args: argparse.Namespace) -> int:
                 ),
                 security_repository=security_repository,
                 tenant_id=settings.tenant_id,
+                lexical_dir=Path(work) / "lexical",
             )
             log.info(
                 "security index %s built; %d queries, %d deferred case(s)",
@@ -353,7 +357,13 @@ def _security(args: argparse.Namespace) -> int:
                 len(queries),
                 len(deferred),
             )
-            report = run_security_evaluation(index, access, queries, deferred)
+            try:
+                report = run_security_evaluation(
+                    index, access, queries, deferred, retrieval_config
+                )
+            finally:
+                # close the lexical file before its temporary directory goes
+                index.lexical.close()
         duration_ms = (perf_counter() - started) * 1000.0
         document = security_document(
             index=index,
@@ -394,6 +404,7 @@ def format_security_summary(document: dict[str, Any], shown: Path) -> str:
         f"suite: {document['evaluation_suite_id']} "
         f"v{document['evaluation_suite_version']}",
         f"throwaway index: {document['index']['collection']} (removed after the run)",
+        f"strategies: {', '.join(document['strategies'])}",
         f"queries: {document['query_count']} "
         f"({document['security_cases_run']} security cases, "
         f"{document['golden_queries_run']} golden); "
@@ -487,6 +498,7 @@ def main(
     security.add_argument("--repo-root", type=Path, default=Path.cwd())
     security.add_argument("--config", type=Path, default=None)
     security.add_argument("--suite", default=DEFAULT_SUITE)
+    security.add_argument("--retrieval-config", type=Path, default=None)
     security.add_argument(
         "--fixture-root",
         type=Path,

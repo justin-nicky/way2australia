@@ -8,12 +8,14 @@ Never touches other collections.
 
 import uuid
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 from conftest import REPO_ROOT
 from qdrant_client import QdrantClient
 from way2australia_core import AccessContext, Role
 from way2australia_rag.evaluation.security_eval import (
+    STRATEGIES,
     run_security_evaluation,
     select_security_queries,
 )
@@ -30,6 +32,8 @@ from way2australia_rag.repositories import (
     LocalRepositoryConfig,
 )
 from way2australia_rag.retrieval.access import resolve_access
+from way2australia_rag.retrieval.base import Strategy
+from way2australia_rag.retrieval.strategy import load_retrieval_config
 
 QDRANT_URL = "http://localhost:6333"
 
@@ -51,10 +55,16 @@ def live_client() -> Iterator[QdrantClient]:
     client.close()
 
 
+@pytest.mark.parametrize("strategy", [s.value for s in STRATEGIES])
 def test_server_filter_keeps_every_forbidden_point_out(
-    live_client: QdrantClient, security_repository: LocalDocumentRepository
+    strategy: str,
+    live_client: QdrantClient,
+    security_repository: LocalDocumentRepository,
+    tmp_path: Path,
 ) -> None:
-    suite = load_suite(REPO_ROOT, "evaluation/suites/public-eval-v1.json")
+    """Spec 007 R12: dense, bm25 and hybrid on the real server, one strategy per
+    run; the lexical file lives in `tmp_path`."""
+    suite = load_suite(REPO_ROOT, "evaluation/suites/public-eval-v2.json")
     queries, deferred = select_security_queries(suite)
     base = f"w2a-sectest-{uuid.uuid4().hex[:8]}"
     index = None
@@ -68,13 +78,19 @@ def test_server_filter_keeps_every_forbidden_point_out(
             seed_repository=LocalDocumentRepository(LocalRepositoryConfig(REPO_ROOT)),
             security_repository=security_repository,
             tenant_id="way2australia",
+            lexical_dir=tmp_path / "lexical",
         )
         access = resolve_access(
             AccessContext(role=Role.GUEST, tenant_id="way2australia")
         )
-        report = run_security_evaluation(index, access, queries, deferred)
+        config = load_retrieval_config(REPO_ROOT / "config/retrieval.yaml")
+        report = run_security_evaluation(
+            index, access, queries, deferred, config, [Strategy(strategy)]
+        )
+        assert report.strategies == (strategy,)
         assert report.violations == []
         assert report.query_count == len(queries)
+        assert index.lexical_rows_per_variant == index.points_per_variant
     finally:
         names = [f"{base}-sec-v1", f"{base}-sec-v1-settings"]
         if index is not None:

@@ -218,20 +218,20 @@ Review reading order: `evaluation/compare.py` diff → `evaluation/results.py` d
 
 ## T8 — Security gate for BM25 and hybrid, Docker isolation test
 
-**State:** not started
+**State:** approved (2026-10-28)
 **Requirements:** R11, R12, R14
 
-- [ ] `evaluation/security_index.py`: lexical file in the work directory with the same point IDs as the throwaway collection (seed, canary and probes, forbidden rows with the query's terms repeated 3 times, `missing_owner` without the key), opened and bound through the production `LexicalIndex`.
-- [ ] `evaluation/security_eval.py`: per-leg unfiltered sanity checks (zero-term queries counted in `bm25_no_term_queries`), gate over `dense`, `bm25`, `hybrid` through `build_retriever` at `top_k` 50, violations with `strategy`, security result 1.1.
-- [ ] `evaluation/cli.py` `security`: the lexical file lives and is removed with the existing `TemporaryDirectory`; summary names the strategies.
-- [ ] Tests (`test_security_eval.py` additions):
+- [x] `evaluation/security_index.py`: lexical file in the work directory with the same point IDs as the throwaway collection (seed, canary and probes, forbidden rows with the query's terms repeated 3 times, `missing_owner` without the key), opened and bound through the production `LexicalIndex`.
+- [x] `evaluation/security_eval.py`: per-leg unfiltered sanity checks (zero-term queries counted in `bm25_no_term_queries`), gate over `dense`, `bm25`, `hybrid` through `build_retriever` at `top_k` 50, violations with `strategy`, security result 1.1.
+- [x] `evaluation/cli.py` `security`: the lexical file lives and is removed with the existing `TemporaryDirectory`; summary names the strategies.
+- [x] Tests (`test_security_eval.py` additions):
   - the gate passes on v2 for all three strategies;
   - a lexical sanity-check failure (forbidden rows without the query terms) is a harness error (exit 2);
   - a BM25 store that drops the SQL clause produces violations (exit 1) naming `bm25` and `hybrid`;
   - the missing-owner row is excluded by `owner_present` (no `check_hit` violation in a correct run);
   - security result 1.1 keys, no text; the lexical file is gone after a run, including a failed one.
-- [ ] `packages/rag/tests/evaluation/test_security_integration.py`: parametrized over the three strategies on Docker Qdrant (unique `w2a-sectest-<8 hex>`, lexical file in `tmp_path`, cleanup in `finally`, skip when Qdrant is unreachable).
-- [ ] T4 review F1 (user decision 2026-10-27): parametrize the BM25 clause-dropping test (`test_a_store_without_the_clause_trips_check_hit` in `packages/rag/tests/retrieval/test_bm25.py`) over all four forbidden row types (staff scope, other tenant, owned, missing owner).
+- [x] `packages/rag/tests/evaluation/test_security_integration.py`: parametrized over the three strategies on Docker Qdrant (unique `w2a-sectest-<8 hex>`, lexical file in `tmp_path`, cleanup in `finally`, skip when Qdrant is unreachable).
+- [x] T4 review F1 (user decision 2026-10-27): parametrize the BM25 clause-dropping test (`test_a_store_without_the_clause_trips_check_hit` in `packages/rag/tests/retrieval/test_bm25.py`) over all four forbidden row types (staff scope, other tenant, owned, missing owner).
 
 Allowed protected-path changes: none.
 
