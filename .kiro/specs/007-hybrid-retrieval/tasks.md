@@ -192,6 +192,8 @@ Review reading order: equivalence fixture and test → `evaluation/retrieval_eva
 **State:** not started
 **Requirements:** R10
 
+> Note (T6 review, user decision 2026-10-28): `info["retrieval_strategy"]`, the `info["lexical"]` identity keys and the `source_authority` compare for 2.1 were already implemented in T6 (`evaluation/results.py`, `evaluation/compare.py`). T7 treats them as done and does not re-add them; T7 still owns the R10 rules, the refusal messages and the tests below.
+
 - [ ] `evaluation/results.py`: `ComparableRun.info` gains `retrieval_strategy`, `embedder_model_id`, `embedder_revision`, `lexical`.
 - [ ] `evaluation/compare.py`: the R10 table in the design (collection with the missing-collection rule, `index_version`, embedder, lexical identity, strategy identity line), new next-step text.
 - [ ] Tests (`test_compare.py` additions):
@@ -260,6 +262,9 @@ T1–T8 must be approved, committed and pushed on `spec/007` first.
 - [ ] The implementer checks each file like T2 (suite v2, not fake, `git_dirty: false`, same collection, `index_version`, embedder, `top_k`, document count, strategy as named, lexical identity present for `bm25`/`hybrid`).
 - [ ] Apply the R13 rule from the per-case rows (scratch script): hybrid passes the gate; hybrid improves hits or MRR over T2; no `ml` or `mixed` case flips hit to miss. Only if all three hold, set `default_strategy: hybrid` in `config/retrieval.yaml`; otherwise leave `dense`.
 - [ ] Record in `CURRENT_STATE.md`: overall, `en`, `mixed`, `ml` for dense (T2 and 2.1), BM25 and hybrid; every flip by `case_id`; `g004`, `g026`, `g061`; per-leg latency; truncated query count; the rule outcome. The decision text itself is written in T10.
+- [ ] T6 review F2 (user decision 2026-10-28), analysis only (no code change in this spec): for every case where hybrid ranks a relevant document lower than dense (T2), show that document's dense and BM25 `leg_ranks` from the hybrid file and whether the query's BM25 matches were only very common terms (scratch script: the query's `lexical-v1` terms and each term's chunk count in the local lexical file, read-only; "very common" means present in more than half the chunks, where FTS5 floors the IDF). Record the list in `CURRENT_STATE.md` with the other T9 numbers.
+- [ ] T6 review F2: report the number of BM25 candidates per query (or the median), by query language (`en`, `mixed`, `ml`), from the same read-only scratch script at the hybrid candidate depth.
+- [ ] T6 review F2: if the R13 rule above leaves `dense` because of cases where the BM25 matches were only very common terms, add "stopword list or minimum BM25 score/IDF floor" to "Notes for the retrospective" below (checked by the T10 box and carried into "Notes for the next spec"). Do not fix it in Spec 007; the R13 rule and the `config/retrieval.yaml` change are unchanged.
 - [ ] Commit the four result files with the task.
 - [ ] If the default changes, tests that depend on the default read it from `config/retrieval.yaml` (no literal); `make verify` passes.
 
@@ -285,6 +290,7 @@ Review reading order: compare outputs (step 2, step 5) → the rule check (ml/mi
 - [ ] T1 review F1 (user decision 2026-10-25): remove the unused `LEGACY_SUITE` constant from `packages/rag/tests/conftest.py`, or use it in `packages/rag/tests/retrieval/test_baseline.py` instead of the literal v1 suite path (implementer's choice; one test-only edit).
 - [ ] T3 round 3 review F1 (user decision 2026-10-26): in `packages/rag/src/way2australia_rag/lexical/cli.py`, `check_target_allowed` allows only targets that `git check-ignore` reports as ignored (inside a git work tree), replacing the tracked-file check; the protected `knowledge/`, `evaluation/`, `config/` guard (by real on-disk location) stays. Add a test that an existing un-ignored folder such as `.local/other/` is refused (exit 2, nothing written).
 - [ ] T4 review F3 (user decision 2026-10-27): move the lexical test helpers in `packages/rag/tests/lexical/lexical_support.py` into a shared fixture module or `conftest.py` (implementer's choice), and remove the `sys.path` insert and the pyright ignore from `packages/rag/tests/retrieval/test_bm25.py`. Test-only.
+- [ ] T6 round 2 review F1 (user decision 2026-10-28): in `packages/rag/tests/evaluation/test_strategy_eval.py`, remove the leftover `# noqa: E402` comments and pin the exact hybrid dense rank in `test_leg_ranks_cover_the_relevant_documents` (replacing the loose `in range(1, 9)`). Test-only.
 - [ ] "Notes for the retrospective" (below) checked and extended with anything learned during implementation.
 - [ ] Spec-wide checks and protected-path check against `main`.
 - [ ] `graphify update .` after the last code change; doc changes refreshed per D048 if the user asks.

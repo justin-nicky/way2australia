@@ -301,3 +301,7 @@ Recorded by the 2026-10-28 amendment from the T5 task review (round 2, user deci
 
 - **`FusionConfig` location (T5).** `FusionConfig` lives in `retrieval/fusion.py`, not `retrieval/strategy.py`, which avoids an import cycle with `hybrid.py`.
 - **`HybridRetriever` legs (T5).** `HybridRetriever` takes `Retriever` Protocol legs, not the concrete `DenseRetriever` and `BM25Retriever` classes, so tests can use stub legs. The hybrid result identity (collection, index version, embedder, device) comes from the dense leg, and a point listed twice in one leg counts only its first rank.
+
+Recorded by the amendment from the T6 task review (2026-10-28, round 2, user decision: "T6 approved").
+
+- **`RetrievalResult.leg_document_ranks` (T6).** `RetrievalResult` gains `leg_document_ranks: dict[str, list[str]] | None = None`: per leg, the deduplicated document IDs in leg order at candidate depth. Only `HybridRetriever` sets it. The result 2.1 per-case `leg_ranks` is derived from it: the document rank after dedupe, `null` only when the leg did not return the document within candidate depth. Chunk-level `leg_ranks` on hits (`FusedHit.leg_ranks`, CLI output) are unchanged. Dense output and dense `leg_ranks: null` are unchanged.
