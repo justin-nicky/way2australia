@@ -9,7 +9,9 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, ValidationError
 
+from way2australia_rag.ingestion.config import RuntimeSettings
 from way2australia_rag.ingestion.embedding import Embedder
+from way2australia_rag.lexical.build import default_lexical_dir, lexical_index_path
 from way2australia_rag.lexical.store import LexicalIndex
 from way2australia_rag.retrieval.base import Retriever, Strategy
 from way2australia_rag.retrieval.bm25 import BM25Retriever
@@ -79,3 +81,31 @@ def build_retriever(
     if chosen == Strategy.BM25:
         return bm25
     return HybridRetriever(DenseRetriever(dense_index, embedder), bm25, config.fusion)
+
+
+def needs_lexical(strategy: Strategy) -> bool:
+    return strategy in (Strategy.BM25, Strategy.HYBRID)
+
+
+def open_bound_lexical(
+    settings: RuntimeSettings, repo_root: Path, dense_index: DenseIndex
+) -> LexicalIndex:
+    """Open the lexical file for the bound dense index and verify it belongs to it.
+
+    The path is `<lexical_index_dir>/<collection>.sqlite` (the `make index-lexical`
+    default). A missing, foreign or stale file raises `LexicalIndexBindingError`
+    with rebuild advice, before any query."""
+    directory = settings.lexical_index_dir or default_lexical_dir(repo_root)
+    if not directory.is_absolute():
+        directory = repo_root / directory
+    lexical = LexicalIndex.open(
+        lexical_index_path(directory, dense_index.collection),
+        dense_index.collection,
+        dense_index.index_version,
+    )
+    try:
+        lexical.bind_to(dense_index)
+    except BaseException:
+        lexical.close()
+        raise
+    return lexical

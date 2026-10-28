@@ -10,7 +10,11 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from way2australia_rag.evaluation.errors import NotComparableError
-from way2australia_rag.evaluation.results import CaseRow, ComparableRun
+from way2australia_rag.evaluation.results import (
+    AUTHORITY_VERSIONS,
+    CaseRow,
+    ComparableRun,
+)
 from way2australia_rag.retrieval.text import safe_text
 
 HIT_TOLERANCE_CASES = 1
@@ -190,7 +194,10 @@ def compare(base: ComparableRun, candidate: ComparableRun) -> Comparison:
         ("query_language", lambda r: r.query_language),
         ("category", lambda r: r.category),
     ]
-    both_v2 = base.schema_version == "2.0" and candidate.schema_version == "2.0"
+    both_v2 = (
+        base.schema_version in AUTHORITY_VERSIONS
+        and candidate.schema_version in AUTHORITY_VERSIONS
+    )
     if both_v2:
         sliced.append(("source_authority", lambda r: r.source_authority or "unknown"))
     for name, key_of in sliced:
@@ -207,7 +214,7 @@ def compare(base: ComparableRun, candidate: ComparableRun) -> Comparison:
     if not both_v2:
         lines.append(
             "note: the source_authority slice was not compared "
-            "(it exists only in 2.0 files; both files must be 2.0)."
+            "(it exists only in 2.0 and 2.1 files; both files must be one of them)."
         )
     for label in ("latency_p50", "latency_p95"):
         old, new = base.info.get(label), candidate.info.get(label)

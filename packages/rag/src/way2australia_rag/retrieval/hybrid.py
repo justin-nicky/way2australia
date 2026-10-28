@@ -16,6 +16,7 @@ from way2australia_rag.retrieval.base import (
     validate_request,
 )
 from way2australia_rag.retrieval.fusion import FusionConfig, rrf_fuse
+from way2australia_rag.retrieval.metrics import dedupe_documents
 from way2australia_rag.retrieval.models import RetrievalResult
 
 
@@ -69,4 +70,8 @@ class HybridRetriever:
             leg_latency_ms={"dense": dense.latency_ms, "bm25": bm25.latency_ms},
             lexical=bm25.lexical,
             query_terms_truncated=bm25.query_terms_truncated,
+            leg_document_ranks={
+                "dense": dedupe_documents(dense.hits),
+                "bm25": dedupe_documents(bm25.hits),
+            },
         )

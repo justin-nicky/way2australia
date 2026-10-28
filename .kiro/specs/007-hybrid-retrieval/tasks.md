@@ -161,15 +161,15 @@ Review reading order: `retrieval/fusion.py` + fusion tests → `retrieval/hybrid
 
 ## T6 — Strategy option in the CLIs and result format 2.1
 
-**State:** not started
+**State:** approved (2026-10-28)
 **Requirements:** R8, R9, R14
 
-- [ ] Before any T6 code change: capture a fixture of the dense evaluation result produced by the unchanged runner (fake embedder, in-memory Qdrant, fixed clock, patched `git_state` and `perf_counter`) under `packages/rag/tests/evaluation/fixtures/`, for the equivalence test.
-- [ ] `retrieval/cli.py`: `--strategy` (choices from `Strategy`, default from `config/retrieval.yaml`), lexical open and bind for `bm25`/`hybrid`, header `strategy=`, hybrid leg ranks, truncation note; access unchanged.
-- [ ] `evaluation/cli.py` `retrieval`: `--strategy`, lexical open and bind after the dense binding; `retrieval_eval.py` takes a `Retriever` and writes result 2.1 (design R9: strategy, score kind, fusion, lexical identity, `leg_ranks`, `query_terms_truncated`, `truncated_query_count`, per-leg latency, `unanswerable.score_kind`).
-- [ ] `evaluation/results.py`: supports 1.0, 2.0 and 2.1 (1.0/2.0 read as strategy `dense`, no lexical identity).
-- [ ] T4 review F2 (user decision 2026-10-27): one latency span for every leg and strategy, from just after `validate_request` to after the last `check_hit`, so dense and BM25 are timed the same way (design As-built notes). `DenseRetriever.retrieve` moves its clock stop from before `check_hit` to after it; `BM25Retriever` already matches; hybrid per-leg latency is each leg's own span. Only where the dense clock stops changes: dense ranks, scores, document IDs and order stay identical, so the dense equivalence test below still holds (its latency values come from the patched `perf_counter`, whose call count does not change).
-- [ ] Tests:
+- [x] Before any T6 code change: capture a fixture of the dense evaluation result produced by the unchanged runner (fake embedder, in-memory Qdrant, fixed clock, patched `git_state` and `perf_counter`) under `packages/rag/tests/evaluation/fixtures/`, for the equivalence test.
+- [x] `retrieval/cli.py`: `--strategy` (choices from `Strategy`, default from `config/retrieval.yaml`), lexical open and bind for `bm25`/`hybrid`, header `strategy=`, hybrid leg ranks, truncation note; access unchanged.
+- [x] `evaluation/cli.py` `retrieval`: `--strategy`, lexical open and bind after the dense binding; `retrieval_eval.py` takes a `Retriever` and writes result 2.1 (design R9: strategy, score kind, fusion, lexical identity, `leg_ranks`, `query_terms_truncated`, `truncated_query_count`, per-leg latency, `unanswerable.score_kind`).
+- [x] `evaluation/results.py`: supports 1.0, 2.0 and 2.1 (1.0/2.0 read as strategy `dense`, no lexical identity).
+- [x] T4 review F2 (user decision 2026-10-27): one latency span for every leg and strategy, from just after `validate_request` to after the last `check_hit`, so dense and BM25 are timed the same way (design As-built notes). `DenseRetriever.retrieve` moves its clock stop from before `check_hit` to after it; `BM25Retriever` already matches; hybrid per-leg latency is each leg's own span. Only where the dense clock stops changes: dense ranks, scores, document IDs and order stay identical, so the dense equivalence test below still holds (its latency values come from the patched `perf_counter`, whose call count does not change).
+- [x] Tests:
   - dense equivalence: the 2.1 dense result's per-case 2.0 fields and aggregates equal the captured fixture;
   - 2.1 keys for each strategy; no query or chunk text, absolute paths or secrets; never overwritten;
   - `leg_ranks` for relevant documents; truncation flag and count with a synthetic long query;

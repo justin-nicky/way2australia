@@ -28,6 +28,7 @@ from way2australia_rag.ingestion.identity import point_id
 from way2australia_rag.ingestion.settings import build_index_settings
 from way2australia_rag.ingestion.store import IndexPoint, QdrantIndexStore
 from way2australia_rag.retrieval.access import build_access_filter
+from way2australia_rag.retrieval.base import Strategy
 from way2australia_rag.retrieval.errors import RetrievalConfigurationError
 from way2australia_rag.retrieval.index import DenseIndex
 from way2australia_rag.retrieval.retriever import DenseRetriever
@@ -145,7 +146,7 @@ def test_field_set_is_a_superset_of_the_1_0_keys() -> None:
         "small_sample_threshold",
     ):
         assert key in doc, key
-    assert doc["schema_version"] == "2.0" and doc["kind"] == "retrieval_evaluation"
+    assert doc["schema_version"] == "2.1" and doc["kind"] == "retrieval_evaluation"
     assert doc["case_count"] == 3 and doc["excluded_case_count"] == 1
     assert doc["evaluation_suite"]["excluded_by_status"]["golden_answerable"] == {
         "deprecated": 1
@@ -393,6 +394,8 @@ def test_unanswerable_latency_is_excluded_from_p50_p95() -> None:
     index, emb, retriever = build()
 
     class Slow:
+        strategy = Strategy.DENSE
+
         def retrieve(self, query, access, top_k):  # noqa: ANN001, ANN202
             result = retriever.retrieve(query, access, top_k)
             if SECRET_UNANSWERABLE in query:

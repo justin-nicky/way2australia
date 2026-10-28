@@ -44,8 +44,9 @@ class DenseRetriever:
         started = perf_counter()
         vector = self._embedder.embed_query(query_text)
         points = self._index.search(vector, build_access_filter(access), top_k)
-        latency_ms = (perf_counter() - started) * 1000.0
         checked = [(point, check_hit(point.payload or {}, access)) for point in points]
+        # One span for every strategy (T4 review F2): after the last check_hit.
+        latency_ms = (perf_counter() - started) * 1000.0
         checked.sort(key=lambda pair: pair[0].score, reverse=True)
         hits = [
             RetrievedChunk(

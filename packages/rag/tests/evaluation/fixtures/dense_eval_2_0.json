@@ -1,0 +1,254 @@
+{
+  "schema_version": "2.0",
+  "kind": "retrieval_evaluation",
+  "created_at": "2026-01-02T03:04:05+00:00",
+  "git_commit": "0000000000000000000000000000000000000000",
+  "git_dirty": false,
+  "evaluation_suite_id": "s",
+  "evaluation_suite_version": 2,
+  "evaluation_suite": {
+    "status": "active",
+    "cases_by_type": {
+      "golden_answerable": 5,
+      "unanswerable_refusal": 2,
+      "security": 0
+    },
+    "excluded_by_status": {
+      "golden_answerable": {
+        "deprecated": 1
+      },
+      "unanswerable_refusal": {},
+      "security": {}
+    }
+  },
+  "declared_knowledge_release_id": "seed-v1",
+  "release_snapshot_verified": false,
+  "collection": "way2australia-idx-v1",
+  "index_version": "idx-v1",
+  "index_settings": {
+    "schema_version": "1.0",
+    "index_version": "idx-v1",
+    "embedder_model_id": "fake-hash-embedder",
+    "embedder_revision": "1",
+    "embedder_vector_size": 64,
+    "embedder_normalize": true,
+    "embedder_is_fake": false,
+    "chunker_name": "heading",
+    "chunker_version": "1",
+    "chunker_max_chunk_chars": 2000,
+    "hash_contract": "content-hash-v1"
+  },
+  "retrieval_strategy": "dense",
+  "top_k": 5,
+  "device": null,
+  "embedder_is_fake": false,
+  "case_count": 4,
+  "excluded_case_count": 1,
+  "document_count": 8,
+  "random_hit_rate_at_k": 0.625,
+  "random_hit_rate_formula": "min(1, 5/8)",
+  "metrics": {
+    "overall": {
+      "hit_rate_at_5": 0.25,
+      "recall_at_5": 0.25,
+      "mrr": 0.05,
+      "n": 4,
+      "small_sample": true
+    },
+    "by_query_language": {
+      "en": {
+        "hit_rate_at_5": 0.0,
+        "recall_at_5": 0.0,
+        "mrr": 0.0,
+        "n": 2,
+        "small_sample": true
+      },
+      "mixed": {
+        "hit_rate_at_5": 0.0,
+        "recall_at_5": 0.0,
+        "mrr": 0.0,
+        "n": 1,
+        "small_sample": true
+      },
+      "x1": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 0.2,
+        "n": 1,
+        "small_sample": true
+      }
+    },
+    "by_category": {
+      "business": {
+        "hit_rate_at_5": 0.25,
+        "recall_at_5": 0.25,
+        "mrr": 0.05,
+        "n": 4,
+        "small_sample": true
+      }
+    },
+    "by_source_authority": {
+      "naati": {
+        "hit_rate_at_5": 0.5,
+        "recall_at_5": 0.5,
+        "mrr": 0.1,
+        "n": 2,
+        "small_sample": true
+      },
+      "naati+owner_approved": {
+        "hit_rate_at_5": 0.0,
+        "recall_at_5": 0.0,
+        "mrr": 0.0,
+        "n": 1,
+        "small_sample": true
+      },
+      "unknown": {
+        "hit_rate_at_5": 0.0,
+        "recall_at_5": 0.0,
+        "mrr": 0.0,
+        "n": 1,
+        "small_sample": true
+      }
+    }
+  },
+  "absent_query_languages": [],
+  "small_sample_threshold": 10,
+  "section_level": {
+    "measurable_cases": 0,
+    "note": "no active golden case has relevant_section_ids"
+  },
+  "unanswerable": {
+    "status": "not_evaluable_before_generation",
+    "owner": "roadmap-10",
+    "n": 2,
+    "top1_score": {
+      "min": 0.0883,
+      "p50": 0.0883,
+      "p95": 0.1472,
+      "max": 0.1472
+    },
+    "golden_top1_score": {
+      "min": 0.0838,
+      "p50": 0.1027,
+      "p95": 0.2541,
+      "max": 0.2541
+    },
+    "cases": [
+      {
+        "case_id": "u001",
+        "case_version": 3,
+        "top1_score": 0.0883
+      },
+      {
+        "case_id": "u002",
+        "case_version": 3,
+        "top1_score": 0.1472
+      }
+    ]
+  },
+  "latency_ms": {
+    "p50": 1.0,
+    "p95": 1.0,
+    "warmup_ms": 3.0,
+    "measured_cases": 4
+  },
+  "cases": [
+    {
+      "case_id": "g001",
+      "case_version": 1,
+      "query_language": "en",
+      "category": "business",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "doc_0",
+        "doc_5",
+        "doc_6",
+        "doc_7",
+        "doc_3"
+      ],
+      "relevant_document_ids": [
+        "doc_1"
+      ],
+      "hit": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "top1_score": 0.0838,
+      "latency_ms": 1.0
+    },
+    {
+      "case_id": "g002",
+      "case_version": 1,
+      "query_language": "mixed",
+      "category": "business",
+      "source_authority": "naati+owner_approved",
+      "ranked_document_ids": [
+        "doc_5",
+        "doc_4",
+        "doc_6",
+        "doc_1",
+        "doc_0"
+      ],
+      "relevant_document_ids": [
+        "doc_2",
+        "doc_3"
+      ],
+      "hit": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "top1_score": 0.2541,
+      "latency_ms": 1.0
+    },
+    {
+      "case_id": "g003",
+      "case_version": 1,
+      "query_language": "en",
+      "category": "business",
+      "source_authority": "unknown",
+      "ranked_document_ids": [
+        "doc_7",
+        "doc_1",
+        "doc_6",
+        "doc_2",
+        "doc_5"
+      ],
+      "relevant_document_ids": [
+        "doc_9"
+      ],
+      "hit": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "top1_score": 0.1027,
+      "latency_ms": 1.0
+    },
+    {
+      "case_id": "g005",
+      "case_version": 1,
+      "query_language": "x1",
+      "category": "business",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "doc_3",
+        "doc_1",
+        "doc_7",
+        "doc_0",
+        "doc_5"
+      ],
+      "relevant_document_ids": [
+        "doc_5"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.2,
+      "top1_score": 0.1221,
+      "latency_ms": 1.0
+    }
+  ],
+  "notes": [
+    "Top-5 over 8 indexed documents is optimistic; compare HitRate@5 with the random expectation min(1, 5/8).",
+    "min(1, 5/8) understates the random rate for cases with several relevant documents.",
+    "One case equals 1/4 of HitRate (0.250).",
+    "Every document is a single chunk, so section-level and document-level results coincide.",
+    "The index was not verified against the declared release's document snapshot.",
+    "Model load and the warm-up query are excluded from p50/p95."
+  ]
+}

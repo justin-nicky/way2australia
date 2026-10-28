@@ -1,4 +1,4 @@
-"""Retrieval evaluation runner (Spec 006 R4, R5, R6, R7).
+"""Retrieval evaluation runner (Spec 006 R4, R5, R6, R7; Spec 007 R9).
 
 Every case is retrieved with the one server-resolved `ResolvedAccess` passed in;
 a case's own `access_context` is never consulted. Read-only on Qdrant, on
@@ -33,7 +33,9 @@ from way2australia_rag.evaluation.slices import (
 )
 from way2australia_rag.ingestion.embedding import Embedder
 from way2australia_rag.retrieval.access import ResolvedAccess, build_access_filter
+from way2australia_rag.retrieval.base import Retriever, Strategy
 from way2australia_rag.retrieval.baseline import git_state
+from way2australia_rag.retrieval.fusion import FusionConfig
 from way2australia_rag.retrieval.index import DenseIndex
 from way2australia_rag.retrieval.metrics import (
     dedupe_documents,
@@ -43,9 +45,8 @@ from way2australia_rag.retrieval.metrics import (
     recall_at_k,
     reciprocal_rank,
 )
-from way2australia_rag.retrieval.retriever import DenseRetriever
+from way2australia_rag.retrieval.models import LexicalIdentity, RetrievalResult
 
-RETRIEVAL_STRATEGY = "dense"
 OVERLAP_CASES = ("g004", "u001")
 UNANSWERABLE_STATUS = "not_evaluable_before_generation"
 UNANSWERABLE_OWNER = "roadmap-10"
@@ -109,10 +110,11 @@ def score_distribution(scores: Sequence[float | None]) -> dict[str, float | None
 
 def unanswerable_report(
     suite: LoadedSuite,
-    retriever: DenseRetriever,
+    retriever: Retriever,
     access: ResolvedAccess,
     top_k: int,
     golden_top1: Sequence[float | None],
+    score_kind: str = "dense_cosine",
 ) -> dict[str, Any]:
     """Top-1 score per active unanswerable case. Latency is not recorded, so
     p50/p95 of the golden run stay comparable with 1.0. No pass or fail."""
@@ -131,9 +133,74 @@ def unanswerable_report(
         "status": UNANSWERABLE_STATUS,
         "owner": UNANSWERABLE_OWNER,
         "n": len(rows),
+        "score_kind": score_kind,
         "top1_score": score_distribution([r["top1_score"] for r in rows]),
         "golden_top1_score": score_distribution(golden_top1),
         "cases": rows,
+    }
+
+
+def document_leg_ranks(result: RetrievalResult) -> dict[str, dict[str, int]]:
+    """Per leg, the document rank (after dedupe, at candidate depth) of every
+    document the leg returned. A hybrid result carries each leg's deduped
+    ranking; a single-leg `bm25` run reports its own document ranks."""
+    if result.leg_document_ranks is not None:
+        return {
+            leg: {doc: position for position, doc in enumerate(ranked, 1)}
+            for leg, ranked in result.leg_document_ranks.items()
+        }
+    ranked = dedupe_documents(result.hits)
+    return {result.strategy: {doc: position for position, doc in enumerate(ranked, 1)}}
+
+
+def _leg_ranks_for(
+    result: RetrievalResult, relevant: set[str]
+) -> dict[str, dict[str, int | None]] | None:
+    if result.strategy == Strategy.DENSE.value:
+        return None
+    legs = document_leg_ranks(result)
+    return {
+        leg: {doc: ranks.get(doc) for doc in sorted(relevant)}
+        for leg, ranks in legs.items()
+    }
+
+
+def _lexical_report(identity: LexicalIdentity | None) -> dict[str, Any] | None:
+    if identity is None:
+        return None
+    return {
+        "label": identity.label,
+        "tokenizer_name": identity.tokenizer_name,
+        "tokenizer_version": identity.tokenizer_version,
+        "source_chunk_digest": identity.source_chunk_digest,
+        "chunk_count": identity.chunk_count,
+    }
+
+
+def _fusion_report(fusion: FusionConfig | None) -> dict[str, Any] | None:
+    if fusion is None:
+        return None
+    return {
+        "method": fusion.method,
+        "k": fusion.k,
+        "weights": dict(fusion.weights),
+        "candidate_depth": fusion.candidate_depth,
+    }
+
+
+def _leg_latency(results: Sequence[RetrievalResult]) -> dict[str, Any] | None:
+    legs: dict[str, list[float]] = {}
+    for result in results:
+        for leg, value in (result.leg_latency_ms or {}).items():
+            legs.setdefault(leg, []).append(value)
+    if not legs:
+        return None
+    return {
+        leg: {
+            "p50": round(percentile(values, 50), 3),
+            "p95": round(percentile(values, 95), 3),
+        }
+        for leg, values in sorted(legs.items())
     }
 
 
@@ -165,7 +232,7 @@ def _notes(suite: LoadedSuite, *, top_k: int, document_count: int, n: int) -> li
 
 def run_retrieval_evaluation(
     *,
-    retriever: DenseRetriever,
+    retriever: Retriever,
     index: DenseIndex,
     embedder: Embedder,
     access: ResolvedAccess,
@@ -175,10 +242,12 @@ def run_retrieval_evaluation(
     authorities: Mapping[str, str],
     registry_languages: Sequence[str],
     repo_root: Path,
+    fusion: FusionConfig | None = None,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
 ) -> dict[str, Any]:
     """Run the active golden cases, then the active unanswerable cases, and return
-    the 2.0 result document.
+    the 2.1 result document. `fusion` is required for (and only recorded by) the
+    `hybrid` strategy.
 
     Unanswerable cases contribute their top-1 score only; their latency is
     excluded from the p50/p95 figures.
@@ -195,16 +264,24 @@ def run_retrieval_evaluation(
             "no documents are visible under the access filter."
         )
 
+    strategy = Strategy(retriever.strategy)
+    if strategy == Strategy.HYBRID and fusion is None:
+        raise EvaluationConfigurationError(
+            "the hybrid strategy needs its fusion config."
+        )
     started = perf_counter()
-    retriever.retrieve(cases[0].query, access, top_k)  # unmeasured warm-up
+    warm_up = retriever.retrieve(cases[0].query, access, top_k)  # unmeasured
     warmup_ms = (perf_counter() - started) * 1000.0
     # A real BgeM3Embedder reports no device until the model has loaded.
     device = embedder.device
 
+    lexical_identity = warm_up.lexical
     rows: list[dict[str, Any]] = []
+    results: list[RetrievalResult] = []
     section_rows: list[dict[str, Any]] = []
     for case in cases:
         result = retriever.retrieve(case.query, access, top_k)
+        results.append(result)
         ranked = dedupe_documents(result.hits)
         relevant = set(case.relevant_document_ids)
         top1 = round(result.hits[0].score, 4) if result.hits else None
@@ -224,6 +301,8 @@ def run_retrieval_evaluation(
                 "reciprocal_rank": reciprocal_rank(ranked, relevant),
                 "top1_score": top1,
                 "latency_ms": round(result.latency_ms, 3),
+                "query_terms_truncated": result.query_terms_truncated,
+                "leg_ranks": _leg_ranks_for(result, relevant),
             }
         )
         section_rows.append(
@@ -235,7 +314,17 @@ def run_retrieval_evaluation(
 
     latencies = [r["latency_ms"] for r in rows]
     unanswerable = unanswerable_report(
-        suite, retriever, access, top_k, [r["top1_score"] for r in rows]
+        suite,
+        retriever,
+        access,
+        top_k,
+        [r["top1_score"] for r in rows],
+        warm_up.score_kind,
+    )
+    truncated = (
+        None
+        if strategy == Strategy.DENSE
+        else sum(1 for r in rows if r["query_terms_truncated"])
     )
     settings = index.settings
     commit, dirty = git_state(repo_root)
@@ -263,7 +352,11 @@ def run_retrieval_evaluation(
         "collection": index.collection,
         "index_version": index.index_version,
         "index_settings": settings.model_dump(mode="json"),
-        "retrieval_strategy": RETRIEVAL_STRATEGY,
+        "retrieval_strategy": strategy.value,
+        "score_kind": warm_up.score_kind,
+        "fusion": _fusion_report(fusion) if strategy == Strategy.HYBRID else None,
+        "lexical_index": _lexical_report(lexical_identity),
+        "truncated_query_count": truncated,
         "top_k": top_k,
         "device": device,
         "embedder_is_fake": settings.embedder_is_fake,
@@ -289,6 +382,7 @@ def run_retrieval_evaluation(
             "p95": round(percentile(latencies, 95), 3),
             "warmup_ms": round(warmup_ms, 3),
             "measured_cases": len(rows),
+            "legs": _leg_latency(results),
         },
         "cases": rows,
         "notes": _notes(suite, top_k=top_k, document_count=document_count, n=len(rows)),

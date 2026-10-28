@@ -56,3 +56,4 @@ class RetrievalResult(BaseModel):
     leg_latency_ms: dict[str, float] | None = None
     lexical: LexicalIdentity | None = None
     query_terms_truncated: bool | None = None
+    leg_document_ranks: dict[str, list[str]] | None = None

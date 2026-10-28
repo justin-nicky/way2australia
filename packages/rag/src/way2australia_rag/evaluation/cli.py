@@ -84,13 +84,19 @@ from way2australia_rag.repositories import (
     list_eligible_documents,
 )
 from way2australia_rag.retrieval.access import guest_access, resolve_access
+from way2australia_rag.retrieval.base import Strategy
 from way2australia_rag.retrieval.errors import RetrievalError
 from way2australia_rag.retrieval.index import DenseIndex
 from way2australia_rag.retrieval.retriever import (
     DEFAULT_TOP_K,
     MAX_TOP_K,
     MIN_TOP_K,
-    DenseRetriever,
+)
+from way2australia_rag.retrieval.strategy import (
+    build_retriever,
+    load_retrieval_config,
+    needs_lexical,
+    open_bound_lexical,
 )
 from way2australia_rag.retrieval.text import safe_text
 
@@ -99,6 +105,7 @@ EXIT_PROBLEMS = 1
 EXIT_ERROR = 2
 DEFAULT_SUITE = "evaluation/suites/public-eval-v2.json"
 DEFAULT_RELEASE = "seed-v1"
+DEFAULT_RETRIEVAL_CONFIG = "config/retrieval.yaml"
 
 log = logging.getLogger(__name__)
 
@@ -163,6 +170,8 @@ def format_summary(document: dict[str, Any], output: Path, repo_root: Path) -> s
         shown = Path(output.name)
     settings = document["index_settings"]
     lines = [
+        f"strategy: {document['retrieval_strategy']} "
+        f"(scores: {document['score_kind']})",
         f"index: {document['collection']} (index_version {document['index_version']}; "
         f"embedder {settings['embedder_model_id']} @ {settings['embedder_revision']}, "
         f"fake={str(document['embedder_is_fake']).lower()}, "
@@ -208,6 +217,7 @@ def _retrieval(
     logging.getLogger("httpx").setLevel(logging.WARNING)  # request lines carry URLs
     repo_root: Path = args.repo_root.resolve()
     config_path: Path = args.config or repo_root / DEFAULT_CONFIG_PATH
+    lexical = None
     try:
         # 1. top-k, config, runtime settings
         if not MIN_TOP_K <= args.top_k <= MAX_TOP_K:
@@ -216,6 +226,10 @@ def _retrieval(
             )
         config = load_ingestion_config(config_path)
         settings = load_runtime_settings(EvaluationConfigurationError)
+        retrieval_config = load_retrieval_config(
+            args.retrieval_config or repo_root / DEFAULT_RETRIEVAL_CONFIG
+        )
+        strategy = Strategy(args.strategy or retrieval_config.default_strategy)
         # 2. suite; only an active suite is evaluated
         suite = load_suite(repo_root, args.suite)
         require_active_suite(suite)
@@ -238,16 +252,23 @@ def _retrieval(
             client, settings.collection_base, config.index_version, embedder.info
         )
         require_real_index(index)
+        # 6b. the lexical file, opened read-only and bound to the dense index
+        if needs_lexical(strategy):
+            lexical = open_bound_lexical(settings, repo_root, index)
+        retriever = build_retriever(
+            strategy, index, embedder, lexical, retrieval_config
+        )
         # 7. the one server-resolved access
         access = resolve_access(guest_access(settings))
         log.info(
-            "suite %s loaded; index %s (index_version %s) bound",
+            "suite %s loaded; strategy %s; index %s (index_version %s) bound",
             safe_text(suite.manifest.evaluation_suite_id),
+            strategy.value,
             safe_text(index.collection),
             safe_text(index.index_version),
         )
         document = run_retrieval_evaluation(
-            retriever=DenseRetriever(index, embedder),
+            retriever=retriever,
             index=index,
             embedder=embedder,
             access=access,
@@ -257,6 +278,7 @@ def _retrieval(
             authorities=authorities,
             registry_languages=languages,
             repo_root=repo_root,
+            fusion=retrieval_config.fusion if strategy == Strategy.HYBRID else None,
             clock=lambda: now,
         )
         write_document(output, document)
@@ -268,6 +290,9 @@ def _retrieval(
         # Class name only: client messages can carry URLs or credentials.
         print(f"ERROR {type(error).__name__}", file=sys.stderr)
         return EXIT_ERROR
+    finally:
+        if lexical is not None:
+            lexical.close()
     print(f"collection: {safe_text(index.collection)}")
     print(format_summary(document, output, repo_root))
     return EXIT_OK
@@ -424,7 +449,8 @@ def main(
         "--repo-root", type=Path, default=Path.cwd(), help="repository root"
     )
     retrieval = commands.add_parser(
-        "retrieval", help="run the active golden cases through dense retrieval"
+        "retrieval",
+        help="run the active golden cases through the chosen retrieval strategy",
     )
     retrieval.add_argument("--repo-root", type=Path, default=Path.cwd())
     retrieval.add_argument(
@@ -436,6 +462,18 @@ def main(
     retrieval.add_argument("--top-k", type=int, default=DEFAULT_TOP_K)
     retrieval.add_argument("--suite", default=DEFAULT_SUITE)
     retrieval.add_argument("--release", default=DEFAULT_RELEASE)
+    retrieval.add_argument(
+        "--strategy",
+        choices=[strategy.value for strategy in Strategy],
+        default=None,
+        help="retrieval strategy (default: default_strategy in config/retrieval.yaml)",
+    )
+    retrieval.add_argument(
+        "--retrieval-config",
+        type=Path,
+        default=None,
+        help=f"retrieval config (default: <repo-root>/{DEFAULT_RETRIEVAL_CONFIG})",
+    )
     retrieval.add_argument(
         "--output",
         type=Path,

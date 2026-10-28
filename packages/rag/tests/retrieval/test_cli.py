@@ -111,6 +111,8 @@ def test_parser_has_no_role_scope_or_tenant_option() -> None:
         "--config",
         "--top-k",
         "--embedder",
+        "--strategy",
+        "--retrieval-config",
     }
     for flag in ("--role", "--scope", "--tenant", "--tenant-id", "--access-scope"):
         with pytest.raises(SystemExit):

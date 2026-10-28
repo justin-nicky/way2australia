@@ -1,4 +1,5 @@
-"""Result document 2.0 constants and writing (Spec 006 R7).
+"""Result document constants, reading (1.0, 2.0, 2.1) and writing (Spec 006 R7,
+Spec 007 R9).
 
 Writing goes through the unchanged `retrieval.baseline.write_result`: exclusive
 create, never overwritten, partial file removed on failure.
@@ -19,13 +20,16 @@ from way2australia_rag.retrieval.baseline import (
 from way2australia_rag.retrieval.text import safe_text
 
 RESULT_KIND = "retrieval_evaluation"
-SCHEMA_VERSION = "2.0"
+SCHEMA_VERSION = "2.1"
 LEGACY_KIND = "retrieval_baseline"
 LEGACY_SCHEMA_VERSION = "1.0"
 SUPPORTED_FORMATS = {
     (LEGACY_KIND, LEGACY_SCHEMA_VERSION),
+    (RESULT_KIND, "2.0"),
     (RESULT_KIND, SCHEMA_VERSION),
 }
+# Versions whose case rows carry `source_authority` (2.0 and later).
+AUTHORITY_VERSIONS = {"2.0", SCHEMA_VERSION}
 
 __all__ = [
     "CaseRow",
@@ -33,6 +37,7 @@ __all__ = [
     "read_result",
     "RESULT_KIND",
     "SCHEMA_VERSION",
+    "AUTHORITY_VERSIONS",
     "check_output_free",
     "default_output_path",
     "write_document",
@@ -60,7 +65,7 @@ class CaseRow:
     reciprocal_rank: float
     query_language: str
     category: str
-    source_authority: str | None  # 2.0 only
+    source_authority: str | None  # 2.0 and later
 
 
 @dataclass(frozen=True)
@@ -91,7 +96,7 @@ def _num(value: object) -> bool:
 
 
 def read_result(path: Path, label: str = "result") -> ComparableRun:
-    """Read a `retrieval_baseline` 1.0 or `retrieval_evaluation` 2.0 file.
+    """Read a `retrieval_baseline` 1.0 or `retrieval_evaluation` 2.0 or 2.1 file.
 
     Anything else raises `NotComparableError` (exit 2 in the CLI). Only the file
     name appears in messages.
@@ -109,7 +114,7 @@ def read_result(path: Path, label: str = "result") -> ComparableRun:
             label,
             name,
             f"has kind {kind!r} and schema_version {version!r} "
-            "(supported: retrieval_baseline 1.0, retrieval_evaluation 2.0)",
+            "(supported: retrieval_baseline 1.0, retrieval_evaluation 2.0 and 2.1)",
         )
     try:
         return _build_run(name, raw, str(kind), str(version), label)
@@ -145,7 +150,9 @@ def _build_run(
         seen.add(key[0])
         need(isinstance(item["hit"], bool))
         need(_num(item["recall"]) and _num(item["reciprocal_rank"]))
-        authority = item.get("source_authority") if version == "2.0" else None
+        authority = (
+            item.get("source_authority") if version in AUTHORITY_VERSIONS else None
+        )
         cases[key] = CaseRow(
             hit=item["hit"],
             recall=float(item["recall"]),
@@ -156,7 +163,11 @@ def _build_run(
         )
     settings = raw.get("index_settings") or {}
     latency = raw.get("latency_ms") or {}
+    lexical = raw.get("lexical_index")  # 2.1 only; 1.0 and 2.0 have none
     info = {
+        # 1.0 and 2.0 files are dense runs.
+        "retrieval_strategy": raw.get("retrieval_strategy") or "dense",
+        "lexical": lexical if isinstance(lexical, dict) else None,
         "collection": raw.get("collection"),
         "index_version": raw.get("index_version"),
         "embedder": f"{settings.get('embedder_model_id')} @ "
