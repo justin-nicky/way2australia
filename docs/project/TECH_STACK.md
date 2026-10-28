@@ -27,7 +27,7 @@ This file records the currently selected implementation stack and intentional no
 - Qdrant
 
 ### Lexical store
-- SQLite FTS5 (standard library, no new dependency): the BM25 store for the `bm25` and `hybrid` strategies (Spec 007, D050) and the planned fallback store; a derived local file per collection, built by `make index-lexical`
+- SQLite FTS5 (standard library, no new dependency): the BM25 store for the `bm25` and `hybrid` strategies (Spec 007, D050) and the planned fallback store; a derived local file per collection, built by `make index-lexical` from eligible guest/public chunks only (a roles spec needs one file per access scope, because BM25 statistics are computed over the whole file)
 
 ### Embeddings
 - BGE-M3 initially

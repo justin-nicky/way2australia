@@ -237,7 +237,7 @@ query → validate_request → ResolvedAccess (one, server-resolved)
 
 - Authorization is applied inside each leg's own query and re-checked per hit; fusion sees only authorized hits and fails closed (any leg error propagates; no single-leg fallback). An empty BM25 leg keeps the dense order.
 - Every strategy builds the embedder and opens the dense index, and `bm25`/`hybrid` also open and bind the lexical file; `bm25` never embeds the query. BM25 therefore still needs Qdrant and the `bge-m3` extra; independence is the fallback spec's work (roadmap 13).
-- BM25 statistics are corpus-wide per file (a roles spec needs per-scope files or an accepted leak).
+- BM25 statistics (IDF, average document length) are computed over every row of a lexical file, including rows the access clause excludes. Today the production file holds only eligible public chunks (`production_entries` uses `GUEST_PUBLIC_POLICY`), so the statistics reveal nothing; only the security gate's temporary file holds forbidden rows. A future roles spec needs one lexical file per access scope, so that one scope's statistics never reflect another scope's text (D050).
 - Decisions: D049–D055.
 
 ## Target RAG query flow

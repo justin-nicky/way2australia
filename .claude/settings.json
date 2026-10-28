@@ -14,10 +14,7 @@
       "Bash(git commit *)",
       "Bash(git switch *)",
       "Bash(git merge --no-ff *)",
-      "Bash(git merge --abort)",
-      "Read(~/learning/**)",
-      "Edit(~/learning/**)",
-      "Write(~/learning/**)"
+      "Bash(git merge --abort)"
     ]
   },
   "hooks": {

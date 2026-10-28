@@ -309,3 +309,11 @@ Recorded by the amendment from the T6 task review (2026-10-28, round 2, user dec
 Recorded by the 2026-10-28 amendment from the T10 implementation (user-accepted deviation).
 
 - **`make index-lexical` target outside a git work tree (T10).** `check_target_allowed` in `lexical/cli.py` always refuses a target in or under `knowledge/`, `evaluation/` or `config/`. Inside a git work tree it allows only a target that `git check-ignore` reports as ignored. Outside any git work tree there is nothing to check against, so an un-ignored target is allowed (R4 says "git-ignored location"; user-accepted deviation, 2026-10-28).
+
+Recorded by the `spec-reviewer` retrospective, round 1 (2026-10-28). Each note describes code as built and names where the change was approved.
+
+- **`retrieval/baseline.py` edited (T10).** The "Not changed" list above names `baseline.py`, but T10 changed `git_state` there: `git status --porcelain --untracked-files=all`, and an untracked file under `experiments/results/` no longer makes a run dirty (a tracked or staged change there still does). Approved by the 2026-10-28 change-log line (T9 round 1 review F1, code option chosen in T10); the legacy characterization test still passes, and the legacy `make retrieval-baseline` `git_dirty` follows the same rule (T10 review F3, accepted).
+- **`query_terms` return type (T3).** The "Interfaces / models" sketch shows `query_terms(text: str) -> list[str]`; as built (and as the R3 section says) it returns `QueryTerms(terms, truncated)`.
+- **2.1 file without a lexical identity (T10).** `evaluation/results.py` refuses at read time (exit 2 in `eval-compare`) a 2.1 `bm25` or `hybrid` file whose `lexical_index` is not an object; this check is not in the R10 table above. Approved by the 2026-10-28 change-log line (T7 round 1 review F2); recorded in D054.
+- **`run_security_evaluation` takes the retrieval config (T10).** It has no built-in fusion default; the CLI passes the `RetrievalConfig` loaded from `config/retrieval.yaml`. Approved by the 2026-10-28 change-log line (T8 round 1 review); recorded in D053.
+- **Shared lexical test helpers (T10).** The helpers live in `packages/rag/tests/lexical_support.py` (next to `conftest.py`), not in a fixture; test-only (T4 review F3, implementer's choice allowed by the box).
