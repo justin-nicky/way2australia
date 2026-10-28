@@ -11,7 +11,7 @@ from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
-from conftest import REPO_ROOT, live_suite_rows, manifest_document_count
+from conftest import LEGACY_SUITE, REPO_ROOT, live_suite_rows, manifest_document_count
 from qdrant_client import QdrantClient
 from way2australia_rag.ingestion import cli as ingestion_cli
 from way2australia_rag.ingestion.embedding import EmbedderInfo, FakeEmbedder
@@ -20,6 +20,7 @@ from way2australia_rag.retrieval.access import build_access_filter
 from way2australia_rag.retrieval.baseline import (
     BaselineResult,
     default_output_path,
+    git_state,
     run_baseline,
     write_result,
 )
@@ -329,7 +330,7 @@ def test_cli_with_allow_fake_writes_result_and_prints_summary(
         live_suite_rows(
             "golden_answerable",
             active_only=True,
-            suite="evaluation/suites/public-eval-v1.json",
+            suite=LEGACY_SUITE,
         )
     )
     assert doc["random_hit_rate_formula"] == f"min(1, 5/{documents})"
@@ -373,3 +374,42 @@ def test_summary_strips_control_characters(tmp_path: Path) -> None:
     assert not re.search(r"[\x00-\x09\x0b-\x1f\x7f]", summary)
     expected_lines = 7 + len(doc["notes"])
     assert len(summary.splitlines()) == expected_lines
+
+
+def _git(repo: Path, *args: str) -> None:
+    import subprocess
+
+    subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True)
+
+
+def test_git_state_ignores_only_untracked_result_files(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    (repo / "experiments" / "results").mkdir(parents=True)
+    (repo / "tracked.txt").write_text("a", encoding="utf-8")
+    (repo / "experiments" / "results" / "old.json").write_text("{}", encoding="utf-8")
+    _git(repo.parent, "init", "-q", str(repo))
+    _git(repo, "config", "user.email", "t@example.com")
+    _git(repo, "config", "user.name", "t")
+    _git(repo, "add", "tracked.txt")
+    _git(repo, "commit", "-q", "-m", "init")
+
+    commit, dirty = git_state(repo)
+    assert commit and dirty is False  # an untracked result file only
+
+    (repo / "experiments" / "results" / "sub").mkdir()
+    (repo / "experiments" / "results" / "sub" / "new.json").write_text(
+        "{}", encoding="utf-8"
+    )
+    assert git_state(repo)[1] is False  # also in a new untracked folder
+
+    (repo / "other.txt").write_text("x", encoding="utf-8")
+    assert git_state(repo)[1] is True  # any other untracked file
+    (repo / "other.txt").unlink()
+    assert git_state(repo)[1] is False
+
+    (repo / "tracked.txt").write_text("changed", encoding="utf-8")
+    assert git_state(repo)[1] is True  # a tracked change
+    _git(repo, "checkout", "--", "tracked.txt")
+
+    _git(repo, "add", "-f", "experiments/results/old.json")
+    assert git_state(repo)[1] is True  # a staged (tracked) result file

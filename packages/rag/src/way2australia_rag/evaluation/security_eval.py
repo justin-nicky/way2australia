@@ -26,11 +26,10 @@ from way2australia_rag.evaluation.security_index import (
 from way2australia_rag.ingestion.store import DENSE_VECTOR_NAME
 from way2australia_rag.lexical.tokenizer import query_terms
 from way2australia_rag.retrieval.access import ResolvedAccess
-from way2australia_rag.retrieval.base import Strategy
+from way2australia_rag.retrieval.base import Retriever, Strategy
 from way2australia_rag.retrieval.baseline import git_state
 from way2australia_rag.retrieval.bm25 import match_expression
 from way2australia_rag.retrieval.errors import RetrievalAuthorizationError
-from way2australia_rag.retrieval.fusion import FusionConfig
 from way2australia_rag.retrieval.retriever import MAX_TOP_K
 from way2australia_rag.retrieval.strategy import RetrievalConfig, build_retriever
 from way2australia_rag.retrieval.text import safe_text
@@ -64,17 +63,6 @@ EXCLUDED_FIXTURES = [
 ]
 SANITY_LIMIT = 5
 STRATEGIES = (Strategy.DENSE, Strategy.BM25, Strategy.HYBRID)
-# Fusion settings do not affect what is authorized; the CLI passes the real config.
-DEFAULT_RETRIEVAL_CONFIG = RetrievalConfig(
-    schema_version="1.0",
-    default_strategy=Strategy.DENSE,
-    fusion=FusionConfig(
-        method="rrf",
-        k=60,
-        weights={"dense": 1.0, "bm25": 1.0},
-        candidate_depth=MAX_TOP_K,
-    ),
-)
 LEXICAL_SANITY_SQL = (
     "SELECT c.document_id FROM chunk_terms "
     "JOIN chunks c ON c.rowid = chunk_terms.rowid "
@@ -150,14 +138,15 @@ def run_security_evaluation(
     access: ResolvedAccess,
     queries: Sequence[SecurityQuery],
     deferred: Sequence[dict[str, Any]],
-    retrieval_config: RetrievalConfig = DEFAULT_RETRIEVAL_CONFIG,
+    retrieval_config: RetrievalConfig,
     strategies: Sequence[Strategy] = STRATEGIES,
 ) -> SecurityReport:
     """Run the gate. `queries` must be the ones the index was built for, in order.
 
     Raises `EvaluationHarnessError` when an unfiltered sanity check (dense, or
     lexical for a query with terms) does not find a forbidden point nearest: the
-    gate would otherwise pass vacuously."""
+    gate would otherwise pass vacuously. `retrieval_config` has no built-in
+    default: the caller passes the settings from `config/retrieval.yaml`."""
     if tuple(q.text for q in queries) != index.queries:
         raise EvaluationHarnessError(
             "the queries do not match the ones the security index was built for."
@@ -198,7 +187,7 @@ def run_security_evaluation(
 def _gate(
     report: SecurityReport,
     strategy: Strategy,
-    retriever: Any,
+    retriever: Retriever,
     query: SecurityQuery,
     access: ResolvedAccess,
 ) -> None:

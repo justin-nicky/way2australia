@@ -180,9 +180,9 @@ run summary
 - Changing an index-defining setting means a new `index_version`, which gives a new collection; the store never deletes a collection.
 - Decisions: D025–D030, D032.
 
-## Retrieval (Phase 1 dense baseline, Spec 005)
+## Retrieval (Phase 1 dense baseline, Spec 005; hybrid added by Spec 007)
 
-Library code in `packages/rag/src/way2australia_rag/retrieval/` plus the shared access types in `packages/core`. No HTTP route yet. Two developer CLIs run it: `make retrieve` and `make retrieval-baseline`.
+Library code in `packages/rag/src/way2australia_rag/retrieval/` plus the shared access types in `packages/core`. No HTTP route yet. Developer CLIs run it: `make retrieve` (all strategies), `make index-lexical` and the legacy dense-only `make retrieval-baseline`.
 
 | Module | Role |
 |---|---|
@@ -191,10 +191,15 @@ Library code in `packages/rag/src/way2australia_rag/retrieval/` plus the shared 
 | `index.py` | `DenseIndex`: read-only binding to the collection and its `-settings` record; `search`, `document_count` |
 | `retriever.py` | `DenseRetriever.retrieve(query, access, top_k)` → `RetrievalResult` |
 | `models.py`, `errors.py`, `text.py` | `RetrievedChunk`/`RetrievalResult`, error hierarchy, `safe_text` for printing payload text |
-| `cli.py` | `make retrieve` |
+| `base.py`, `strategy.py` | `Strategy` (`dense`, `bm25`, `hybrid`), the `Retriever` Protocol, `RetrievalConfig` (from `config/retrieval.yaml`) and `build_retriever`, the only place a strategy name becomes a retriever |
+| `bm25.py` | `BM25Retriever` over the lexical index; `build_sql_access_clause` (in `access.py`) is its authorization builder |
+| `fusion.py`, `hybrid.py` | pure `rrf_fuse` and `HybridRetriever` (dense leg, then BM25 leg, at candidate depth) |
+| `cli.py` | `make retrieve` (`--strategy`) |
 | `metrics.py`, `goldens.py`, `baseline.py`, `baseline_cli.py` | document-level metrics, read-only golden/suite/release loading, baseline runner and writer, `make retrieval-baseline` |
 
-Query flow as built:
+The lexical side lives in `packages/rag/src/way2australia_rag/lexical/` (Spec 007): `tokenizer.py` (`lexical-v1`), `store.py` (SQLite FTS5 file: `chunks` table with access columns and the full payload, `chunk_terms` FTS5 table, a settings row with the dense identity copy; read-only `LexicalIndex.open`, `bind_to(dense)`, `search`), `build.py` (`production_entries`, atomic `build_lexical_index`) and `cli.py` (`make index-lexical`, writes only a git-ignored file). The file is a derived artifact, one per collection, bound to the dense index by identity and chunk digest.
+
+Query flow as built (dense strategy; `bm25` and `hybrid` described below):
 
 ```text
 query text + environment (QDRANT_*, W2A_TENANT_ID) + config/ingestion.yaml
@@ -220,9 +225,24 @@ RetrievalResult (hits sorted by score, document/section identity, header facts)
 - The baseline runner refuses a fake index without `--allow-fake`, uses one `ResolvedAccess` for every golden case (the case's `access_context` is ignored), computes document-level HitRate@k, Recall@k and MRR (overall, per `query_language`, per `category`), p50/p95 latency after an unmeasured warm-up, and the `min(1, k/N)` random expectation (D037).
 - Decisions: D033–D041.
 
+Hybrid retrieval (Spec 007, default strategy `hybrid` since D055):
+
+```text
+query → validate_request → ResolvedAccess (one, server-resolved)
+  dense leg:  embed_query → Qdrant filter → check_hit          (candidate_depth 50)
+  BM25 leg:   lexical-v1 terms → FTS5 MATCH with the SQL access clause
+              (WHERE before ORDER BY / LIMIT) → check_hit       (candidate_depth 50)
+  → rrf_fuse (k 60, weights 1.0 / 1.0) → cut to top_k → RetrievalResult (score_kind rrf, leg ranks)
+```
+
+- Authorization is applied inside each leg's own query and re-checked per hit; fusion sees only authorized hits and fails closed (any leg error propagates; no single-leg fallback). An empty BM25 leg keeps the dense order.
+- Every strategy builds the embedder and opens the dense index, and `bm25`/`hybrid` also open and bind the lexical file; `bm25` never embeds the query. BM25 therefore still needs Qdrant and the `bge-m3` extra; independence is the fallback spec's work (roadmap 13).
+- BM25 statistics are corpus-wide per file (a roles spec needs per-scope files or an accepted leak).
+- Decisions: D049–D055.
+
 ## Target RAG query flow
 
-Target pipeline, not implemented. Only the dense retrieval leg exists today (see "Retrieval" above): there is no FastAPI route, BM25, RRF, reranker, context builder or generation yet.
+Target pipeline, partly implemented. Dense retrieval, BM25 retrieval and RRF fusion exist (see "Retrieval" above); there is no FastAPI route, reranker, context builder or generation yet.
 
 ```text
 User
@@ -272,7 +292,7 @@ Expected graceful-degradation paths:
 - model failure → evidence-only response where possible;
 - weak evidence → insufficient-evidence response.
 
-Fallback paths must preserve authorization: a fallback retriever takes the same `ResolvedAccess`, applies the authorization filter inside its own query and calls `check_hit` on every hit (D035, D040). None of these fallbacks is implemented yet.
+Fallback paths must preserve authorization: a fallback retriever takes the same `ResolvedAccess`, applies the authorization filter inside its own query and calls `check_hit` on every hit (D035, D040). None of these fallbacks is implemented yet: BM25 exists as a strategy but still needs Qdrant and the `bge-m3` extra, and there is no automatic switch between strategies.
 
 ## Primary stack
 
@@ -316,8 +336,8 @@ Library code in `packages/rag/src/way2australia_rag/evaluation/`, one CLI (`eval
 | `models.py`, `suite.py` | tolerant typed cases and suite; `load_suite` reads manifest and datasets read-only, ignores `access_context`, refuses unknown dataset types and escaping paths |
 | `schemas.py`, `validate.py` | local `referencing` registry for the three schemas; all checks behind `validate-evaluation` (schemas, cross-checks, relevant documents through the repository, candidates) |
 | `retrieval_eval.py`, `slices.py`, `sections.py` | run active goldens (and unanswerable cases, top-1 score only) through `DenseRetriever`; slices by query language, category and source authority; section-level metrics |
-| `results.py`, `compare.py` | read result files 1.0 and 2.0 into a comparable form; the quality gate |
-| `security_corpus.py`, `security_index.py`, `security_eval.py` | isolated security repository, throwaway index, authorization gate |
+| `results.py`, `compare.py` | read result files 1.0, 2.0 and 2.1 into a comparable form; the quality gate and the identity refusals (collection, `index_version`, embedder pair, lexical identity) |
+| `security_corpus.py`, `security_index.py`, `security_eval.py` | isolated security repository, throwaway dense index and lexical file, authorization gate over `dense`, `bm25` and `hybrid` |
 
 Isolation and gates:
 - Access: every query, quality or security, goes through `DenseRetriever` with the one `resolve_access(guest_access(settings))`; evaluation code builds no filter and reads no role, scope or tenant from a case (D033 to D035, D040).
@@ -327,7 +347,7 @@ Isolation and gates:
 - Ingestion eligibility is the only guard against synthetic or unapproved documents. Retrieval does not re-check it because the payload does not carry those fields, so `poisoned_public_document` (public scope, synthetic) is not an authorization case.
 - Section-level keys are `"<document_id>#<section_id>"`. No active golden case has `relevant_section_ids` yet, so the section block reports zero measurable cases.
 - The security result's `access.role` is hard-coded `guest`, correct in Phase 1; it must become the resolved role when other roles are added.
-- Decisions: D042 to D047.
+- Spec 007: `eval-retrieval` takes `--strategy` and writes result 2.1; `eval-security` gates all three strategies on a throwaway lexical file as well (security result 1.1). Decisions: D042 to D047, D053, D054.
 
 ## Knowledge Release
 

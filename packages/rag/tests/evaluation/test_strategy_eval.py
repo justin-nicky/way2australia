@@ -30,14 +30,14 @@ from way2australia_rag.retrieval.strategy import (
     load_retrieval_config,
 )
 
-from .dense_equivalence import FIXTURE_NAME, run_equivalence  # noqa: E402
-from .test_cli import (  # noqa: E402
+from .dense_equivalence import FIXTURE_NAME, run_equivalence
+from .test_cli import (
     BASE,
     VERSION,
     index_factory,
 )
-from .test_cli import run as eval_cli  # noqa: E402
-from .test_retrieval_eval import (  # noqa: E402
+from .test_cli import run as eval_cli
+from .test_retrieval_eval import (
     RealStub,
     build,
     golden,
@@ -260,7 +260,7 @@ def test_leg_ranks_cover_the_relevant_documents(tmp_path: Path) -> None:
     assert missing["leg_ranks"]["bm25"] == {"doc_9": None}
     hybrid_first = hybrid["cases"][0]["leg_ranks"]
     assert hybrid_first["bm25"]["doc_1"] == 1
-    assert hybrid_first["dense"]["doc_1"] in range(1, 9)
+    assert hybrid_first["dense"]["doc_1"] == 2  # fake embedder: deterministic
 
 
 def leg_order(tmp_path: Path, strategy: Strategy, query: str) -> list[str]:
@@ -452,6 +452,21 @@ def test_eval_cli_missing_lexical_file_exits_2_and_writes_nothing(
     assert not out.exists()
 
 
+def test_eval_cli_default_strategy_with_missing_lexical_file_exits_2(
+    tmp_path: Path, lexical_env: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """No `--strategy` and the committed config: the default needs the lexical
+    file, and the refusal names `make index-lexical`."""
+    assert RETRIEVAL_CONFIG.default_strategy != Strategy.DENSE
+    factory = index_factory(RealStub())
+    out = tmp_path / "r.json"
+    assert eval_cli(factory, "--output", str(out)) == 2
+    err = capsys.readouterr().err
+    assert "LexicalIndexBindingError" in err and "make index-lexical" in err
+    assert str(tmp_path) not in err
+    assert not out.exists()
+
+
 def test_eval_cli_lexical_mismatch_exits_2(
     tmp_path: Path, lexical_env: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -559,6 +574,20 @@ def test_retrieve_missing_lexical_file_exits_2(
 ) -> None:
     monkeypatch.setenv("W2A_LEXICAL_INDEX_DIR", str(tmp_path / "elsewhere"))
     assert retrieve(retrieve_world, "--strategy", "hybrid") == 2
+    err = capsys.readouterr().err
+    assert "LexicalIndexBindingError" in err and "make index-lexical" in err
+    assert str(tmp_path) not in err
+
+
+def test_retrieve_default_strategy_with_missing_lexical_file_exits_2(
+    retrieve_world,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert RETRIEVAL_CONFIG.default_strategy != Strategy.DENSE
+    monkeypatch.setenv("W2A_LEXICAL_INDEX_DIR", str(tmp_path / "elsewhere"))
+    assert retrieve(retrieve_world) == 2  # no --strategy: the committed default
     err = capsys.readouterr().err
     assert "LexicalIndexBindingError" in err and "make index-lexical" in err
     assert str(tmp_path) not in err

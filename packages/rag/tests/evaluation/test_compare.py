@@ -457,3 +457,23 @@ def test_identity_refusals_join_existing_ones(tmp_path: Path) -> None:
     message = refusal(tmp_path, doc(), doc(top_k=3, collection="x"))
     assert "top_k changed 5 -> 3" in message
     assert "collection changed c1 -> x" in message
+
+
+def test_embedder_pair_is_compared_not_the_joined_string(tmp_path: Path) -> None:
+    left = doc(index_settings={"embedder_model_id": "a@b", "embedder_revision": "c"})
+    right = doc(index_settings={"embedder_model_id": "a", "embedder_revision": "b@c"})
+    message = refusal(tmp_path, left, right)
+    assert "embedder changed a@b@c -> a@b@c" in message
+
+
+@pytest.mark.parametrize("strategy", ["bm25", "hybrid"])
+@pytest.mark.parametrize("lexical", [None, "text", ["x"]])
+def test_lexical_run_without_a_lexical_object_is_refused(
+    tmp_path: Path, strategy: str, lexical: object
+) -> None:
+    broken = doc21(strategy)
+    broken["lexical_index"] = lexical
+    message = refusal(tmp_path, doc21("hybrid"), broken)
+    assert f"is a {strategy} run without a lexical_index object" in message
+    message = refusal(tmp_path, broken, doc21("hybrid"))
+    assert "without a lexical_index object" in message

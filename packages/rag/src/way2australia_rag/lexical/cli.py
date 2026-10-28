@@ -55,14 +55,14 @@ PROTECTED_DIRS = ("knowledge", "evaluation", "config")
 
 
 class LexicalTargetRefusedError(Exception):
-    """The lexical index target is in a protected or git-tracked location."""
+    """The lexical index target is in a protected or not git-ignored location."""
 
 
-def _tracked_files_in(directory: Path) -> bool:
-    """True when git tracks any file under ``directory`` (False outside a repo)."""
+def _inside_git_work_tree(directory: Path) -> bool:
+    """True when ``directory`` is inside a git work tree (False outside a repo)."""
     try:
         result = subprocess.run(  # noqa: S603 - fixed argv, no shell
-            ["git", "-C", str(directory), "ls-files", "--", "."],
+            ["git", "-C", str(directory), "rev-parse", "--is-inside-work-tree"],
             capture_output=True,
             text=True,
             check=False,
@@ -70,7 +70,7 @@ def _tracked_files_in(directory: Path) -> bool:
         )
     except (OSError, subprocess.SubprocessError):
         return False
-    return result.returncode == 0 and bool(result.stdout.strip())
+    return result.returncode == 0 and result.stdout.strip() == "true"
 
 
 def _is_git_ignored(path: Path, cwd: Path) -> bool:
@@ -88,7 +88,8 @@ def _is_git_ignored(path: Path, cwd: Path) -> bool:
 
 def check_target_allowed(target: Path, repo_root: Path) -> None:
     """Refuse a target in or under ``knowledge/``, ``evaluation/`` or ``config/``,
-    or in a tree that holds git-tracked files (Spec 007 R4).
+    or, inside a git work tree, any target that git does not report as ignored
+    (Spec 007 R4).
 
     Decided on the real filesystem, not on spelling: the nearest existing
     ancestor of the target is compared (``samefile``) with the protected
@@ -110,12 +111,12 @@ def check_target_allowed(target: Path, repo_root: Path) -> None:
                     "the lexical index must not be written under knowledge/, "
                     "evaluation/ or config/"
                 )
-    if _is_git_ignored(resolved, existing):
+    if not _inside_git_work_tree(existing):
         return
-    if _tracked_files_in(existing):
+    if not _is_git_ignored(resolved, existing):
         raise LexicalTargetRefusedError(
-            "the lexical index must not be written in a directory with git-tracked "
-            "files; use an untracked location such as .local/lexical"
+            "the lexical index must be written to a git-ignored location "
+            "such as .local/lexical"
         )
 
 

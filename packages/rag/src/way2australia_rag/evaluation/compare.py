@@ -56,8 +56,13 @@ def _listed(items: list[str]) -> str:
     return f"{shown} and {extra} more" if extra > 0 else shown
 
 
+def _embedder_pair(run: ComparableRun) -> tuple[object, object]:
+    return run.info.get("embedder_model_id"), run.info.get("embedder_revision")
+
+
 def _embedder(run: ComparableRun) -> str:
-    return f"{run.info.get('embedder_model_id')}@{run.info.get('embedder_revision')}"
+    model_id, revision = _embedder_pair(run)
+    return f"{model_id}@{revision}"
 
 
 def _lexical_identity(run: ComparableRun) -> tuple[object, object, object] | None:
@@ -87,7 +92,7 @@ def _identity_problems(base: ComparableRun, cand: ComparableRun) -> list[str]:
     old_i, new_i = base.info.get("index_version"), cand.info.get("index_version")
     if old_i != new_i:
         problems.append(f"index_version changed {old_i} -> {new_i}")
-    if _embedder(base) != _embedder(cand):
+    if _embedder_pair(base) != _embedder_pair(cand):
         problems.append(f"embedder changed {_embedder(base)} -> {_embedder(cand)}")
     old_l, new_l = _lexical_identity(base), _lexical_identity(cand)
     if old_l is not None and new_l is not None and old_l != new_l:

@@ -26,8 +26,8 @@ This file records the currently selected implementation stack and intentional no
 ### Vector database
 - Qdrant
 
-### Lexical fallback
-- SQLite FTS5
+### Lexical store
+- SQLite FTS5 (standard library, no new dependency): the BM25 store for the `bm25` and `hybrid` strategies (Spec 007, D050) and the planned fallback store; a derived local file per collection, built by `make index-lexical`
 
 ### Embeddings
 - BGE-M3 initially
@@ -41,10 +41,10 @@ Reason:
 - low re-indexing cost during comparisons.
 
 ### Sparse retrieval
-- BM25
+- BM25 through FTS5 `bm25()` over `lexical-v1` tokens (D051); implemented
 
 ### Fusion
-- Reciprocal Rank Fusion (RRF)
+- Reciprocal Rank Fusion (RRF), implemented (D052); parameters in `config/retrieval.yaml`
 
 ### Reranking
 - Local multilingual BGE reranker initially

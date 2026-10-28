@@ -164,9 +164,19 @@ def _build_run(
     settings = raw.get("index_settings") or {}
     latency = raw.get("latency_ms") or {}
     lexical = raw.get("lexical_index")  # 2.1 only; 1.0 and 2.0 have none
+    strategy = raw.get("retrieval_strategy") or "dense"
+    if (
+        version == "2.1"
+        and strategy in ("bm25", "hybrid")
+        and not isinstance(lexical, dict)
+    ):
+        # A malformed file must never skip the lexical identity refusal.
+        raise _unreadable(
+            label, name, f"is a {strategy} run without a lexical_index object"
+        )
     info = {
         # 1.0 and 2.0 files are dense runs.
-        "retrieval_strategy": raw.get("retrieval_strategy") or "dense",
+        "retrieval_strategy": strategy,
         "lexical": lexical if isinstance(lexical, dict) else None,
         "collection": raw.get("collection"),
         "index_version": raw.get("index_version"),

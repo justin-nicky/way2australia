@@ -1,15 +1,11 @@
 """BM25 retriever: ranking, authorization, injection, truncation (Spec 007 R6)."""
 
 import sqlite3
-import sys
 from pathlib import Path
 from typing import Any
 
 import pytest
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lexical"))
-
-from lexical_support import (  # noqa: E402  # pyright: ignore[reportMissingImports]
+from lexical_support import (
     BASE,
     VERSION,
     identity,

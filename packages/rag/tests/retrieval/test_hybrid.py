@@ -1,14 +1,10 @@
 """Hybrid retriever: legs, empty leg, fail closed (Spec 007 R7)."""
 
-import sys
 from pathlib import Path
 from typing import Any
 
 import pytest
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lexical"))
-
-from lexical_support import (  # noqa: E402  # pyright: ignore[reportMissingImports]
+from lexical_support import (
     build_production,
     ingest_dense,
     open_lexical,
@@ -29,7 +25,7 @@ from way2australia_rag.retrieval.index import DenseIndex
 from way2australia_rag.retrieval.models import RetrievalResult, RetrievedChunk
 from way2australia_rag.retrieval.retriever import DenseRetriever
 
-from .test_bm25 import (  # pyright: ignore[reportMissingImports]
+from .test_bm25 import (
     DroppedClauseIndex,
     build,
     guest,

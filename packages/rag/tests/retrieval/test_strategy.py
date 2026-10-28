@@ -1,16 +1,12 @@
 """Retrieval config validation and the strategy factory (Spec 007 R8)."""
 
-import sys
 from pathlib import Path
 from typing import Any
 
 import pytest
 import yaml
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lexical"))
-
 from conftest import REPO_ROOT
-from lexical_support import ingest_dense  # noqa: E402  # pyright: ignore[reportMissingImports]
+from lexical_support import ingest_dense
 from way2australia_rag.ingestion.embedding import FakeEmbedder
 from way2australia_rag.retrieval.base import Strategy
 from way2australia_rag.retrieval.bm25 import BM25Retriever
@@ -129,7 +125,7 @@ def test_unreadable_and_non_mapping_files_are_refused(tmp_path: Path) -> None:
 
 
 def test_build_retriever_maps_each_strategy(tmp_path: Path) -> None:
-    from lexical_support import build_production, open_lexical  # pyright: ignore[reportMissingImports]
+    from lexical_support import build_production, open_lexical
 
     _, dense = ingest_dense()
     target = tmp_path / "lex.sqlite"

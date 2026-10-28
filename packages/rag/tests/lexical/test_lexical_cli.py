@@ -178,8 +178,31 @@ def test_tracked_directory_in_a_temp_git_repo_is_refused(
     subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
     with pytest.raises(LexicalTargetRefusedError):
         check_target_allowed(repo / "data" / "i.sqlite", repo)
-    (repo / "fresh").mkdir()  # no tracked files here
+    (repo / ".gitignore").write_text("fresh/\n", encoding="utf-8")
+    (repo / "fresh").mkdir()  # git-ignored folder
     check_target_allowed(repo / "fresh" / "i.sqlite", repo)
+
+
+def test_existing_unignored_untracked_folder_is_refused(tmp_path: Path) -> None:
+    repo = _git_repo(tmp_path)
+    (repo / ".gitignore").write_text(".local/lexical/\n", encoding="utf-8")
+    other = repo / ".local" / "other"
+    other.mkdir(parents=True)
+    with pytest.raises(LexicalTargetRefusedError):
+        check_target_allowed(other / "i.sqlite", repo)
+    assert list(other.iterdir()) == []
+
+
+def test_unignored_folder_is_refused_by_the_cli_and_nothing_written(
+    tmp_path: Path, lexical_dir: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = _git_repo(tmp_path)
+    other = repo / ".local" / "other"
+    other.mkdir(parents=True)
+    out = other / "i.sqlite"
+    assert run(["--embedder", "fake", "--output", str(out)]) == 2
+    assert "LexicalTargetRefusedError" in capsys.readouterr().err
+    assert not out.exists()
 
 
 def test_default_location_is_allowed() -> None:
