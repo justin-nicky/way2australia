@@ -170,8 +170,8 @@ def _build_run(
         "lexical": lexical if isinstance(lexical, dict) else None,
         "collection": raw.get("collection"),
         "index_version": raw.get("index_version"),
-        "embedder": f"{settings.get('embedder_model_id')} @ "
-        f"{settings.get('embedder_revision')}",
+        "embedder_model_id": settings.get("embedder_model_id"),
+        "embedder_revision": settings.get("embedder_revision"),
         "device": raw.get("device"),
         "git_commit": raw.get("git_commit"),
         "latency_p50": latency.get("p50"),

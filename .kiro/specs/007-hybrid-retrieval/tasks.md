@@ -189,14 +189,14 @@ Review reading order: equivalence fixture and test → `evaluation/retrieval_eva
 
 ## T7 — `eval-compare` identity rules
 
-**State:** not started
+**State:** approved (2026-10-28)
 **Requirements:** R10
 
 > Note (T6 review, user decision 2026-10-28): `info["retrieval_strategy"]`, the `info["lexical"]` identity keys and the `source_authority` compare for 2.1 were already implemented in T6 (`evaluation/results.py`, `evaluation/compare.py`). T7 treats them as done and does not re-add them; T7 still owns the R10 rules, the refusal messages and the tests below.
 
-- [ ] `evaluation/results.py`: `ComparableRun.info` gains `retrieval_strategy`, `embedder_model_id`, `embedder_revision`, `lexical`.
-- [ ] `evaluation/compare.py`: the R10 table in the design (collection with the missing-collection rule, `index_version`, embedder, lexical identity, strategy identity line), new next-step text.
-- [ ] Tests (`test_compare.py` additions):
+- [x] `evaluation/results.py`: `ComparableRun.info` gains `retrieval_strategy`, `embedder_model_id`, `embedder_revision`, `lexical`.
+- [x] `evaluation/compare.py`: the R10 table in the design (collection with the missing-collection rule, `index_version`, embedder, lexical identity, strategy identity line), new next-step text.
+- [x] Tests (`test_compare.py` additions):
   - the committed pair `retrieval-baseline-idx-v1-20261023T063534Z.json` (1.0) vs `retrieval-evaluation-idx-v1-20261024T193140Z.json` (2.0) passes (read from the repository, not modified);
   - dense vs hybrid (2.1) on the same identity passes with a `retrieval_strategy` identity line;
   - a collection difference is refused naming both collections;
