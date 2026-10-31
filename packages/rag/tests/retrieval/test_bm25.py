@@ -25,6 +25,7 @@ from way2australia_rag.retrieval.errors import (
     RetrievalAuthorizationError,
     RetrievalConfigurationError,
 )
+from way2australia_rag.retrieval.identity import IndexIdentity
 from way2australia_rag.retrieval.index import DenseIndex
 from way2australia_rag.retrieval.retriever import DenseRetriever
 
@@ -65,7 +66,7 @@ def build(tmp_path: Path, entries: list[tuple[str, dict[str, Any]]]) -> LexicalI
 
 
 def retriever(dense: DenseIndex, lexical: Any) -> BM25Retriever:
-    return BM25Retriever(dense, lexical)
+    return BM25Retriever(IndexIdentity.from_dense(dense), lexical)
 
 
 class SpyIndex:
@@ -314,3 +315,55 @@ def test_malformed_payload_json_fails_closed(tmp_path: Path, dense: DenseIndex) 
 def test_base_names() -> None:
     assert BASE and VERSION
     assert [s.value for s in Strategy] == ["dense", "bm25", "hybrid"]
+
+
+def test_standalone_path_returns_the_hits_of_the_spec_007_construction(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Spec 008 R5: the bm25 retriever built from configuration only (standalone
+    open, no dense index) equals the Spec 007 one bound to a dense fixture."""
+    from conftest import REPO_ROOT
+    from lexical_support import build_production
+    from way2australia_rag.ingestion.config import load_ingestion_config
+    from way2australia_rag.retrieval.opening import open_retrieval
+    from way2australia_rag.retrieval.strategy import load_retrieval_config
+
+    config = load_ingestion_config(REPO_ROOT / "config/ingestion.yaml")
+    config = config.model_copy(update={"index_version": VERSION})
+    directory = tmp_path / "lex"
+    directory.mkdir()
+    target = directory / f"{BASE}-{VERSION}.sqlite"
+    build_production(target)
+    monkeypatch.setenv("QDRANT_COLLECTION_BASE", BASE)
+    monkeypatch.setenv("W2A_LEXICAL_INDEX_DIR", str(directory))
+    from way2australia_rag.ingestion.config import load_runtime_settings
+
+    settings = load_runtime_settings(RetrievalConfigurationError)
+    spec_007 = BM25Retriever(
+        IndexIdentity.from_dense(dense_fixture()), open_lexical(target)
+    )
+    opened = open_retrieval(
+        Strategy.BM25,
+        settings=settings,
+        ingestion_config=config,
+        retrieval_config=load_retrieval_config(REPO_ROOT / "config/retrieval.yaml"),
+        provider="fake",
+        repo_root=REPO_ROOT,
+    )
+    try:
+        for query in ("Is coaching compulsory?", "mock tests", "NAATI CCL"):
+            old = spec_007.retrieve(query, guest(), 5)
+            new = opened.retriever.retrieve(query, guest(), 5)
+            assert old.hits and old.hits == new.hits
+            assert (old.collection, old.index_version, old.embedder_model_id) == (
+                new.collection,
+                new.index_version,
+                new.embedder_model_id,
+            )
+            assert old.embedder_is_fake == new.embedder_is_fake
+    finally:
+        opened.close()
+
+
+def dense_fixture() -> DenseIndex:
+    return ingest_dense()[1]

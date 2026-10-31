@@ -4,27 +4,40 @@ No model, no Docker: fake-hash vectors on in-memory Qdrant, SQLite files and
 result files under tmp_path only.
 """
 
+import asyncio
 import json
 import re
 from pathlib import Path
 from typing import Any
 
 import pytest
-from conftest import REPO_ROOT, live_suite_rows
+from conftest import REPO_ROOT, live_suite_rows, manifest_document_count
 from qdrant_client import QdrantClient
 from retrieval.test_retriever import guest
 from way2australia_rag.evaluation import cli
 from way2australia_rag.evaluation.results import read_result
 from way2australia_rag.ingestion.chunking import HeadingChunker
-from way2australia_rag.lexical.build import build_lexical_index
+from way2australia_rag.ingestion.cli import build_chunker
+from way2australia_rag.ingestion.config import load_ingestion_config
+from way2australia_rag.ingestion.identity import embedder_identity
+from way2australia_rag.lexical.build import (
+    build_lexical_index,
+    lexical_index_path,
+    production_entries,
+)
 from way2australia_rag.lexical.store import (
     DenseIdentity,
     LexicalIdentityInput,
     LexicalIndex,
 )
+from way2australia_rag.repositories import (
+    LocalDocumentRepository,
+    LocalRepositoryConfig,
+)
 from way2australia_rag.repositories.hashing import HASH_CONTRACT
 from way2australia_rag.retrieval import cli as retrieve_cli
 from way2australia_rag.retrieval.base import Strategy
+from way2australia_rag.retrieval.identity import IndexIdentity
 from way2australia_rag.retrieval.strategy import (
     build_retriever,
     load_retrieval_config,
@@ -179,7 +192,9 @@ def strategy_suite():  # noqa: ANN201
 
 def run_strategy(tmp_path: Path, strategy: Strategy, suite=None):  # noqa: ANN001, ANN201
     _client, index, emb, lexical = make_world(tmp_path)
-    retriever = build_retriever(strategy, index, emb, lexical, RETRIEVAL_CONFIG)
+    retriever = build_retriever(
+        strategy, IndexIdentity.from_dense(index), index, emb, lexical, RETRIEVAL_CONFIG
+    )
     return run(
         index,
         emb,
@@ -266,7 +281,9 @@ def test_leg_ranks_cover_the_relevant_documents(tmp_path: Path) -> None:
 def leg_order(tmp_path: Path, strategy: Strategy, query: str) -> list[str]:
     """Full deduped document ranking of one leg, read at candidate depth."""
     _client, index, emb, lexical = make_world(tmp_path)
-    retriever = build_retriever(strategy, index, emb, lexical, RETRIEVAL_CONFIG)
+    retriever = build_retriever(
+        strategy, IndexIdentity.from_dense(index), index, emb, lexical, RETRIEVAL_CONFIG
+    )
     result = retriever.retrieve(query, guest(), RETRIEVAL_CONFIG.fusion.candidate_depth)
     return [h.document_id for h in result.hits]
 
@@ -276,7 +293,14 @@ def test_hybrid_leg_ranks_beyond_top_k_are_real_document_ranks(
 ) -> None:
     suite = suite_of([golden(1, ["doc_7"], query="body 1")])
     _client, index, emb, lexical = make_world(tmp_path / "w")
-    retriever = build_retriever(Strategy.HYBRID, index, emb, lexical, RETRIEVAL_CONFIG)
+    retriever = build_retriever(
+        Strategy.HYBRID,
+        IndexIdentity.from_dense(index),
+        index,
+        emb,
+        lexical,
+        RETRIEVAL_CONFIG,
+    )
     doc = run(index, emb, retriever, suite, top_k=1, fusion=RETRIEVAL_CONFIG.fusion)
     row = doc["cases"][0]
     assert row["hit"] is False
@@ -379,9 +403,40 @@ def lexical_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return directory
 
 
-def eval_world(lexical_dir: Path):  # noqa: ANN202
+def configured_lexical(lexical_dir: Path) -> None:
+    """The file a standalone `bm25` open expects: built from the real repository
+    and chunker with the dense identity taken from `config/ingestion.yaml`."""
+    config = load_ingestion_config(REPO_ROOT / "config/ingestion.yaml")
+    model_id, revision = embedder_identity(config, config.embedder.provider)
+    chunker = build_chunker(config)
+    repository = LocalDocumentRepository(LocalRepositoryConfig(repo_root=REPO_ROOT))
+    entries = asyncio.run(production_entries(repository, chunker))
+    build_lexical_index(
+        entries,
+        lexical_index_path(lexical_dir, COLLECTION),
+        LexicalIdentityInput(
+            collection=COLLECTION,
+            index_version=VERSION,
+            dense_identity=DenseIdentity(
+                collection=COLLECTION,
+                index_version=VERSION,
+                embedder_model_id=model_id,
+                embedder_revision=revision,
+            ),
+            chunker_name=chunker.name,
+            chunker_version=chunker.version,
+            chunker_max_chunk_chars=chunker.max_chunk_chars,
+            hash_contract=HASH_CONTRACT,
+        ),
+    )
+
+
+def eval_world(lexical_dir: Path, strategy: str = "hybrid"):  # noqa: ANN202
     factory = index_factory(RealStub())
-    build_lexical(factory.client, lexical_dir / f"{COLLECTION}.sqlite").close()
+    if strategy == "bm25":  # standalone open: the configured identity
+        configured_lexical(lexical_dir)
+    else:
+        build_lexical(factory.client, lexical_dir / f"{COLLECTION}.sqlite").close()
     return factory
 
 
@@ -392,7 +447,7 @@ def test_eval_cli_writes_a_2_1_result_without_text(
     capsys: pytest.CaptureFixture[str],
     strategy: str,
 ) -> None:
-    factory = eval_world(lexical_env)
+    factory = eval_world(lexical_env, strategy)
     out = tmp_path / "r.json"
     assert eval_cli(factory, "--strategy", strategy, "--output", str(out)) == 0
     text = out.read_text(encoding="utf-8")
@@ -415,7 +470,7 @@ def test_eval_cli_writes_a_2_1_result_without_text(
 def test_eval_cli_default_strategy_comes_from_the_config(
     tmp_path: Path, lexical_env: Path
 ) -> None:
-    factory = eval_world(lexical_env)
+    factory = eval_world(lexical_env, "bm25")
     config = tmp_path / "retrieval.yaml"
     config.write_text(
         (REPO_ROOT / "config/retrieval.yaml")
@@ -634,6 +689,42 @@ def test_runner_requires_fusion_for_hybrid(tmp_path: Path) -> None:
     from way2australia_rag.evaluation.errors import EvaluationConfigurationError
 
     _c, index, emb, lexical = make_world(tmp_path)
-    retriever = build_retriever(Strategy.HYBRID, index, emb, lexical, RETRIEVAL_CONFIG)
+    retriever = build_retriever(
+        Strategy.HYBRID,
+        IndexIdentity.from_dense(index),
+        index,
+        emb,
+        lexical,
+        RETRIEVAL_CONFIG,
+    )
     with pytest.raises(EvaluationConfigurationError, match="fusion"):
         run(index, emb, retriever, strategy_suite())
+
+
+def test_eval_cli_bm25_needs_neither_qdrant_nor_the_embedder(
+    tmp_path: Path, lexical_env: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Spec 008 R5: `bm25` builds no embedder and creates no Qdrant client."""
+    import sys
+
+    class Raises:
+        def __call__(self, *_a: object, **_k: object) -> Any:
+            raise AssertionError("must not be called on the bm25 path")
+
+    monkeypatch.setitem(sys.modules, "sentence_transformers", None)  # type: ignore[arg-type]
+    configured_lexical(lexical_env)
+    out = tmp_path / "r.json"
+    code = eval_cli(
+        Raises(),  # type: ignore[arg-type]
+        "--strategy",
+        "bm25",
+        "--output",
+        str(out),
+        embedder=Raises(),
+    )
+    assert code == 0
+    doc = json.loads(out.read_text(encoding="utf-8"))
+    assert doc["schema_version"] == "2.1" and doc["retrieval_strategy"] == "bm25"
+    assert doc["index_settings"] is None and doc["device"] is None
+    assert doc["document_count"] == manifest_document_count()
+    assert doc["embedder_is_fake"] is False

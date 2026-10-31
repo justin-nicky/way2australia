@@ -18,7 +18,7 @@ from way2australia_rag.retrieval.access import (
     check_hit,
 )
 from way2australia_rag.retrieval.base import DEFAULT_TOP_K, Strategy, validate_request
-from way2australia_rag.retrieval.index import DenseIndex
+from way2australia_rag.retrieval.identity import IndexIdentity
 from way2australia_rag.retrieval.models import (
     LexicalIdentity,
     RetrievalResult,
@@ -34,10 +34,10 @@ def match_expression(terms: list[str]) -> str:
 class BM25Retriever:
     strategy = Strategy.BM25
 
-    def __init__(self, index: DenseIndex, lexical: LexicalIndex) -> None:
-        """`index` supplies only the dense identity recorded in results (the
-        lexical file was bound to it by the caller); it is not queried."""
-        self._index = index
+    def __init__(self, identity: IndexIdentity, lexical: LexicalIndex) -> None:
+        """`identity` supplies only the dense identity recorded in results (the
+        caller checked the lexical file against it); nothing is queried."""
+        self._identity = identity
         self._lexical = lexical
 
     def retrieve(
@@ -81,15 +81,15 @@ class BM25Retriever:
                     )
                 )
         latency_ms = (perf_counter() - started) * 1000.0
-        dense = self._index.settings
+        identity = self._identity
         lexical = self._lexical.settings
         return RetrievalResult(
             hits=hits,
-            collection=self._index.collection,
-            index_version=self._index.index_version,
-            embedder_model_id=dense.embedder_model_id,
-            embedder_revision=dense.embedder_revision,
-            embedder_is_fake=dense.embedder_is_fake,
+            collection=identity.collection,
+            index_version=identity.index_version,
+            embedder_model_id=identity.embedder_model_id,
+            embedder_revision=identity.embedder_revision,
+            embedder_is_fake=identity.embedder_is_fake,
             device=None,
             top_k=top_k,
             latency_ms=latency_ms,

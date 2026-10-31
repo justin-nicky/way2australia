@@ -30,6 +30,7 @@ from way2australia_rag.retrieval.base import Retriever, Strategy
 from way2australia_rag.retrieval.baseline import git_state
 from way2australia_rag.retrieval.bm25 import match_expression
 from way2australia_rag.retrieval.errors import RetrievalAuthorizationError
+from way2australia_rag.retrieval.identity import IndexIdentity
 from way2australia_rag.retrieval.retriever import MAX_TOP_K
 from way2australia_rag.retrieval.strategy import RetrievalConfig, build_retriever
 from way2australia_rag.retrieval.text import safe_text
@@ -155,7 +156,12 @@ def run_security_evaluation(
         (
             strategy,
             build_retriever(
-                strategy, index.dense, index.embedder, index.lexical, retrieval_config
+                strategy,
+                IndexIdentity.from_dense(index.dense),
+                index.dense,
+                index.embedder,
+                index.lexical,
+                retrieval_config,
             ),
         )
         for strategy in strategies

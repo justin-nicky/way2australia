@@ -12,6 +12,7 @@ from way2australia_rag.retrieval.base import Strategy
 from way2australia_rag.retrieval.bm25 import BM25Retriever
 from way2australia_rag.retrieval.errors import RetrievalConfigurationError
 from way2australia_rag.retrieval.hybrid import HybridRetriever
+from way2australia_rag.retrieval.identity import IndexIdentity
 from way2australia_rag.retrieval.retriever import DenseRetriever
 from way2australia_rag.retrieval.strategy import (
     DEFAULT_CONFIG_PATH,
@@ -163,13 +164,16 @@ def test_build_retriever_maps_each_strategy(tmp_path: Path) -> None:
     lexical = open_lexical(target)
     config = load_retrieval_config(REPO_ROOT / DEFAULT_CONFIG_PATH)
     embedder = FakeEmbedder()
-    made = {s: build_retriever(s, dense, embedder, lexical, config) for s in Strategy}
+    ident = IndexIdentity.from_dense(dense)
+    made = {
+        s: build_retriever(s, ident, dense, embedder, lexical, config) for s in Strategy
+    }
     assert isinstance(made[Strategy.DENSE], DenseRetriever)
     assert isinstance(made[Strategy.BM25], BM25Retriever)
     assert isinstance(made[Strategy.HYBRID], HybridRetriever)
     for strategy, retriever in made.items():
         assert retriever.strategy is strategy
-    dense_only = build_retriever(Strategy.DENSE, dense, embedder, None, config)
+    dense_only = build_retriever(Strategy.DENSE, ident, dense, embedder, None, config)
     assert isinstance(dense_only, DenseRetriever)
 
 
@@ -178,18 +182,27 @@ def test_lexical_strategies_need_the_lexical_index(strategy: Strategy) -> None:
     _, dense = ingest_dense()
     config = load_retrieval_config(REPO_ROOT / DEFAULT_CONFIG_PATH)
     with pytest.raises(RetrievalConfigurationError, match="lexical"):
-        build_retriever(strategy, dense, FakeEmbedder(), None, config)
+        build_retriever(
+            strategy,
+            IndexIdentity.from_dense(dense),
+            dense,
+            FakeEmbedder(),
+            None,
+            config,
+        )
 
 
 def test_build_retriever_converts_a_string_value_and_refuses_unknown() -> None:
     _, dense = ingest_dense()
     config = load_retrieval_config(REPO_ROOT / DEFAULT_CONFIG_PATH)
-    made = build_retriever("dense", dense, FakeEmbedder(), None, config)  # pyright: ignore[reportArgumentType]
+    ident = IndexIdentity.from_dense(dense)
+    build: Any = build_retriever  # string values are the point of this test
+    made = build("dense", ident, dense, FakeEmbedder(), None, config)
     assert isinstance(made, DenseRetriever)
     with pytest.raises(RetrievalConfigurationError, match="unknown retrieval strategy"):
-        build_retriever("semantic", dense, FakeEmbedder(), None, config)  # pyright: ignore[reportArgumentType]
+        build("semantic", ident, dense, FakeEmbedder(), None, config)
     with pytest.raises(RetrievalConfigurationError, match="lexical"):
-        build_retriever("hybrid", dense, FakeEmbedder(), None, config)  # pyright: ignore[reportArgumentType]
+        build("hybrid", ident, dense, FakeEmbedder(), None, config)
 
 
 @pytest.mark.parametrize("value", [1, 30])

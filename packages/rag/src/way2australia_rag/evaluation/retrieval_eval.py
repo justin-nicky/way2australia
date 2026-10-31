@@ -32,11 +32,12 @@ from way2australia_rag.evaluation.slices import (
     source_authority_key,
 )
 from way2australia_rag.ingestion.embedding import Embedder
-from way2australia_rag.retrieval.access import ResolvedAccess, build_access_filter
+from way2australia_rag.ingestion.settings import IndexSettings
+from way2australia_rag.retrieval.access import ResolvedAccess
 from way2australia_rag.retrieval.base import Retriever, Strategy
 from way2australia_rag.retrieval.baseline import git_state
 from way2australia_rag.retrieval.fusion import FusionConfig
-from way2australia_rag.retrieval.index import DenseIndex
+from way2australia_rag.retrieval.identity import IndexIdentity
 from way2australia_rag.retrieval.metrics import (
     dedupe_documents,
     hit_rate_at_k,
@@ -84,8 +85,8 @@ def require_real_embedder(embedder: Embedder) -> None:
         )
 
 
-def require_real_index(index: DenseIndex) -> None:
-    if index.settings.embedder_is_fake:
+def require_real_index(identity: IndexIdentity) -> None:
+    if identity.embedder_is_fake:
         raise EvaluationConfigurationError(
             "the index was built with the fake embedder; eval-retrieval refuses it "
             '(use `make retrieval-baseline BASELINE_ARGS="--embedder fake '
@@ -233,8 +234,10 @@ def _notes(suite: LoadedSuite, *, top_k: int, document_count: int, n: int) -> li
 def run_retrieval_evaluation(
     *,
     retriever: Retriever,
-    index: DenseIndex,
-    embedder: Embedder,
+    identity: IndexIdentity,
+    document_count: int,
+    embedder: Embedder | None,
+    index_settings: IndexSettings | None = None,
     access: ResolvedAccess,
     suite: LoadedSuite,
     release_id: str,
@@ -253,12 +256,12 @@ def run_retrieval_evaluation(
     excluded from the p50/p95 figures.
     """
     require_active_suite(suite)
-    require_real_embedder(embedder)
-    require_real_index(index)
+    if embedder is not None:  # `bm25` builds none
+        require_real_embedder(embedder)
+    require_real_index(identity)
     cases = active_golden_cases(suite)
     if not cases:
         raise EvaluationConfigurationError("no active golden cases to run.")
-    document_count = index.document_count(build_access_filter(access))
     if document_count < 1:
         raise EvaluationConfigurationError(
             "no documents are visible under the access filter."
@@ -273,7 +276,7 @@ def run_retrieval_evaluation(
     warm_up = retriever.retrieve(cases[0].query, access, top_k)  # unmeasured
     warmup_ms = (perf_counter() - started) * 1000.0
     # A real BgeM3Embedder reports no device until the model has loaded.
-    device = embedder.device
+    device = embedder.device if embedder is not None else None
 
     lexical_identity = warm_up.lexical
     rows: list[dict[str, Any]] = []
@@ -326,7 +329,6 @@ def run_retrieval_evaluation(
         if strategy == Strategy.DENSE
         else sum(1 for r in rows if r["query_terms_truncated"])
     )
-    settings = index.settings
     commit, dirty = git_state(repo_root)
     manifest = suite.manifest
     types = (
@@ -349,9 +351,12 @@ def run_retrieval_evaluation(
         },
         "declared_knowledge_release_id": release_id,
         "release_snapshot_verified": False,
-        "collection": index.collection,
-        "index_version": index.index_version,
-        "index_settings": settings.model_dump(mode="json"),
+        "collection": identity.collection,
+        "index_version": identity.index_version,
+        # null when the run never reached Qdrant (`bm25`)
+        "index_settings": (
+            index_settings.model_dump(mode="json") if index_settings else None
+        ),
         "retrieval_strategy": strategy.value,
         "score_kind": warm_up.score_kind,
         "fusion": _fusion_report(fusion) if strategy == Strategy.HYBRID else None,
@@ -359,7 +364,7 @@ def run_retrieval_evaluation(
         "truncated_query_count": truncated,
         "top_k": top_k,
         "device": device,
-        "embedder_is_fake": settings.embedder_is_fake,
+        "embedder_is_fake": identity.embedder_is_fake,
         "case_count": len(rows),
         "excluded_case_count": len(suite.goldens) - len(rows),
         "document_count": document_count,

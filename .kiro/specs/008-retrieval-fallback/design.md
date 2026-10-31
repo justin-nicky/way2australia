@@ -39,7 +39,7 @@ Implements `requirements.md` (approved 2026-10-29; R1/R6 amended 2026-10-29). Re
 | `packages/rag/tests/...` | tests per the testing section | R11 |
 | `docs/project/*`, `ROADMAP.md`, `DECISIONS.md` | final task | R14 |
 
-Not changed: `ingestion/` (including `bge_m3.py`, `embedding.py`, `default_client_factory` and `cli.py`), `lexical/tokenizer.py`, `lexical/build.py`, `lexical/cli.py`, the lexical file format, `retrieval/fusion.py`, `retrieval/hybrid.py`, `retrieval/access.py`, the legacy `baseline.py`/`baseline_cli.py`, `evaluation/`, `knowledge/`, `config/ingestion.yaml`.
+Not changed: `ingestion/` behavior (`bge_m3.py`, `embedding.py` and `default_client_factory` are not edited; two code moves only: `embedder_identity` moved from `lexical/cli.py` to `ingestion/identity.py` in T2, and the `bge_m3` import moved inside `build_embedder` in `ingestion/cli.py` in T3, required by R5 because both CLIs import `ingestion.cli`), `lexical/tokenizer.py`, `lexical/build.py`, `lexical/cli.py` (except the `embedder_identity` import), the lexical file format, `retrieval/fusion.py`, `retrieval/hybrid.py`, `retrieval/access.py`, the legacy `baseline.py`/`baseline_cli.py`, `evaluation/`, `knowledge/`, `config/ingestion.yaml`.
 
 ## Components / boundaries
 
@@ -210,6 +210,8 @@ class FallbackRetriever:          # Retriever Protocol; strategy = Strategy.HYBR
 `run_retrieval_evaluation(retriever, identity: IndexIdentity, document_count: int, embedder: Embedder | None, ...)`:
 - `require_real_embedder` applies when an embedder was built (`dense`, `hybrid`).
 - `require_real_index` checks `identity.embedder_is_fake` (and, for `source: lexical_file`, the configured provider).
+- `index_settings=None` is accepted only when the served strategy is `bm25` (an explicit standalone `bm25`, or a hybrid run that fell back at open time). For any other strategy it is refused as an `EvaluationConfigurationError`, because a run that reached Qdrant must record the full index settings (T3 review F2, implemented in T5).
+- A standalone `bm25` result (`index_settings: null`, `dense_identity.source: lexical_file`) must compare against the Spec 007 BM25 reference `experiments/results/retrieval-evaluation-idx-v1-20261028T123109Z.json`: collection, `index_version` and the embedder pair are read from `dense_identity` (R9). T7 depends on this (T3 review F3).
 
 Additions over 2.1:
 

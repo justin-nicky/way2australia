@@ -43,7 +43,6 @@ from way2australia_rag.evaluation.results import (
 from way2australia_rag.evaluation.retrieval_eval import (
     require_active_suite,
     require_real_embedder,
-    require_real_index,
     run_retrieval_evaluation,
 )
 from way2australia_rag.evaluation.security_corpus import SCHEMA as SECURITY_SCHEMA
@@ -82,19 +81,13 @@ from way2australia_rag.repositories import (
 from way2australia_rag.retrieval.access import guest_access, resolve_access
 from way2australia_rag.retrieval.base import Strategy
 from way2australia_rag.retrieval.errors import RetrievalError
-from way2australia_rag.retrieval.index import DenseIndex
-from way2australia_rag.retrieval.qdrant_client import retrieval_client_factory
+from way2australia_rag.retrieval.opening import open_retrieval
 from way2australia_rag.retrieval.retriever import (
     DEFAULT_TOP_K,
     MAX_TOP_K,
     MIN_TOP_K,
 )
-from way2australia_rag.retrieval.strategy import (
-    build_retriever,
-    load_retrieval_config,
-    needs_lexical,
-    open_bound_lexical,
-)
+from way2australia_rag.retrieval.strategy import load_retrieval_config
 from way2australia_rag.retrieval.text import safe_text
 
 EXIT_OK = 0
@@ -166,11 +159,16 @@ def format_summary(document: dict[str, Any], output: Path, repo_root: Path) -> s
     except ValueError:
         shown = Path(output.name)
     settings = document["index_settings"]
+    embedder = (
+        f"{settings['embedder_model_id']} @ {settings['embedder_revision']}"
+        if settings
+        else "n/a (Qdrant not contacted)"
+    )
     lines = [
         f"strategy: {document['retrieval_strategy']} "
         f"(scores: {document['score_kind']})",
         f"index: {document['collection']} (index_version {document['index_version']}; "
-        f"embedder {settings['embedder_model_id']} @ {settings['embedder_revision']}, "
+        f"embedder {embedder}, "
         f"fake={str(document['embedder_is_fake']).lower()}, "
         f"device={document['device'] or 'unknown'})",
         f"suite: {document['evaluation_suite_id']} "
@@ -214,7 +212,7 @@ def _retrieval(
     logging.getLogger("httpx").setLevel(logging.WARNING)  # request lines carry URLs
     repo_root: Path = args.repo_root.resolve()
     config_path: Path = args.config or repo_root / DEFAULT_CONFIG_PATH
-    lexical = None
+    opened = None
     try:
         # 1. top-k, config, runtime settings
         if not MIN_TOP_K <= args.top_k <= MAX_TOP_K:
@@ -240,43 +238,41 @@ def _retrieval(
             repo_root, config.index_version, now
         )
         check_output_free(output)
-        # 5. embedder; a fake one is refused before any Qdrant contact
-        embedder = embedder_factory(config, config.embedder.provider)
-        require_real_embedder(embedder)
-        # 6. read-only index binding; a recorded fake index is refused
-        timeouts = retrieval_config.qdrant
-        client = (
-            client_factory(settings)
-            if client_factory is not None
-            else retrieval_client_factory(settings, timeouts)
+
+        # 5. open the stack. A fake embedder is refused as soon as it is built,
+        # before any Qdrant contact; `bm25` builds none (its fake provider is
+        # refused by `run_retrieval_evaluation` through the identity).
+        def real_embedder_factory(cfg: IngestionConfig, provider: str) -> Embedder:
+            built = embedder_factory(cfg, provider)
+            require_real_embedder(built)
+            return built
+
+        opened = open_retrieval(
+            strategy,
+            settings=settings,
+            ingestion_config=config,
+            retrieval_config=retrieval_config,
+            provider=config.embedder.provider,
+            repo_root=repo_root,
+            client_factory=client_factory,
+            embedder_factory=real_embedder_factory,
         )
-        index = DenseIndex.open(
-            client,
-            settings.collection_base,
-            config.index_version,
-            embedder.info,
-            query_timeout_s=timeouts.query_timeout_s,
-        )
-        require_real_index(index)
-        # 6b. the lexical file, opened read-only and bound to the dense index
-        if needs_lexical(strategy):
-            lexical = open_bound_lexical(settings, repo_root, index)
-        retriever = build_retriever(
-            strategy, index, embedder, lexical, retrieval_config
-        )
-        # 7. the one server-resolved access
+        identity = opened.identity
+        # 6. the one server-resolved access
         access = resolve_access(guest_access(settings))
         log.info(
             "suite %s loaded; strategy %s; index %s (index_version %s) bound",
             safe_text(suite.manifest.evaluation_suite_id),
             strategy.value,
-            safe_text(index.collection),
-            safe_text(index.index_version),
+            safe_text(identity.collection),
+            safe_text(identity.index_version),
         )
         document = run_retrieval_evaluation(
-            retriever=retriever,
-            index=index,
-            embedder=embedder,
+            retriever=opened.retriever,
+            identity=identity,
+            document_count=opened.document_count(access),
+            embedder=opened.embedder,
+            index_settings=opened.index_settings,
             access=access,
             suite=suite,
             release_id=release_id,
@@ -297,9 +293,9 @@ def _retrieval(
         print(f"ERROR {type(error).__name__}", file=sys.stderr)
         return EXIT_ERROR
     finally:
-        if lexical is not None:
-            lexical.close()
-    print(f"collection: {safe_text(index.collection)}")
+        if opened is not None:
+            opened.close()
+    print(f"collection: {safe_text(identity.collection)}")
     print(format_summary(document, output, repo_root))
     return EXIT_OK
 

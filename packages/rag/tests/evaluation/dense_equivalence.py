@@ -15,6 +15,8 @@ from unittest.mock import patch
 from conftest import REPO_ROOT
 from retrieval.test_retriever import guest
 from way2australia_rag.evaluation.retrieval_eval import run_retrieval_evaluation
+from way2australia_rag.retrieval.access import build_access_filter
+from way2australia_rag.retrieval.identity import IndexIdentity
 
 from .test_retrieval_eval import (
     AUTH,
@@ -67,7 +69,9 @@ def run_equivalence(**extra: Any) -> dict[str, Any]:
     with deterministic_clock():
         return run_retrieval_evaluation(
             retriever=retriever,
-            index=index,
+            identity=IndexIdentity.from_dense(index),
+            document_count=index.document_count(build_access_filter(guest())),
+            index_settings=index.settings,
             embedder=emb,
             access=guest(),
             suite=equivalence_suite(),

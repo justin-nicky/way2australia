@@ -14,7 +14,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from way2australia_rag.ingestion.cli import ClientFactory, build_embedder
+from way2australia_rag.ingestion.cli import ClientFactory
 from way2australia_rag.ingestion.config import (
     DEFAULT_CONFIG_PATH,
     load_ingestion_config,
@@ -27,20 +27,14 @@ from way2australia_rag.retrieval.errors import (
     RetrievalConfigurationError,
     RetrievalError,
 )
-from way2australia_rag.retrieval.index import DenseIndex
 from way2australia_rag.retrieval.models import RetrievalResult
-from way2australia_rag.retrieval.qdrant_client import retrieval_client_factory
+from way2australia_rag.retrieval.opening import open_retrieval
 from way2australia_rag.retrieval.retriever import (
     DEFAULT_TOP_K,
     MAX_TOP_K,
     MIN_TOP_K,
 )
-from way2australia_rag.retrieval.strategy import (
-    build_retriever,
-    load_retrieval_config,
-    needs_lexical,
-    open_bound_lexical,
-)
+from way2australia_rag.retrieval.strategy import load_retrieval_config
 from way2australia_rag.retrieval.text import safe_text
 
 EXIT_OK = 0
@@ -122,7 +116,7 @@ def main(
     logging.getLogger("httpx").setLevel(logging.WARNING)  # request lines carry URLs
     repo_root = args.repo_root.resolve()
     config_path: Path = args.config or repo_root / DEFAULT_CONFIG_PATH
-    lexical = None
+    opened = None
     try:
         if not args.query.strip():
             raise RetrievalConfigurationError("the query must not be empty.")
@@ -133,31 +127,21 @@ def main(
         config = load_ingestion_config(config_path)
         settings = load_runtime_settings(RetrievalConfigurationError)
         provider = args.embedder or config.embedder.provider
-        embedder = build_embedder(config, provider)  # missing extra exits here
         retrieval_config = load_retrieval_config(
             args.retrieval_config or repo_root / DEFAULT_RETRIEVAL_CONFIG
         )
-        timeouts = retrieval_config.qdrant
-        client = (
-            client_factory(settings)
-            if client_factory is not None
-            else retrieval_client_factory(settings, timeouts)
-        )
-        index = DenseIndex.open(
-            client,
-            settings.collection_base,
-            config.index_version,
-            embedder.info,
-            query_timeout_s=timeouts.query_timeout_s,
-        )
         strategy = Strategy(args.strategy or retrieval_config.default_strategy)
-        if needs_lexical(strategy):
-            lexical = open_bound_lexical(settings, repo_root, index)
-        retriever = build_retriever(
-            strategy, index, embedder, lexical, retrieval_config
+        opened = open_retrieval(
+            strategy,
+            settings=settings,
+            ingestion_config=config,
+            retrieval_config=retrieval_config,
+            provider=provider,
+            repo_root=repo_root,
+            client_factory=client_factory,
         )
         access = resolve_access(guest_access(settings))
-        result = retriever.retrieve(args.query, access, args.top_k)
+        result = opened.retriever.retrieve(args.query, access, args.top_k)
     except (RetrievalError, IngestionError) as error:
         # Both families are path- and secret-free by contract.
         print(f"ERROR {type(error).__name__}: {safe_text(error)}", file=sys.stderr)
@@ -167,8 +151,8 @@ def main(
         print(f"ERROR {type(error).__name__}", file=sys.stderr)
         return EXIT_REFUSED
     finally:
-        if lexical is not None:
-            lexical.close()
+        if opened is not None:
+            opened.close()
     print(format_result(result))
     return EXIT_OK
 

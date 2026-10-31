@@ -18,6 +18,7 @@ from way2australia_rag.retrieval.bm25 import BM25Retriever
 from way2australia_rag.retrieval.errors import RetrievalConfigurationError
 from way2australia_rag.retrieval.fusion import FusionConfig
 from way2australia_rag.retrieval.hybrid import HybridRetriever
+from way2australia_rag.retrieval.identity import IndexIdentity
 from way2australia_rag.retrieval.index import DenseIndex
 from way2australia_rag.retrieval.retriever import DenseRetriever
 
@@ -66,30 +67,41 @@ def load_retrieval_config(path: Path) -> RetrievalConfig:
 
 def build_retriever(
     strategy: Strategy,
-    dense_index: DenseIndex,
-    embedder: Embedder,
+    identity: IndexIdentity,
+    dense_index: DenseIndex | None,
+    embedder: Embedder | None,
     lexical: LexicalIndex | None,
     config: RetrievalConfig,
 ) -> Retriever:
-    """Map a strategy to its retriever. `bm25` and `hybrid` need `lexical`."""
+    """Map a strategy to its retriever. `dense` and `hybrid` need `dense_index`
+    and `embedder`; `bm25` and `hybrid` need `lexical`."""
     try:
         chosen = Strategy(strategy)
     except ValueError:
         raise RetrievalConfigurationError(
             f"unknown retrieval strategy {strategy!r}"
         ) from None
+    if chosen == Strategy.BM25:
+        if lexical is None:
+            raise RetrievalConfigurationError(
+                "strategy 'bm25' needs the lexical index; "
+                "build it with `make index-lexical`."
+            )
+        return BM25Retriever(identity, lexical)
+    if chosen not in (Strategy.DENSE, Strategy.HYBRID):
+        raise RetrievalConfigurationError(f"unsupported strategy '{chosen.value}'")
+    if dense_index is None or embedder is None:
+        raise RetrievalConfigurationError(
+            f"strategy '{chosen.value}' needs the dense index and the embedder."
+        )
     if chosen == Strategy.DENSE:
         return DenseRetriever(dense_index, embedder)
-    if chosen not in (Strategy.BM25, Strategy.HYBRID):
-        raise RetrievalConfigurationError(f"unsupported strategy '{chosen.value}'")
     if lexical is None:
         raise RetrievalConfigurationError(
             f"strategy '{chosen.value}' needs the lexical index; "
             "build it with `make index-lexical`."
         )
-    bm25 = BM25Retriever(dense_index, lexical)
-    if chosen == Strategy.BM25:
-        return bm25
+    bm25 = BM25Retriever(identity, lexical)
     return HybridRetriever(DenseRetriever(dense_index, embedder), bm25, config.fusion)
 
 

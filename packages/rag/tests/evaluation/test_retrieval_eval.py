@@ -30,6 +30,7 @@ from way2australia_rag.ingestion.store import IndexPoint, QdrantIndexStore
 from way2australia_rag.retrieval.access import build_access_filter
 from way2australia_rag.retrieval.base import Strategy
 from way2australia_rag.retrieval.errors import RetrievalConfigurationError
+from way2australia_rag.retrieval.identity import IndexIdentity
 from way2australia_rag.retrieval.index import DenseIndex
 from way2australia_rag.retrieval.retriever import DenseRetriever
 
@@ -101,7 +102,9 @@ def suite_of(goldens: list[GoldenCase], status: str = "active", **kw: Any):  # n
 def run(index, emb, retriever, suite, **over):  # noqa: ANN001, ANN003, ANN201
     args: dict[str, Any] = {
         "retriever": retriever,
-        "index": index,
+        "identity": IndexIdentity.from_dense(index),
+        "document_count": index.document_count(build_access_filter(guest())),
+        "index_settings": index.settings,
         "embedder": emb,
         "access": guest(),
         "suite": suite,

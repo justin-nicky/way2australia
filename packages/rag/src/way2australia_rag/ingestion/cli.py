@@ -17,7 +17,6 @@ from pathlib import Path
 
 from qdrant_client import QdrantClient
 
-from way2australia_rag.ingestion.bge_m3 import BGE_M3_MODEL_ID, BgeM3Embedder
 from way2australia_rag.ingestion.chunking import HeadingChunker
 from way2australia_rag.ingestion.config import (
     DEFAULT_CONFIG_PATH,
@@ -60,6 +59,10 @@ def build_embedder(config: IngestionConfig, provider: str) -> Embedder:
     embedder = config.embedder
     if provider == "fake":
         return FakeEmbedder(embedder.fake_vector_size)
+    # Imported here so a path that builds no embedder (`bm25`) never loads the
+    # module (Spec 008 R5).
+    from way2australia_rag.ingestion.bge_m3 import BGE_M3_MODEL_ID, BgeM3Embedder
+
     if embedder.model_id != BGE_M3_MODEL_ID or not embedder.normalize:
         raise IngestionConfigurationError(
             f"the bge_m3 embedder supports only {BGE_M3_MODEL_ID} with "
