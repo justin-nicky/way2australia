@@ -14,11 +14,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from way2australia_rag.ingestion.cli import (
-    ClientFactory,
-    build_embedder,
-    default_client_factory,
-)
+from way2australia_rag.ingestion.cli import ClientFactory, build_embedder
 from way2australia_rag.ingestion.config import (
     DEFAULT_CONFIG_PATH,
     load_ingestion_config,
@@ -33,6 +29,7 @@ from way2australia_rag.retrieval.errors import (
 )
 from way2australia_rag.retrieval.index import DenseIndex
 from way2australia_rag.retrieval.models import RetrievalResult
+from way2australia_rag.retrieval.qdrant_client import retrieval_client_factory
 from way2australia_rag.retrieval.retriever import (
     DEFAULT_TOP_K,
     MAX_TOP_K,
@@ -118,7 +115,7 @@ def _parser() -> argparse.ArgumentParser:
 def main(
     argv: Sequence[str] | None = None,
     *,
-    client_factory: ClientFactory = default_client_factory,
+    client_factory: ClientFactory | None = None,
 ) -> int:
     args = _parser().parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stderr)
@@ -137,12 +134,21 @@ def main(
         settings = load_runtime_settings(RetrievalConfigurationError)
         provider = args.embedder or config.embedder.provider
         embedder = build_embedder(config, provider)  # missing extra exits here
-        client = client_factory(settings)
-        index = DenseIndex.open(
-            client, settings.collection_base, config.index_version, embedder.info
-        )
         retrieval_config = load_retrieval_config(
             args.retrieval_config or repo_root / DEFAULT_RETRIEVAL_CONFIG
+        )
+        timeouts = retrieval_config.qdrant
+        client = (
+            client_factory(settings)
+            if client_factory is not None
+            else retrieval_client_factory(settings, timeouts)
+        )
+        index = DenseIndex.open(
+            client,
+            settings.collection_base,
+            config.index_version,
+            embedder.info,
+            query_timeout_s=timeouts.query_timeout_s,
         )
         strategy = Strategy(args.strategy or retrieval_config.default_strategy)
         if needs_lexical(strategy):

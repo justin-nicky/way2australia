@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, ValidationError
 
 from way2australia_rag.ingestion.config import RuntimeSettings
 from way2australia_rag.ingestion.embedding import Embedder
@@ -24,12 +24,22 @@ from way2australia_rag.retrieval.retriever import DenseRetriever
 DEFAULT_CONFIG_PATH = "config/retrieval.yaml"
 
 
+class QdrantTimeouts(BaseModel):
+    """Qdrant request bounds in whole seconds (Spec 008 R2)."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    connect_timeout_s: StrictInt = Field(ge=1, le=30)
+    query_timeout_s: StrictInt = Field(ge=1, le=30)
+
+
 class RetrievalConfig(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal["1.0"]
+    schema_version: Literal["1.1"]
     default_strategy: Strategy
     fusion: FusionConfig
+    qdrant: QdrantTimeouts
 
 
 def load_retrieval_config(path: Path) -> RetrievalConfig:

@@ -20,28 +20,28 @@ Rules for every task:
 
 ## T1 — Failure classification and Qdrant timeouts
 
-**State:** not started
+**State:** approved (2026-10-31)
 **Requirements:** R1, R2, R13
 
-- [ ] **Confirm the Hugging Face error shapes first** (design R1, "What the pinned stack raises"). Inspect the pinned sources read-only:
+- [x] **Confirm the Hugging Face error shapes first** (design R1, "What the pinned stack raises"). Inspect the pinned sources read-only:
   - versions: sentence-transformers 6.1.0, transformers 5.20.0, huggingface-hub 1.33.0;
   - source: the user's `make setup-bge-m3` environment or, only with the user's permission, `uv pip download --no-deps` into a scratch directory outside the repository;
   - record the four shapes (network down, unknown model ID, unknown revision, gated repository) and whether each uses `raise ... from` in the design's `## As-built notes`;
   - if a shape differs, adjust only the type list. The rule stays "eligible only with a network or timeout cause in the explicit `__cause__` chain".
-- [ ] `retrieval/errors.py`: `FallbackReason` (`qdrant_unavailable`, `qdrant_timeout`, `model_unavailable`) and `RetrievalUnavailableError(reason)` with a fixed, path-free message.
-- [ ] New `retrieval/availability.py`:
+- [x] `retrieval/errors.py`: `FallbackReason` (`qdrant_unavailable`, `qdrant_timeout`, `model_unavailable`) and `RetrievalUnavailableError(reason)` with a fixed, path-free message.
+- [x] New `retrieval/availability.py`:
   - `classify_qdrant_error`: unwraps one level, through `ResponseHandlingException.source` only; never follows `__cause__` or `__context__`;
   - `classify_model_error`: follows the explicit `__cause__` chain only, at most 10 links; the network and timeout type list; the guarded `OfflineModeIsEnabled` exclusion;
   - both return `None` for anything else.
-- [ ] `retrieval/index.py`:
+- [x] `retrieval/index.py`:
   - every client call in `open`, `search`, `document_count` and `chunk_identities` goes through `classify_qdrant_error`; a mapped error is raised from the original, and anything else is re-raised unchanged;
   - `search` passes `timeout=query_timeout_s` to `query_points` (the value is given to `DenseIndex`).
-- [ ] `retrieval/retriever.py`: wrap only the `embed_query` call with `classify_model_error`.
-- [ ] `retrieval/strategy.py`: `RetrievalConfig` schema `1.1` with `QdrantTimeouts(connect_timeout_s, query_timeout_s)`, integers from 1 to 30. A missing or invalid block is a `RetrievalConfigurationError` naming the field.
-- [ ] `config/retrieval.yaml`: `schema_version: "1.1"`, `qdrant: {connect_timeout_s: 2, query_timeout_s: 3}`; the other keys are unchanged.
-- [ ] New `retrieval/qdrant_client.py`: `retrieval_client_factory(settings, timeouts)` with `timeout=connect_timeout_s` and `check_compatibility=False`.
-- [ ] `make retrieve` and `make eval-retrieval` use the new factory. Their existing `client_factory` test parameter keeps working. Ingestion is not changed.
-- [ ] Tests:
+- [x] `retrieval/retriever.py`: wrap only the `embed_query` call with `classify_model_error`.
+- [x] `retrieval/strategy.py`: `RetrievalConfig` schema `1.1` with `QdrantTimeouts(connect_timeout_s, query_timeout_s)`, integers from 1 to 30. A missing or invalid block is a `RetrievalConfigurationError` naming the field.
+- [x] `config/retrieval.yaml`: `schema_version: "1.1"`, `qdrant: {connect_timeout_s: 2, query_timeout_s: 3}`; the other keys are unchanged.
+- [x] New `retrieval/qdrant_client.py`: `retrieval_client_factory(settings, timeouts)` with `timeout=connect_timeout_s` and `check_compatibility=False`.
+- [x] `make retrieve` and `make eval-retrieval` use the new factory. Their existing `client_factory` test parameter keeps working. Ingestion is not changed.
+- [x] Tests:
   - `packages/rag/tests/retrieval/test_availability.py`: the Qdrant and model tables from the design testing section, including:
     - the unrelated-error-during-handling case, bare and wrapped;
     - missing revision and missing model ID fail closed;
@@ -114,6 +114,7 @@ Review reading order: `retrieval/identity.py` → `lexical/store.py` diff → `l
   - `bm25` through `open_retrieval` and both CLIs with raising embedder and client factories and `sys.modules["sentence_transformers"] = None`;
   - a test pins that the `bm25` path never imports `way2australia_rag.ingestion.bge_m3`;
   - `test_strategy_eval.py` and `dense_equivalence.py` pass with the new signature and unchanged values.
+- [ ] Retrieval integration tests build their Qdrant clients with `retrieval_client_factory` (T1), so a hanging Qdrant fails within seconds instead of stalling the run: `packages/rag/tests/retrieval/test_retrieval_integration.py` (today `QdrantClient(url=QDRANT_URL, timeout=10)`) and any other test under `packages/rag/tests/retrieval/` that builds a network Qdrant client. Exempt: `QdrantClient(":memory:")` clients and the T1 stalled-fake test in `test_index.py`, which tests the timeout itself. `ingestion/` and `evaluation/` integration tests are not changed. No `pytest-timeout` or other new dependency (T1 F3).
 
 Allowed protected-path changes: none.
 
@@ -121,6 +122,7 @@ Allowed protected-path changes: none.
 
 - `make verify`.
 - `make test-integration` (Docker Qdrant running) passes.
+- `grep -rn "QdrantClient(" packages/rag/tests/retrieval` shows no network client outside `retrieval_client_factory`, except the `:memory:` clients and the T1 stalled-fake test; `git diff -- pyproject.toml packages/rag/pyproject.toml uv.lock` adds no dependency.
 - `make index-lexical LEXICAL_ARGS="--embedder fake"` and `make retrieve QUERY="Is coaching compulsory?" RETRIEVE_ARGS="--embedder fake --strategy bm25"`, run against a throwaway `QDRANT_COLLECTION_BASE=w2a-t008-<8 hex>` after `make ingest INGEST_ARGS="--embedder fake"`, return hits. The bm25 call is repeated with `QDRANT_URL` pointing at a closed port and still returns hits. The throwaway collection and lexical file are removed afterwards.
 - `git status --porcelain -- evaluation knowledge config` is empty.
 

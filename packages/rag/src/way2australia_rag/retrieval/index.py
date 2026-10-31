@@ -16,6 +16,7 @@ from way2australia_rag.ingestion.store import (
     SETTINGS_COLLECTION_SUFFIX,
     read_index_settings,
 )
+from way2australia_rag.retrieval.availability import classify_qdrant_error
 from way2australia_rag.retrieval.errors import IndexBindingError
 
 _SCROLL_PAGE = 256
@@ -36,13 +37,28 @@ _EMBEDDER_FIELDS: tuple[tuple[str, str], ...] = (
 )
 
 
+def raise_if_unavailable(error: Exception) -> None:
+    """Raise `RetrievalUnavailableError` (from `error`) for a transport failure.
+
+    Returns for anything else; the caller then re-raises the original unchanged.
+    """
+    mapped = classify_qdrant_error(error)
+    if mapped is not None:
+        raise mapped from error
+
+
 class DenseIndex:
     """A bound, read-only view of one dense index."""
 
     def __init__(
-        self, client: QdrantClient, collection: str, settings: IndexSettings
+        self,
+        client: QdrantClient,
+        collection: str,
+        settings: IndexSettings,
+        query_timeout_s: int | None = None,
     ) -> None:
         self._client = client
+        self._query_timeout_s = query_timeout_s
         self.collection = collection
         self.settings = settings
         self.index_version = settings.index_version
@@ -54,6 +70,25 @@ class DenseIndex:
         collection_base: str,
         index_version: str,
         embedder_info: EmbedderInfo,
+        query_timeout_s: int | None = None,
+    ) -> "DenseIndex":
+        """Bind to the index. Transport failures raise `RetrievalUnavailableError`."""
+        try:
+            return cls._open(
+                client, collection_base, index_version, embedder_info, query_timeout_s
+            )
+        except Exception as error:
+            raise_if_unavailable(error)
+            raise
+
+    @classmethod
+    def _open(
+        cls,
+        client: QdrantClient,
+        collection_base: str,
+        index_version: str,
+        embedder_info: EmbedderInfo,
+        query_timeout_s: int | None,
     ) -> "DenseIndex":
         collection = collection_name(collection_base, index_version)
         if not client.collection_exists(collection):
@@ -96,7 +131,7 @@ class DenseIndex:
                 f"'{collection}' ({'; '.join(differences)}). {_ADVICE}"
             )
         cls._check_dense_vector(client, collection, embedder_info.vector_size)
-        return cls(client, collection, recorded)
+        return cls(client, collection, recorded, query_timeout_s)
 
     @staticmethod
     def _check_dense_vector(client: QdrantClient, collection: str, size: int) -> None:
@@ -115,19 +150,31 @@ class DenseIndex:
     def search(
         self, vector: list[float], query_filter: models.Filter, limit: int
     ) -> list[models.ScoredPoint]:
-        response = self._client.query_points(
-            self.collection,
-            query=vector,
-            using=DENSE_VECTOR_NAME,
-            query_filter=query_filter,
-            limit=limit,
-            with_payload=True,
-            with_vectors=False,
-        )
+        try:
+            response = self._client.query_points(
+                self.collection,
+                query=vector,
+                using=DENSE_VECTOR_NAME,
+                query_filter=query_filter,
+                limit=limit,
+                with_payload=True,
+                with_vectors=False,
+                timeout=self._query_timeout_s,
+            )
+        except Exception as error:
+            raise_if_unavailable(error)
+            raise
         return list(response.points)
 
     def document_count(self, query_filter: models.Filter) -> int:
         """Distinct `document_id`s visible under `query_filter`."""
+        try:
+            return self._document_count(query_filter)
+        except Exception as error:
+            raise_if_unavailable(error)
+            raise
+
+    def _document_count(self, query_filter: models.Filter) -> int:
         seen: set[str] = set()
         offset: Any = None
         while True:
@@ -157,6 +204,13 @@ class DenseIndex:
         Read-only scroll without a filter and without text; used to bind a
         lexical index to this one (Spec 007 R5).
         """
+        try:
+            return self._chunk_identities()
+        except Exception as error:
+            raise_if_unavailable(error)
+            raise
+
+    def _chunk_identities(self) -> list[tuple[str, str, int, str]]:
         identities: list[tuple[str, str, int, str]] = []
         offset: Any = None
         while True:

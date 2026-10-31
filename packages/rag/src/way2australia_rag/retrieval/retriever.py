@@ -14,6 +14,7 @@ from way2australia_rag.retrieval.access import (
     build_access_filter,
     check_hit,
 )
+from way2australia_rag.retrieval.availability import classify_model_error
 from way2australia_rag.retrieval.base import (
     DEFAULT_TOP_K,
     MAX_TOP_K,
@@ -42,7 +43,13 @@ class DenseRetriever:
     ) -> RetrievalResult:
         validate_request(query_text, top_k)
         started = perf_counter()
-        vector = self._embedder.embed_query(query_text)
+        try:
+            vector = self._embedder.embed_query(query_text)
+        except Exception as error:
+            mapped = classify_model_error(error)
+            if mapped is not None:
+                raise mapped from error
+            raise
         points = self._index.search(vector, build_access_filter(access), top_k)
         checked = [(point, check_hit(point.payload or {}, access)) for point in points]
         # One span for every strategy (T4 review F2): after the last check_hit.

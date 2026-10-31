@@ -1,10 +1,16 @@
 """DenseIndex read-only binding tests on in-memory Qdrant (Spec 005 R4)."""
 
+import socket
+import threading
+from collections.abc import Iterator
+from time import perf_counter
 from typing import Any
 from unittest.mock import MagicMock
 
+import httpx
 import pytest
 from qdrant_client import QdrantClient, models
+from qdrant_client.http.exceptions import ResponseHandlingException
 from way2australia_rag.ingestion.chunking import HeadingChunker
 from way2australia_rag.ingestion.embedding import EmbedderInfo, FakeEmbedder
 from way2australia_rag.ingestion.settings import (
@@ -19,7 +25,11 @@ from way2australia_rag.ingestion.store import (
     QdrantIndexStore,
     read_index_settings,
 )
-from way2australia_rag.retrieval.errors import IndexBindingError
+from way2australia_rag.retrieval.errors import (
+    FallbackReason,
+    IndexBindingError,
+    RetrievalUnavailableError,
+)
 from way2australia_rag.retrieval.index import DenseIndex
 
 pytestmark = pytest.mark.filterwarnings(
@@ -349,3 +359,177 @@ def test_document_count_spans_multiple_scroll_pages(
     index = DenseIndex.open(spy, BASE, VERSION, fake_info())
     assert index.document_count(scope_filter("public")) == 4
     assert spy.scroll.call_count > 1
+
+
+# ---- Spec 008 R1/R2: transport failures and bounded requests ---------------
+
+TRANSPORT_ERRORS = [
+    (httpx.ConnectError("refused"), FallbackReason.QDRANT_UNAVAILABLE),
+    (
+        ResponseHandlingException(httpx.ReadError("reset")),
+        FallbackReason.QDRANT_UNAVAILABLE,
+    ),
+    (httpx.ConnectTimeout("slow"), FallbackReason.QDRANT_TIMEOUT),
+    (
+        ResponseHandlingException(httpx.ReadTimeout("slow")),
+        FallbackReason.QDRANT_TIMEOUT,
+    ),
+]
+CLIENT_METHODS = ["collection_exists", "get_collection", "query_points", "scroll"]
+
+
+def failing_client(method: str, error: Exception) -> MagicMock:
+    """A client that behaves normally except that `method` raises `error`."""
+    real = QdrantClient(":memory:")
+    QdrantIndexStore(real, BASE, VERSION).ensure_collection(make_settings())
+    seed(real, [(1, payload("a"))])
+    spy = MagicMock(wraps=real)
+    getattr(spy, method).side_effect = error
+    return spy
+
+
+def bound_index(client: Any, query_timeout_s: int | None = None) -> DenseIndex:
+    return DenseIndex(client, COLLECTION, make_settings(), query_timeout_s)
+
+
+@pytest.mark.parametrize(("error", "expected"), TRANSPORT_ERRORS)
+@pytest.mark.parametrize("method", ["collection_exists", "get_collection"])
+def test_open_maps_transport_errors(
+    method: str, error: Exception, expected: FallbackReason
+) -> None:
+    with pytest.raises(RetrievalUnavailableError) as caught:
+        DenseIndex.open(failing_client(method, error), BASE, VERSION, fake_info())
+    assert caught.value.reason is expected
+    assert caught.value.__cause__ is error
+
+
+@pytest.mark.parametrize(("error", "expected"), TRANSPORT_ERRORS)
+def test_search_maps_transport_errors(
+    error: Exception, expected: FallbackReason
+) -> None:
+    index = bound_index(failing_client("query_points", error))
+    size = fake_info().vector_size
+    with pytest.raises(RetrievalUnavailableError) as caught:
+        index.search([1.0] + [0.0] * (size - 1), scope_filter("public"), 3)
+    assert caught.value.reason is expected
+
+
+@pytest.mark.parametrize(("error", "expected"), TRANSPORT_ERRORS)
+def test_document_count_and_chunk_identities_map_transport_errors(
+    error: Exception, expected: FallbackReason
+) -> None:
+    index = bound_index(failing_client("scroll", error))
+    with pytest.raises(RetrievalUnavailableError) as caught:
+        index.document_count(scope_filter("public"))
+    assert caught.value.reason is expected
+    with pytest.raises(RetrievalUnavailableError) as caught:
+        index.chunk_identities()
+    assert caught.value.reason is expected
+
+
+@pytest.mark.parametrize("method", CLIENT_METHODS)
+def test_other_client_errors_are_re_raised_unchanged(method: str) -> None:
+    error = ResponseHandlingException(ValueError("not a transport error"))
+    client = failing_client(method, error)
+    size = fake_info().vector_size
+    calls = {
+        "collection_exists": lambda: DenseIndex.open(
+            client, BASE, VERSION, fake_info()
+        ),
+        "get_collection": lambda: DenseIndex.open(client, BASE, VERSION, fake_info()),
+        "query_points": lambda: bound_index(client).search(
+            [1.0] + [0.0] * (size - 1), scope_filter("public"), 3
+        ),
+        "scroll": lambda: bound_index(client).document_count(scope_filter("public")),
+    }
+    with pytest.raises(ResponseHandlingException) as caught:
+        calls[method]()
+    assert caught.value is error
+
+
+def test_binding_errors_are_not_mapped(client: QdrantClient) -> None:
+    with pytest.raises(IndexBindingError):
+        DenseIndex.open(client, "other-base", VERSION, fake_info())
+
+
+def test_search_passes_the_query_timeout(client: QdrantClient) -> None:
+    seed(client, [(1, payload("a"))])
+    spy = MagicMock(wraps=client)
+    index = bound_index(spy, query_timeout_s=7)
+    index.search(
+        [1.0] + [0.0] * (fake_info().vector_size - 1), scope_filter("public"), 1
+    )
+    assert spy.query_points.call_args.kwargs["timeout"] == 7
+
+
+def test_open_carries_the_query_timeout_to_the_bound_index(
+    client: QdrantClient,
+) -> None:
+    spy = MagicMock(wraps=client)
+    index = DenseIndex.open(spy, BASE, VERSION, fake_info(), query_timeout_s=4)
+    index.search(
+        [1.0] + [0.0] * (fake_info().vector_size - 1), scope_filter("public"), 1
+    )
+    assert spy.query_points.call_args.kwargs["timeout"] == 4
+
+
+@pytest.fixture
+def stalled_port() -> Iterator[int]:
+    """A local TCP listener that accepts connections and never answers."""
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind(("127.0.0.1", 0))
+    server.listen(8)
+    accepted: list[socket.socket] = []
+    stop = threading.Event()
+
+    def accept_forever() -> None:
+        server.settimeout(0.2)
+        while not stop.is_set():
+            try:
+                accepted.append(server.accept()[0])
+            except OSError:
+                continue
+
+    thread = threading.Thread(target=accept_forever, daemon=True)
+    thread.start()
+    yield server.getsockname()[1]
+    stop.set()
+    thread.join(timeout=2)
+    for connection in accepted:
+        connection.close()
+    server.close()
+
+
+def http_client(port: int, timeout: int) -> QdrantClient:
+    return QdrantClient(
+        url=f"http://127.0.0.1:{port}", timeout=timeout, check_compatibility=False
+    )
+
+
+def test_a_stalled_search_times_out_within_the_query_bound(stalled_port: int) -> None:
+    index = bound_index(http_client(stalled_port, 30), query_timeout_s=1)
+    started = perf_counter()
+    with pytest.raises(RetrievalUnavailableError) as caught:
+        index.search(
+            [1.0] + [0.0] * (fake_info().vector_size - 1), scope_filter("public"), 1
+        )
+    assert caught.value.reason is FallbackReason.QDRANT_TIMEOUT
+    assert perf_counter() - started < 1 + 2
+
+
+def test_a_stalled_open_times_out_within_the_connect_bound(stalled_port: int) -> None:
+    started = perf_counter()
+    with pytest.raises(RetrievalUnavailableError) as caught:
+        DenseIndex.open(http_client(stalled_port, 1), BASE, VERSION, fake_info())
+    assert caught.value.reason is FallbackReason.QDRANT_TIMEOUT
+    assert perf_counter() - started < 1 + 2
+
+
+def test_a_closed_port_is_unavailable() -> None:
+    probe = socket.socket()
+    probe.bind(("127.0.0.1", 0))
+    port = probe.getsockname()[1]
+    probe.close()  # nothing listens on this port now
+    with pytest.raises(RetrievalUnavailableError) as caught:
+        DenseIndex.open(http_client(port, 1), BASE, VERSION, fake_info())
+    assert caught.value.reason is FallbackReason.QDRANT_UNAVAILABLE

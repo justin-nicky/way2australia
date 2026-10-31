@@ -397,3 +397,21 @@ All unit tests run under `make verify` without Docker, the extra or a model.
 - **Latency as a "not comparable" flag:** rejected in favour of grouping by served path (see R8).
 
 Proposed decisions (written in the final task): D056 Spec 008 ahead of roadmap 7; D057 failure classification; D058 `FallbackRetriever` policy and worst-case latency; D059 Qdrant timeouts and the client factory; D060 standalone lexical open and repository freshness check (large-corpus caveat); D061 result 2.2, security 1.2 and served-strategy comparison; D062 Qdrant HTTP status errors (including 5xx) are not fallback-eligible in Phase 1 retrieval, revisit with the HTTP route.
+
+## As-built notes
+
+### T1: Hugging Face error shapes (confirmed 2026-10-29)
+
+Method: the three pinned wheels (sentence-transformers 6.1.0, transformers 5.20.0, huggingface-hub 1.33.0) were fetched with `pip download --no-deps` into a scratch directory outside the repository (with the user's permission), unzipped and read only; nothing was installed or run. Files read: `transformers/utils/hub.py` (`cached_files`), `huggingface_hub/file_download.py`, `_snapshot_download.py`, `errors.py`, `transformers/configuration_utils.py`, `tokenization_utils_base.py`. The expected shapes in R1 hold; the eligible type list does not change.
+
+| Case | What the stack raises | Explicit `__cause__` chain | Eligible |
+|---|---|---|---|
+| Network down, DNS failure, connect or read timeout (uncached files) | `OSError("We couldn't connect to ...")` | `OSError` -> `LocalEntryNotFoundError` -> `httpx.ConnectError` or `httpx.TimeoutException`. Both links use `raise ... from` (`_raise_on_head_call_error`; `snapshot_download`; `cached_files`) | yes |
+| Unknown model ID | `OSError("... is not a local folder and is not a valid model identifier ...")` | `OSError` -> `RepositoryNotFoundError` (an `HfHubHTTPError`); no network error in the chain | no |
+| Unknown revision | `OSError("... is not a valid git identifier ...")` | `OSError` -> `RevisionNotFoundError`; no network error in the chain | no |
+| Gated repository | `OSError("You are trying to access a gated repo ...")` | `OSError` -> `GatedRepoError`; no network error in the chain | no |
+| Offline mode (`HF_HUB_OFFLINE=1`, nothing cached) | `OSError` from `LocalEntryNotFoundError` | `OSError` -> `LocalEntryNotFoundError` -> `OfflineModeIsEnabled` (a `ConnectionError`); the guarded exclusion in `classify_model_error` removes it | no |
+| `local_files_only=True`, nothing cached | `LocalEntryNotFoundError`, no cause | none | no |
+| Hub down (HTTP 5xx) with nothing cached | `OSError` or `LocalEntryNotFoundError` chained to `HfHubHTTPError` | no `httpx.ConnectError` or timeout in the chain | no (safe direction, like Qdrant 5xx, D062) |
+
+A network error therefore survives as an explicit `__cause__` (two links deep for the usual `from_pretrained` path), well inside the 10-link limit. Two code paths in `tokenization_utils_base.py` and `configuration_utils.py` re-raise a generic `OSError` without `from` for non-`OSError` failures; that drops the cause, so such an outage is not eligible (fail closed). A raw `httpx.NetworkError` other than `ConnectError` (for example `ReadError`) is not caught by the hub and propagates unchanged, so it is eligible at link 0.

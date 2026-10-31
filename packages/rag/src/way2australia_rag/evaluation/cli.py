@@ -63,11 +63,7 @@ from way2australia_rag.evaluation.slices import active_registry_languages
 from way2australia_rag.evaluation.suite import declared_release_id, load_suite
 from way2australia_rag.evaluation.validate import validate_evaluation
 from way2australia_rag.ingestion.chunking import HeadingChunker
-from way2australia_rag.ingestion.cli import (
-    ClientFactory,
-    build_embedder,
-    default_client_factory,
-)
+from way2australia_rag.ingestion.cli import ClientFactory, build_embedder
 from way2australia_rag.ingestion.config import (
     DEFAULT_CONFIG_PATH,
     IngestionConfig,
@@ -87,6 +83,7 @@ from way2australia_rag.retrieval.access import guest_access, resolve_access
 from way2australia_rag.retrieval.base import Strategy
 from way2australia_rag.retrieval.errors import RetrievalError
 from way2australia_rag.retrieval.index import DenseIndex
+from way2australia_rag.retrieval.qdrant_client import retrieval_client_factory
 from way2australia_rag.retrieval.retriever import (
     DEFAULT_TOP_K,
     MAX_TOP_K,
@@ -210,7 +207,7 @@ def format_summary(document: dict[str, Any], output: Path, repo_root: Path) -> s
 
 def _retrieval(
     args: argparse.Namespace,
-    client_factory: ClientFactory,
+    client_factory: ClientFactory | None,
     embedder_factory: EmbedderFactory,
 ) -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stderr)
@@ -247,9 +244,18 @@ def _retrieval(
         embedder = embedder_factory(config, config.embedder.provider)
         require_real_embedder(embedder)
         # 6. read-only index binding; a recorded fake index is refused
-        client = client_factory(settings)
+        timeouts = retrieval_config.qdrant
+        client = (
+            client_factory(settings)
+            if client_factory is not None
+            else retrieval_client_factory(settings, timeouts)
+        )
         index = DenseIndex.open(
-            client, settings.collection_base, config.index_version, embedder.info
+            client,
+            settings.collection_base,
+            config.index_version,
+            embedder.info,
+            query_timeout_s=timeouts.query_timeout_s,
         )
         require_real_index(index)
         # 6b. the lexical file, opened read-only and bound to the dense index
@@ -446,7 +452,7 @@ def _compare(args: argparse.Namespace) -> int:
 def main(
     argv: Sequence[str] | None = None,
     *,
-    client_factory: ClientFactory = default_client_factory,
+    client_factory: ClientFactory | None = None,
     embedder_factory: EmbedderFactory = build_embedder,
 ) -> int:
     parser = argparse.ArgumentParser(

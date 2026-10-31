@@ -2,11 +2,13 @@
 
 from typing import Any
 
+import httpx
 import pytest
 from qdrant_client import QdrantClient, models
 from way2australia_core import AccessContext, Role
 from way2australia_rag.ingestion.chunking import HeadingChunker
 from way2australia_rag.ingestion.embedding import FakeEmbedder
+from way2australia_rag.ingestion.errors import OptionalDependencyError
 from way2australia_rag.ingestion.identity import point_id
 from way2australia_rag.ingestion.payload import PointPayload
 from way2australia_rag.ingestion.settings import build_index_settings
@@ -16,7 +18,11 @@ from way2australia_rag.retrieval.access import (
     build_access_filter,
     resolve_access,
 )
-from way2australia_rag.retrieval.errors import RetrievalConfigurationError
+from way2australia_rag.retrieval.errors import (
+    FallbackReason,
+    RetrievalConfigurationError,
+    RetrievalUnavailableError,
+)
 from way2australia_rag.retrieval.index import DenseIndex
 from way2australia_rag.retrieval.retriever import DenseRetriever
 
@@ -222,3 +228,66 @@ def test_device_reported(docs: list[IndexPoint]) -> None:
     device = DenseRetriever(index, DeviceEmbedder()).retrieve("x", guest()).device
     assert device == "mps"
     assert DenseRetriever(index, EMBEDDER).retrieve("x", guest()).device is None
+
+
+# ---- Spec 008 R1: model load failures ---------------------------------------
+
+
+class RaisingEmbedder(FakeEmbedder):
+    def __init__(self, error: BaseException) -> None:
+        super().__init__()
+        self._error = error
+
+    def embed_query(self, text: str) -> list[float]:
+        raise self._error
+
+
+def with_cause(outer: BaseException, cause: BaseException) -> BaseException:
+    outer.__cause__ = cause
+    return outer
+
+
+def test_a_network_failure_during_model_load_is_unavailable(
+    docs: list[IndexPoint],
+) -> None:
+    cause = httpx.ConnectError("refused")
+    error = with_cause(OSError("We couldn't connect"), cause)
+    index = DenseIndex.open(build_client(docs), BASE, VERSION, EMBEDDER.info)
+    with pytest.raises(RetrievalUnavailableError) as caught:
+        DenseRetriever(index, RaisingEmbedder(error)).retrieve("x", guest())
+    assert caught.value.reason is FallbackReason.MODEL_UNAVAILABLE
+    assert caught.value.__cause__ is error
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        with_cause(OSError("not a valid git identifier"), ValueError("revision")),
+        with_cause(OSError("not a valid model identifier"), KeyError("repo")),
+        OSError("plain"),
+        PermissionError("denied"),
+        OptionalDependencyError("bge-m3 extra missing"),
+    ],
+    ids=["missing-revision", "missing-model-id", "plain", "permission", "extra"],
+)
+def test_other_model_errors_are_re_raised_unchanged(
+    docs: list[IndexPoint], error: BaseException
+) -> None:
+    index = DenseIndex.open(build_client(docs), BASE, VERSION, EMBEDDER.info)
+    with pytest.raises(type(error)) as caught:
+        DenseRetriever(index, RaisingEmbedder(error)).retrieve("x", guest())
+    assert caught.value is error
+
+
+def test_a_search_failure_is_not_classified_as_a_model_failure(
+    docs: list[IndexPoint],
+) -> None:
+    """Only the embed call is wrapped: Qdrant errors keep their own mapping."""
+    index = DenseIndex.open(build_client(docs), BASE, VERSION, EMBEDDER.info)
+    error = httpx.ConnectError("refused")
+    index._client = type(  # type: ignore[assignment]
+        "Dead", (), {"query_points": lambda *a, **k: (_ for _ in ()).throw(error)}
+    )()
+    with pytest.raises(RetrievalUnavailableError) as caught:
+        DenseRetriever(index, EMBEDDER).retrieve("x", guest())
+    assert caught.value.reason is FallbackReason.QDRANT_UNAVAILABLE

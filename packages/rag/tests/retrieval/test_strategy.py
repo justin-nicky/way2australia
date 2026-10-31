@@ -21,7 +21,7 @@ from way2australia_rag.retrieval.strategy import (
 )
 
 GOOD: dict[str, Any] = {
-    "schema_version": "1.0",
+    "schema_version": "1.1",
     "default_strategy": "dense",
     "fusion": {
         "method": "rrf",
@@ -29,6 +29,7 @@ GOOD: dict[str, Any] = {
         "weights": {"dense": 1.0, "bm25": 1.0},
         "candidate_depth": 50,
     },
+    "qdrant": {"connect_timeout_s": 2, "query_timeout_s": 3},
 }
 
 
@@ -57,6 +58,8 @@ def test_committed_config_loads() -> None:
     assert config.fusion.weights == {"dense": 1.0, "bm25": 1.0}
     assert config.fusion.candidate_depth == 50
     assert config.fusion.method == "rrf"
+    assert config.qdrant.connect_timeout_s == 2
+    assert config.qdrant.query_timeout_s == 3
 
 
 def test_good_config_loads(tmp_path: Path) -> None:
@@ -88,6 +91,33 @@ BAD = [
     ("depth 51", variant(fusion__candidate_depth=51), "fusion.candidate_depth"),
     ("method not rrf", variant(fusion__method="linear"), "fusion.method"),
     ("schema version", variant(schema_version="2.0"), "schema_version"),
+    ("schema version 1.0", variant(schema_version="1.0"), "schema_version"),
+    ("qdrant missing", {k: v for k, v in GOOD.items() if k != "qdrant"}, "qdrant"),
+    ("qdrant not a mapping", variant(qdrant=3), "qdrant"),
+    ("qdrant extra key", variant(qdrant__extra=1), "qdrant.extra"),
+    (
+        "connect missing",
+        variant(qdrant={"query_timeout_s": 3}),
+        "qdrant.connect_timeout_s",
+    ),
+    (
+        "query missing",
+        variant(qdrant={"connect_timeout_s": 2}),
+        "qdrant.query_timeout_s",
+    ),
+    ("connect zero", variant(qdrant__connect_timeout_s=0), "qdrant.connect_timeout_s"),
+    ("connect 31", variant(qdrant__connect_timeout_s=31), "qdrant.connect_timeout_s"),
+    ("query zero", variant(qdrant__query_timeout_s=0), "qdrant.query_timeout_s"),
+    ("query 31", variant(qdrant__query_timeout_s=31), "qdrant.query_timeout_s"),
+    ("query float", variant(qdrant__query_timeout_s=1.0), "qdrant.query_timeout_s"),
+    ("query 1.5", variant(qdrant__query_timeout_s=1.5), "qdrant.query_timeout_s"),
+    ("query quoted", variant(qdrant__query_timeout_s="3"), "qdrant.query_timeout_s"),
+    ("query bool", variant(qdrant__query_timeout_s=True), "qdrant.query_timeout_s"),
+    (
+        "connect bool",
+        variant(qdrant__connect_timeout_s=True),
+        "qdrant.connect_timeout_s",
+    ),
     ("k bool", variant(fusion__k=True), "fusion.k"),
     ("k quoted", variant(fusion__k="60"), "fusion.k"),
     ("depth quoted", variant(fusion__candidate_depth="50"), "fusion.candidate_depth"),
@@ -160,3 +190,14 @@ def test_build_retriever_converts_a_string_value_and_refuses_unknown() -> None:
         build_retriever("semantic", dense, FakeEmbedder(), None, config)  # pyright: ignore[reportArgumentType]
     with pytest.raises(RetrievalConfigurationError, match="lexical"):
         build_retriever("hybrid", dense, FakeEmbedder(), None, config)  # pyright: ignore[reportArgumentType]
+
+
+@pytest.mark.parametrize("value", [1, 30])
+def test_timeout_bounds_are_inclusive(tmp_path: Path, value: int) -> None:
+    config = load_retrieval_config(
+        write(
+            tmp_path,
+            variant(qdrant={"connect_timeout_s": value, "query_timeout_s": value}),
+        )
+    )
+    assert config.qdrant.connect_timeout_s == config.qdrant.query_timeout_s == value
