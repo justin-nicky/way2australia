@@ -1,5 +1,4 @@
 {
-  "0": "Access and Hybrid Design",
   "1": "Task Review Log (T7)",
   "2": "Security Fixture Corpus",
   "4": "Evaluation Schemas",
@@ -12,7 +11,6 @@
   "22": "Date and Policy Tests",
   "23": "BGE-M3 Adapter",
   "29": "Evaluation CLI Tests",
-  "30": "Security Gate Design",
   "32": "Retrieval Package",
   "38": "Health Endpoint",
   "39": "Evaluation Slices"
