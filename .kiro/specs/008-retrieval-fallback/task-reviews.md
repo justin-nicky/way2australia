@@ -53,3 +53,49 @@
 ### User decision
 - 2026-10-31 — approved. Verbatim: "T1 approved. F1: accepted. The `__context__` case is covered in another test. F2: fix at commit. Move the imports in `test_index.py` and `test_retriever.py` to the top and remove the `noqa: E402` markers. F3: add a task box (planner amendment) to T3 or T4, whichever reworks retrieval opening: the retrieval integration tests must build their Qdrant clients with `retrieval_client_factory`, so a hang fails within seconds. Do not add a pytest-timeout dependency. Record the unexplained 14-minute hang in task-reviews.md as observed and not reproduced. Delete exactly these two collections and nothing else: `w2a-it-ret-8bf72e323182-idx-v1` and `w2a-it-ret-8bf72e323182-idx-v1-settings`. Then list the collections and confirm only `w2a-realcheck-idx-v1` and its settings collection remain. Commit with the `Spec-Task: 008/T1` trailer and push, then commit the graph separately. Then start T2."
 - F3 record: the 14-minute hang of one `make test-integration` run in `test_retrieval_integration.py` is unexplained: observed once, not reproduced (that test alone passed in 1.7 s, the full re-run in 27 s). Follow-up: planner amendment adds a T3 box (retrieval integration tests use `retrieval_client_factory`; no `pytest-timeout`). Two leftover collections from the killed run were deleted on 2026-10-31; only `w2a-realcheck-idx-v1` and `w2a-realcheck-idx-v1-settings` remain.
+
+## T2 — round 1
+
+### Implementation
+- Model: claude-sonnet-5-5 (Sonnet 5.5); intended tier BEST_MINUS_ONE not compared against MODEL_PREFERENCES.md (subagent, no user to ask)
+- Usage: 136K tokens · 32 tool uses · 7:22
+- Files changed:
+  - new `packages/rag/src/way2australia_rag/retrieval/identity.py` (`IndexIdentity`, `from_settings`, `from_dense`, `expected`), `retrieval/opening.py` (`open_standalone_lexical`), `lexical/freshness.py` (`verify_fresh`);
+  - `lexical/store.py` (`ChunkSetDifference`, `chunk_set_difference`, `check_identity`, `document_count`, public `chunk_identities`; `bind_to` message unchanged);
+  - `ingestion/identity.py` (`embedder_identity` moved here, behavior unchanged) and `lexical/cli.py` (imports it);
+  - new test `packages/rag/tests/lexical/test_lexical_standalone.py`; `design.md` As-built note; `tasks.md` boxes and State.
+- Verification run: `make verify` -> pass (971 passed, 2 skipped; ruff, format and pyright clean); `git diff -- packages/rag/tests/lexical/test_lexical_bind.py` empty; `git status --porcelain -- evaluation knowledge config` empty. `make test-integration` not run (no integration-relevant change). `graphify update .` not run (the orchestrator commits the graph).
+- Notes:
+  - Freshness tests use a `tmp_path` copy of `knowledge/`; the edit test rewrites the manifest `sha256`/`body_sha256` so the loader accepts the edit and the digest check is what refuses.
+  - "No client / no embedder" is proven by patching `QdrantClient.__init__` and `FakeEmbedder.__init__` to raise, and by checking that no torch/transformers module is imported. `open_standalone_lexical` takes no factories, as in the task signature.
+  - `ingestion/identity.py` is the one edit under `ingestion/` (the task's named exception).
+
+### Review
+- Model: claude-opus-5-5 (Opus 5.5); matches the BEST tier (`Opus`) in `MODEL_PREFERENCES.md`
+- Usage: 121K tokens · 22 tool uses · 6:41
+- Verdict: PASS
+- Commands:
+  - `make verify` → pass, exit 0 (ruff check and format clean, 153 files formatted, pyright clean; 971 passed, 2 skipped);
+  - `make test-integration` (under a 300 s alarm; Docker Qdrant running) → pass (22 passed, 951 deselected, 16 s; no hang);
+  - `git diff -- packages/rag/tests/lexical/test_lexical_bind.py` → empty;
+  - `git status --porcelain -- evaluation knowledge config` → empty;
+  - `git diff --stat` of `lexical/build.py`, `lexical/tokenizer.py`, `retrieval/` (tracked files), `pyproject.toml`, `packages/rag/pyproject.toml`, `uv.lock` → empty (no dependency, no edit to unchanged code); the only `ingestion/` edit is the allowed `embedder_identity` move.
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R13] `graphify update .` was not run after the code change (`graphify-out/graph.json` unchanged; only cache files are untracked), against the task rule "After code changes, run `graphify update .`" → the orchestrator runs it before the separate graph commit, as after T1.
+  - F2 [MINOR, IMPLEMENTATION, R4] `lexical/freshness.py` imports the private `_identity` from `lexical/build.py` (which may not be edited in this spec) → acceptable here; make it public when `build.py` is next touched. `verify_fresh` uses `asyncio.run` as the design says, so it cannot be called from inside a running event loop (a future HTTP route) → note for the route spec.
+  - F3 [MINOR, IMPLEMENTATION, R3] the task box asks for a test where "a Qdrant client factory and an embedder factory raise if called"; `open_standalone_lexical` takes no factories (as its task signature says), so the test patches `QdrantClient.__init__` and `FakeEmbedder.__init__` to raise and checks no torch/transformers import → equivalent proof; no change needed.
+- Summary for user:
+  - Changed: a lexical file can now be opened and checked without Qdrant or the model. `IndexIdentity` (from the dense index or from configuration only); `LexicalIndex.check_identity` (dense identity, chunker fields, `hash_contract`), `document_count` under the SQL access clause and a shared `chunk_set_difference` (the `bind_to` message is unchanged); `verify_fresh` recomputes the chunk digest from the repository and refuses a stale file with counts only; `open_standalone_lexical` chains open, identity and freshness and closes the file on refusal. `embedder_identity` moved unchanged to `ingestion/identity.py`.
+  - Verified by: `make verify` (971 passed), `make test-integration` (22 passed), protected-path and unchanged-code checks; new tests cover every identity field, body edit and document removal (stale), the real corpus (fresh), access-filtered counts and no client/embedder construction.
+  - Worth your attention: nothing is wired into the CLIs yet (T3). Freshness reads and chunks every eligible document on each open (D060 large-corpus caveat). Three MINOR findings: graph not refreshed yet, a private import from `build.py`, and the factory test done by patching constructors.
+  - Reading order:
+    1. `packages/rag/src/way2australia_rag/retrieval/identity.py` → `IndexIdentity.expected`, `from_dense`.
+    2. `packages/rag/src/way2australia_rag/lexical/store.py` → `chunk_set_difference`, `LexicalIndex.check_identity`, `document_count`, `bind_to` (refactor only).
+    3. `packages/rag/src/way2australia_rag/lexical/freshness.py` → `verify_fresh`.
+    4. `packages/rag/src/way2australia_rag/retrieval/opening.py` → `open_standalone_lexical`.
+    5. `packages/rag/tests/lexical/test_lexical_standalone.py`: identity, freshness, access-count and no-client tests.
+    6. Supporting edits: `ingestion/identity.py` and `lexical/cli.py` (`embedder_identity` move), `design.md` As-built note, `tasks.md` boxes.
+
+
+### User decision
+- 2026-10-31 — approved. Verbatim: "T2 approved. F1: run `graphify update .` before the separate graph commit, as you said. F2: accept both parts, no code change. Record in the design's As-built notes: `freshness.py` imports the private `_identity` from `build.py`, because this spec doesn't edit `build.py`; `verify_fresh` uses `asyncio.run`, so it can't be called inside a running event loop. Add a T8 box: carry the `asyncio.run` limitation into the next-spec notes for the HTTP route spec (it needs an async freshness check, or a check at startup outside the loop). F3: accepted. Patching the constructors to raise, plus the no-torch/transformers import check, proves the same thing. Commit with the `Spec-Task: 008/T2` trailer and push, then commit the graph separately. Then start T3."

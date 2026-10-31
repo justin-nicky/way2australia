@@ -415,3 +415,12 @@ Method: the three pinned wheels (sentence-transformers 6.1.0, transformers 5.20.
 | Hub down (HTTP 5xx) with nothing cached | `OSError` or `LocalEntryNotFoundError` chained to `HfHubHTTPError` | no `httpx.ConnectError` or timeout in the chain | no (safe direction, like Qdrant 5xx, D062) |
 
 A network error therefore survives as an explicit `__cause__` (two links deep for the usual `from_pretrained` path), well inside the 10-link limit. Two code paths in `tokenization_utils_base.py` and `configuration_utils.py` re-raise a generic `OSError` without `from` for non-`OSError` failures; that drops the cause, so such an outage is not eligible (fail closed). A raw `httpx.NetworkError` other than `ConnectError` (for example `ReadError`) is not caught by the hub and propagates unchanged, so it is eligible at link 0.
+
+### T2: where the shared pieces live (2026-10-31)
+
+- `embedder_identity` moved unchanged to `ingestion/identity.py` (next to `point_id`); `lexical/cli.py` imports it.
+- `LexicalIndex.chunk_identities()` is now public (was `_chunk_identities`); `chunk_set_difference` returns a `ChunkSetDifference` of counts, and `bind_to` and `verify_fresh` each build their own message from it (the `bind_to` text is unchanged).
+- `IndexIdentity.from_dense(index)` is a thin wrapper over `from_settings(collection, settings)`.
+- `open_standalone_lexical` is in `retrieval/opening.py`; it closes the file when `check_identity` or `verify_fresh` refuses.
+- `lexical/freshness.py` imports the private `_identity` from `lexical/build.py`, because this spec does not edit `build.py`; making it public is left to a later spec that touches `build.py` (T2 review F2, accepted).
+- `verify_fresh` uses `asyncio.run` around `production_entries`, so it cannot be called inside a running event loop. The CLIs are synchronous, so this is fine today; an async caller (the HTTP route) needs an async freshness check or a check at startup outside the loop (T2 review F3, accepted; carried to the next spec by T8).

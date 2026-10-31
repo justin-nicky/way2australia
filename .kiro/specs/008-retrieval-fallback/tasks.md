@@ -67,21 +67,21 @@ Review reading order: design As-built note → `retrieval/errors.py` → `retrie
 
 ## T2 — Index identity, standalone lexical open and freshness check
 
-**State:** not started
+**State:** approved (2026-10-31)
 **Requirements:** R3, R4, R13
 
-- [ ] New `retrieval/identity.py`:
+- [x] New `retrieval/identity.py`:
   - `IndexIdentity` (`collection`, `index_version`, `embedder_model_id`, `embedder_revision`, `embedder_is_fake`, `source`);
   - `from_dense(index)`;
   - `expected(ingestion_config, settings, provider)`, which never builds an embedder.
-- [ ] Move `embedder_identity` from `lexical/cli.py` to `ingestion/identity.py` (or a new shared module named in the As-built notes) with behavior unchanged; `lexical/cli.py` imports it.
-- [ ] `lexical/store.py`:
+- [x] Move `embedder_identity` from `lexical/cli.py` to `ingestion/identity.py` (or a new shared module named in the As-built notes) with behavior unchanged; `lexical/cli.py` imports it.
+- [x] `lexical/store.py`:
   - `LexicalIndex.check_identity(expected, chunker, hash_contract)`, refusing with field names and `REBUILD_ADVICE`;
   - `chunk_set_difference(expected, mine)`, extracted from `bind_to`, which keeps its exact message;
   - `LexicalIndex.document_count(where, params)`: distinct `document_id` under the SQL access clause.
-- [ ] New `lexical/freshness.py`: `verify_fresh(lexical, repository, chunker)`. It recomputes the digest from `production_entries`; on a mismatch it raises `LexicalIndexBindingError` with counts and `REBUILD_ADVICE`, never text.
-- [ ] `open_standalone_lexical(settings, repo_root, expected, chunker, repository)` (in `retrieval/opening.py`, created here): `open`, then `check_identity`, then `verify_fresh`.
-- [ ] Tests (`packages/rag/tests/lexical/test_lexical_standalone.py`):
+- [x] New `lexical/freshness.py`: `verify_fresh(lexical, repository, chunker)`. It recomputes the digest from `production_entries`; on a mismatch it raises `LexicalIndexBindingError` with counts and `REBUILD_ADVICE`, never text.
+- [x] `open_standalone_lexical(settings, repo_root, expected, chunker, repository)` (in `retrieval/opening.py`, created here): `open`, then `check_identity`, then `verify_fresh`.
+- [x] Tests (`packages/rag/tests/lexical/test_lexical_standalone.py`):
   - each identity field mismatch is refused, and the message has no path or text;
   - the standalone open passes a Qdrant client factory and an embedder factory that raise if called;
   - freshness passes on a `tmp_path` copy of the seed repository with a file built from it;
@@ -282,6 +282,7 @@ Allowed protected-path changes: none. New files under `experiments/results/` onl
 - [ ] `ROADMAP.md`: note that retrieval graceful degradation (part of item 13) was done before item 7, and that the reranker and model-failure paths remain in item 13.
 - [ ] `ARCHITECTURE.md` ("Retrieval", "Retrieval fallback"), `COMMANDS.md` (fallback behavior, `bm25` needs neither Qdrant nor the extra, `config/retrieval.yaml` 1.1, new refusals, result 2.2, security 1.2), `TECH_STACK.md` and `CURRENT_STATE.md` describe the code as built.
 - [ ] `design.md` As-built notes: every deviation found in T1–T7.
+- [ ] Carry the `verify_fresh` `asyncio.run` limitation (T2 review F3, design As-built notes T2) into the hand-off for the retrospective's "Notes for the next spec": the HTTP route spec needs an async freshness check, or a freshness check at startup outside the event loop.
 - [ ] Spec-wide checks: `make verify`, `make test-integration`, `make eval-security`; the protected-path check over the branch.
 - [ ] `graphify update .`.
 
@@ -292,6 +293,7 @@ Allowed protected-path changes: none.
 - `make verify`, `make test-integration` and `make eval-security` pass; counts recorded in `CURRENT_STATE.md`.
 - `git diff --name-status main...HEAD -- evaluation knowledge config` lists only `config/retrieval.yaml`.
 - The reviewer reads the docs against the code, D056–D062 are present, and the ROADMAP note is present.
+- The `asyncio.run` limitation of `verify_fresh` is recorded for the HTTP route spec in the T8 hand-off (and in `CURRENT_STATE.md` known issues), so the retrospective can carry it into "Notes for the next spec".
 
 Review reading order: `DECISIONS.md` → `ROADMAP.md` → `ARCHITECTURE.md` → `COMMANDS.md`, `TECH_STACK.md` → `CURRENT_STATE.md` → design As-built notes.
 

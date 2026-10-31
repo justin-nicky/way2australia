@@ -15,12 +15,11 @@ from pathlib import Path
 from way2australia_rag.ingestion.cli import build_chunker
 from way2australia_rag.ingestion.config import (
     DEFAULT_CONFIG_PATH,
-    IngestionConfig,
     load_ingestion_config,
     load_runtime_settings,
 )
-from way2australia_rag.ingestion.embedding import FakeEmbedder
 from way2australia_rag.ingestion.errors import IngestionError
+from way2australia_rag.ingestion.identity import embedder_identity
 from way2australia_rag.ingestion.settings import collection_name
 from way2australia_rag.lexical.build import (
     build_lexical_index,
@@ -40,15 +39,6 @@ from way2australia_rag.retrieval.text import safe_text
 
 EXIT_OK = 0
 EXIT_REFUSED = 2
-
-
-def embedder_identity(config: IngestionConfig, provider: str) -> tuple[str, str]:
-    """Model ID and revision the dense index is (to be) built with. The model is
-    never loaded."""
-    if provider == "fake":
-        info = FakeEmbedder(config.embedder.fake_vector_size).info
-        return info.model_id, info.revision
-    return config.embedder.model_id, config.embedder.revision
 
 
 PROTECTED_DIRS = ("knowledge", "evaluation", "config")
