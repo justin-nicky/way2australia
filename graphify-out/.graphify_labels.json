@@ -6,7 +6,6 @@
   "14": "Model Tiers",
   "15": "Day-1 Data and Sources",
   "16": "Strategy Eval Tests",
-  "17": "Document Model Validation",
   "18": "Index Binding Errors",
   "19": "Document Model Tests",
   "20": "Retrieval Eval Tests",
@@ -14,7 +13,6 @@
   "23": "BGE-M3 Adapter",
   "29": "Evaluation CLI Tests",
   "30": "Security Gate Design",
-  "31": "Eligibility Policy",
   "32": "Retrieval Package",
   "38": "Health Endpoint",
   "39": "Evaluation Slices"
