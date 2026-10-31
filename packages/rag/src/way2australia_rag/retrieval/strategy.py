@@ -16,6 +16,7 @@ from way2australia_rag.lexical.store import LexicalIndex
 from way2australia_rag.retrieval.base import Retriever, Strategy
 from way2australia_rag.retrieval.bm25 import BM25Retriever
 from way2australia_rag.retrieval.errors import RetrievalConfigurationError
+from way2australia_rag.retrieval.fallback import FallbackRetriever
 from way2australia_rag.retrieval.fusion import FusionConfig
 from way2australia_rag.retrieval.hybrid import HybridRetriever
 from way2australia_rag.retrieval.identity import IndexIdentity
@@ -102,7 +103,8 @@ def build_retriever(
             "build it with `make index-lexical`."
         )
     bm25 = BM25Retriever(identity, lexical)
-    return HybridRetriever(DenseRetriever(dense_index, embedder), bm25, config.fusion)
+    hybrid = HybridRetriever(DenseRetriever(dense_index, embedder), bm25, config.fusion)
+    return FallbackRetriever(hybrid, bm25, None)
 
 
 def needs_lexical(strategy: Strategy) -> bool:

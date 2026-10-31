@@ -86,4 +86,5 @@ class DenseRetriever:
             device=self._embedder.device,
             top_k=top_k,
             latency_ms=latency_ms,
+            requested_strategy=Strategy.DENSE.value,
         )

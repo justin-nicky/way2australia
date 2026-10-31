@@ -103,4 +103,5 @@ class BM25Retriever:
                 chunk_count=lexical.chunk_count,
             ),
             query_terms_truncated=terms.truncated,
+            requested_strategy=Strategy.BM25.value,
         )

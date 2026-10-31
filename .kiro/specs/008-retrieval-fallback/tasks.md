@@ -130,22 +130,22 @@ Review reading order: `bm25.py` → `strategy.py` → `opening.py` → `retrieva
 
 ## T4 — Fallback policy for `hybrid` and result marking
 
-**State:** not started
+**State:** approved (2026-10-31)
 **Requirements:** R6, R7, R2, R11
 
-- [ ] New `retrieval/fallback.py`: `FallbackRetriever(primary, fallback, open_reason)` exactly as in design R6:
+- [x] New `retrieval/fallback.py`: `FallbackRetriever(primary, fallback, open_reason)` exactly as in design R6:
   - a single `except RetrievalUnavailableError`;
   - the same `access` and `top_k`;
   - latency includes the failed attempt, recorded in `leg_latency_ms.dense_attempt`;
   - no state between queries.
-- [ ] `build_retriever` wraps `hybrid` in `FallbackRetriever`. `open_retrieval` implements the hybrid open-time fallback:
+- [x] `build_retriever` wraps `hybrid` in `FallbackRetriever`. `open_retrieval` implements the hybrid open-time fallback:
   - on a `RetrievalUnavailableError` from client creation, `DenseIndex.open` or `bind_to`, it falls back to `open_standalone_lexical` and `FallbackRetriever(None, BM25(expected), reason)`;
   - a missing extra and every other error are raised.
-- [ ] `retrieval/models.py`: `requested_strategy`, `fallback_reason` (optional). Every retriever sets `requested_strategy`.
-- [ ] `make retrieve`:
+- [x] `retrieval/models.py`: `requested_strategy`, `fallback_reason` (optional). Every retriever sets `requested_strategy`.
+- [x] `make retrieve`:
   - header `strategy: bm25 (requested: hybrid; fallback: <reason>)` and a stderr `WARNING` line; exit 0;
   - an explicit `dense` with an unavailable Qdrant prints `ERROR RetrievalUnavailableError: ...` and exits 2.
-- [ ] Tests (`packages/rag/tests/retrieval/test_fallback.py`, CLI tests):
+- [x] Tests (`packages/rag/tests/retrieval/test_fallback.py`, CLI tests):
   - Qdrant down at open;
   - dense-leg failure on one query of several (the others stay hybrid);
   - model load failure with a network cause (falls back);
@@ -287,6 +287,11 @@ Allowed protected-path changes: none. New files under `experiments/results/` onl
 - [ ] `design.md` As-built notes: every deviation found in T1–T7.
 - [ ] `design.md` As-built note (T3 review F1): the `bge_m3` import moved inside `build_embedder` in `ingestion/cli.py`, required by R5 because both retrieval CLIs import `ingestion.cli`; ingestion behavior unchanged. Check that the design's "Not changed" list matches the code (corrected for the T2 and T3 moves on 2026-10-31).
 - [ ] Carry the `verify_fresh` `asyncio.run` limitation (T2 review F3, design As-built notes T2) into the hand-off for the retrospective's "Notes for the next spec": the HTTP route spec needs an async freshness check, or a freshness check at startup outside the event loop.
+- [ ] `design.md` As-built note (T4 review F4), recording three deviations from the design:
+  - (a) `make retrieve` prints the `strategy: bm25 (requested: hybrid; fallback: <reason>)` header line only on fallback; a normal run keeps `hits: N (strategy=hybrid, ...)`;
+  - (b) `requested_strategy` on a normal hybrid result is set by `FallbackRetriever`; a bare `HybridRetriever` leaves it `None`, because `hybrid.py` must not change;
+  - (c) the `fallback` parameter of `FallbackRetriever` is typed `Retriever`, not `BM25Retriever`.
+- [ ] Carry the Qdrant client lifecycle gap (T4 review, user-approved 2026-10-31) into the hand-off for the retrospective's "Notes for the next spec", for the HTTP route spec. `open_retrieval` must close the Qdrant client on every open failure, not only on the fallback path, and `OpenedRetrieval.close()` must close the client too, with a test. A long-running server leaks a connection pool per failed open; the CLIs exit after one run. No code change in this spec.
 - [ ] Spec-wide checks: `make verify`, `make test-integration`, `make eval-security`; the protected-path check over the branch.
 - [ ] `graphify update .`.
 
@@ -298,6 +303,7 @@ Allowed protected-path changes: none.
 - `git diff --name-status main...HEAD -- evaluation knowledge config` lists only `config/retrieval.yaml`.
 - The reviewer reads the docs against the code, D056–D062 are present, and the ROADMAP note is present.
 - The `asyncio.run` limitation of `verify_fresh` is recorded for the HTTP route spec in the T8 hand-off (and in `CURRENT_STATE.md` known issues), so the retrospective can carry it into "Notes for the next spec".
+- The T4 F4 As-built note (a)–(c) is present in `design.md`. The Qdrant client lifecycle item is recorded for the HTTP route spec in the T8 hand-off and in `CURRENT_STATE.md` known issues.
 
 Review reading order: `DECISIONS.md` → `ROADMAP.md` → `ARCHITECTURE.md` → `COMMANDS.md`, `TECH_STACK.md` → `CURRENT_STATE.md` → design As-built notes.
 
@@ -305,4 +311,4 @@ Review reading order: `DECISIONS.md` → `ROADMAP.md` → `ARCHITECTURE.md` → 
 
 - Check that no path catches a broader exception than `RetrievalUnavailableError` for fallback, and that `__context__` is never followed.
 - Check that the Hugging Face error-shape As-built note matches the pinned versions.
-- Carry to the HTTP route spec: circuit breaker, startup policy for a missing or stale lexical file, 5xx eligibility (D062), the cost of the freshness check on a large corpus.
+- Carry to the HTTP route spec: circuit breaker, startup policy for a missing or stale lexical file, 5xx eligibility (D062), the cost of the freshness check on a large corpus, an async freshness check (T2 F3), and closing the Qdrant client on every `open_retrieval` failure and in `OpenedRetrieval.close()` (T4 review).

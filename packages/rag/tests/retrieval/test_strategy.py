@@ -11,7 +11,7 @@ from way2australia_rag.ingestion.embedding import FakeEmbedder
 from way2australia_rag.retrieval.base import Strategy
 from way2australia_rag.retrieval.bm25 import BM25Retriever
 from way2australia_rag.retrieval.errors import RetrievalConfigurationError
-from way2australia_rag.retrieval.hybrid import HybridRetriever
+from way2australia_rag.retrieval.fallback import FallbackRetriever
 from way2australia_rag.retrieval.identity import IndexIdentity
 from way2australia_rag.retrieval.retriever import DenseRetriever
 from way2australia_rag.retrieval.strategy import (
@@ -170,7 +170,7 @@ def test_build_retriever_maps_each_strategy(tmp_path: Path) -> None:
     }
     assert isinstance(made[Strategy.DENSE], DenseRetriever)
     assert isinstance(made[Strategy.BM25], BM25Retriever)
-    assert isinstance(made[Strategy.HYBRID], HybridRetriever)
+    assert isinstance(made[Strategy.HYBRID], FallbackRetriever)
     for strategy, retriever in made.items():
         assert retriever.strategy is strategy
     dense_only = build_retriever(Strategy.DENSE, ident, dense, embedder, None, config)

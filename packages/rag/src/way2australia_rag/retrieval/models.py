@@ -57,3 +57,5 @@ class RetrievalResult(BaseModel):
     lexical: LexicalIdentity | None = None
     query_terms_truncated: bool | None = None
     leg_document_ranks: dict[str, list[str]] | None = None
+    requested_strategy: str | None = None
+    fallback_reason: str | None = None

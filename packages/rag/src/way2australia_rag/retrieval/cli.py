@@ -43,6 +43,16 @@ DEFAULT_RETRIEVAL_CONFIG = "config/retrieval.yaml"
 MAX_TERMS_NOTE = "note: the query was cut to its first 64 distinct terms for BM25."
 
 
+def _strategy_line(result: RetrievalResult) -> str:
+    line = f"strategy: {safe_text(result.strategy)}"
+    if result.fallback_reason is not None:
+        line += (
+            f" (requested: {safe_text(result.requested_strategy or 'unknown')}; "
+            f"fallback: {safe_text(result.fallback_reason)})"
+        )
+    return line
+
+
 def format_result(result: RetrievalResult) -> str:
     lines = [
         f"index: {safe_text(result.collection)} "
@@ -54,6 +64,8 @@ def format_result(result: RetrievalResult) -> str:
         f"hits: {len(result.hits)} (strategy={safe_text(result.strategy)}, "
         f"top_k {result.top_k}, {result.latency_ms:.1f} ms)",
     ]
+    if result.fallback_reason is not None:
+        lines.insert(0, _strategy_line(result))
     for hit in result.hits:
         line = (
             f"{hit.rank}  {safe_text(hit.document_id)}  {safe_text(hit.section_id)}  "
@@ -153,6 +165,12 @@ def main(
     finally:
         if opened is not None:
             opened.close()
+    if result.fallback_reason is not None:
+        print(
+            f"WARNING retrieval fell back to {safe_text(result.strategy)}: "
+            f"{safe_text(result.fallback_reason)}",
+            file=sys.stderr,
+        )
     print(format_result(result))
     return EXIT_OK
 

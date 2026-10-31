@@ -2,8 +2,8 @@
 
 `open_retrieval` is the one place that turns a strategy name into an opened
 retriever for `make retrieve` and `make eval-retrieval`. `bm25` is opened
-standalone: no embedder, no Qdrant client, no model. (The `hybrid` fallback is
-added by a later task.)
+standalone: no embedder, no Qdrant client, no model. `hybrid` falls back to
+that same path when the dense side is unavailable at open time.
 """
 
 from collections.abc import Callable
@@ -37,6 +37,12 @@ from way2australia_rag.retrieval.access import (
     build_sql_access_clause,
 )
 from way2australia_rag.retrieval.base import Retriever, Strategy
+from way2australia_rag.retrieval.bm25 import BM25Retriever
+from way2australia_rag.retrieval.errors import (
+    FallbackReason,
+    RetrievalUnavailableError,
+)
+from way2australia_rag.retrieval.fallback import FallbackRetriever
 from way2australia_rag.retrieval.identity import IndexIdentity
 from way2australia_rag.retrieval.index import DenseIndex
 from way2australia_rag.retrieval.qdrant_client import retrieval_client_factory
@@ -135,26 +141,43 @@ def open_retrieval(
 
     embedder = embedder_factory(ingestion_config, provider)  # missing extra exits here
     timeouts = retrieval_config.qdrant
-    client = (
-        client_factory(settings)
-        if client_factory is not None
-        else retrieval_client_factory(settings, timeouts)
-    )
-    index = DenseIndex.open(
-        client,
-        settings.collection_base,
-        ingestion_config.index_version,
-        embedder.info,
-        query_timeout_s=timeouts.query_timeout_s,
-    )
-    identity = IndexIdentity.from_dense(index)
+    client = None
+    try:
+        client = (
+            client_factory(settings)
+            if client_factory is not None
+            else retrieval_client_factory(settings, timeouts)
+        )
+        index = DenseIndex.open(
+            client,
+            settings.collection_base,
+            ingestion_config.index_version,
+            embedder.info,
+            query_timeout_s=timeouts.query_timeout_s,
+        )
+        identity = IndexIdentity.from_dense(index)
+        lexical = None
+        if strategy == Strategy.HYBRID:
+            lexical = open_bound_lexical(settings, repo_root, index)
+    except RetrievalUnavailableError as error:
+        if strategy != Strategy.HYBRID:
+            raise
+        # Hybrid only: serve BM25 from the standalone-opened lexical file.
+        _close_quietly(client)
+        return _open_fallback(
+            error.reason,
+            settings=settings,
+            ingestion_config=ingestion_config,
+            retrieval_config=retrieval_config,
+            provider=provider,
+            repo_root=repo_root,
+            embedder=embedder,
+            repository=repository,
+        )
 
     def dense_count(access: ResolvedAccess) -> int:
         return index.document_count(build_access_filter(access))
 
-    lexical = None
-    if strategy == Strategy.HYBRID:
-        lexical = open_bound_lexical(settings, repo_root, index)
     try:
         retriever = build_retriever(
             strategy, identity, index, embedder, lexical, retrieval_config
@@ -166,3 +189,41 @@ def open_retrieval(
     return OpenedRetrieval(
         retriever, identity, dense_count, embedder, index.settings, lexical
     )
+
+
+def _close_quietly(client: object) -> None:
+    close = getattr(client, "close", None)
+    if callable(close):
+        try:
+            close()
+        except Exception:  # noqa: BLE001 - best effort on a failed connection
+            pass
+
+
+def _open_fallback(
+    reason: FallbackReason,
+    *,
+    settings: RuntimeSettings,
+    ingestion_config: IngestionConfig,
+    retrieval_config: RetrievalConfig,
+    provider: str,
+    repo_root: Path,
+    embedder: Embedder,
+    repository: DocumentRepository | None,
+) -> OpenedRetrieval:
+    """Open-time hybrid fallback: BM25 over the standalone lexical file."""
+    chunker = build_chunker(ingestion_config)
+    repository = repository or LocalDocumentRepository(
+        LocalRepositoryConfig(repo_root=repo_root)
+    )
+    expected = IndexIdentity.expected(ingestion_config, settings, provider)
+    lexical = open_standalone_lexical(
+        settings, repo_root, expected, chunker, repository
+    )
+
+    def lexical_count(access: ResolvedAccess) -> int:
+        where, params = build_sql_access_clause(access)
+        return lexical.document_count(where, params)
+
+    retriever = FallbackRetriever(None, BM25Retriever(expected, lexical), reason)
+    return OpenedRetrieval(retriever, expected, lexical_count, embedder, None, lexical)
