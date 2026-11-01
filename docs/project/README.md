@@ -23,6 +23,6 @@ Then read the active feature spec.
 - `DECISIONS.md` — durable architecture decisions.
 - `COMMANDS.md` — stable project command interface.
 
-`AGENTS.md` at repository root tells Codex, Claude Code, Kiro and other coding agents how to consume this context.
+`AGENTS.md` at repository root tells Codex, Claude Code, Cursor, Kiro and other coding agents how to consume this context. Cursor also loads `.cursor/rules/project.mdc` (D063).
 
 The repository should remain sufficient for handoff without relying on private chat history.

@@ -33,6 +33,7 @@ Mirrors (generated, committed, never edited by hand):
 |---|---|---|
 | Claude Code | `.claude/skills/` | Sync adds Claude-only frontmatter (see below). |
 | OpenAI Codex | `.agents/skills/` | Documented repo-scope location. Do not also keep `.codex/skills/`: Codex would list each skill twice. |
+| Cursor | (none extra) | Loads `.agents/skills/` and, for compatibility, `.claude/skills/` ([docs](https://cursor.com/docs/skills)). Do not add `.cursor/skills/`: Cursor would list each skill a third time (D063). |
 | Kiro | `.kiro/skills/` | Workspace skills; shown as slash commands. |
 
 Canonical `SKILL.md` frontmatter contains only portable Agent Skills fields (`name`, `description`). Host-specific additions:
@@ -43,6 +44,7 @@ Canonical `SKILL.md` frontmatter contains only portable Agent Skills fields (`na
 ## Using the skills per tool
 
 - **Claude Code:** `/spec-orchestrator [NNN-spec]` is the usual entry point. Directly: `/spec-planner <topic>`, `/spec-implementer <NNN-spec> [task-id]`, `/task-reviewer <NNN-spec> <task-id>`, `/spec-reviewer <NNN-spec>`. In the desktop app the orchestrator starts each role in a fresh session on its tier's model; elsewhere pick the model with `/model` when starting the session.
+- **Cursor:** `/spec-orchestrator`, `/spec-planner`, `/spec-implementer`, `/task-reviewer`, `/spec-reviewer`. Always-on project context is `.cursor/rules/project.mdc` (D063), not `CLAUDE.md` `@` imports.
 - **Codex:** `$spec-orchestrator`, `$spec-planner`, `$spec-implementer <NNN-spec> [task-id]`, `$task-reviewer <NNN-spec> <task-id>`, `$spec-reviewer <NNN-spec>` (or `/skills`). Run each role in a new session.
 - **Kiro:** `/spec-orchestrator`, `/spec-planner`, `/spec-implementer`, `/task-reviewer`, `/spec-reviewer`. Start planning from a Vibe session. **Do not use Quick Spec** or auto-generated specs: they skip the approval gates. Prefer `/spec-implementer` over "Run all tasks". Do not edit `tasks.meta.json`. Custom Kiro agents need `skill://.kiro/skills/*/SKILL.md` in `resources`.
 

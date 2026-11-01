@@ -18,7 +18,7 @@ The architecture must remain ready for:
 
 ## Read first
 
-`CLAUDE.md` auto-loads only this file and `docs/project/CURRENT_STATE.md`.
+`CLAUDE.md` auto-loads only this file and `docs/project/CURRENT_STATE.md`. Cursor does not process those `@` imports; it loads `.cursor/rules/project.mdc` instead, which points here (D063).
 
 When a spec skill (`spec-orchestrator`, `spec-planner`, `spec-implementer`, `task-reviewer`, `spec-reviewer`) is in use, follow its own reading list; it names the minimum files for that role.
 

@@ -224,7 +224,7 @@ Recorded by the Spec 006 retrospective (the format was built in T5 and listed in
 ## D048 — graphify knowledge graph for coding agents (developer tooling)
 graphify (PyPI `graphifyy`, Apache-2.0/MIT) builds a knowledge graph of the repository in `graphify-out/` for coding agents. It is developer tooling, not part of the product or the RAG pipeline.
 
-- Installed at project scope: the skill in `.claude/skills/graphify/` (not managed by `agent-skills/` sync), a `## graphify` section in `CLAUDE.md`, and `PreToolUse` hooks in `.claude/settings.json` that nudge Claude Code toward `graphify query` before Grep/Read/Glob. Codex and Kiro are not configured.
+- Installed at project scope: the skill in `.claude/skills/graphify/` (not managed by `agent-skills/` sync), a `## graphify` section in `CLAUDE.md`, and `PreToolUse` hooks in `.claude/settings.json` that nudge Claude Code toward `graphify query` before Grep/Read/Glob. Cursor is configured via `.cursor/rules/project.mdc` (D063). Codex and Kiro are not configured.
 - The graph covers code (local AST, no model) and documentation (semantic pass by the host model). `graphify-out/` is committed so every session shares it.
 - `.graphifyignore` excludes generated skill mirrors, the frozen test copy of the seed corpus, `experiments/results/`, `sources/raw/` and `uv.lock`. `tests/fixtures/security/` is excluded so the deliberately poisoned prompt-injection fixture is never sent to an LLM extraction pass.
 - Freshness: the implementer runs `graphify update .` (code only, no model cost) after code changes, so a task's graph refresh is committed with the task on approval. Doc changes need `/graphify . --update` (model cost) and are refreshed by hand. Task and spec reviewers exclude `graphify-out/` from review diffs.
@@ -273,3 +273,12 @@ The fallback applies to `hybrid` only (default or flag), never to an explicit `d
 
 ## D062 — Qdrant HTTP status errors are not fallback-eligible (Spec 008)
 Only Qdrant transport failures (connect, network, timeout) are eligible. An `UnexpectedResponse` with any HTTP status, including 5xx, a wrapped pydantic `ValidationError`, a missing collection and a settings mismatch keep their types and fail closed (exit 2). A 5xx can be a server bug as well as an outage, so the eligible set is kept small and certain. The same direction holds for a Hugging Face hub 5xx with nothing cached (D057). Revisit with the HTTP route spec, together with the circuit breaker.
+
+## D063 — Cursor is a supported agent tool (developer tooling)
+Cursor is a first-class coding agent for this repository, alongside Claude Code, Codex and Kiro. Shared context remains repository files. This is workflow tooling, not a spec.
+
+- Always-on rule: `.cursor/rules/project.mdc` (`alwaysApply: true`). Cursor does not process the `@` imports in `CLAUDE.md`, so the rule tells the agent to read `AGENTS.md` and `docs/project/CURRENT_STATE.md` before any work, restates the D048 graphify query-before-read rules, and points at `docs/project/WORKFLOW.md` for non-trivial work. It does not copy the rest of the docs.
+- Agent Skills: Cursor loads project skills from `.agents/skills/` and `.cursor/skills/`, and for compatibility also from `.claude/skills/` and `.codex/skills/` ([Cursor Agent Skills](https://cursor.com/docs/skills), fetched 2026-11-01). `make skills-sync` already writes `.claude/skills/` and `.agents/skills/`. No new sync target is added. A `.cursor/skills/` mirror would list each skill a third time (the same reason D021 does not write `.codex/skills/`). Canonical source stays `agent-skills/`.
+- Graphify: Cursor is configured via the always-on rule. The graphify skill remains at `.claude/skills/graphify/` (not managed by `agent-skills/` sync); Cursor loads that directory for compatibility. Codex and Kiro still have no graphify hooks.
+
+Numbering: D063 is next after D062 on `main`. Spec 009 (`spec/009`) has not added D063 yet, but its T7 will record decisions; that branch must skip D063 or rebase after this lands.

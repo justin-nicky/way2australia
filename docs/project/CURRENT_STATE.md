@@ -12,7 +12,7 @@ Spec 001 project foundation is complete.
 
 ## Current goal
 
-Spec 007 (hybrid retrieval) is verified and merged into `main` (2026-10-28, `3cf70eb`). Specs 001–008 are complete. Spec 008 (`008-retrieval-fallback`, retrieval graceful degradation, taken ahead of roadmap 7, D056) is verified and merged into `main` (2026-11-01, `1107b67`; base `f25b552`): T1–T8 approved; the required `spec-reviewer` retrospective round 1 `PASS`, approved by the user 2026-11-01; see `.kiro/specs/008-retrieval-fallback/`. Repository-based shared context keeps Codex, Claude Code and Kiro interchangeable.
+Spec 007 (hybrid retrieval) is verified and merged into `main` (2026-10-28, `3cf70eb`). Specs 001–008 are complete. Spec 008 (`008-retrieval-fallback`, retrieval graceful degradation, taken ahead of roadmap 7, D056) is verified and merged into `main` (2026-11-01, `1107b67`; base `f25b552`): T1–T8 approved; the required `spec-reviewer` retrospective round 1 `PASS`, approved by the user 2026-11-01; see `.kiro/specs/008-retrieval-fallback/`. Repository-based shared context keeps Codex, Claude Code, Cursor and Kiro interchangeable. Cursor always-on context is `.cursor/rules/project.mdc` (D063); it does not process the `@` imports in `CLAUDE.md`.
 
 ## Finalized high-level decisions
 
@@ -73,7 +73,7 @@ Implemented:
 - reusable package skeletons for `packages/core`, `packages/rag` and `packages/observability`;
 - repository hygiene for local environment files, Python caches, local uv state and generated OS noise;
 - final Spec 001 verification and handoff;
-- task-gated spec-driven skills (`spec-orchestrator`, `spec-planner`, `spec-implementer`, `task-reviewer`, and the `spec-reviewer` retrospective, required since D031), with canonical source in `agent-skills/`, mirrored to `.claude/skills/`, `.agents/skills/` (Codex) and `.kiro/skills/` by `make skills-sync`, and checked by `make skills-check` (part of `make verify`); exercised on real work by Spec 002 T3–T9 (Spec 003 dry run, recorded in its T9);
+- task-gated spec-driven skills (`spec-orchestrator`, `spec-planner`, `spec-implementer`, `task-reviewer`, and the `spec-reviewer` retrospective, required since D031), with canonical source in `agent-skills/`, mirrored to `.claude/skills/`, `.agents/skills/` (Codex) and `.kiro/skills/` by `make skills-sync`, and checked by `make skills-check` (part of `make verify`); Cursor loads those same `.claude/skills/` and `.agents/skills/` mirrors (no extra `.cursor/skills/` target, D063); exercised on real work by Spec 002 T3–T9 (Spec 003 dry run, recorded in its T9);
 - task state lifecycle (`**State:**` lines, `task-reviews.md`, `spec/<NNN>` branches, `Spec-Task` trailers) and spec `Status:` values defined in `docs/project/WORKFLOW.md`, decision D023;
 - `CLAUDE.md` imports only `AGENTS.md` and this file; other docs are read per role;
 - `Makefile` uses a standalone `uv` binary when available and falls back to `python3 -m uv`;
