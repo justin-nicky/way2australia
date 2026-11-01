@@ -460,6 +460,13 @@ Also: `evaluation/security_index.py` (not in the placement table) changed: `Secu
 
 No deviations from the design. The fallback-only result equals the Spec 007 BM25 reference (64 hits, MRR 0.7082, no flip) and the Qdrant-up result equals the Spec 007 hybrid reference (68 hits, MRR 0.9094, no flip). The closed port and the no-extra run (Run 3) are reported by the user; they are not recorded in any result file.
 
+### Retrospective round 1 (2026-11-01)
+
+- An open-time fallback lasts for the opened retriever: `open_retrieval` returns `FallbackRetriever(None, BM25Retriever(expected), reason)` (the design's `hybrid` open row), so no query of that run tries the dense side again. The per-query retry (R6) applies only after a successful open. `leg_latency_ms.dense_attempt` is then about 0 ms because nothing is attempted, and result 2.2 records the same `bm25+fallback:<reason>` path for an open-time and a per-query fallback (review round 1 F1, F2).
+- `LexicalIndex.bind_to` scrolls Qdrant (`DenseIndex.chunk_identities()`, classified by T1), so an outage between `DenseIndex.open` and the scroll also takes the open-time fallback, as the design's `hybrid` row says. The T4 implementation note ("`bind_to` is file-only") is inaccurate; the code is right. No test drives this path through `open_retrieval` (review round 1 F5).
+- `open_retrieval`'s `bm25` branch and `_open_fallback` repeat the standalone open and the lexical `document_count` closure (review round 1 F4).
+- Two approved-design passages were edited after approval: the "Not changed" list (T3 user decision, 2026-10-31) and the two R8 bullets on `index_settings=None` and the standalone `bm25` comparison (T3 review F2/F3 user decision). Both rest on verbatim user approvals in `task-reviews.md`; no `## Change log` line in `requirements.md` records them (review round 1 F3).
+
 ### Carried to later specs (T8 hand-off)
 
 - The HTTP route spec needs an async freshness check, or a freshness check at startup outside the event loop (`verify_fresh` uses `asyncio.run`; T2 review F3).
