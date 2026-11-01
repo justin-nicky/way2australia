@@ -96,7 +96,7 @@ Avoid architectural changes based only on intuition.
 
 ## C12 — Repository is the shared memory
 
-Codex, Claude Code, Kiro and human contributors must be able to continue work from:
+Codex, Claude Code, Cursor, Kiro and human contributors must be able to continue work from:
 - Git state;
 - repository context files;
 - active specs;

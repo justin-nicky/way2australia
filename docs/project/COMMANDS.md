@@ -41,7 +41,7 @@ make skills-sync
 make skills-check
 ```
 
-- `skills-sync` regenerates `.claude/skills/`, `.agents/skills/` and `.kiro/skills/` from `agent-skills/`.
+- `skills-sync` regenerates `.claude/skills/`, `.agents/skills/` and `.kiro/skills/` from `agent-skills/`. Cursor already loads `.claude/skills/` and `.agents/skills/`; there is no `.cursor/skills/` mirror (D063).
 - `skills-check` fails if any mirror differs; it is part of `make verify`.
 
 Run a role (each in a fresh session; the orchestrator is the usual entry point):
@@ -49,6 +49,7 @@ Run a role (each in a fresh session; the orchestrator is the usual entry point):
 | Host | Commands |
 |---|---|
 | Claude Code | `/spec-orchestrator [NNN]`, `/spec-planner`, `/spec-implementer <NNN> [task]`, `/task-reviewer <NNN> <task>`, `/spec-reviewer <NNN>` |
+| Cursor | `/spec-orchestrator`, `/spec-planner`, `/spec-implementer`, `/task-reviewer`, `/spec-reviewer` (same mirrors as Claude Code / Codex) |
 | Codex | `$spec-orchestrator`, `$spec-planner`, `$spec-implementer <NNN> [task]`, `$task-reviewer <NNN> <task>`, `$spec-reviewer <NNN>` |
 | Kiro | `/spec-orchestrator`, `/spec-planner`, `/spec-implementer`, `/task-reviewer`, `/spec-reviewer` |
 

@@ -3,6 +3,8 @@
 
 Other canonical project context is read on demand, not auto-loaded: `docs/project/MISSION.md`, `CONSTITUTION.md`, `TECH_STACK.md`, `ROADMAP.md`, `DECISIONS.md`, `PRODUCT.md`, `ARCHITECTURE.md`, `WORKFLOW.md`, `CONVENTIONS.md`, `COMMANDS.md`, and the active spec under `.kiro/specs/`. Each spec skill lists what its role must read.
 
+Cursor does not process the `@` imports above; it uses `.cursor/rules/project.mdc` (D063).
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.

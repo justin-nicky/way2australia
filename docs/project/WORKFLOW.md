@@ -27,7 +27,7 @@ all tasks approved
 orchestrator merges spec/<NNN> into main (--no-ff) → verified
 ```
 
-Skills live in `agent-skills/` and are mirrored to `.claude/skills/`, `.agents/skills/` (Codex) and `.kiro/skills/`. See `agent-skills/README.md`. Contributors not using the skills follow the same steps, states and trailers.
+Skills live in `agent-skills/` and are mirrored to `.claude/skills/`, `.agents/skills/` (Codex) and `.kiro/skills/`. Cursor loads the Claude and Codex mirrors; it has no extra target (D063). See `agent-skills/README.md`. Contributors not using the skills follow the same steps, states and trailers.
 
 Roles run in fresh contexts (the orchestrator spawns them as subagents where the host allows, otherwise the user starts them) and hand off through repository files (`tasks.md`, `task-reviews.md`, commit trailers), not chat. Model tiers are advisory and applied when a session starts, never switched mid-session (`agent-skills/MODEL_PREFERENCES.md`).
 
@@ -241,7 +241,7 @@ Stochastic/LLM-judge metrics should normally be warnings/reporting unless an act
 
 ## Multi-agent handoff
 
-The repository is the handoff medium between Codex, Claude Code and Kiro.
+The repository is the handoff medium between Codex, Claude Code, Cursor and Kiro.
 
 Before ending substantial work:
 
