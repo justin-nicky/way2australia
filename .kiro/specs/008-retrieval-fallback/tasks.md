@@ -241,23 +241,23 @@ Review reading order: `security_eval.py` → `evaluation/cli.py` → tests.
 
 ## T7 — Real runs (user-owned gate)
 
-**State:** not started
+**State:** approved (2026-11-01)
 **Requirements:** R12
 
 T1–T6 must be approved, committed and pushed on `spec/008` first; the closed-port comparison depends on T5's standalone-`bm25` compare box (T3 review F3). The tree, including `graphify-out/`, must be clean before each run. The agent prepares the instructions and checks the files; the user runs every command.
 
-- [ ] **User, Qdrant unreachable:**
+- [x] **User, Qdrant unreachable:**
   - `make setup-bge-m3`;
   - `QDRANT_COLLECTION_BASE=w2a-realcheck QDRANT_URL=http://127.0.0.1:<closed port> make eval-retrieval`;
   - `make eval-compare BASE=experiments/results/retrieval-evaluation-idx-v1-20261028T123109Z.json CANDIDATE=<new file>`.
   - Expected: every case served by `bm25` with `qdrant_unavailable`; PASS with hits 64 → 64, MRR 0.7082 → 0.7082, no flip.
-- [ ] **User, Qdrant up:**
+- [x] **User, Qdrant up:**
   - `QDRANT_COLLECTION_BASE=w2a-realcheck make eval-retrieval`, then `make eval-compare` against `…20261028T123121Z.json`.
   - Expected: no fallback; PASS with hits 68 → 68, MRR 0.9094 → 0.9094, no flip.
-- [ ] **User, no extra:**
+- [x] **User, no extra:**
   - `make setup`, then `QDRANT_COLLECTION_BASE=w2a-realcheck QDRANT_URL=http://127.0.0.1:<closed port> make retrieve QUERY="Is coaching compulsory?" RETRIEVE_ARGS="--strategy bm25"` returns hits;
   - then `make setup-bge-m3` again if needed.
-- [ ] **Agent:**
+- [x] **Agent:**
   - check each result file: `served_strategies`, `fallback_counts`, `requested_strategy`, `dense_identity`, `lexical_index`, `git_commit`, `git_dirty`, `latency_ms.by_served_path`;
   - record the numbers and any deviation in `CURRENT_STATE.md`;
   - the user commits the two result files.
