@@ -426,3 +426,42 @@ A network error therefore survives as an explicit `__cause__` (two links deep fo
 - `open_standalone_lexical` is in `retrieval/opening.py`; it closes the file when `check_identity` or `verify_fresh` refuses.
 - `lexical/freshness.py` imports the private `_identity` from `lexical/build.py`, because this spec does not edit `build.py`; making it public is left to a later spec that touches `build.py` (T2 review F2, accepted).
 - `verify_fresh` uses `asyncio.run` around `production_entries`, so it cannot be called inside a running event loop. The CLIs are synchronous, so this is fine today; an async caller (the HTTP route) needs an async freshness check or a check at startup outside the loop (T2 review F3, accepted; carried to the next spec by T8).
+
+### T3: ingestion edit, `index_settings` parameter (2026-10-31)
+
+- `ingestion/cli.py` had one edit: the `bge_m3` import moved from module top into `build_embedder`'s non-fake branch (T3 review F1). R5 requires that nothing on the `bm25` path imports `bge_m3` or `sentence_transformers`, and both retrieval CLIs import `ingestion.cli` (for `ClientFactory`), so R5 cannot hold without it. Ingestion behavior is unchanged. The "Not changed" list above names exactly the code moves that exist: `embedder_identity` to `ingestion/identity.py` (T2) and this import move (T3).
+- `run_retrieval_evaluation` takes an extra keyword `index_settings: IndexSettings | None`, besides `identity` and `document_count` (T3 review F2). `IndexIdentity` carries six fields, so the 2.x `index_settings` block can only be written unchanged from the full `IndexSettings`. T5 made `None` valid only when the served strategy is `bm25`; any other strategy with `None` is an `EvaluationConfigurationError`, with a test.
+- A standalone `bm25` run therefore records `index_settings: null` and compares through `dense_identity` (R9, T3 review F3, closed by T5 with a test that compares a standalone `bm25` fixture against a 2.1 `bm25` fixture and by the real run of T7).
+
+### T4: the fallback wrapper and `make retrieve` (2026-10-31)
+
+Three deviations from R6/R7 (T4 review F4, all accepted):
+- (a) `make retrieve` prints the `strategy: bm25 (requested: hybrid; fallback: <reason>)` header line only on fallback. A normal run keeps the existing `hits: N (strategy=hybrid, ...)` line, so existing output and tests are unchanged.
+- (b) `requested_strategy` on a normal hybrid result is set by `FallbackRetriever`. A bare `HybridRetriever` leaves it `None`, because `hybrid.py` must not change. Every production `hybrid` comes from `build_retriever`, so it is always wrapped.
+- (c) the `fallback` parameter of `FallbackRetriever` is typed `Retriever`, not `BM25Retriever`.
+
+The stalled-port test through `open_retrieval` exercises the open-time stall (tolerance 2 s); the per-query `query_timeout_s` path after a successful open is covered by the `DenseIndex.search` stall test (T1) and the wrapper unit tests.
+
+### T5: result 2.2 and `eval-compare` (2026-11-01)
+
+- (a) `eval-compare` prints the `requested <x> and was served by <y>` identity line only when the requested and served strategies differ, although R9's identity lines imply both are always shown (T5 review F3, user-approved). The code is kept as is.
+- (b) the mixed-file refusal message counts served strategies over the golden case rows and appends the file's `served_strategies` set (`mixes served strategies (golden cases bm25: 69; served_strategies: bm25, hybrid); re-run when the system is stable.`), so it stays correct when only unanswerable cases were served differently (T5 review F1). It differs from the R9 sketch, which lists only counts.
+
+### T6: security gate (2026-11-01)
+
+Three differences between the code and R10 (T6 review F1, user-approved):
+- (a) the standalone `bm25` path runs `check_identity` plus a seed-chunk subset check (every chunk the seed repository and chunker produce is in the file with the same version and hash) instead of `verify_fresh`. The throwaway lexical file also holds the synthetic forbidden rows, which no repository document produces, so the full digest could never match.
+- (b) that check runs on a separate handle, while the gated retriever uses `index.lexical`, the handle bound by the production `bind_to`.
+- (c) the identity comes from `IndexIdentity.from_dense` (source `qdrant`) instead of `IndexIdentity.expected`. The two are equivalent here, because `check_identity` does not compare `source`.
+
+Also: `evaluation/security_index.py` (not in the placement table) changed: `SecurityIndex` now carries its chunker and seed repository. The seed-freshness check is one-way (it refuses a missing or changed seed chunk, not an extra non-forbidden row); accepted, because the harness builds the file just before the check. The plain `hybrid` path asserts that no query fell back (`fallback_reason is None`), a harness error (exit 2) otherwise, mirroring the fallback paths' check. The Docker test for `hybrid_fallback_query` builds and sanity-checks against live Qdrant, but that path's dense leg never queries Qdrant by construction; it is not a live timeout test (R11's closed-port test is).
+
+### T7: real runs (2026-11-01)
+
+No deviations from the design. The fallback-only result equals the Spec 007 BM25 reference (64 hits, MRR 0.7082, no flip) and the Qdrant-up result equals the Spec 007 hybrid reference (68 hits, MRR 0.9094, no flip). The closed port and the no-extra run (Run 3) are reported by the user; they are not recorded in any result file.
+
+### Carried to later specs (T8 hand-off)
+
+- The HTTP route spec needs an async freshness check, or a freshness check at startup outside the event loop (`verify_fresh` uses `asyncio.run`; T2 review F3).
+- Qdrant client lifecycle (T4 review): `open_retrieval` closes the Qdrant client on the fallback path but not on every open failure, and `OpenedRetrieval.close()` does not close the client. A long-running server would leak a connection pool per failed open; the CLIs exit after one run. No code change in this spec. The HTTP route spec must close the client on every open failure and in `close()`, with a test.
+- Circuit breaker, startup policy for a missing or stale lexical file, Qdrant 5xx eligibility (D062), and the cost of the freshness check on a large corpus (D060).

@@ -180,7 +180,7 @@ run summary
 - Changing an index-defining setting means a new `index_version`, which gives a new collection; the store never deletes a collection.
 - Decisions: D025–D030, D032.
 
-## Retrieval (Phase 1 dense baseline, Spec 005; hybrid added by Spec 007)
+## Retrieval (Phase 1 dense baseline, Spec 005; hybrid added by Spec 007; fallback by Spec 008)
 
 Library code in `packages/rag/src/way2australia_rag/retrieval/` plus the shared access types in `packages/core`. No HTTP route yet. Developer CLIs run it: `make retrieve` (all strategies), `make index-lexical` and the legacy dense-only `make retrieval-baseline`.
 
@@ -191,13 +191,18 @@ Library code in `packages/rag/src/way2australia_rag/retrieval/` plus the shared 
 | `index.py` | `DenseIndex`: read-only binding to the collection and its `-settings` record; `search`, `document_count` |
 | `retriever.py` | `DenseRetriever.retrieve(query, access, top_k)` → `RetrievalResult` |
 | `models.py`, `errors.py`, `text.py` | `RetrievedChunk`/`RetrievalResult`, error hierarchy, `safe_text` for printing payload text |
-| `base.py`, `strategy.py` | `Strategy` (`dense`, `bm25`, `hybrid`), the `Retriever` Protocol, `RetrievalConfig` (from `config/retrieval.yaml`) and `build_retriever`, the only place a strategy name becomes a retriever |
-| `bm25.py` | `BM25Retriever` over the lexical index; `build_sql_access_clause` (in `access.py`) is its authorization builder |
-| `fusion.py`, `hybrid.py` | pure `rrf_fuse` and `HybridRetriever` (dense leg, then BM25 leg, at candidate depth) |
+| `base.py`, `strategy.py` | `Strategy` (`dense`, `bm25`, `hybrid`), the `Retriever` Protocol, `RetrievalConfig` 1.1 (from `config/retrieval.yaml`, with `QdrantTimeouts`) and `build_retriever`, the only place a strategy name becomes a retriever (`hybrid` is returned wrapped in `FallbackRetriever`) |
+| `bm25.py` | `BM25Retriever(identity, lexical)` over the lexical index; `build_sql_access_clause` (in `access.py`) is its authorization builder |
+| `fusion.py`, `hybrid.py` | pure `rrf_fuse` and `HybridRetriever` (dense leg, then BM25 leg, at candidate depth); still fail closed |
+| `errors.py`, `availability.py` | `RetrievalUnavailableError(reason)` and `FallbackReason`; `classify_qdrant_error` and `classify_model_error`, the one mapping per source (D057) |
+| `qdrant_client.py` | `retrieval_client_factory`: the retrieval Qdrant client with the configured timeouts (D059) |
+| `identity.py` | `IndexIdentity` (collection, `index_version`, embedder pair, fake flag, `source` `qdrant` or `lexical_file`) |
+| `fallback.py` | `FallbackRetriever`: BM25 serves when the hybrid primary raises `RetrievalUnavailableError`, or when opening it did (D058) |
+| `opening.py` | `open_retrieval(...) -> OpenedRetrieval` (the one wiring function for both CLIs: retriever, identity, `document_count`, `close`) and `open_standalone_lexical` (D060) |
 | `cli.py` | `make retrieve` (`--strategy`) |
 | `metrics.py`, `goldens.py`, `baseline.py`, `baseline_cli.py` | document-level metrics, read-only golden/suite/release loading, baseline runner and writer, `make retrieval-baseline` |
 
-The lexical side lives in `packages/rag/src/way2australia_rag/lexical/` (Spec 007): `tokenizer.py` (`lexical-v1`), `store.py` (SQLite FTS5 file: `chunks` table with access columns and the full payload, `chunk_terms` FTS5 table, a settings row with the dense identity copy; read-only `LexicalIndex.open`, `bind_to(dense)`, `search`), `build.py` (`production_entries`, atomic `build_lexical_index`) and `cli.py` (`make index-lexical`, writes only a git-ignored file). The file is a derived artifact, one per collection, bound to the dense index by identity and chunk digest.
+The lexical side lives in `packages/rag/src/way2australia_rag/lexical/` (Spec 007): `tokenizer.py` (`lexical-v1`), `store.py` (SQLite FTS5 file: `chunks` table with access columns and the full payload, `chunk_terms` FTS5 table, a settings row with the dense identity copy; read-only `LexicalIndex.open`, `bind_to(dense)`, `search`), `build.py` (`production_entries`, atomic `build_lexical_index`) and `cli.py` (`make index-lexical`, writes only a git-ignored file), and `freshness.py` (Spec 008: `verify_fresh`, the chunk digest recomputed from the repository). The file is a derived artifact, one per collection, bound by identity and chunk digest either to the dense index in Qdrant (`bind_to`, `hybrid` with Qdrant reachable) or to configuration and the repository (`check_identity` plus `verify_fresh`, the standalone path).
 
 Query flow as built (dense strategy; `bm25` and `hybrid` described below):
 
@@ -236,9 +241,9 @@ query → validate_request → ResolvedAccess (one, server-resolved)
 ```
 
 - Authorization is applied inside each leg's own query and re-checked per hit; fusion sees only authorized hits and fails closed (any leg error propagates; no single-leg fallback). An empty BM25 leg keeps the dense order.
-- Every strategy builds the embedder and opens the dense index, and `bm25`/`hybrid` also open and bind the lexical file; `bm25` never embeds the query. BM25 therefore still needs Qdrant and the `bge-m3` extra; independence is the fallback spec's work (roadmap 13).
+- `dense` and `hybrid` build the embedder and open the dense index; `hybrid` also opens and binds the lexical file. `bm25` builds no embedder and no Qdrant client (Spec 008): it needs neither Qdrant nor the `bge-m3` extra, only the lexical file. See "Retrieval fallback" below.
 - BM25 statistics (IDF, average document length) are computed over every row of a lexical file, including rows the access clause excludes. Today the production file holds only eligible public chunks (`production_entries` uses `GUEST_PUBLIC_POLICY`), so the statistics reveal nothing; only the security gate's temporary file holds forbidden rows. A future roles spec needs one lexical file per access scope, so that one scope's statistics never reflect another scope's text (D050).
-- Decisions: D049–D055.
+- Decisions: D049–D055 (D056–D062 for the fallback below).
 
 ## Target RAG query flow
 
@@ -282,17 +287,38 @@ Authorization is applied inside each retriever (dense, BM25 and the SQLite FTS5 
 
 ## Retrieval fallback
 
-Expected graceful-degradation paths:
+Spec 008 (D056–D062) implements the retrieval part of graceful degradation. Other paths below are planned.
+
+Implemented, for `hybrid` only (the default or `--strategy hybrid`):
+
+```text
+open_retrieval(hybrid)
+  embedder (missing bge-m3 extra → exit 2, never a fallback)
+  → Qdrant client (retrieval_client_factory, timeouts 2 s / 3 s) → DenseIndex.open → LexicalIndex.bind_to
+      ok                      → FallbackRetriever(HybridRetriever, BM25Retriever(identity from dense), no open reason)
+      RetrievalUnavailableError → open_standalone_lexical (check_identity + verify_fresh, no Qdrant, no embedder)
+                                  → FallbackRetriever(no primary, BM25Retriever(expected identity), reason)
+  per query: primary.retrieve → on RetrievalUnavailableError only → BM25Retriever.retrieve(same query, same ResolvedAccess, same top_k)
+  → RetrievalResult(strategy = served, requested_strategy = hybrid, fallback_reason, leg_latency_ms.dense_attempt)
+```
+
+- Eligible failures (`RetrievalUnavailableError`, D057): Qdrant connect or network error (`qdrant_unavailable`), Qdrant timeout (`qdrant_timeout`), and an embedding model load or download failure whose explicit `__cause__` chain holds a network or timeout error (`model_unavailable`). Nothing else falls back: HTTP status errors including 5xx (D062), a missing collection, a settings mismatch, a missing or stale lexical file, a missing `bge-m3` extra, a model load failure without a network cause, authorization errors and SQLite errors all exit 2. `fusion.py` and `hybrid.py` are unchanged; the wrapper sits outside fusion.
+- Explicit `dense` and `bm25` never fall back. `dense` with Qdrant down exits 2 with `RetrievalUnavailableError`. `bm25` is standalone.
+- Policy (D058): per query, no state, no circuit breaker; worst case about `query_timeout_s` per query when Qdrant hangs, retried on every query. A circuit breaker, a startup policy for a missing or stale lexical file and an async freshness check belong with the HTTP route spec.
+- Freshness (D060): the standalone path proves the lexical file matches the repository and configuration, not the live Qdrant collection. It rereads every eligible document at each open; revisit for a large corpus.
+- Marking and evaluation (D061): `make retrieve` prints `strategy: bm25 (requested: hybrid; fallback: <reason>)` and a stderr warning only on fallback; `make eval-retrieval` writes result 2.2 (served strategies, fallback counts, latency by served path), and `make eval-compare` compares by the served strategy and refuses a file that mixes strategies. `make eval-security` gates five paths, two of them fallback paths (security result 1.2).
+
+Authorization: the fallback adds no authorization logic. `FallbackRetriever` passes the caller's `ResolvedAccess` object unchanged to `BM25Retriever`, which applies the SQL access clause inside its query and calls `check_hit` on every hit (D035, D040). The lexical file holds only eligible guest/public chunks (D050). `RetrievalAuthorizationError` is never caught by the wrapper, so an authorization failure cannot become a fallback.
+
+Planned, not implemented:
 
 - query rewrite failure → original query;
-- dense embedding failure → BM25;
-- reranker failure/timeout → hybrid/RRF output;
-- Qdrant unavailable → SQLite FTS5 fallback;
+- reranker failure/timeout → hybrid/RRF output (roadmap 13; no reranker yet);
 - Langfuse unavailable → serving continues;
-- model failure → evidence-only response where possible;
+- model (generation) failure → evidence-only response where possible (roadmap 13; no generation yet);
 - weak evidence → insufficient-evidence response.
 
-Fallback paths must preserve authorization: a fallback retriever takes the same `ResolvedAccess`, applies the authorization filter inside its own query and calls `check_hit` on every hit (D035, D040). None of these fallbacks is implemented yet: BM25 exists as a strategy but still needs Qdrant and the `bge-m3` extra, and there is no automatic switch between strategies.
+Any later fallback must preserve authorization the same way: take the same `ResolvedAccess`, apply the authorization filter inside its own query and call `check_hit` on every hit.
 
 ## Primary stack
 

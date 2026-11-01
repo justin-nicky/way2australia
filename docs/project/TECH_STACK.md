@@ -11,7 +11,7 @@ This file records the currently selected implementation stack and intentional no
 - Evaluation schema references: `referencing` (JSON Schema `$ref` registry for the evaluation suite and case schemas, direct dependency of `packages/rag`, Spec 006)
 - Frontmatter parsing: `pyyaml` (YAML frontmatter of knowledge documents, `packages/rag`)
 - Runtime configuration: `pydantic-settings` (`QDRANT_URL`, `QDRANT_API_KEY`, `QDRANT_COLLECTION_BASE`, `W2A_TENANT_ID`; `RuntimeSettings` in `packages/rag`, built once per CLI run by `load_runtime_settings`, D034)
-- Qdrant client: `qdrant-client` (`packages/rag`)
+- Qdrant client: `qdrant-client` (`packages/rag`); retrieval creates it through `retrieval_client_factory` with the `config/retrieval.yaml` timeouts and `check_compatibility=False` (Spec 008, D059)
 - HTTP client: httpx
 - Testing: pytest
 - Data analysis/evaluation support: Pandas where useful
@@ -27,7 +27,7 @@ This file records the currently selected implementation stack and intentional no
 - Qdrant
 
 ### Lexical store
-- SQLite FTS5 (standard library, no new dependency): the BM25 store for the `bm25` and `hybrid` strategies (Spec 007, D050) and the planned fallback store; a derived local file per collection, built by `make index-lexical` from eligible guest/public chunks only (a roles spec needs one file per access scope, because BM25 statistics are computed over the whole file)
+- SQLite FTS5 (standard library, no new dependency): the BM25 store for the `bm25` and `hybrid` strategies (Spec 007, D050) and the fallback store when Qdrant or the embedding model is unavailable (Spec 008, D058; `bm25` needs neither Qdrant nor the `bge-m3` extra); a derived local file per collection, built by `make index-lexical` from eligible guest/public chunks only (a roles spec needs one file per access scope, because BM25 statistics are computed over the whole file)
 
 ### Embeddings
 - BGE-M3 initially
@@ -41,7 +41,7 @@ Reason:
 - low re-indexing cost during comparisons.
 
 ### Sparse retrieval
-- BM25 through FTS5 `bm25()` over `lexical-v1` tokens (D051); implemented
+- BM25 through FTS5 `bm25()` over `lexical-v1` tokens (D051); implemented; also the retrieval fallback (Spec 008): `hybrid` degrades to BM25 on a Qdrant or model outage, no new dependency
 
 ### Fusion
 - Reciprocal Rank Fusion (RRF), implemented (D052); parameters in `config/retrieval.yaml`

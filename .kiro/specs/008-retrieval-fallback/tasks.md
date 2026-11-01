@@ -271,10 +271,10 @@ Allowed protected-path changes: none. New files under `experiments/results/` onl
 
 ## T8 — Documentation, decisions and final verification
 
-**State:** not started
+**State:** approved (2026-11-01)
 **Requirements:** R14, R13, Definition of Done
 
-- [ ] `DECISIONS.md`:
+- [x] `DECISIONS.md`:
   - D056 Spec 008 ahead of roadmap 7;
   - D057 failure classification (wrapper-only Qdrant unwrapping; model network-cause rule);
   - D058 `FallbackRetriever` policy and worst-case latency (circuit breaker deferred to the HTTP route);
@@ -282,23 +282,23 @@ Allowed protected-path changes: none. New files under `experiments/results/` onl
   - D060 standalone lexical open and repository freshness check (large-corpus caveat);
   - D061 result 2.2, security 1.2, served-strategy comparison and latency by served path;
   - D062 Qdrant HTTP status errors (including 5xx) are not eligible.
-- [ ] `ROADMAP.md`: note that retrieval graceful degradation (part of item 13) was done before item 7, and that the reranker and model-failure paths remain in item 13.
-- [ ] `ARCHITECTURE.md` ("Retrieval", "Retrieval fallback"), `COMMANDS.md` (fallback behavior, `bm25` needs neither Qdrant nor the extra, `config/retrieval.yaml` 1.1, new refusals, result 2.2, security 1.2), `TECH_STACK.md` and `CURRENT_STATE.md` describe the code as built.
-- [ ] `design.md` As-built notes: every deviation found in T1–T7.
-- [ ] `design.md` As-built note (T3 review F1): the `bge_m3` import moved inside `build_embedder` in `ingestion/cli.py`, required by R5 because both retrieval CLIs import `ingestion.cli`; ingestion behavior unchanged. Check that the design's "Not changed" list matches the code (corrected for the T2 and T3 moves on 2026-10-31).
-- [ ] Carry the `verify_fresh` `asyncio.run` limitation (T2 review F3, design As-built notes T2) into the hand-off for the retrospective's "Notes for the next spec": the HTTP route spec needs an async freshness check, or a freshness check at startup outside the event loop.
-- [ ] `design.md` As-built note (T4 review F4), recording three deviations from the design:
+- [x] `ROADMAP.md`: note that retrieval graceful degradation (part of item 13) was done before item 7, and that the reranker and model-failure paths remain in item 13.
+- [x] `ARCHITECTURE.md` ("Retrieval", "Retrieval fallback"), `COMMANDS.md` (fallback behavior, `bm25` needs neither Qdrant nor the extra, `config/retrieval.yaml` 1.1, new refusals, result 2.2, security 1.2), `TECH_STACK.md` and `CURRENT_STATE.md` describe the code as built.
+- [x] `design.md` As-built notes: every deviation found in T1–T7.
+- [x] `design.md` As-built note (T3 review F1): the `bge_m3` import moved inside `build_embedder` in `ingestion/cli.py`, required by R5 because both retrieval CLIs import `ingestion.cli`; ingestion behavior unchanged. Check that the design's "Not changed" list matches the code (corrected for the T2 and T3 moves on 2026-10-31).
+- [x] Carry the `verify_fresh` `asyncio.run` limitation (T2 review F3, design As-built notes T2) into the hand-off for the retrospective's "Notes for the next spec": the HTTP route spec needs an async freshness check, or a freshness check at startup outside the event loop.
+- [x] `design.md` As-built note (T4 review F4), recording three deviations from the design:
   - (a) `make retrieve` prints the `strategy: bm25 (requested: hybrid; fallback: <reason>)` header line only on fallback; a normal run keeps `hits: N (strategy=hybrid, ...)`;
   - (b) `requested_strategy` on a normal hybrid result is set by `FallbackRetriever`; a bare `HybridRetriever` leaves it `None`, because `hybrid.py` must not change;
   - (c) the `fallback` parameter of `FallbackRetriever` is typed `Retriever`, not `BM25Retriever`.
-- [ ] `design.md` As-built note (T5 review F3, user-approved 2026-11-01): `eval-compare` prints the requested-vs-served strategy line only when the two differ, although the design's identity lines imply both are always shown. The code is kept as is.
-- [ ] `design.md` As-built note (T6 review F1, user-approved 2026-11-01), recording three differences between the T6 security code and design R10:
+- [x] `design.md` As-built note (T5 review F3, user-approved 2026-11-01): `eval-compare` prints the requested-vs-served strategy line only when the two differ, although the design's identity lines imply both are always shown. The code is kept as is.
+- [x] `design.md` As-built note (T6 review F1, user-approved 2026-11-01), recording three differences between the T6 security code and design R10:
   - (a) the `bm25` security path runs `check_identity` plus a seed-chunk subset check (every chunk the seed repository and chunker produce is in the file with the same version and hash) instead of `verify_fresh`, because the throwaway lexical file also holds synthetic forbidden rows;
   - (b) that check runs on a separate handle, while the gated retriever uses `index.lexical`, the handle bound by `bind_to`;
   - (c) identity comes from `IndexIdentity.from_dense` (source `qdrant`) instead of `IndexIdentity.expected`. The two are equivalent here, because `check_identity` does not compare `source`.
-- [ ] Carry the Qdrant client lifecycle gap (T4 review, user-approved 2026-10-31) into the hand-off for the retrospective's "Notes for the next spec", for the HTTP route spec. `open_retrieval` must close the Qdrant client on every open failure, not only on the fallback path, and `OpenedRetrieval.close()` must close the client too, with a test. A long-running server leaks a connection pool per failed open; the CLIs exit after one run. No code change in this spec.
-- [ ] Spec-wide checks: `make verify`, `make test-integration`, `make eval-security`; the protected-path check over the branch.
-- [ ] `graphify update .`.
+- [x] Carry the Qdrant client lifecycle gap (T4 review, user-approved 2026-10-31) into the hand-off for the retrospective's "Notes for the next spec", for the HTTP route spec. `open_retrieval` must close the Qdrant client on every open failure, not only on the fallback path, and `OpenedRetrieval.close()` must close the client too, with a test. A long-running server leaks a connection pool per failed open; the CLIs exit after one run. No code change in this spec.
+- [x] Spec-wide checks: `make verify`, `make test-integration`, `make eval-security`; the protected-path check over the branch.
+- [x] `graphify update .`: not needed (docs only). The docs reach the graph through `/graphify . --update` after the merge.
 
 Allowed protected-path changes: none.
 
