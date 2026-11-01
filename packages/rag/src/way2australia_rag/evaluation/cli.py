@@ -21,6 +21,7 @@ import sys
 import tempfile
 import uuid
 import warnings
+from collections import Counter
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
@@ -43,7 +44,6 @@ from way2australia_rag.evaluation.results import (
 from way2australia_rag.evaluation.retrieval_eval import (
     require_active_suite,
     require_real_embedder,
-    require_real_index,
     run_retrieval_evaluation,
 )
 from way2australia_rag.evaluation.security_corpus import SCHEMA as SECURITY_SCHEMA
@@ -63,11 +63,7 @@ from way2australia_rag.evaluation.slices import active_registry_languages
 from way2australia_rag.evaluation.suite import declared_release_id, load_suite
 from way2australia_rag.evaluation.validate import validate_evaluation
 from way2australia_rag.ingestion.chunking import HeadingChunker
-from way2australia_rag.ingestion.cli import (
-    ClientFactory,
-    build_embedder,
-    default_client_factory,
-)
+from way2australia_rag.ingestion.cli import ClientFactory, build_embedder
 from way2australia_rag.ingestion.config import (
     DEFAULT_CONFIG_PATH,
     IngestionConfig,
@@ -86,18 +82,13 @@ from way2australia_rag.repositories import (
 from way2australia_rag.retrieval.access import guest_access, resolve_access
 from way2australia_rag.retrieval.base import Strategy
 from way2australia_rag.retrieval.errors import RetrievalError
-from way2australia_rag.retrieval.index import DenseIndex
+from way2australia_rag.retrieval.opening import open_retrieval
 from way2australia_rag.retrieval.retriever import (
     DEFAULT_TOP_K,
     MAX_TOP_K,
     MIN_TOP_K,
 )
-from way2australia_rag.retrieval.strategy import (
-    build_retriever,
-    load_retrieval_config,
-    needs_lexical,
-    open_bound_lexical,
-)
+from way2australia_rag.retrieval.strategy import load_retrieval_config
 from way2australia_rag.retrieval.text import safe_text
 
 EXIT_OK = 0
@@ -147,7 +138,9 @@ def _authority_map(repo_root: Path) -> dict[str, str]:
 
 
 def _unanswerable_line(report: dict[str, Any]) -> str:
-    def fmt(dist: dict[str, Any]) -> str:
+    def fmt(dist: dict[str, Any] | None) -> str:
+        if dist is None:
+            return "n/a (mixed score kinds)"
         return "/".join(
             "n/a" if dist[key] is None else f"{dist[key]:.4f}"
             for key in ("min", "p50", "p95", "max")
@@ -169,11 +162,29 @@ def format_summary(document: dict[str, Any], output: Path, repo_root: Path) -> s
     except ValueError:
         shown = Path(output.name)
     settings = document["index_settings"]
+    embedder = (
+        f"{settings['embedder_model_id']} @ {settings['embedder_revision']}"
+        if settings
+        else "n/a (Qdrant not contacted)"
+    )
+    requested = document["requested_strategy"]
+    served_counts = Counter(row["served_strategy"] for row in document["cases"])
+    fallbacks = document["fallback_counts"]
+    if document["served_strategies"] == [requested] and not fallbacks:
+        strategy_line = (
+            f"strategy: {document['retrieval_strategy']} "
+            f"(scores: {document['score_kind']})"
+        )
+    else:
+        served = ", ".join(f"{k}: {v}" for k, v in sorted(served_counts.items()))
+        strategy_line = (
+            f"strategy: requested {requested}, served {served} "
+            f"(scores: {document['score_kind'] or 'mixed'})"
+        )
     lines = [
-        f"strategy: {document['retrieval_strategy']} "
-        f"(scores: {document['score_kind']})",
+        strategy_line,
         f"index: {document['collection']} (index_version {document['index_version']}; "
-        f"embedder {settings['embedder_model_id']} @ {settings['embedder_revision']}, "
+        f"embedder {embedder}, "
         f"fake={str(document['embedder_is_fake']).lower()}, "
         f"device={document['device'] or 'unknown'})",
         f"suite: {document['evaluation_suite_id']} "
@@ -196,11 +207,26 @@ def format_summary(document: dict[str, Any], output: Path, repo_root: Path) -> s
     absent = document["absent_query_languages"]
     if absent:
         lines.append(f"absent query languages (no golden case): {', '.join(absent)}")
-    lines += [
+    lines.append(
         "section-level measurable cases: "
-        f"{document['section_level']['measurable_cases']}",
-        f"latency p50 {latency['p50']:.1f} ms, p95 {latency['p95']:.1f} ms "
-        f"(warm-up {latency['warmup_ms']:.1f} ms excluded)",
+        f"{document['section_level']['measurable_cases']}"
+    )
+    if fallbacks:
+        counts = ", ".join(f"{k}: {v}" for k, v in sorted(fallbacks.items()))
+        lines.append(f"fallbacks (measured cases): {counts}")
+    if latency["p50"] is not None:
+        lines.append(
+            f"latency p50 {latency['p50']:.1f} ms, p95 {latency['p95']:.1f} ms "
+            f"(warm-up {latency['warmup_ms']:.1f} ms excluded)"
+        )
+    for path, value in latency["by_served_path"].items():
+        if "+fallback:" in path or len(latency["by_served_path"]) > 1:
+            note = " (includes failed dense attempt)" if "+fallback:" in path else ""
+            lines.append(
+                f"latency {path}: p50 {value['p50']:.1f} ms, p95 "
+                f"{value['p95']:.1f} ms, n={value['n']}{note}"
+            )
+    lines += [
         _unanswerable_line(document["unanswerable"]),
         f"result: {shown}",
         *[f"note: {note}" for note in document["notes"]],
@@ -210,14 +236,14 @@ def format_summary(document: dict[str, Any], output: Path, repo_root: Path) -> s
 
 def _retrieval(
     args: argparse.Namespace,
-    client_factory: ClientFactory,
+    client_factory: ClientFactory | None,
     embedder_factory: EmbedderFactory,
 ) -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stderr)
     logging.getLogger("httpx").setLevel(logging.WARNING)  # request lines carry URLs
     repo_root: Path = args.repo_root.resolve()
     config_path: Path = args.config or repo_root / DEFAULT_CONFIG_PATH
-    lexical = None
+    opened = None
     try:
         # 1. top-k, config, runtime settings
         if not MIN_TOP_K <= args.top_k <= MAX_TOP_K:
@@ -243,34 +269,41 @@ def _retrieval(
             repo_root, config.index_version, now
         )
         check_output_free(output)
-        # 5. embedder; a fake one is refused before any Qdrant contact
-        embedder = embedder_factory(config, config.embedder.provider)
-        require_real_embedder(embedder)
-        # 6. read-only index binding; a recorded fake index is refused
-        client = client_factory(settings)
-        index = DenseIndex.open(
-            client, settings.collection_base, config.index_version, embedder.info
+
+        # 5. open the stack. A fake embedder is refused as soon as it is built,
+        # before any Qdrant contact; `bm25` builds none (its fake provider is
+        # refused by `run_retrieval_evaluation` through the identity).
+        def real_embedder_factory(cfg: IngestionConfig, provider: str) -> Embedder:
+            built = embedder_factory(cfg, provider)
+            require_real_embedder(built)
+            return built
+
+        opened = open_retrieval(
+            strategy,
+            settings=settings,
+            ingestion_config=config,
+            retrieval_config=retrieval_config,
+            provider=config.embedder.provider,
+            repo_root=repo_root,
+            client_factory=client_factory,
+            embedder_factory=real_embedder_factory,
         )
-        require_real_index(index)
-        # 6b. the lexical file, opened read-only and bound to the dense index
-        if needs_lexical(strategy):
-            lexical = open_bound_lexical(settings, repo_root, index)
-        retriever = build_retriever(
-            strategy, index, embedder, lexical, retrieval_config
-        )
-        # 7. the one server-resolved access
+        identity = opened.identity
+        # 6. the one server-resolved access
         access = resolve_access(guest_access(settings))
         log.info(
             "suite %s loaded; strategy %s; index %s (index_version %s) bound",
             safe_text(suite.manifest.evaluation_suite_id),
             strategy.value,
-            safe_text(index.collection),
-            safe_text(index.index_version),
+            safe_text(identity.collection),
+            safe_text(identity.index_version),
         )
         document = run_retrieval_evaluation(
-            retriever=retriever,
-            index=index,
-            embedder=embedder,
+            retriever=opened.retriever,
+            identity=identity,
+            document_count=opened.document_count(access),
+            embedder=opened.embedder,
+            index_settings=opened.index_settings,
             access=access,
             suite=suite,
             release_id=release_id,
@@ -279,6 +312,9 @@ def _retrieval(
             registry_languages=languages,
             repo_root=repo_root,
             fusion=retrieval_config.fusion if strategy == Strategy.HYBRID else None,
+            qdrant_timeouts=(
+                None if strategy == Strategy.BM25 else retrieval_config.qdrant
+            ),
             clock=lambda: now,
         )
         write_document(output, document)
@@ -291,9 +327,9 @@ def _retrieval(
         print(f"ERROR {type(error).__name__}", file=sys.stderr)
         return EXIT_ERROR
     finally:
-        if lexical is not None:
-            lexical.close()
-    print(f"collection: {safe_text(index.collection)}")
+        if opened is not None:
+            opened.close()
+    print(f"collection: {safe_text(identity.collection)}")
     print(format_summary(document, output, repo_root))
     return EXIT_OK
 
@@ -405,6 +441,7 @@ def format_security_summary(document: dict[str, Any], shown: Path) -> str:
         f"v{document['evaluation_suite_version']}",
         f"throwaway index: {document['index']['collection']} (removed after the run)",
         f"strategies: {', '.join(document['strategies'])}",
+        f"paths: {', '.join(document['paths'])}",
         f"queries: {document['query_count']} "
         f"({document['security_cases_run']} security cases, "
         f"{document['golden_queries_run']} golden); "
@@ -418,8 +455,8 @@ def format_security_summary(document: dict[str, Any], shown: Path) -> str:
         lines.append(f"excluded fixture {item['document_id']}")
     for v in document["violations"]:
         lines.append(
-            f"VIOLATION case {v['case_id']} document {v['document_id'] or '-'} "
-            f"variant {v['variant']}"
+            f"VIOLATION path {v['path']} case {v['case_id']} "
+            f"document {v['document_id'] or '-'} variant {v['variant']}"
         )
     verdict = "PASS" if document["passed"] else "FAIL"
     lines.append(
@@ -446,7 +483,7 @@ def _compare(args: argparse.Namespace) -> int:
 def main(
     argv: Sequence[str] | None = None,
     *,
-    client_factory: ClientFactory = default_client_factory,
+    client_factory: ClientFactory | None = None,
     embedder_factory: EmbedderFactory = build_embedder,
 ) -> int:
     parser = argparse.ArgumentParser(

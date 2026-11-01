@@ -202,9 +202,20 @@ def test_unreachable_qdrant_prints_class_name_only(
 ) -> None:
     monkeypatch.setenv("QDRANT_URL", "http://127.0.0.1:1")
     monkeypatch.setenv("QDRANT_API_KEY", SECRET)
-    code = cli.main(["q", "--repo-root", str(REPO_ROOT), "--embedder", "fake"])
+    code = cli.main(
+        [
+            "q",
+            "--repo-root",
+            str(REPO_ROOT),
+            "--embedder",
+            "fake",
+            "--strategy",
+            "dense",
+        ]
+    )
     assert code == 2
     err = capsys.readouterr().err
+    assert "RetrievalUnavailableError" in err and "qdrant_unavailable" in err
     assert SECRET not in err and "127.0.0.1" not in err
 
 

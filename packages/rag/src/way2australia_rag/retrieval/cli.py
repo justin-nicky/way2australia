@@ -14,11 +14,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from way2australia_rag.ingestion.cli import (
-    ClientFactory,
-    build_embedder,
-    default_client_factory,
-)
+from way2australia_rag.ingestion.cli import ClientFactory
 from way2australia_rag.ingestion.config import (
     DEFAULT_CONFIG_PATH,
     load_ingestion_config,
@@ -31,25 +27,30 @@ from way2australia_rag.retrieval.errors import (
     RetrievalConfigurationError,
     RetrievalError,
 )
-from way2australia_rag.retrieval.index import DenseIndex
 from way2australia_rag.retrieval.models import RetrievalResult
+from way2australia_rag.retrieval.opening import open_retrieval
 from way2australia_rag.retrieval.retriever import (
     DEFAULT_TOP_K,
     MAX_TOP_K,
     MIN_TOP_K,
 )
-from way2australia_rag.retrieval.strategy import (
-    build_retriever,
-    load_retrieval_config,
-    needs_lexical,
-    open_bound_lexical,
-)
+from way2australia_rag.retrieval.strategy import load_retrieval_config
 from way2australia_rag.retrieval.text import safe_text
 
 EXIT_OK = 0
 EXIT_REFUSED = 2
 DEFAULT_RETRIEVAL_CONFIG = "config/retrieval.yaml"
 MAX_TERMS_NOTE = "note: the query was cut to its first 64 distinct terms for BM25."
+
+
+def _strategy_line(result: RetrievalResult) -> str:
+    line = f"strategy: {safe_text(result.strategy)}"
+    if result.fallback_reason is not None:
+        line += (
+            f" (requested: {safe_text(result.requested_strategy or 'unknown')}; "
+            f"fallback: {safe_text(result.fallback_reason)})"
+        )
+    return line
 
 
 def format_result(result: RetrievalResult) -> str:
@@ -63,6 +64,8 @@ def format_result(result: RetrievalResult) -> str:
         f"hits: {len(result.hits)} (strategy={safe_text(result.strategy)}, "
         f"top_k {result.top_k}, {result.latency_ms:.1f} ms)",
     ]
+    if result.fallback_reason is not None:
+        lines.insert(0, _strategy_line(result))
     for hit in result.hits:
         line = (
             f"{hit.rank}  {safe_text(hit.document_id)}  {safe_text(hit.section_id)}  "
@@ -118,14 +121,14 @@ def _parser() -> argparse.ArgumentParser:
 def main(
     argv: Sequence[str] | None = None,
     *,
-    client_factory: ClientFactory = default_client_factory,
+    client_factory: ClientFactory | None = None,
 ) -> int:
     args = _parser().parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stderr)
     logging.getLogger("httpx").setLevel(logging.WARNING)  # request lines carry URLs
     repo_root = args.repo_root.resolve()
     config_path: Path = args.config or repo_root / DEFAULT_CONFIG_PATH
-    lexical = None
+    opened = None
     try:
         if not args.query.strip():
             raise RetrievalConfigurationError("the query must not be empty.")
@@ -136,22 +139,21 @@ def main(
         config = load_ingestion_config(config_path)
         settings = load_runtime_settings(RetrievalConfigurationError)
         provider = args.embedder or config.embedder.provider
-        embedder = build_embedder(config, provider)  # missing extra exits here
-        client = client_factory(settings)
-        index = DenseIndex.open(
-            client, settings.collection_base, config.index_version, embedder.info
-        )
         retrieval_config = load_retrieval_config(
             args.retrieval_config or repo_root / DEFAULT_RETRIEVAL_CONFIG
         )
         strategy = Strategy(args.strategy or retrieval_config.default_strategy)
-        if needs_lexical(strategy):
-            lexical = open_bound_lexical(settings, repo_root, index)
-        retriever = build_retriever(
-            strategy, index, embedder, lexical, retrieval_config
+        opened = open_retrieval(
+            strategy,
+            settings=settings,
+            ingestion_config=config,
+            retrieval_config=retrieval_config,
+            provider=provider,
+            repo_root=repo_root,
+            client_factory=client_factory,
         )
         access = resolve_access(guest_access(settings))
-        result = retriever.retrieve(args.query, access, args.top_k)
+        result = opened.retriever.retrieve(args.query, access, args.top_k)
     except (RetrievalError, IngestionError) as error:
         # Both families are path- and secret-free by contract.
         print(f"ERROR {type(error).__name__}: {safe_text(error)}", file=sys.stderr)
@@ -161,8 +163,14 @@ def main(
         print(f"ERROR {type(error).__name__}", file=sys.stderr)
         return EXIT_REFUSED
     finally:
-        if lexical is not None:
-            lexical.close()
+        if opened is not None:
+            opened.close()
+    if result.fallback_reason is not None:
+        print(
+            f"WARNING retrieval fell back to {safe_text(result.strategy)}: "
+            f"{safe_text(result.fallback_reason)}",
+            file=sys.stderr,
+        )
     print(format_result(result))
     return EXIT_OK
 

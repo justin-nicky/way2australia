@@ -15,7 +15,7 @@ from conftest import REPO_ROOT
 from qdrant_client import QdrantClient
 from way2australia_core import AccessContext, Role
 from way2australia_rag.ingestion.chunking import HeadingChunker
-from way2australia_rag.ingestion.config import load_ingestion_config
+from way2australia_rag.ingestion.config import RuntimeSettings, load_ingestion_config
 from way2australia_rag.ingestion.embedding import FakeEmbedder
 from way2australia_rag.ingestion.service import IngestionService
 from way2australia_rag.ingestion.store import QdrantIndexStore
@@ -26,7 +26,9 @@ from way2australia_rag.repositories import (
 )
 from way2australia_rag.retrieval.access import resolve_access
 from way2australia_rag.retrieval.index import DenseIndex
+from way2australia_rag.retrieval.qdrant_client import retrieval_client_factory
 from way2australia_rag.retrieval.retriever import DenseRetriever
+from way2australia_rag.retrieval.strategy import QdrantTimeouts
 
 QDRANT_URL = "http://localhost:6333"
 
@@ -35,7 +37,11 @@ pytestmark = pytest.mark.integration
 
 @pytest.fixture(scope="module")
 def live_client() -> Iterator[QdrantClient]:
-    client = QdrantClient(url=QDRANT_URL, timeout=10)
+    # Bounded requests: a hanging Qdrant fails within seconds (Spec 008 T1 F3).
+    client = retrieval_client_factory(
+        RuntimeSettings.model_validate({"QDRANT_URL": QDRANT_URL}),
+        QdrantTimeouts(connect_timeout_s=5, query_timeout_s=5),
+    )
     try:
         client.get_collections()
     except Exception as error:  # any connection failure means "not reachable"

@@ -201,6 +201,23 @@ def _slice(
     return groups
 
 
+def _fallback_reason(run: ComparableRun) -> str | None:
+    path = run.info.get("latency_path")
+    if isinstance(path, str) and "+fallback:" in path:
+        return path.split("+fallback:", 1)[1]
+    return None
+
+
+def _latency_note(base: ComparableRun, candidate: ComparableRun) -> str:
+    """Latency of a fallback path includes the failed dense attempt."""
+    notes = [
+        f"{label} includes failed dense attempt: {reason}"
+        for label, run in (("base", base), ("candidate", candidate))
+        if (reason := _fallback_reason(run)) is not None
+    ]
+    return f" ({'; '.join(notes)})" if notes else ""
+
+
 def _changed(label: str, old: object, new: object) -> str | None:
     return None if old == new else f"{label}: {old} -> {new}"
 
@@ -267,19 +284,27 @@ def compare(base: ComparableRun, candidate: ComparableRun) -> Comparison:
     if not both_v2:
         lines.append(
             "note: the source_authority slice was not compared "
-            "(it exists only in 2.0 and 2.1 files; both files must be one of them)."
+            "(it exists only in 2.0, 2.1 and 2.2 files; both files must be one "
+            "of them)."
         )
     for label in ("latency_p50", "latency_p95"):
         old, new = base.info.get(label), candidate.info.get(label)
         if isinstance(old, (int, float)) and isinstance(new, (int, float)):
             lines.append(
                 f"latency {label[8:]} (informational): {old:.1f} ms -> {new:.1f} ms "
-                f"({new - old:+.1f} ms)"
+                f"({new - old:+.1f} ms)" + _latency_note(base, candidate)
             )
     for run in (base, candidate):
         if run.info.get("collection") is None:
             lines.append(
                 f"collection not recorded in {run.name}; compared by index_version only"
+            )
+    for run_ in (base, candidate):
+        requested = run_.info.get("requested_strategy")
+        if requested != run_.info.get("retrieval_strategy"):
+            lines.append(
+                f"identity: {run_.name} requested {requested} and was served by "
+                f"{run_.info.get('retrieval_strategy')}"
             )
     for label in ("retrieval_strategy", "device", "git_commit"):
         diff = _changed(label, base.info.get(label), candidate.info.get(label))

@@ -21,6 +21,7 @@ from way2australia_rag.retrieval.errors import (
 )
 from way2australia_rag.retrieval.fusion import FusionConfig, rrf_fuse
 from way2australia_rag.retrieval.hybrid import HybridRetriever
+from way2australia_rag.retrieval.identity import IndexIdentity
 from way2australia_rag.retrieval.index import DenseIndex
 from way2australia_rag.retrieval.models import RetrievalResult, RetrievedChunk
 from way2australia_rag.retrieval.retriever import DenseRetriever
@@ -55,7 +56,9 @@ def production_lexical(
 
 def real_hybrid(dense: DenseIndex, lexical: Any) -> HybridRetriever:
     return HybridRetriever(
-        DenseRetriever(dense, EMBEDDER), BM25Retriever(dense, lexical), FUSION
+        DenseRetriever(dense, EMBEDDER),
+        BM25Retriever(IndexIdentity.from_dense(dense), lexical),
+        FUSION,
     )
 
 
@@ -92,7 +95,9 @@ def test_empty_bm25_leg_keeps_the_dense_order(
 ) -> None:
     dense = dense_pair[1]
     expected = DenseRetriever(dense, EMBEDDER).retrieve(query, guest(), 5)
-    bm25 = BM25Retriever(dense, production_lexical).retrieve(query, guest(), 50)
+    bm25 = BM25Retriever(IndexIdentity.from_dense(dense), production_lexical).retrieve(
+        query, guest(), 50
+    )
     assert bm25.hits == []
     result = real_hybrid(dense, production_lexical).retrieve(query, guest(), 5)
     assert [h.point_id for h in result.hits] == [h.point_id for h in expected.hits]
@@ -192,7 +197,7 @@ def test_forbidden_bm25_hit_fails_the_whole_query(
     )
     retriever = HybridRetriever(
         DenseRetriever(dense, EMBEDDER),
-        BM25Retriever(dense, DroppedClauseIndex(lexical)),  # pyright: ignore[reportArgumentType]
+        BM25Retriever(IndexIdentity.from_dense(dense), DroppedClauseIndex(lexical)),  # pyright: ignore[reportArgumentType]
         FUSION,
     )
     with pytest.raises(RetrievalAuthorizationError) as caught:
@@ -207,7 +212,9 @@ def test_forbidden_dense_hit_fails_the_whole_query(
     forbidden = ForbiddenDenseIndex(client, dense.collection, dense.settings)
     lexical = build(tmp_path, [("pa", pub("doc_a", "secret"))])
     retriever = HybridRetriever(
-        DenseRetriever(forbidden, EMBEDDER), BM25Retriever(dense, lexical), FUSION
+        DenseRetriever(forbidden, EMBEDDER),
+        BM25Retriever(IndexIdentity.from_dense(dense), lexical),
+        FUSION,
     )
     with pytest.raises(RetrievalAuthorizationError):
         retriever.retrieve("secret", guest(), 5)

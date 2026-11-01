@@ -30,6 +30,7 @@ from way2australia_rag.ingestion.store import IndexPoint, QdrantIndexStore
 from way2australia_rag.retrieval.access import build_access_filter
 from way2australia_rag.retrieval.base import Strategy
 from way2australia_rag.retrieval.errors import RetrievalConfigurationError
+from way2australia_rag.retrieval.identity import IndexIdentity
 from way2australia_rag.retrieval.index import DenseIndex
 from way2australia_rag.retrieval.retriever import DenseRetriever
 
@@ -101,7 +102,9 @@ def suite_of(goldens: list[GoldenCase], status: str = "active", **kw: Any):  # n
 def run(index, emb, retriever, suite, **over):  # noqa: ANN001, ANN003, ANN201
     args: dict[str, Any] = {
         "retriever": retriever,
-        "index": index,
+        "identity": IndexIdentity.from_dense(index),
+        "document_count": index.document_count(build_access_filter(guest())),
+        "index_settings": index.settings,
         "embedder": emb,
         "access": guest(),
         "suite": suite,
@@ -146,7 +149,7 @@ def test_field_set_is_a_superset_of_the_1_0_keys() -> None:
         "small_sample_threshold",
     ):
         assert key in doc, key
-    assert doc["schema_version"] == "2.1" and doc["kind"] == "retrieval_evaluation"
+    assert doc["schema_version"] == "2.2" and doc["kind"] == "retrieval_evaluation"
     assert doc["case_count"] == 3 and doc["excluded_case_count"] == 1
     assert doc["evaluation_suite"]["excluded_by_status"]["golden_answerable"] == {
         "deprecated": 1
@@ -444,3 +447,157 @@ def test_no_unanswerable_query_text_in_the_document(tmp_path: Path) -> None:
     out = tmp_path / "r.json"
     write_document(out, doc)
     assert SECRET_UNANSWERABLE not in out.read_text()
+
+
+# ---- Spec 008 R8: result 2.2, served strategy and fallback --------------------
+
+
+class Scripted:
+    """A hybrid-requesting retriever whose served path is scripted per call."""
+
+    strategy = Strategy.HYBRID
+
+    def __init__(self, inner, serve):  # noqa: ANN001
+        self._inner = inner
+        self._serve = serve  # call index -> reason or None
+        self.calls = 0
+
+    def retrieve(self, query, access, top_k):  # noqa: ANN001, ANN202
+        result = self._inner.retrieve(query, access, top_k)
+        reason = self._serve(self.calls)
+        self.calls += 1
+        if reason is None:
+            return result.model_copy(
+                update={
+                    "strategy": "hybrid",
+                    "score_kind": "rrf",
+                    "requested_strategy": "hybrid",
+                }
+            )
+        return result.model_copy(
+            update={
+                "strategy": "bm25",
+                "score_kind": "bm25",
+                "requested_strategy": "hybrid",
+                "fallback_reason": reason,
+                "latency_ms": 5.0,
+            }
+        )
+
+
+def fusion_config():  # noqa: ANN202
+    from way2australia_rag.retrieval.strategy import load_retrieval_config
+
+    return load_retrieval_config(REPO_ROOT / "config/retrieval.yaml").fusion
+
+
+def scripted_run(serve, *, standalone: bool = False, **over):  # noqa: ANN001, ANN003, ANN202
+    index, emb, inner = build()
+    identity = IndexIdentity.from_dense(index)
+    extra: dict[str, Any] = {"fusion": fusion_config()}
+    if standalone:
+        identity = identity.model_copy(update={"source": "lexical_file"})
+        extra["index_settings"] = None
+    extra.update(over)
+    return run(
+        index,
+        emb,
+        Scripted(inner, serve),
+        suite_with_unanswerable(),
+        identity=identity,
+        **extra,
+    )
+
+
+def test_2_2_keys_on_a_plain_run() -> None:
+    index, emb, retriever = build()
+    doc = run(index, emb, retriever, suite_with_unanswerable())
+    assert doc["schema_version"] == "2.2"
+    assert doc["requested_strategy"] == doc["retrieval_strategy"] == "dense"
+    assert doc["served_strategies"] == ["dense"]
+    assert doc["fallback_counts"] == {} and doc["warmup_fallback_reason"] is None
+    assert doc["qdrant_timeouts"] is None  # not passed by this caller
+    assert doc["dense_identity"]["collection"] == doc["collection"]
+    assert doc["index_settings"] is not None
+    assert doc["latency_ms"]["by_served_path"]["dense"]["n"] == doc["case_count"]
+    assert doc["unanswerable"]["served_strategies"] == ["dense"]
+
+
+def test_fully_fallback_run_has_one_path_and_top_level_values() -> None:
+    doc = scripted_run(lambda _i: "qdrant_unavailable", standalone=True)
+    assert doc["requested_strategy"] == "hybrid"
+    assert doc["served_strategies"] == ["bm25"]
+    assert doc["retrieval_strategy"] == "bm25" and doc["score_kind"] == "bm25"
+    assert doc["index_settings"] is None
+    assert doc["dense_identity"]["source"] == "lexical_file"
+    total = doc["case_count"] + doc["unanswerable"]["n"]
+    assert doc["fallback_counts"] == {"qdrant_unavailable": total}
+    assert doc["warmup_fallback_reason"] == "qdrant_unavailable"
+    assert doc["fusion"] is None  # nothing was served by hybrid
+    paths = doc["latency_ms"]["by_served_path"]
+    assert list(paths) == ["bm25+fallback:qdrant_unavailable"]
+    assert doc["latency_ms"]["p50"] == paths[next(iter(paths))]["p50"] == 5.0
+    for row in doc["cases"]:
+        assert row["served_strategy"] == "bm25"
+        assert row["fallback_reason"] == "qdrant_unavailable"
+        assert row["leg_ranks"]["dense"] is None
+    assert doc["unanswerable"]["score_kind"] == "bm25"
+    assert doc["unanswerable"]["top1_score"] is not None
+
+
+def test_mixed_run_nulls_the_single_values_and_keeps_two_paths() -> None:
+    # warm-up is call 0; fall back on the first measured golden only
+    doc = scripted_run(lambda i: "qdrant_timeout" if i == 1 else None)
+    assert doc["served_strategies"] == ["bm25", "hybrid"]
+    assert doc["retrieval_strategy"] is None and doc["score_kind"] is None
+    assert doc["fallback_counts"] == {"qdrant_timeout": 1}
+    assert doc["warmup_fallback_reason"] is None
+    assert doc["fusion"] is not None  # some case was served by hybrid
+    assert len(doc["latency_ms"]["by_served_path"]) == 2
+    assert doc["latency_ms"]["p50"] is None and doc["latency_ms"]["p95"] is None
+    unanswerable = doc["unanswerable"]
+    assert unanswerable["score_kind"] is None
+    assert unanswerable["top1_score"] is None
+    assert unanswerable["golden_top1_score"] is None
+    assert unanswerable["cases"]  # rows are kept
+    assert [c["served_strategy"] for c in doc["cases"]][0] == "bm25"
+    assert doc["metrics"]["overall"]["n"] == doc["case_count"]  # all cases counted
+
+
+@pytest.mark.parametrize("strategy", [Strategy.DENSE, Strategy.HYBRID])
+def test_index_settings_none_is_refused_when_qdrant_served(strategy: Strategy) -> None:
+    index, emb, retriever = build()
+    if strategy == Strategy.HYBRID:
+        retriever = Scripted(retriever, lambda _i: None)
+    with pytest.raises(EvaluationConfigurationError, match="index_settings"):
+        run(
+            index,
+            emb,
+            retriever,
+            basic_suite(),
+            index_settings=None,
+            fusion=fusion_config(),
+        )
+
+
+def test_index_settings_none_is_accepted_for_standalone_bm25_and_open_fallback() -> (
+    None
+):
+    index, emb, inner = build()
+
+    class Bm25Only:
+        strategy = Strategy.BM25
+
+        def retrieve(self, query, access, top_k):  # noqa: ANN001, ANN202
+            return inner.retrieve(query, access, top_k).model_copy(
+                update={
+                    "strategy": "bm25",
+                    "score_kind": "bm25",
+                    "requested_strategy": "bm25",
+                }
+            )
+
+    doc = run(index, emb, Bm25Only(), basic_suite(), index_settings=None, embedder=None)
+    assert doc["index_settings"] is None and doc["retrieval_strategy"] == "bm25"
+    fallback = scripted_run(lambda _i: "qdrant_unavailable", standalone=True)
+    assert fallback["index_settings"] is None  # hybrid open-time fallback

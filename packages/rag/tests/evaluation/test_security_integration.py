@@ -15,7 +15,7 @@ from conftest import REPO_ROOT
 from qdrant_client import QdrantClient
 from way2australia_core import AccessContext, Role
 from way2australia_rag.evaluation.security_eval import (
-    STRATEGIES,
+    PATHS,
     run_security_evaluation,
     select_security_queries,
 )
@@ -32,7 +32,6 @@ from way2australia_rag.repositories import (
     LocalRepositoryConfig,
 )
 from way2australia_rag.retrieval.access import resolve_access
-from way2australia_rag.retrieval.base import Strategy
 from way2australia_rag.retrieval.strategy import load_retrieval_config
 
 QDRANT_URL = "http://localhost:6333"
@@ -55,15 +54,16 @@ def live_client() -> Iterator[QdrantClient]:
     client.close()
 
 
-@pytest.mark.parametrize("strategy", [s.value for s in STRATEGIES])
+@pytest.mark.parametrize("path", PATHS)
 def test_server_filter_keeps_every_forbidden_point_out(
-    strategy: str,
+    path: str,
     live_client: QdrantClient,
     security_repository: LocalDocumentRepository,
     tmp_path: Path,
 ) -> None:
-    """Spec 007 R12: dense, bm25 and hybrid on the real server, one strategy per
-    run; the lexical file lives in `tmp_path`."""
+    """Spec 007 R12 and Spec 008 R10: every gated path on the real server, one
+    path per run (`hybrid_fallback_query` included: a live Qdrant with an
+    unavailable dense leg); the lexical file lives in `tmp_path`."""
     suite = load_suite(REPO_ROOT, "evaluation/suites/public-eval-v2.json")
     queries, deferred = select_security_queries(suite)
     base = f"w2a-sectest-{uuid.uuid4().hex[:8]}"
@@ -85,9 +85,9 @@ def test_server_filter_keeps_every_forbidden_point_out(
         )
         config = load_retrieval_config(REPO_ROOT / "config/retrieval.yaml")
         report = run_security_evaluation(
-            index, access, queries, deferred, config, [Strategy(strategy)]
+            index, access, queries, deferred, config, [path]
         )
-        assert report.strategies == (strategy,)
+        assert report.paths == (path,)
         assert report.violations == []
         assert report.query_count == len(queries)
         assert index.lexical_rows_per_variant == index.points_per_variant

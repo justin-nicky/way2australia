@@ -1,11 +1,12 @@
-"""Result document constants, reading (1.0, 2.0, 2.1) and writing (Spec 006 R7,
-Spec 007 R9).
+"""Result document constants, reading (1.0, 2.0, 2.1, 2.2) and writing (Spec 006 R7,
+Spec 007 R9, Spec 008 R9).
 
 Writing goes through the unchanged `retrieval.baseline.write_result`: exclusive
 create, never overwritten, partial file removed on failure.
 """
 
 import json
+from collections import Counter
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -20,16 +21,17 @@ from way2australia_rag.retrieval.baseline import (
 from way2australia_rag.retrieval.text import safe_text
 
 RESULT_KIND = "retrieval_evaluation"
-SCHEMA_VERSION = "2.1"
+SCHEMA_VERSION = "2.2"
 LEGACY_KIND = "retrieval_baseline"
 LEGACY_SCHEMA_VERSION = "1.0"
 SUPPORTED_FORMATS = {
     (LEGACY_KIND, LEGACY_SCHEMA_VERSION),
     (RESULT_KIND, "2.0"),
+    (RESULT_KIND, "2.1"),
     (RESULT_KIND, SCHEMA_VERSION),
 }
 # Versions whose case rows carry `source_authority` (2.0 and later).
-AUTHORITY_VERSIONS = {"2.0", SCHEMA_VERSION}
+AUTHORITY_VERSIONS = {"2.0", "2.1", SCHEMA_VERSION}
 
 __all__ = [
     "CaseRow",
@@ -96,7 +98,7 @@ def _num(value: object) -> bool:
 
 
 def read_result(path: Path, label: str = "result") -> ComparableRun:
-    """Read a `retrieval_baseline` 1.0 or `retrieval_evaluation` 2.0 or 2.1 file.
+    """Read a `retrieval_baseline` 1.0 or `retrieval_evaluation` 2.0, 2.1 or 2.2 file.
 
     Anything else raises `NotComparableError` (exit 2 in the CLI). Only the file
     name appears in messages.
@@ -114,12 +116,46 @@ def read_result(path: Path, label: str = "result") -> ComparableRun:
             label,
             name,
             f"has kind {kind!r} and schema_version {version!r} "
-            "(supported: retrieval_baseline 1.0, retrieval_evaluation 2.0 and 2.1)",
+            "(supported: retrieval_baseline 1.0, "
+            "retrieval_evaluation 2.0, 2.1 and 2.2)",
         )
     try:
         return _build_run(name, raw, str(kind), str(version), label)
     except (KeyError, TypeError, ValueError, AttributeError) as error:
         raise _unreadable(label, name, "is malformed or incomplete") from error
+
+
+def _served_strategy(raw: dict[str, Any], name: str, label: str) -> tuple[str, str]:
+    """The single served strategy of a 2.2 file and its requested strategy.
+
+    A file that mixes served strategies (or whose case rows disagree with its
+    `served_strategies`) is refused: no single strategy describes it."""
+    served = raw["served_strategies"]
+    requested = raw["requested_strategy"]
+    if not (
+        isinstance(served, list)
+        and served
+        and all(isinstance(x, str) for x in served)
+        and isinstance(requested, str)
+    ):
+        raise ValueError("malformed")
+    counts = Counter(str(item["served_strategy"]) for item in raw["cases"])
+    if len(served) > 1 or set(counts) - set(served):
+        detail = (
+            "golden cases "
+            + ", ".join(f"{k}: {v}" for k, v in sorted(counts.items()))
+            + "; served_strategies: "
+            + ", ".join(sorted(set(served) | set(counts)))
+        )
+        raise _mixed(label, name, detail)
+    return served[0], requested
+
+
+def _mixed(label: str, name: str, detail: str) -> NotComparableError:
+    return NotComparableError(
+        f"not comparable: {label} file '{name}' mixes served strategies "
+        f"({detail}); re-run when the system is stable."
+    )
 
 
 def _build_run(
@@ -162,11 +198,20 @@ def _build_run(
             source_authority=None if authority is None else str(authority),
         )
     settings = raw.get("index_settings") or {}
+    identity = raw.get("dense_identity") if version == "2.2" else None
+    if not isinstance(identity, dict):
+        identity = {}
     latency = raw.get("latency_ms") or {}
-    lexical = raw.get("lexical_index")  # 2.1 only; 1.0 and 2.0 have none
+    lexical = raw.get("lexical_index")  # 2.1 and later; 1.0 and 2.0 have none
     strategy = raw.get("retrieval_strategy") or "dense"
+    requested = strategy
+    latency_path = None
+    if version == "2.2":
+        strategy, requested = _served_strategy(raw, name, label)
+        paths = latency.get("by_served_path") or {}
+        latency_path = next(iter(paths)) if len(paths) == 1 else None
     if (
-        version == "2.1"
+        version in ("2.1", "2.2")
         and strategy in ("bm25", "hybrid")
         and not isinstance(lexical, dict)
     ):
@@ -175,17 +220,24 @@ def _build_run(
             label, name, f"is a {strategy} run without a lexical_index object"
         )
     info = {
-        # 1.0 and 2.0 files are dense runs.
+        # 1.0 and 2.0 files are dense runs; 2.2 records the served strategy.
         "retrieval_strategy": strategy,
+        "requested_strategy": requested,
         "lexical": lexical if isinstance(lexical, dict) else None,
         "collection": raw.get("collection"),
         "index_version": raw.get("index_version"),
-        "embedder_model_id": settings.get("embedder_model_id"),
-        "embedder_revision": settings.get("embedder_revision"),
+        # the settings recorded in Qdrant, else the configured identity (2.2)
+        "embedder_model_id": settings.get(
+            "embedder_model_id", identity.get("embedder_model_id")
+        ),
+        "embedder_revision": settings.get(
+            "embedder_revision", identity.get("embedder_revision")
+        ),
         "device": raw.get("device"),
         "git_commit": raw.get("git_commit"),
         "latency_p50": latency.get("p50"),
         "latency_p95": latency.get("p95"),
+        "latency_path": latency_path,
     }
     return ComparableRun(
         name=name,

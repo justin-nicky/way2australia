@@ -12,13 +12,15 @@ import json
 import sqlite3
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, NamedTuple
 from urllib.parse import quote
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
+from way2australia_rag.ingestion.chunking import Chunker
 from way2australia_rag.lexical.tokenizer import TOKENIZER_NAME, TOKENIZER_VERSION
 from way2australia_rag.retrieval.errors import IndexBindingError, RetrievalError
+from way2australia_rag.retrieval.identity import IndexIdentity
 from way2australia_rag.retrieval.index import DenseIndex
 
 SETTINGS_SCHEMA_VERSION = "1.0"
@@ -114,6 +116,27 @@ class LexicalSettings(BaseModel):
 
 
 ChunkIdentity = tuple[str, str, int, str]  # point_id, document_id, version, hash
+
+
+class ChunkSetDifference(NamedTuple):
+    """Counts only. `only_expected`: points the reference has and the file lacks;
+    `only_mine`: the reverse; `changed`: same point, other version or hash."""
+
+    only_expected: int
+    only_mine: int
+    changed: int
+
+
+def chunk_set_difference(
+    expected: Iterable[ChunkIdentity], mine: Iterable[ChunkIdentity]
+) -> ChunkSetDifference:
+    expected_set = set(expected)
+    mine_set = set(mine)
+    only_expected = {i[0] for i in expected_set} - {i[0] for i in mine_set}
+    only_mine = {i[0] for i in mine_set} - {i[0] for i in expected_set}
+    by_id = {i[0]: i for i in expected_set}
+    changed = sum(1 for i in mine_set if i[0] in by_id and by_id[i[0]] != i)
+    return ChunkSetDifference(len(only_expected), len(only_mine), changed)
 
 
 def source_chunk_digest(identities: Iterable[ChunkIdentity]) -> str:
@@ -276,19 +299,68 @@ class LexicalIndex:
         qdrant = set(dense.chunk_identities())
         if source_chunk_digest(qdrant) == s.source_chunk_digest:
             return
-        mine = self._chunk_identities()
-        only_dense = {i[0] for i in qdrant} - {i[0] for i in mine}
-        only_lexical = {i[0] for i in mine} - {i[0] for i in qdrant}
-        by_id = {i[0]: i for i in qdrant}
-        changed = sum(1 for i in mine if i[0] in by_id and by_id[i[0]] != i)
+        diff = chunk_set_difference(qdrant, self.chunk_identities())
         raise LexicalIndexBindingError(
             f"lexical index '{self.label}' has a different chunk set than the "
-            f"dense index (points only in the dense index: {len(only_dense)}; "
-            f"only in the lexical index: {len(only_lexical)}; with different "
-            f"document_version or content_hash: {changed}). {REBUILD_ADVICE}"
+            f"dense index (points only in the dense index: {diff.only_expected}; "
+            f"only in the lexical index: {diff.only_mine}; with different "
+            f"document_version or content_hash: {diff.changed}). {REBUILD_ADVICE}"
         )
 
-    def _chunk_identities(self) -> set[ChunkIdentity]:
+    def check_identity(
+        self, expected: IndexIdentity, chunker: Chunker, hash_contract: str
+    ) -> None:
+        """Refuse unless this file was built for `expected`, `chunker` and
+        `hash_contract`. Names fields and identity values only."""
+        s = self.settings
+        differences = _differences(
+            (
+                (
+                    "dense_identity.collection",
+                    s.dense_identity.collection,
+                    expected.collection,
+                ),
+                (
+                    "dense_identity.index_version",
+                    s.dense_identity.index_version,
+                    expected.index_version,
+                ),
+                (
+                    "dense_identity.embedder_model_id",
+                    s.dense_identity.embedder_model_id,
+                    expected.embedder_model_id,
+                ),
+                (
+                    "dense_identity.embedder_revision",
+                    s.dense_identity.embedder_revision,
+                    expected.embedder_revision,
+                ),
+                ("chunker_name", s.chunker_name, chunker.name),
+                ("chunker_version", s.chunker_version, chunker.version),
+                (
+                    "chunker_max_chunk_chars",
+                    s.chunker_max_chunk_chars,
+                    chunker.max_chunk_chars,
+                ),
+                ("hash_contract", s.hash_contract, hash_contract),
+            )
+        )
+        if differences:
+            raise LexicalIndexBindingError(
+                f"lexical index '{self.label}' does not match the configured "
+                f"index ({differences}). {REBUILD_ADVICE}"
+            )
+
+    def document_count(self, where_sql: str, params: tuple[Any, ...]) -> int:
+        """Distinct documents under the access clause (`where_sql` comes from
+        the access-clause builder and refers to the table as `c`)."""
+        row = self._connection.execute(
+            f"SELECT COUNT(DISTINCT c.document_id) FROM chunks c WHERE {where_sql}",  # noqa: S608
+            params,
+        ).fetchone()
+        return int(row[0])
+
+    def chunk_identities(self) -> set[ChunkIdentity]:
         rows = self._connection.execute(
             "SELECT point_id, document_id, document_version, content_hash FROM chunks"
         ).fetchall()

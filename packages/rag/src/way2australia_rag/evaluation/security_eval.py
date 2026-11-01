@@ -1,13 +1,15 @@
-"""Authorization hard gate over a throwaway security index (Spec 006 R8).
+"""Authorization hard gate over a throwaway security index (Spec 006 R8, Spec 008 R10).
 
 Every retrieval-side security case and every active golden query runs through
-the production `dense`, `bm25` and `hybrid` retrievers (built by
-`build_retriever`) with the one server-resolved `ResolvedAccess` passed in. A
+five paths: the production `dense`, `bm25` and `hybrid` retrievers (built by
+`build_retriever`), and the two `hybrid` fallback paths (`hybrid_fallback_open`,
+`hybrid_fallback_query`), with the one server-resolved `ResolvedAccess` passed in. A
 case's own `access_context` is never consulted, and query text never reaches the
 filter. A forbidden document in the results, or a `check_hit` failure, is a
 violation. Violations name `case_id`, `document_id` and variant, never text.
 """
 
+import asyncio
 import sqlite3
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -24,12 +26,23 @@ from way2australia_rag.evaluation.security_index import (
     is_forbidden_document,
 )
 from way2australia_rag.ingestion.store import DENSE_VECTOR_NAME
+from way2australia_rag.lexical.build import production_entries
+from way2australia_rag.lexical.store import LexicalIndex, LexicalIndexBindingError
 from way2australia_rag.lexical.tokenizer import query_terms
+from way2australia_rag.repositories.hashing import HASH_CONTRACT
 from way2australia_rag.retrieval.access import ResolvedAccess
 from way2australia_rag.retrieval.base import Retriever, Strategy
 from way2australia_rag.retrieval.baseline import git_state
-from way2australia_rag.retrieval.bm25 import match_expression
-from way2australia_rag.retrieval.errors import RetrievalAuthorizationError
+from way2australia_rag.retrieval.bm25 import BM25Retriever, match_expression
+from way2australia_rag.retrieval.errors import (
+    FallbackReason,
+    RetrievalAuthorizationError,
+    RetrievalUnavailableError,
+)
+from way2australia_rag.retrieval.fallback import FallbackRetriever
+from way2australia_rag.retrieval.hybrid import HybridRetriever
+from way2australia_rag.retrieval.identity import IndexIdentity
+from way2australia_rag.retrieval.models import RetrievalResult
 from way2australia_rag.retrieval.retriever import MAX_TOP_K
 from way2australia_rag.retrieval.strategy import RetrievalConfig, build_retriever
 from way2australia_rag.retrieval.text import safe_text
@@ -63,6 +76,13 @@ EXCLUDED_FIXTURES = [
 ]
 SANITY_LIMIT = 5
 STRATEGIES = (Strategy.DENSE, Strategy.BM25, Strategy.HYBRID)
+PATH_DENSE = "dense"
+PATH_BM25 = "bm25"
+PATH_HYBRID = "hybrid"
+PATH_FALLBACK_OPEN = "hybrid_fallback_open"
+PATH_FALLBACK_QUERY = "hybrid_fallback_query"
+PATHS = (PATH_DENSE, PATH_BM25, PATH_HYBRID, PATH_FALLBACK_OPEN, PATH_FALLBACK_QUERY)
+_FALLBACK_PATHS = frozenset({PATH_FALLBACK_OPEN, PATH_FALLBACK_QUERY})
 LEXICAL_SANITY_SQL = (
     "SELECT c.document_id FROM chunk_terms "
     "JOIN chunks c ON c.rowid = chunk_terms.rowid "
@@ -73,6 +93,7 @@ __all__ = [
     "DEFERRED_OWNERS",
     "EXCLUDED_FIXTURES",
     "FORBIDDEN_VARIANTS",
+    "PATHS",
     "RETRIEVAL_SIDE_ATTACK_TYPES",
     "SECURITY_COLLECTION_PREFIX",
     "SecurityQuery",
@@ -97,9 +118,17 @@ class SecurityReport:
     security_case_count: int = 0
     golden_query_count: int = 0
     bm25_no_term_queries: int = 0
-    strategies: tuple[str, ...] = tuple(s.value for s in STRATEGIES)
+    paths: tuple[str, ...] = PATHS
     violations: list[dict[str, str]] = field(default_factory=list)
     deferred: list[dict[str, Any]] = field(default_factory=list)
+
+    @property
+    def strategies(self) -> tuple[str, ...]:
+        """The distinct strategies the gated paths exercise, in path order."""
+        seen: dict[str, None] = {}
+        for path in self.paths:
+            seen.setdefault(_path_strategy(path), None)
+        return tuple(seen)
 
     @property
     def passed(self) -> bool:
@@ -139,7 +168,7 @@ def run_security_evaluation(
     queries: Sequence[SecurityQuery],
     deferred: Sequence[dict[str, Any]],
     retrieval_config: RetrievalConfig,
-    strategies: Sequence[Strategy] = STRATEGIES,
+    paths: Sequence[str] = PATHS,
 ) -> SecurityReport:
     """Run the gate. `queries` must be the ones the index was built for, in order.
 
@@ -151,18 +180,8 @@ def run_security_evaluation(
         raise EvaluationHarnessError(
             "the queries do not match the ones the security index was built for."
         )
-    retrievers = [
-        (
-            strategy,
-            build_retriever(
-                strategy, index.dense, index.embedder, index.lexical, retrieval_config
-            ),
-        )
-        for strategy in strategies
-    ]
-    report = SecurityReport(
-        deferred=list(deferred), strategies=tuple(s.value for s in strategies)
-    )
+    retrievers = _retrievers(index, retrieval_config, paths)
+    report = SecurityReport(deferred=list(deferred), paths=tuple(paths))
     sanity = _open_lexical_sanity(index)
     try:
         for query in queries:
@@ -172,8 +191,8 @@ def run_security_evaluation(
                 _lexical_sanity_check(sanity, query, terms)
             else:
                 report.bm25_no_term_queries += 1
-            for strategy, retriever in retrievers:
-                _gate(report, strategy, retriever, query, access)
+            for path, retriever in retrievers:
+                _gate(report, path, retriever, query, access)
             report.query_count += 1
             if query.kind == "security":
                 report.security_case_count += 1
@@ -184,15 +203,138 @@ def run_security_evaluation(
     return report
 
 
+class _UnavailableDense:
+    """Harness-only dense leg that is always unavailable (Spec 008 R10).
+
+    Constructed only by this gate, for the `hybrid_fallback_query` path. No flag,
+    environment variable or config value reaches it."""
+
+    strategy = Strategy.DENSE
+
+    def retrieve(
+        self, query_text: str, access: ResolvedAccess, top_k: int = 5
+    ) -> RetrievalResult:
+        raise RetrievalUnavailableError(FallbackReason.QDRANT_UNAVAILABLE)
+
+
+def _path_strategy(path: str) -> str:
+    if path in (PATH_DENSE, PATH_BM25):
+        return path
+    return Strategy.HYBRID.value
+
+
+def _retrievers(
+    index: SecurityIndex, config: RetrievalConfig, paths: Sequence[str]
+) -> list[tuple[str, Retriever]]:
+    """One retriever per gated path, all over the one throwaway index."""
+    identity = IndexIdentity.from_dense(index.dense)
+    built: list[tuple[str, Retriever]] = []
+    for path in paths:
+        retriever: Retriever
+        if path == PATH_DENSE:
+            retriever = build_retriever(
+                Strategy.DENSE,
+                identity,
+                index.dense,
+                index.embedder,
+                index.lexical,
+                config,
+            )
+        elif path == PATH_BM25:
+            _check_standalone_open(index, identity)
+            # The production standalone shape: no dense index, no embedder.
+            retriever = build_retriever(
+                Strategy.BM25, identity, None, None, index.lexical, config
+            )
+        elif path == PATH_HYBRID:
+            retriever = build_retriever(
+                Strategy.HYBRID,
+                identity,
+                index.dense,
+                index.embedder,
+                index.lexical,
+                config,
+            )
+        elif path == PATH_FALLBACK_OPEN:
+            retriever = FallbackRetriever(
+                None,
+                BM25Retriever(identity, index.lexical),
+                FallbackReason.QDRANT_UNAVAILABLE,
+            )
+        elif path == PATH_FALLBACK_QUERY:
+            bm25 = BM25Retriever(identity, index.lexical)
+            retriever = FallbackRetriever(
+                HybridRetriever(_UnavailableDense(), bm25, config.fusion), bm25, None
+            )
+        else:
+            raise EvaluationHarnessError(f"unknown gate path '{path}'.")
+        built.append((path, retriever))
+    return built
+
+
+def _check_standalone_open(index: SecurityIndex, identity: IndexIdentity) -> None:
+    """The production standalone open on the throwaway file: identity against the
+    throwaway collection, then freshness of the seed chunks.
+
+    `verify_fresh` cannot run as is: the file also holds the synthetic forbidden
+    rows, which no repository document produces. So freshness is checked as
+    "every chunk the seed repository and chunker produce is in the file, with the
+    same version and hash". No Qdrant client and no embedder are used."""
+    lexical = LexicalIndex.open(
+        index.lexical_path, identity.collection, identity.index_version
+    )
+    try:
+        lexical.check_identity(identity, index.chunker, HASH_CONTRACT)
+        entries = asyncio.run(production_entries(index.seed_repository, index.chunker))
+        in_file = lexical.chunk_identities()
+        missing = [
+            point
+            for point, payload in entries
+            if (
+                point,
+                str(payload["document_id"]),
+                int(payload["document_version"]),
+                str(payload["content_hash"]),
+            )
+            not in in_file
+        ]
+    except LexicalIndexBindingError as error:
+        raise EvaluationHarnessError(
+            f"the security lexical file fails the standalone open: {safe_text(error)}"
+        ) from None
+    finally:
+        lexical.close()
+    if missing:
+        raise EvaluationHarnessError(
+            f"the security lexical file is stale against the seed repository "
+            f"({len(missing)} chunk(s) missing)."
+        )
+
+
 def _gate(
     report: SecurityReport,
-    strategy: Strategy,
+    path: str,
     retriever: Retriever,
     query: SecurityQuery,
     access: ResolvedAccess,
 ) -> None:
     try:
         result = retriever.retrieve(query.text, access, top_k=MAX_TOP_K)
+        if path in _FALLBACK_PATHS and (
+            result.fallback_reason != FallbackReason.QDRANT_UNAVAILABLE.value
+            or result.strategy != Strategy.BM25.value
+        ):
+            # A fallback path that did not fall back would gate nothing.
+            raise EvaluationHarnessError(
+                f"path '{path}' did not serve BM25 as the fallback for case "
+                f"'{query.case_id}', so the gate would be vacuous."
+            )
+        if path not in _FALLBACK_PATHS and result.fallback_reason is not None:
+            # A plain path that fell back gated a different strategy than named.
+            raise EvaluationHarnessError(
+                f"path '{path}' fell back ({result.fallback_reason}) for case "
+                f"'{query.case_id}', so it did not gate the strategy it names."
+            )
     except RetrievalAuthorizationError as error:
         # The store returned a point the policy forbids; the error carries the
         # hit's document ID.
@@ -200,7 +342,8 @@ def _gate(
         report.violations.append(
             {
                 "case_id": query.case_id,
-                "strategy": strategy.value,
+                "path": path,
+                "strategy": _path_strategy(path),
                 "document_id": safe_text(document_id),
                 "variant": (
                     forbidden_variant(document_id)
@@ -216,7 +359,8 @@ def _gate(
             report.violations.append(
                 {
                     "case_id": query.case_id,
-                    "strategy": strategy.value,
+                    "path": path,
+                    "strategy": _path_strategy(path),
                     "document_id": hit.document_id,
                     "variant": forbidden_variant(hit.document_id),
                 }
@@ -271,7 +415,7 @@ def _lexical_sanity_check(
 
 
 SECURITY_RESULT_KIND = "security_evaluation"
-SECURITY_SCHEMA_VERSION = "1.1"
+SECURITY_SCHEMA_VERSION = "1.2"
 
 
 def security_document(
@@ -313,6 +457,7 @@ def security_document(
         "query_count": report.query_count,
         "security_cases_run": report.security_case_count,
         "golden_queries_run": report.golden_query_count,
+        "paths": list(report.paths),
         "strategies": list(report.strategies),
         "bm25_no_term_queries": report.bm25_no_term_queries,
         "violations": report.violations,
