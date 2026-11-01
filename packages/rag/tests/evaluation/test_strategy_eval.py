@@ -69,11 +69,16 @@ RETRIEVAL_CONFIG = load_retrieval_config(REPO_ROOT / "config/retrieval.yaml")
 # ---- dense equivalence ------------------------------------------------------
 
 
-def test_dense_2_1_equals_the_pre_change_2_0_result() -> None:
+def test_dense_2_2_equals_the_pre_change_2_0_result() -> None:
     before = json.loads(FIXTURE.read_text(encoding="utf-8"))
     after = run_equivalence()
-    assert before["schema_version"] == "2.0" and after["schema_version"] == "2.1"
-    new_row_keys = {"query_terms_truncated", "leg_ranks"}
+    assert before["schema_version"] == "2.0" and after["schema_version"] == "2.2"
+    new_row_keys = {
+        "query_terms_truncated",
+        "leg_ranks",
+        "served_strategy",
+        "fallback_reason",
+    }
     assert len(after["cases"]) == len(before["cases"]) > 0
     for old, new in zip(before["cases"], after["cases"], strict=True):
         assert {k: v for k, v in new.items() if k not in new_row_keys} == old
@@ -96,10 +101,22 @@ def test_dense_2_1_equals_the_pre_change_2_0_result() -> None:
     assert after["latency_ms"]["legs"] is None
     unanswerable = dict(after["unanswerable"])
     assert unanswerable.pop("score_kind") == "dense_cosine"
+    assert unanswerable.pop("served_strategies") == ["dense"]
     assert unanswerable == before["unanswerable"]
     assert after["score_kind"] == "dense_cosine"
     assert after["fusion"] is None and after["lexical_index"] is None
     assert after["truncated_query_count"] is None
+    # 2.2 additions on a no-fallback run (Spec 008 R8)
+    assert after["requested_strategy"] == after["retrieval_strategy"] == "dense"
+    assert after["served_strategies"] == ["dense"] and after["fallback_counts"] == {}
+    assert after["warmup_fallback_reason"] is None
+    assert after["dense_identity"]["source"] == "qdrant"
+    assert list(after["latency_ms"]["by_served_path"]) == ["dense"]
+    assert after["unanswerable"]["served_strategies"] == ["dense"]
+    assert all(
+        c["served_strategy"] == "dense" and c["fallback_reason"] is None
+        for c in after["cases"]
+    )
 
 
 def test_dense_latency_span_ends_after_check_hit(
@@ -221,11 +238,11 @@ COMMON_KEYS = {
         (Strategy.HYBRID, "rrf"),
     ],
 )
-def test_2_1_keys_for_each_strategy(
+def test_2_2_keys_for_each_strategy(
     tmp_path: Path, strategy: Strategy, score_kind: str
 ) -> None:
     doc = run_strategy(tmp_path, strategy)
-    assert doc["schema_version"] == "2.1"
+    assert doc["schema_version"] == "2.2"
     assert COMMON_KEYS <= set(doc)
     assert doc["retrieval_strategy"] == strategy.value
     assert doc["score_kind"] == score_kind
@@ -441,7 +458,7 @@ def eval_world(lexical_dir: Path, strategy: str = "hybrid"):  # noqa: ANN202
 
 
 @pytest.mark.parametrize("strategy", ["dense", "bm25", "hybrid"])
-def test_eval_cli_writes_a_2_1_result_without_text(
+def test_eval_cli_writes_a_2_2_result_without_text(
     tmp_path: Path,
     lexical_env: Path,
     capsys: pytest.CaptureFixture[str],
@@ -452,7 +469,7 @@ def test_eval_cli_writes_a_2_1_result_without_text(
     assert eval_cli(factory, "--strategy", strategy, "--output", str(out)) == 0
     text = out.read_text(encoding="utf-8")
     doc = json.loads(text)
-    assert doc["schema_version"] == "2.1" and doc["retrieval_strategy"] == strategy
+    assert doc["schema_version"] == "2.2" and doc["retrieval_strategy"] == strategy
     queries = [
         r["query"]
         for kind in ("golden_answerable", "unanswerable_refusal")
@@ -673,12 +690,12 @@ def test_committed_1_0_and_2_0_files_read_as_dense(name: str, version: str) -> N
     assert run_.info["lexical"] is None
 
 
-def test_a_2_1_file_reads_with_strategy_and_lexical(tmp_path: Path) -> None:
+def test_a_2_2_file_reads_with_strategy_and_lexical(tmp_path: Path) -> None:
     doc = run_strategy(tmp_path / "w", Strategy.HYBRID)
     path = tmp_path / "r.json"
     path.write_text(json.dumps(doc), encoding="utf-8")
     run_ = read_result(path)
-    assert run_.schema_version == "2.1"
+    assert run_.schema_version == "2.2"
     assert run_.info["retrieval_strategy"] == "hybrid"
     assert run_.info["lexical"]["tokenizer_name"] == "lexical-v1"
     assert len(run_.cases) == len(doc["cases"])
@@ -724,7 +741,7 @@ def test_eval_cli_bm25_needs_neither_qdrant_nor_the_embedder(
     )
     assert code == 0
     doc = json.loads(out.read_text(encoding="utf-8"))
-    assert doc["schema_version"] == "2.1" and doc["retrieval_strategy"] == "bm25"
+    assert doc["schema_version"] == "2.2" and doc["retrieval_strategy"] == "bm25"
     assert doc["index_settings"] is None and doc["device"] is None
     assert doc["document_count"] == manifest_document_count()
     assert doc["embedder_is_fake"] is False

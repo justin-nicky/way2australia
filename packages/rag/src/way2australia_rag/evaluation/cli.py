@@ -21,6 +21,7 @@ import sys
 import tempfile
 import uuid
 import warnings
+from collections import Counter
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
@@ -137,7 +138,9 @@ def _authority_map(repo_root: Path) -> dict[str, str]:
 
 
 def _unanswerable_line(report: dict[str, Any]) -> str:
-    def fmt(dist: dict[str, Any]) -> str:
+    def fmt(dist: dict[str, Any] | None) -> str:
+        if dist is None:
+            return "n/a (mixed score kinds)"
         return "/".join(
             "n/a" if dist[key] is None else f"{dist[key]:.4f}"
             for key in ("min", "p50", "p95", "max")
@@ -164,9 +167,22 @@ def format_summary(document: dict[str, Any], output: Path, repo_root: Path) -> s
         if settings
         else "n/a (Qdrant not contacted)"
     )
+    requested = document["requested_strategy"]
+    served_counts = Counter(row["served_strategy"] for row in document["cases"])
+    fallbacks = document["fallback_counts"]
+    if document["served_strategies"] == [requested] and not fallbacks:
+        strategy_line = (
+            f"strategy: {document['retrieval_strategy']} "
+            f"(scores: {document['score_kind']})"
+        )
+    else:
+        served = ", ".join(f"{k}: {v}" for k, v in sorted(served_counts.items()))
+        strategy_line = (
+            f"strategy: requested {requested}, served {served} "
+            f"(scores: {document['score_kind'] or 'mixed'})"
+        )
     lines = [
-        f"strategy: {document['retrieval_strategy']} "
-        f"(scores: {document['score_kind']})",
+        strategy_line,
         f"index: {document['collection']} (index_version {document['index_version']}; "
         f"embedder {embedder}, "
         f"fake={str(document['embedder_is_fake']).lower()}, "
@@ -191,11 +207,26 @@ def format_summary(document: dict[str, Any], output: Path, repo_root: Path) -> s
     absent = document["absent_query_languages"]
     if absent:
         lines.append(f"absent query languages (no golden case): {', '.join(absent)}")
-    lines += [
+    lines.append(
         "section-level measurable cases: "
-        f"{document['section_level']['measurable_cases']}",
-        f"latency p50 {latency['p50']:.1f} ms, p95 {latency['p95']:.1f} ms "
-        f"(warm-up {latency['warmup_ms']:.1f} ms excluded)",
+        f"{document['section_level']['measurable_cases']}"
+    )
+    if fallbacks:
+        counts = ", ".join(f"{k}: {v}" for k, v in sorted(fallbacks.items()))
+        lines.append(f"fallbacks (measured cases): {counts}")
+    if latency["p50"] is not None:
+        lines.append(
+            f"latency p50 {latency['p50']:.1f} ms, p95 {latency['p95']:.1f} ms "
+            f"(warm-up {latency['warmup_ms']:.1f} ms excluded)"
+        )
+    for path, value in latency["by_served_path"].items():
+        if "+fallback:" in path or len(latency["by_served_path"]) > 1:
+            note = " (includes failed dense attempt)" if "+fallback:" in path else ""
+            lines.append(
+                f"latency {path}: p50 {value['p50']:.1f} ms, p95 "
+                f"{value['p95']:.1f} ms, n={value['n']}{note}"
+            )
+    lines += [
         _unanswerable_line(document["unanswerable"]),
         f"result: {shown}",
         *[f"note: {note}" for note in document["notes"]],
@@ -281,6 +312,9 @@ def _retrieval(
             registry_languages=languages,
             repo_root=repo_root,
             fusion=retrieval_config.fusion if strategy == Strategy.HYBRID else None,
+            qdrant_timeouts=(
+                None if strategy == Strategy.BM25 else retrieval_config.qdrant
+            ),
             clock=lambda: now,
         )
         write_document(output, document)

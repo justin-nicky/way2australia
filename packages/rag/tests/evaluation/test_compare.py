@@ -477,3 +477,183 @@ def test_lexical_run_without_a_lexical_object_is_refused(
     assert f"is a {strategy} run without a lexical_index object" in message
     message = refusal(tmp_path, broken, doc21("hybrid"))
     assert "without a lexical_index object" in message
+
+
+# --- Spec 008 R9: 2.2 files, served strategy -----------------------------------
+
+COMMITTED_BM25 = (
+    REPO_ROOT / "experiments/results/retrieval-evaluation-idx-v1-20261028T123109Z.json"
+)
+
+
+def doc22(
+    served: str = "bm25",
+    *,
+    requested: str | None = None,
+    reason: str | None = None,
+    standalone: bool = True,
+    n: int = 10,
+    **over: Any,
+) -> dict[str, Any]:
+    """A 2.2 file. `standalone` drops `index_settings` (Qdrant never reached) and
+    leaves the embedder pair in `dense_identity`."""
+    path = served if reason is None else f"{served}+fallback:{reason}"
+    cases = [case(i, served_strategy=served, fallback_reason=reason) for i in range(n)]
+    document = doc(
+        n,
+        schema_version="2.2",
+        requested_strategy=requested or served,
+        served_strategies=[served],
+        retrieval_strategy=served,
+        fallback_counts={reason: n} if reason else {},
+        dense_identity={
+            "collection": "c1",
+            "index_version": "idx-v1",
+            "embedder_model_id": "m",
+            "embedder_revision": "r1",
+            "embedder_is_fake": False,
+            "source": "lexical_file" if standalone else "qdrant",
+        },
+        lexical_index=None if served == "dense" else dict(LEXICAL),
+        latency_ms={
+            "p50": 3.0,
+            "p95": 4.0,
+            "by_served_path": {path: {"p50": 3.0, "p95": 4.0, "n": n}},
+        },
+        cases=cases,
+    )
+    if standalone:
+        document["index_settings"] = None
+    document.update(over)
+    return document
+
+
+def test_standalone_bm25_2_2_versus_2_1_bm25_is_accepted_and_gated(
+    tmp_path: Path,
+) -> None:
+    result = run(tmp_path, doc21("bm25"), doc22("bm25"))
+    assert result.passed and result.n == 10
+    worse = doc22("bm25")
+    worse["cases"] = [case(i, hit=i > 2) for i in range(10)]
+    for row in worse["cases"]:
+        row["served_strategy"] = "bm25"
+    assert not run(tmp_path, doc21("bm25"), worse).passed
+
+
+def test_embedder_pair_comes_from_dense_identity_when_settings_are_null(
+    tmp_path: Path,
+) -> None:
+    path = write(tmp_path, "c.json", doc22("bm25"))
+    run_ = read_result(path)
+    assert run_.info["embedder_model_id"] == "m"
+    assert run_.info["embedder_revision"] == "r1"
+    other = doc22("bm25")
+    other["dense_identity"]["embedder_revision"] = "r2"
+    message = refusal(tmp_path, doc21("bm25"), other)
+    assert "embedder changed m@r1 -> m@r2" in message
+
+
+def test_fallback_only_2_2_file_compares_with_a_labelled_latency(
+    tmp_path: Path,
+) -> None:
+    result = run(
+        tmp_path,
+        doc21("bm25"),
+        doc22("bm25", requested="hybrid", reason="qdrant_unavailable"),
+    )
+    text = "\n".join(result.lines)
+    assert result.passed
+    assert "candidate includes failed dense attempt: qdrant_unavailable" in text
+    assert "requested hybrid and was served by bm25" in text
+
+
+def test_mixed_2_2_file_is_refused_with_counts(tmp_path: Path) -> None:
+    mixed = doc22("hybrid", standalone=False)
+    mixed["served_strategies"] = ["bm25", "hybrid"]
+    for row in mixed["cases"][:3]:
+        row["served_strategy"] = "bm25"
+    message = refusal(tmp_path, doc21("hybrid"), mixed)
+    assert (
+        "mixes served strategies (golden cases bm25: 3, hybrid: 7; "
+        "served_strategies: bm25, hybrid)"
+    ) in message
+    assert "re-run when the system is stable" in message
+
+
+def test_2_2_file_with_only_unanswerable_cases_served_differently_is_refused(
+    tmp_path: Path,
+) -> None:
+    mixed = doc22("bm25")
+    mixed["served_strategies"] = ["bm25", "hybrid"]
+    path = write(tmp_path, "mixed.json", mixed)
+    with pytest.raises(NotComparableError) as error:
+        read_result(path)
+    message = str(error.value)
+    assert "golden cases bm25: 10" in message
+    assert "served_strategies: bm25, hybrid" in message
+    base = write(tmp_path, "base.json", doc21("bm25"))
+    args = ["compare", "--base", str(base), "--candidate", str(path)]
+    assert cli.main(args) == 2
+
+
+def test_case_row_disagreeing_with_served_strategies_is_refused(
+    tmp_path: Path,
+) -> None:
+    bad = doc22("bm25")
+    bad["cases"][0]["served_strategy"] = "hybrid"
+    assert "mixes served strategies" in refusal(tmp_path, doc21("bm25"), bad)
+
+
+def test_2_2_bm25_without_a_lexical_object_is_refused(tmp_path: Path) -> None:
+    path = write(tmp_path, "c.json", doc22("bm25", lexical_index=None))
+    with pytest.raises(NotComparableError, match="without a lexical_index object"):
+        read_result(path)
+
+
+def test_2_1_versus_2_2_dense_reads_both(tmp_path: Path) -> None:
+    result = run(tmp_path, doc21("dense"), doc22("dense", standalone=False))
+    assert result.passed
+    assert "source_authority slice was not compared" not in "\n".join(result.lines)
+
+
+def test_committed_spec_007_bm25_reads_and_compares_with_standalone_2_2(
+    tmp_path: Path,
+) -> None:
+    base = read_result(COMMITTED_BM25, "BASE")
+    assert base.schema_version == "2.1" and base.info["retrieval_strategy"] == "bm25"
+    cand = doc22(
+        "bm25",
+        n=len(base.cases),
+        document_count=base.document_count,
+        evaluation_suite_id=base.suite_id,
+        evaluation_suite_version=base.suite_version,
+        top_k=base.top_k,
+        collection=base.info["collection"],
+        index_version=base.info["index_version"],
+        lexical_index=base.info["lexical"],
+        dense_identity={
+            "collection": base.info["collection"],
+            "index_version": base.info["index_version"],
+            "embedder_model_id": base.info["embedder_model_id"],
+            "embedder_revision": base.info["embedder_revision"],
+            "embedder_is_fake": False,
+            "source": "lexical_file",
+        },
+    )
+    cand["cases"] = [
+        {
+            **case(0),
+            "case_id": key[0],
+            "case_version": key[1],
+            "hit": row.hit,
+            "recall": row.recall,
+            "reciprocal_rank": row.reciprocal_rank,
+            "query_language": row.query_language,
+            "category": row.category,
+            "source_authority": row.source_authority,
+            "served_strategy": "bm25",
+        }
+        for key, row in base.cases.items()
+    ]
+    result = compare(base, read_result(write(tmp_path, "c.json", cand), "CANDIDATE"))
+    assert result.passed and result.hits_base == result.hits_candidate

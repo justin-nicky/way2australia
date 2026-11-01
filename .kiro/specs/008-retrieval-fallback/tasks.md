@@ -174,29 +174,29 @@ Review reading order: `fallback.py` → `opening.py` diff → `models.py` → `r
 
 ## T5 — Evaluation result 2.2 and `eval-compare` by served strategy
 
-**State:** not started
+**State:** approved (2026-11-01)
 **Requirements:** R8, R9
 
-- [ ] `evaluation/retrieval_eval.py`, result `retrieval_evaluation` 2.2, per design R8:
+- [x] `evaluation/retrieval_eval.py`, result `retrieval_evaluation` 2.2, per design R8:
   - top level: `requested_strategy`, `served_strategies`, `retrieval_strategy`/`score_kind` (`null` when mixed), `fallback_counts`, `warmup_fallback_reason`, `qdrant_timeouts`, `dense_identity`, `index_settings` (`null` when Qdrant was never reached);
   - per case: `served_strategy`, `fallback_reason`;
   - `unanswerable.served_strategies` (with `score_kind`/distribution `null` when mixed);
   - `latency_ms.by_served_path`, with top-level `p50`/`p95` `null` when there is more than one path;
   - `fusion` when any case was served by hybrid; `lexical_index` whenever the file was opened;
   - `document_count` from `OpenedRetrieval`.
-- [ ] `evaluation/cli.py` summary: prints requested and served strategies, fallback counts and latency per path.
-- [ ] `evaluation/results.py`, `compare.py`:
+- [x] `evaluation/cli.py` summary: prints requested and served strategies, fallback counts and latency per path.
+- [x] `evaluation/results.py`, `compare.py`:
   - read 2.2; `info["retrieval_strategy"]` is the served strategy and `info["requested_strategy"]` is added;
   - refuse a mixed file (exit 2, per-strategy counts in the message);
   - embedder pair from `dense_identity` when `index_settings` is `null`;
   - the lexical-object rule applies by served strategy;
   - latency lines labelled for fallback paths;
   - 1.0, 2.0 and 2.1 reading unchanged.
-- [ ] Tests:
+- [x] Tests:
   - `test_retrieval_eval.py`: 2.2 keys; a no-fallback run equals the 2.1 metrics, ranks and leg ranks on the fixture (`dense_equivalence.py`, `test_strategy_eval.py`); a fully-fallback fixture (single path, top-level set); a mixed fixture (nulls, two paths);
   - `test_compare.py`: mixed file refused; a fallback-only 2.2 file vs a 2.1 BM25 fixture compares under the gate; 2.1 vs 2.2; the committed 1.0 vs 2.0 compare still exits 0; the embedder pair comes from `dense_identity`.
-- [ ] `run_retrieval_evaluation` refuses `index_settings=None` for any served strategy other than `bm25`, raising `EvaluationConfigurationError` (T3 review F2; design R8). Test in `test_retrieval_eval.py`: `dense` and `hybrid` (no fallback) with `index_settings=None` are refused; standalone `bm25` and a hybrid open-time fallback are accepted.
-- [ ] A standalone `bm25` result (no Qdrant, `index_settings: null`, `dense_identity.source: lexical_file`) compares against the Spec 007 BM25 reference `experiments/results/retrieval-evaluation-idx-v1-20261028T123109Z.json` through `dense_identity`: collection, `index_version` and the embedder pair from `dense_identity`, lexical identity and `document_count` as for 2.1 (T3 review F3; T7 depends on this). Test in `test_compare.py`: a standalone `bm25` 2.2 fixture vs a 2.1 `bm25` fixture with the same identity is accepted and gated (exit 0 on equal cases), and is refused (exit 2) when the `dense_identity` embedder revision differs.
+- [x] `run_retrieval_evaluation` refuses `index_settings=None` for any served strategy other than `bm25`, raising `EvaluationConfigurationError` (T3 review F2; design R8). Test in `test_retrieval_eval.py`: `dense` and `hybrid` (no fallback) with `index_settings=None` are refused; standalone `bm25` and a hybrid open-time fallback are accepted.
+- [x] A standalone `bm25` result (no Qdrant, `index_settings: null`, `dense_identity.source: lexical_file`) compares against the Spec 007 BM25 reference `experiments/results/retrieval-evaluation-idx-v1-20261028T123109Z.json` through `dense_identity`: collection, `index_version` and the embedder pair from `dense_identity`, lexical identity and `document_count` as for 2.1 (T3 review F3; T7 depends on this). Test in `test_compare.py`: a standalone `bm25` 2.2 fixture vs a 2.1 `bm25` fixture with the same identity is accepted and gated (exit 0 on equal cases), and is refused (exit 2) when the `dense_identity` embedder revision differs.
 
 Allowed protected-path changes: none.
 
@@ -291,6 +291,7 @@ Allowed protected-path changes: none. New files under `experiments/results/` onl
   - (a) `make retrieve` prints the `strategy: bm25 (requested: hybrid; fallback: <reason>)` header line only on fallback; a normal run keeps `hits: N (strategy=hybrid, ...)`;
   - (b) `requested_strategy` on a normal hybrid result is set by `FallbackRetriever`; a bare `HybridRetriever` leaves it `None`, because `hybrid.py` must not change;
   - (c) the `fallback` parameter of `FallbackRetriever` is typed `Retriever`, not `BM25Retriever`.
+- [ ] `design.md` As-built note (T5 review F3, user-approved 2026-11-01): `eval-compare` prints the requested-vs-served strategy line only when the two differ, although the design's identity lines imply both are always shown. The code is kept as is.
 - [ ] Carry the Qdrant client lifecycle gap (T4 review, user-approved 2026-10-31) into the hand-off for the retrospective's "Notes for the next spec", for the HTTP route spec. `open_retrieval` must close the Qdrant client on every open failure, not only on the fallback path, and `OpenedRetrieval.close()` must close the client too, with a test. A long-running server leaks a connection pool per failed open; the CLIs exit after one run. No code change in this spec.
 - [ ] Spec-wide checks: `make verify`, `make test-integration`, `make eval-security`; the protected-path check over the branch.
 - [ ] `graphify update .`.
@@ -303,7 +304,7 @@ Allowed protected-path changes: none.
 - `git diff --name-status main...HEAD -- evaluation knowledge config` lists only `config/retrieval.yaml`.
 - The reviewer reads the docs against the code, D056–D062 are present, and the ROADMAP note is present.
 - The `asyncio.run` limitation of `verify_fresh` is recorded for the HTTP route spec in the T8 hand-off (and in `CURRENT_STATE.md` known issues), so the retrospective can carry it into "Notes for the next spec".
-- The T4 F4 As-built note (a)–(c) is present in `design.md`. The Qdrant client lifecycle item is recorded for the HTTP route spec in the T8 hand-off and in `CURRENT_STATE.md` known issues.
+- The T4 F4 As-built note (a)–(c) and the T5 F3 As-built note (`eval-compare` requested-vs-served line only when they differ) are present in `design.md`. The Qdrant client lifecycle item is recorded for the HTTP route spec in the T8 hand-off and in `CURRENT_STATE.md` known issues.
 
 Review reading order: `DECISIONS.md` → `ROADMAP.md` → `ARCHITECTURE.md` → `COMMANDS.md`, `TECH_STACK.md` → `CURRENT_STATE.md` → design As-built notes.
 
