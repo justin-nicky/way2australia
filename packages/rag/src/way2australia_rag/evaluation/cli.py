@@ -441,6 +441,7 @@ def format_security_summary(document: dict[str, Any], shown: Path) -> str:
         f"v{document['evaluation_suite_version']}",
         f"throwaway index: {document['index']['collection']} (removed after the run)",
         f"strategies: {', '.join(document['strategies'])}",
+        f"paths: {', '.join(document['paths'])}",
         f"queries: {document['query_count']} "
         f"({document['security_cases_run']} security cases, "
         f"{document['golden_queries_run']} golden); "
@@ -454,8 +455,8 @@ def format_security_summary(document: dict[str, Any], shown: Path) -> str:
         lines.append(f"excluded fixture {item['document_id']}")
     for v in document["violations"]:
         lines.append(
-            f"VIOLATION case {v['case_id']} document {v['document_id'] or '-'} "
-            f"variant {v['variant']}"
+            f"VIOLATION path {v['path']} case {v['case_id']} "
+            f"document {v['document_id'] or '-'} variant {v['variant']}"
         )
     verdict = "PASS" if document["passed"] else "FAIL"
     lines.append(

@@ -80,6 +80,8 @@ class SecurityIndex:
     seed_document_ids: frozenset[str]
     points_per_variant: dict[str, int]
     lexical_rows_per_variant: dict[str, int]
+    chunker: Chunker
+    seed_repository: DocumentRepository
 
 
 def is_forbidden_document(document_id: str) -> bool:
@@ -260,6 +262,8 @@ def build_security_index(
         seed_document_ids=seed_ids,
         points_per_variant=counts,
         lexical_rows_per_variant=dict(lexical_rows),
+        chunker=chunker,
+        seed_repository=seed_repository,
     )
 
 

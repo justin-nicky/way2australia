@@ -249,7 +249,59 @@
     5. `packages/rag/tests/evaluation/test_retrieval_eval.py`: `Scripted` retriever, fully-fallback, mixed, `index_settings=None` tests.
     6. `packages/rag/tests/evaluation/test_compare.py`: `doc22` fixtures, standalone `bm25` vs 2.1 `bm25`, committed reference test.
     7. Supporting edits: `test_strategy_eval.py` (version strings, 2.2 no-fallback assertions), `tasks.md` boxes.
-- Usage: not measured (left for the orchestrator)
 
 ### User decision
 - 2026-11-01 — approved. Verbatim: "T5 approved. F1: fix at commit. Include the `served_strategies` set in the mixed-file refusal message, so it's correct when only unanswerable cases differ. Add a test with mixed unanswerable cases only. F2: fix at commit. Rename the four tests from 2.1 to 2.2. F3: keep the code (print requested vs served only when they differ). T8 box: record it in the design As-built notes. Commit with the `Spec-Task: 008/T5` trailer and push, then commit the graph separately. Then start T6."
+
+## T6 — round 1
+
+### Implementation
+- Model: claude-sonnet-5-5 (Sonnet 5.5); intended tier BEST_MINUS_ONE not compared against MODEL_PREFERENCES.md (subagent, no user to ask)
+- Usage: not measured (subagent ended with an API error after finishing; the repository state was complete)
+- Files changed:
+  - `evaluation/security_eval.py`: five gated paths (`dense`, `bm25`, `hybrid`, `hybrid_fallback_open`, `hybrid_fallback_query`) through `_retrievers`; harness-only `_UnavailableDense`; `run_security_evaluation(..., paths=PATHS)` replaces the `strategies` parameter; `SecurityReport.paths` (`strategies` is now derived from it); violations carry `path` and still `strategy`; a fallback path that does not serve BM25 with `qdrant_unavailable` is an `EvaluationHarnessError` (vacuous gate); security result `1.2` (`paths` added, `strategies` still written, `access.role` stays `guest`);
+  - `evaluation/security_index.py`: `SecurityIndex` also carries the `chunker` and `seed_repository` that built the index (needed for the standalone-open check);
+  - `evaluation/cli.py`: summary prints a `paths:` line and `VIOLATION path <path> case ...`;
+  - tests: `test_security_eval.py` (every path gated per query at `top_k` 50, a forbidden hit injected into each path fails the gate and names the path, dropped lexical clause names the four lexical paths, a fallback that does not fall back is a harness error, `bm25` built with no dense index or embedder, standalone-open refusal, `_UnavailableDense` not referenced from `retrieval/`, result 1.2 keys, existing 1.1 assertions moved to 1.2); `test_security_integration.py` (parametrized over all five paths on Docker Qdrant, so `hybrid_fallback_query` runs against the live server).
+- Verification run: `make verify` -> pass (1025 passed, 2 skipped, Docker Qdrant reachable; ruff, format, pyright clean); `make eval-security` -> PASS for all five paths on `public-eval-v2` (74 queries, 5 deferred; result under `experiments/results/tmp/`); `make test-integration` -> 24 passed (was 22; +2 paths); `git status --porcelain -- evaluation knowledge config` empty. Throwaway collections: Qdrant holds only `w2a-realcheck-idx-v1` and its `-settings`. `graphify update .` not run (left to the orchestrator as instructed).
+- Notes:
+  - Deviation from design R10 wording "freshness against the isolated security repository": the throwaway lexical file also holds the synthetic forbidden rows, which no repository document produces, so `verify_fresh` (full digest) would always refuse it. The `bm25` path instead runs the production `check_identity` on a separate handle (identity against the throwaway collection and the chunker that built it) plus a seed-freshness check: every chunk the seed repository and chunker produce must be in the file with the same version and hash. The retriever itself is built through `build_retriever(BM25, identity, None, None, lexical, config)`, the production standalone shape. For the T8 design As-built notes.
+  - The gated `bm25` retriever still uses `index.lexical` (the handle bound by the production binding), so the existing clause-dropping double keeps working in tests.
+  - `strategy` in a violation is the strategy the path exercises (`hybrid` for both fallback paths); `path` is the new key.
+  - Existing gate behavior (sanity checks, zero-term skip) is unchanged and runs once per query.
+
+
+### Review
+- Model: claude-opus-5-5 (Opus 5.5); matches the BEST tier (`Opus`) in `MODEL_PREFERENCES.md`
+- Usage: 146K tokens · 33 tool uses · 7:50
+- Verdict: PASS
+- Commands:
+  - `make verify` → pass, exit 0 (ruff check and format clean, pyright 0 errors, skills mirrors match, validate-knowledge and validate-evaluation OK; 1025 passed, 2 skipped; Docker Qdrant reachable, so the integration tests ran inside it too);
+  - `make eval-security` → PASS (1099 ms, 74 queries: 5 security cases, 69 golden; 5 deferred). Result `experiments/results/tmp/security-evaluation-20261101T055245Z.json`: `schema_version` 1.2, `paths` = the five paths, `strategies` = `dense, bm25, hybrid`, `access.role` `guest`, `violations` empty, `bm25_no_term_queries` 0;
+  - `perl -e 'alarm 300; exec @ARGV' make test-integration` → pass (24 passed, 1003 deselected; the security integration test is parametrized over the five paths);
+  - `git status --porcelain -- evaluation knowledge config` → empty (allowed: none);
+  - Qdrant collections after all runs: only `w2a-realcheck-idx-v1` and `w2a-realcheck-idx-v1-settings` (no throwaway left; the reviewer created none outside the commands above).
+- Checks against the focus points:
+  - Fallback paths are not vacuous: `_gate` raises `EvaluationHarnessError` (exit 2) when a `hybrid_fallback_*` result is not `strategy` `bm25` with `fallback_reason` `qdrant_unavailable`, per query (`test_a_fallback_path_that_does_not_fall_back_is_a_harness_error`); `test_every_path_is_gated_for_every_query` runs all five paths on every query at `top_k` 50 through that check. The per-query dense and lexical unfiltered sanity checks are unchanged, so the forbidden rows are proven reachable for every path.
+  - A forbidden hit injected into each path fails the gate and names exactly that path (parametrized over `PATHS`); a dropped SQL access clause names the four lexical paths. `RetrievalAuthorizationError` from `check_hit` is still recorded with `path`.
+  - `_UnavailableDense` lives only in `security_eval.py`, built only by `_retrievers`; no CLI flag, environment variable or config key reaches it; the test scans `retrieval/` for the name.
+  - `bm25` deviation (design R10): sound. `verify_fresh` compares the full digest and would always refuse the throwaway file, because it also holds the synthetic forbidden and canary rows. The substitute runs the production `check_identity` (dense identity, chunker, hash contract) plus "every seed chunk is in the file with the same version and hash", and the retriever is the production standalone shape (`build_retriever(BM25, identity, None, None, lexical, config)`, no dense index, no embedder). It cannot make the gate pass vacuously: authorization on that path is the SQL access clause plus `check_hit` over a file that holds the forbidden rows, and the lexical sanity check proves they match. See F1 and F2.
+- Findings:
+  - F1 [MINOR, SPEC_DEFECT, R10] design R10 says the `bm25` path is "built through the standalone path" with "freshness against the isolated security repository"; the code (a) checks a seed-chunk subset instead of `verify_fresh`, (b) checks on a separate handle and gates the retriever on `index.lexical` (the handle from the production `bind_to`), and (c) takes the identity from `IndexIdentity.from_dense` (source `qdrant`) instead of `IndexIdentity.expected` (`check_identity` does not compare `source`, so this is equivalent). → record all three in the design `## As-built notes` under T8's "every deviation found in T1–T7" box; no code change needed.
+  - F2 [MINOR, IMPLEMENTATION, R10] the seed-freshness check is one-way: it refuses a missing or changed seed chunk but not an extra non-forbidden row in the file. Harmless today (the file is built moments earlier by the same harness) → optionally tighten to "file rows minus seed rows are all forbidden or canary documents" in a later touch.
+  - F3 [MINOR, IMPLEMENTATION, R10] the plain `hybrid` path (now `FallbackRetriever(HybridRetriever, bm25, None)` from `build_retriever`) does not assert that it did not fall back, so a dense outage mid-run would let it serve BM25 silently. Mitigated: the per-query dense sanity check and the `dense` path (which raises) both reach Qdrant first in each query, and `make eval-security` uses an in-memory client → optionally assert `fallback_reason is None` on the `dense` and `hybrid` paths.
+  - F4 [MINOR, IMPLEMENTATION, R10] the Docker test for `hybrid_fallback_query` builds and sanity-checks against live Qdrant, but by construction that path's dense leg (`_UnavailableDense`) never queries Qdrant; it gates the live-built lexical file through the fallback. That is what the task box asks; noted so nobody reads it as a live-Qdrant timeout test (that is R11's closed-port test).
+  - Note (not a finding): `graphify update .` was not run by the implementer (left to the orchestrator, as in earlier tasks); only AST cache files under `graphify-out/` are untracked.
+- Summary for user:
+  - Changed: `make eval-security` now gates five paths: `dense`, standalone `bm25` (no dense index or embedder; identity and seed-chunk check on the throwaway file), `hybrid`, `hybrid_fallback_open` (BM25 with `qdrant_unavailable` at open) and `hybrid_fallback_query` (hybrid whose dense leg is the harness-only `_UnavailableDense`). Security result 1.2 adds `paths` (keeps `strategies`), every violation names its `path`, `access.role` stays `guest`; the CLI summary prints `paths:` and `VIOLATION path ...`. `SecurityIndex` now carries its chunker and seed repository.
+  - Verified by: `make verify` (1025 passed, 2 skipped), `make eval-security` PASS on all five paths, `make test-integration` (24 passed), protected paths untouched.
+  - Worth your attention: the `bm25` path does not run the full `verify_fresh` (the throwaway file holds synthetic forbidden rows, so the digest can never match); it checks identity plus "every seed chunk present", which the reviewer judges sound and not vacuous (F1, for a T8 As-built note). A fallback path that fails to fall back stops the run (exit 2) instead of passing. Four MINOR findings.
+  - Reading order:
+    1. `packages/rag/src/way2australia_rag/evaluation/security_eval.py` → `run_security_evaluation`, `_retrievers` (the five paths), `_check_standalone_open`, `_UnavailableDense`, `_gate` (fallback vacuity check, `path` in violations), `security_document` (1.2).
+    2. `packages/rag/src/way2australia_rag/evaluation/security_index.py` → `SecurityIndex.chunker`, `seed_repository`.
+    3. `packages/rag/src/way2australia_rag/evaluation/cli.py` → `format_security_summary`.
+    4. `packages/rag/tests/evaluation/test_security_eval.py` → the "Spec 008 R10" tests at the end, then the 1.2 result test.
+    5. `packages/rag/tests/evaluation/test_security_integration.py` → parametrized over `PATHS` on Docker Qdrant; `tasks.md` boxes.
+
+### User decision
+- 2026-11-01 — approved. Verbatim: "T6 approved. F1: T8 box (planner amendment). Record in the design's As-built notes all three R10 differences: the seed-chunk subset check instead of `verify_fresh`, the separate handle, and `from_dense` instead of `expected`. F2: accepted. The harness builds the file just before the check. F3: fix at commit. On the plain `hybrid` path, assert that no query fell back (`fallback_reason is None`). If one did, it's a harness error (exit 2), mirroring the fallback paths' check. Add a test. F4: accepted. Commit with the `Spec-Task: 008/T6` trailer and push, then commit the graph separately. Then stop at T7 and give me the commands for the real runs."

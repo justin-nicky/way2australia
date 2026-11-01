@@ -212,22 +212,22 @@ Review reading order: `retrieval_eval.py` → `evaluation/cli.py` → `results.p
 
 ## T6 — Security gate over the fallback paths
 
-**State:** not started
+**State:** approved (2026-11-01)
 **Requirements:** R10, R13
 
-- [ ] `evaluation/security_eval.py`:
+- [x] `evaluation/security_eval.py`:
   - paths `dense`, `bm25` (standalone open; freshness against the isolated security repository and chunker; identity against the throwaway collection), `hybrid`, `hybrid_fallback_open` and `hybrid_fallback_query`;
   - `_UnavailableDense` as a harness-only class;
   - sanity checks unchanged.
-- [ ] Security result 1.2: `paths` added, `strategies` still written; each violation names its `path`; `access.role` stays `guest`.
-- [ ] `evaluation/cli.py` security summary lists the paths.
-- [ ] Tests (`test_security_eval.py`):
+- [x] Security result 1.2: `paths` added, `strategies` still written; each violation names its `path`; `access.role` stays `guest`.
+- [x] `evaluation/cli.py` security summary lists the paths.
+- [x] Tests (`test_security_eval.py`):
   - every path is gated;
   - a forbidden hit injected into each path fails the gate and names the path;
   - 1.2 keys;
   - a sanity failure is still a harness error (exit 2);
   - `_UnavailableDense` is not importable from `retrieval/`.
-- [ ] `test_security_integration.py` (Docker) covers `hybrid_fallback_query` on Docker Qdrant.
+- [x] `test_security_integration.py` (Docker) covers `hybrid_fallback_query` on Docker Qdrant.
 
 Allowed protected-path changes: none.
 
@@ -292,6 +292,10 @@ Allowed protected-path changes: none. New files under `experiments/results/` onl
   - (b) `requested_strategy` on a normal hybrid result is set by `FallbackRetriever`; a bare `HybridRetriever` leaves it `None`, because `hybrid.py` must not change;
   - (c) the `fallback` parameter of `FallbackRetriever` is typed `Retriever`, not `BM25Retriever`.
 - [ ] `design.md` As-built note (T5 review F3, user-approved 2026-11-01): `eval-compare` prints the requested-vs-served strategy line only when the two differ, although the design's identity lines imply both are always shown. The code is kept as is.
+- [ ] `design.md` As-built note (T6 review F1, user-approved 2026-11-01), recording three differences between the T6 security code and design R10:
+  - (a) the `bm25` security path runs `check_identity` plus a seed-chunk subset check (every chunk the seed repository and chunker produce is in the file with the same version and hash) instead of `verify_fresh`, because the throwaway lexical file also holds synthetic forbidden rows;
+  - (b) that check runs on a separate handle, while the gated retriever uses `index.lexical`, the handle bound by `bind_to`;
+  - (c) identity comes from `IndexIdentity.from_dense` (source `qdrant`) instead of `IndexIdentity.expected`. The two are equivalent here, because `check_identity` does not compare `source`.
 - [ ] Carry the Qdrant client lifecycle gap (T4 review, user-approved 2026-10-31) into the hand-off for the retrospective's "Notes for the next spec", for the HTTP route spec. `open_retrieval` must close the Qdrant client on every open failure, not only on the fallback path, and `OpenedRetrieval.close()` must close the client too, with a test. A long-running server leaks a connection pool per failed open; the CLIs exit after one run. No code change in this spec.
 - [ ] Spec-wide checks: `make verify`, `make test-integration`, `make eval-security`; the protected-path check over the branch.
 - [ ] `graphify update .`.
@@ -304,7 +308,7 @@ Allowed protected-path changes: none.
 - `git diff --name-status main...HEAD -- evaluation knowledge config` lists only `config/retrieval.yaml`.
 - The reviewer reads the docs against the code, D056–D062 are present, and the ROADMAP note is present.
 - The `asyncio.run` limitation of `verify_fresh` is recorded for the HTTP route spec in the T8 hand-off (and in `CURRENT_STATE.md` known issues), so the retrospective can carry it into "Notes for the next spec".
-- The T4 F4 As-built note (a)–(c) and the T5 F3 As-built note (`eval-compare` requested-vs-served line only when they differ) are present in `design.md`. The Qdrant client lifecycle item is recorded for the HTTP route spec in the T8 hand-off and in `CURRENT_STATE.md` known issues.
+- The T4 F4 As-built note (a)–(c) the T5 F3 As-built note (`eval-compare` requested-vs-served line only when they differ) and the T6 F1 As-built note (a)–(c) (security `bm25` path: subset check instead of `verify_fresh`, separate handle, `from_dense` identity) are present in `design.md`. The Qdrant client lifecycle item is recorded for the HTTP route spec in the T8 hand-off and in `CURRENT_STATE.md` known issues.
 
 Review reading order: `DECISIONS.md` → `ROADMAP.md` → `ARCHITECTURE.md` → `COMMANDS.md`, `TECH_STACK.md` → `CURRENT_STATE.md` → design As-built notes.
 

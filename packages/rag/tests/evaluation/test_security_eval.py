@@ -37,6 +37,7 @@ from way2australia_rag.evaluation.security_corpus import (
 from way2australia_rag.evaluation.security_eval import (
     DEFERRED_OWNERS,
     FORBIDDEN_VARIANTS,
+    PATHS,
     RETRIEVAL_SIDE_ATTACK_TYPES,
     SecurityQuery,
     run_security_evaluation,
@@ -776,7 +777,7 @@ def test_the_missing_owner_row_is_excluded_by_owner_present_not_check_hit(
     assert report.passed
 
 
-def test_security_result_1_1_has_strategies_and_no_text(
+def test_security_result_1_2_has_paths_strategies_and_no_text(
     security_repository: LocalDocumentRepository,
 ) -> None:
     queries, deferred = real_queries()
@@ -795,8 +796,9 @@ def test_security_result_1_1_has_strategies_and_no_text(
             created_at="2026-01-01T00:00:00+00:00",
             repo_root=REPO_ROOT,
         )
-        assert document["schema_version"] == "1.1"
+        assert document["schema_version"] == "1.2"
         assert document["passed"] is passed
+        assert document["paths"] == list(PATHS)
         assert document["strategies"] == ["dense", "bm25", "hybrid"]
         assert document["bm25_no_term_queries"] == 0
         assert (
@@ -804,13 +806,15 @@ def test_security_result_1_1_has_strategies_and_no_text(
             == (document["index"]["forbidden_points_per_variant"])
         )
         assert all(
-            v["strategy"] in document["strategies"] for v in document["violations"]
+            v["strategy"] in document["strategies"] and v["path"] in document["paths"]
+            for v in document["violations"]
         )
         text = json.dumps(document, ensure_ascii=False)
         assert all(q.text not in text for q in queries)
         assert "forbidden fixture" not in text
         lines = cli.format_security_summary(document, Path("r.json")).splitlines()
         assert "strategies: dense, bm25, hybrid" in lines
+        assert f"paths: {', '.join(PATHS)}" in lines
 
 
 # --- CLI ------------------------------------------------------------------
@@ -863,7 +867,7 @@ def test_cli_violation_exits_one_naming_ids_not_text(
     )
     assert code == 1
     out = capsys.readouterr().out
-    assert "VIOLATION case s002" in out
+    assert "VIOLATION path dense case s002" in out
     assert "eval-security: FAIL" in out
     assert "forbidden fixture" not in out
     assert json.loads(output.read_text(encoding="utf-8"))["passed"] is False
@@ -925,7 +929,7 @@ def test_cli_lexical_file_is_removed_after_a_pass(
     assert len(paths) == 1
     assert not paths[0].exists() and not paths[0].parent.exists()
     assert "strategies: dense, bm25, hybrid" in capsys.readouterr().out
-    assert json.loads(output.read_text(encoding="utf-8"))["schema_version"] == "1.1"
+    assert json.loads(output.read_text(encoding="utf-8"))["schema_version"] == "1.2"
 
 
 def test_cli_clause_less_lexical_store_exits_one_naming_strategies(
@@ -995,3 +999,195 @@ def test_cli_real_lexical_sanity_failure_exits_two_and_writes_nothing(
     assert not output.exists()
     assert "lexical sanity check" in capsys.readouterr().err
     assert len(paths) == 1 and not paths[0].exists()
+
+
+# --- Spec 008 R10: the five gated paths ------------------------------------
+
+
+def test_every_path_is_gated_for_every_query(
+    security_repository: LocalDocumentRepository, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: list[str] = []
+    real = security_eval._retrievers
+
+    def counting(index: SecurityIndex, config: Any, paths: Any) -> Any:
+        wrapped = []
+        for path, inner in real(index, config, paths):
+
+            class Counting:
+                def __init__(self, path: str = path, inner: Any = inner) -> None:
+                    self.path, self.inner = path, inner
+
+                def retrieve(self, *a: Any, **k: Any) -> Any:
+                    seen.append(self.path)
+                    assert k["top_k"] == 50
+                    return self.inner.retrieve(*a, **k)
+
+            wrapped.append((path, Counting()))
+        return wrapped
+
+    monkeypatch.setattr(security_eval, "_retrievers", counting)
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    report = run_security_evaluation(
+        index, guest_access(), queries, deferred, RETRIEVAL_CONFIG
+    )
+    assert report.passed
+    assert PATHS == (
+        "dense",
+        "bm25",
+        "hybrid",
+        "hybrid_fallback_open",
+        "hybrid_fallback_query",
+    )
+    assert report.paths == PATHS
+    for path in PATHS:
+        assert seen.count(path) == len(queries)
+
+
+@pytest.mark.parametrize("path", PATHS)
+def test_a_forbidden_hit_injected_into_a_path_fails_the_gate_naming_it(
+    path: str,
+    security_repository: LocalDocumentRepository,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    real = security_eval._retrievers
+
+    class Injecting:
+        def __init__(self, inner: Any) -> None:
+            self.inner = inner
+
+        def retrieve(self, *a: Any, **k: Any) -> Any:
+            result = self.inner.retrieve(*a, **k)
+            if not result.hits:
+                return result
+            bad = result.hits[0].model_copy(
+                update={"document_id": "forbidden_staff_scope"}
+            )
+            return result.model_copy(update={"hits": [bad, *result.hits]})
+
+    def injecting(index: SecurityIndex, config: Any, paths: Any) -> Any:
+        return [
+            (name, Injecting(inner) if name == path else inner)
+            for name, inner in real(index, config, paths)
+        ]
+
+    monkeypatch.setattr(security_eval, "_retrievers", injecting)
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    report = run_security_evaluation(
+        index, guest_access(), queries, deferred, RETRIEVAL_CONFIG
+    )
+    assert not report.passed
+    assert {v["path"] for v in report.violations} == {path}
+    assert all(v["variant"] == "staff_scope" for v in report.violations)
+    assert all(
+        v["strategy"] == security_eval._path_strategy(path) for v in report.violations
+    )
+
+
+def test_a_dropped_lexical_clause_names_the_four_lexical_paths(
+    security_repository: LocalDocumentRepository,
+) -> None:
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    broken = dataclasses.replace(index, lexical=DroppedClauseLexical(index.lexical))
+    report = run_security_evaluation(
+        broken, guest_access(), queries, deferred, RETRIEVAL_CONFIG
+    )
+    assert {v["path"] for v in report.violations} == {
+        "bm25",
+        "hybrid",
+        "hybrid_fallback_open",
+        "hybrid_fallback_query",
+    }
+
+
+def test_a_fallback_path_that_does_not_fall_back_is_a_harness_error(
+    security_repository: LocalDocumentRepository, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real = security_eval._retrievers
+
+    def not_falling_back(index: SecurityIndex, config: Any, paths: Any) -> Any:
+        built = dict(real(index, config, ["dense"]))
+        return [(p, built["dense"]) for p in paths if p == "hybrid_fallback_query"]
+
+    monkeypatch.setattr(security_eval, "_retrievers", not_falling_back)
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    with pytest.raises(EvaluationHarnessError, match="vacuous"):
+        run_security_evaluation(
+            index,
+            guest_access(),
+            queries,
+            deferred,
+            RETRIEVAL_CONFIG,
+            ["hybrid_fallback_query"],
+        )
+
+
+def test_a_plain_hybrid_path_that_falls_back_is_a_harness_error(
+    security_repository: LocalDocumentRepository, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real = security_eval._retrievers
+
+    def falling_back(index: SecurityIndex, config: Any, paths: Any) -> Any:
+        # The plain hybrid path, but its dense leg raises RetrievalUnavailableError
+        # mid-run, so the retriever serves BM25 as the fallback.
+        built = dict(real(index, config, ["hybrid_fallback_query"]))
+        return [(p, built["hybrid_fallback_query"]) for p in paths if p == "hybrid"]
+
+    monkeypatch.setattr(security_eval, "_retrievers", falling_back)
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    with pytest.raises(EvaluationHarnessError, match="path 'hybrid' fell back"):
+        run_security_evaluation(
+            index, guest_access(), queries, deferred, RETRIEVAL_CONFIG, ["hybrid"]
+        )
+
+
+def test_the_bm25_path_is_refused_when_the_standalone_open_fails(
+    security_repository: LocalDocumentRepository,
+) -> None:
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    wrong = dataclasses.replace(index, chunker=HeadingChunker(max_chunk_chars=999))
+    with pytest.raises(EvaluationHarnessError, match="standalone open"):
+        run_security_evaluation(
+            wrong, guest_access(), queries, deferred, RETRIEVAL_CONFIG, ["bm25"]
+        )
+
+
+def test_the_bm25_path_is_built_without_a_dense_index_or_embedder(
+    security_repository: LocalDocumentRepository, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[tuple[str, Any, Any]] = []
+    real = security_eval.build_retriever
+
+    def spy(
+        strategy: Strategy, identity: Any, dense: Any, embedder: Any, *r: Any
+    ) -> Any:
+        calls.append((strategy.value, dense, embedder))
+        return real(strategy, identity, dense, embedder, *r)
+
+    monkeypatch.setattr(security_eval, "build_retriever", spy)
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    run_security_evaluation(
+        index, guest_access(), queries, deferred, RETRIEVAL_CONFIG, ["bm25"]
+    )
+    assert calls == [("bm25", None, None)]
+
+
+def test_unavailable_dense_is_not_importable_from_the_retrieval_package() -> None:
+    import pkgutil
+
+    import way2australia_rag.retrieval as retrieval
+
+    assert hasattr(security_eval, "_UnavailableDense")
+    for module in pkgutil.iter_modules(retrieval.__path__):
+        text = (Path(retrieval.__path__[0]) / f"{module.name}.py").read_text(
+            encoding="utf-8"
+        )
+        assert "_UnavailableDense" not in text
+        assert "security_eval" not in text
