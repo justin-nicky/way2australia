@@ -1,6 +1,6 @@
 # 008 — Retrieval Fallback Tasks
 
-Status: all tasks approved (2026-11-01)
+Status: verified (2026-11-01, merged 1107b67)
 
 Implement the tasks in order; each depends on the ones before it. Requirements: `requirements.md` (approved 2026-10-29; R1/R6 amended 2026-10-29). Design: `design.md` (approved 2026-10-29).
 
