@@ -72,7 +72,7 @@ Allowed protected-path changes: none.
 
 ## T3 — Configuration, index settings, lexical identity and per-document freshness
 
-**State:** not started
+**State:** implementing (round 1)
 **Requirements:** R5, R6
 
 - [ ] `ingestion/recursive.py`: apply the `structure` v1 prefix rule — if `count(prefix)` leaves less than half of `target_tokens` for body packing, that document fails with a configuration error (per-document, not whole-run abort). Test; regenerate all `recursive` v1 snapshot files if outputs change. Must complete before T6 indexes with `recursive` v1.
