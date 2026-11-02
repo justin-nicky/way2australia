@@ -15,6 +15,7 @@ all tasks approved → spec-reviewer (required; reconciles docs) → user approv
 | `spec-implementer` | Implement one task on `spec/<NNN>`, then stop | BEST_MINUS_ONE | explicit only |
 | `task-reviewer` | Verify one task, PASS/FAIL, user summary (read-only for code and specs) | BEST | explicit only |
 | `spec-reviewer` | Required end-of-spec retrospective; reconciles docs with code, writes `review.md` | BEST | explicit only |
+| `workflow-reviewer` | On request: audits the workflow and skills against transcripts and records for token waste and quality risks; report only (`.local/workflow-reviews/`) | BEST | explicit only |
 
 Each role runs in a fresh session and hands off through repository files (`tasks.md` states, `task-reviews.md`, uncommitted changes until the user approves, then one `Spec-Task` commit per task), not chat. Lifecycle, states, branching and file formats are in `docs/project/WORKFLOW.md`.
 
@@ -38,8 +39,8 @@ Mirrors (generated, committed, never edited by hand):
 
 Canonical `SKILL.md` frontmatter contains only portable Agent Skills fields (`name`, `description`). Host-specific additions:
 
-- **Claude Code:** `scripts/sync_agent_skills.py` injects `disable-model-invocation: true` and an `argument-hint` into `.claude/skills` for the orchestrator, implementer, task reviewer and spec reviewer. No skill is forked and none pins a model; independence comes from starting the reviewer in a fresh session.
-- **Codex:** `agents/openai.yaml` in a skill folder sets `allow_implicit_invocation: false` (orchestrator, implementer, task reviewer, spec reviewer).
+- **Claude Code:** `scripts/sync_agent_skills.py` injects `disable-model-invocation: true` and an `argument-hint` into `.claude/skills` for the orchestrator, implementer, task reviewer, spec reviewer and workflow reviewer. No skill is forked and none pins a model; independence comes from starting the reviewer in a fresh session.
+- **Codex:** `agents/openai.yaml` in a skill folder sets `allow_implicit_invocation: false` (orchestrator, implementer, task reviewer, spec reviewer, workflow reviewer).
 
 ## Using the skills per tool
 
