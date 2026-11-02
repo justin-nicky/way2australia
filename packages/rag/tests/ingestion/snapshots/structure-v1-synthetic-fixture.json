@@ -1,0 +1,26 @@
+{
+  "title": "Pricing guide",
+  "content": "Preamble text.\n\n# Fees\nIntro fees.\n\n## Refunds\nRefund policy here.\n\n```python\n# not a heading\nx = 1\n```\n\n- item one continues\n  indented\n- item two\n\nLong paragraph word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word ",
+  "chunks": [
+    {
+      "section_id": "main",
+      "position": 0,
+      "text": "Pricing guide\n\nPreamble text."
+    },
+    {
+      "section_id": "fees",
+      "position": 0,
+      "text": "Pricing guide\nFees\n\nIntro fees."
+    },
+    {
+      "section_id": "fees-refunds",
+      "position": 0,
+      "text": "Pricing guide\nFees › Refunds\n\nRefund policy here.\n\n```python\n# not a heading\nx = 1\n```\n\n- item one continues\n  indented\n- item two"
+    },
+    {
+      "section_id": "fees-refunds",
+      "position": 1,
+      "text": "Pricing guide\nFees › Refunds\n\nLong paragraph word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word"
+    }
+  ]
+}

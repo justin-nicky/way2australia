@@ -17,7 +17,7 @@ from urllib.parse import quote
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
-from way2australia_rag.ingestion.chunking import Chunker
+from way2australia_rag.ingestion.chunking import Chunker, legacy_chunker_max_chunk_chars
 from way2australia_rag.lexical.tokenizer import TOKENIZER_NAME, TOKENIZER_VERSION
 from way2australia_rag.retrieval.errors import IndexBindingError, RetrievalError
 from way2australia_rag.retrieval.identity import IndexIdentity
@@ -340,7 +340,7 @@ class LexicalIndex:
                 (
                     "chunker_max_chunk_chars",
                     s.chunker_max_chunk_chars,
-                    chunker.max_chunk_chars,
+                    legacy_chunker_max_chunk_chars(chunker),
                 ),
                 ("hash_contract", s.hash_contract, hash_contract),
             )

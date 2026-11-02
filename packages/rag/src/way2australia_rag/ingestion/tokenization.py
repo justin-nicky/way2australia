@@ -67,6 +67,10 @@ class FakeTokenizer:
         words = normalized.split()
         return 2 + sum(ceil(len(word) / 4) for word in words)
 
+    def content_count(self, text: str) -> int:
+        """Token count excluding the two fixed special tokens."""
+        return max(0, self.count(text) - 2)
+
 
 def _tokenizer_config_error(
     model_id: str, revision: str
@@ -140,6 +144,10 @@ class BgeM3Tokenizer:
 
     def count(self, text: str) -> int:
         encoded = self._tokenizer.encode(text)
+        return len(encoded.ids)
+
+    def content_count(self, text: str) -> int:
+        encoded = self._tokenizer.encode(text, add_special_tokens=False)
         return len(encoded.ids)
 
 

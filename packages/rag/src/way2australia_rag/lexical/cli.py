@@ -12,6 +12,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from way2australia_rag.ingestion.chunking import legacy_chunker_max_chunk_chars
 from way2australia_rag.ingestion.cli import build_chunker
 from way2australia_rag.ingestion.config import (
     DEFAULT_CONFIG_PATH,
@@ -168,7 +169,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             ),
             chunker_name=chunker.name,
             chunker_version=chunker.version,
-            chunker_max_chunk_chars=chunker.max_chunk_chars,
+            chunker_max_chunk_chars=legacy_chunker_max_chunk_chars(chunker),
             hash_contract=HASH_CONTRACT,
         )
         built = build_lexical_index(entries, target, identity)

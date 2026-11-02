@@ -9,7 +9,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from way2australia_rag.ingestion.chunking import Chunker
+from way2australia_rag.ingestion.chunking import Chunker, legacy_chunker_max_chunk_chars
 from way2australia_rag.ingestion.embedding import EmbedderInfo
 from way2australia_rag.repositories.hashing import HASH_CONTRACT
 
@@ -52,7 +52,7 @@ def build_index_settings(
         embedder_is_fake=embedder.is_fake,
         chunker_name=chunker.name,
         chunker_version=chunker.version,
-        chunker_max_chunk_chars=chunker.max_chunk_chars,
+        chunker_max_chunk_chars=legacy_chunker_max_chunk_chars(chunker),
         hash_contract=hash_contract,
     )
 

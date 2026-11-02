@@ -54,11 +54,10 @@ def ids(chunks: list[Any]) -> list[tuple[str, int]]:
 
 def test_satisfies_chunker_protocol() -> None:
     chunker: Chunker = HeadingChunker()
-    assert (chunker.name, chunker.version, chunker.max_chunk_chars) == (
-        "heading",
-        "1",
-        2000,
-    )
+    assert (chunker.name, chunker.version) == ("heading", "1")
+    assert chunker.identity.params == {"max_chunk_chars": 2000}
+    assert chunker.identity.tokenizer is None
+    assert HeadingChunker(max_chunk_chars=2000).max_chunk_chars == 2000
 
 
 def test_no_headings_is_main_section() -> None:
