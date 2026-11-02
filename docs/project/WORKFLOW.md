@@ -129,7 +129,7 @@ Rounds count implementer runs for a task. The automatic limit counts consecutive
 - Files changed: <paths>
 - Verification run: `make verify` → pass (N tests)
 - Notes: <decisions, deviations, open questions>
-- Usage: <tokens, e.g. 180K or 1.2M> tokens · <tool uses> tool uses · <duration> (recorded by the orchestrator; `not measured` if the role ran outside it)
+- Usage: (orchestrator) (orchestrator fills on Cursor: `n/a (Cursor) · <tool uses> tool uses · <duration>` — tool uses from subagent transcript; duration from embedded `<timestamp>` values in that transcript, or start-to-next-subagent-start in the same parent chat, or `n/a (Cursor)` when no end timestamp exists)
 
 ### Review
 - Model: <model id>
@@ -141,7 +141,7 @@ Rounds count implementer runs for a task. The automatic limit counts consecutive
   - Verified by: ...
   - Worth your attention: ...
   - Reading order: changed files numbered in flow order (entry point → core logic → models/errors/config → tests), each with its role and key class/function
-- Usage: <tokens, e.g. 180K or 1.2M> tokens · <tool uses> tool uses · <duration> (recorded by the orchestrator; `not measured` if the role ran outside it)
+- Usage: (orchestrator)
 
 ### User decision
 - 2026-10-14 — approved | changes requested: "<feedback verbatim>" | spec issue: "<feedback>"

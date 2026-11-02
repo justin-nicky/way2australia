@@ -63,7 +63,7 @@ FAIL on any BLOCKING or MAJOR finding or any `NOT_VERIFIED` one. Classify each f
 
 ## Record
 
-Append the Review block to the task's current round using [task-review-template.md](assets/task-review-template.md), then set State:
+Append the Review block to the task's current round using [task-review-template.md](assets/task-review-template.md) (include `- Usage: (orchestrator)`; do not guess tokens, tool uses or duration), then set State:
 
 | Outcome | State |
 |---|---|
