@@ -82,8 +82,8 @@ eval-security:
 
 # Compare two result files and apply the quality gate (exit 0 pass, 1 gate failure,
 # 2 refusal). Both variables are required:
-# make eval-compare BASE=<file> CANDIDATE=<file>
+# make eval-compare BASE=<file> CANDIDATE=<file> [COMPARE_ARGS=--cross-index]
 eval-compare:
 	@if [ -z "$(BASE)" ] || [ -z "$(CANDIDATE)" ]; then \
-		echo "usage: make eval-compare BASE=<result.json> CANDIDATE=<result.json>" >&2; exit 2; fi
-	@$(UV_ENV) $(UV) run python -m way2australia_rag.evaluation.cli compare --base "$(BASE)" --candidate "$(CANDIDATE)"
+		echo "usage: make eval-compare BASE=<result.json> CANDIDATE=<result.json> [COMPARE_ARGS=--cross-index]" >&2; exit 2; fi
+	@$(UV_ENV) $(UV) run python -m way2australia_rag.evaluation.cli compare --base "$(BASE)" --candidate "$(CANDIDATE)" $(COMPARE_ARGS)

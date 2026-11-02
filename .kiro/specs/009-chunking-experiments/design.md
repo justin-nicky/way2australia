@@ -222,7 +222,7 @@ evaluation_suite_id: "public-eval-v1"   # copied unchanged; informational in ing
 
 `make eval-compare BASE=... CANDIDATE=... COMPARE_ARGS=--cross-index`.
 
-- Without the flag, behaviour is unchanged (D054 refusals).
+- Without the flag, behaviour is unchanged (D054 refusals). When both sides are result 2.3, chunker identity must match; otherwise exit 2 with the field named (use `--cross-index` to compare across chunkers).
 - With the flag:
   - collection, `index_version`, `chunker` and `ingestion_config` may differ; each difference is printed;
   - still refused: suite or suite version, embedder pair, lexical tokenizer name and version, `top_k`, `metric_unit`, mixed served strategies, and every Spec 006 refusal;

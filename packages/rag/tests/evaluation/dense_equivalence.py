@@ -17,14 +17,18 @@ from retrieval.test_retriever import guest
 from way2australia_rag.evaluation.retrieval_eval import run_retrieval_evaluation
 from way2australia_rag.retrieval.access import build_access_filter
 from way2australia_rag.retrieval.identity import IndexIdentity
+from way2australia_rag.retrieval.strategy import load_retrieval_config
 
 from .test_retrieval_eval import (
     AUTH,
     build,
+    chunks_per_document_dense,
     golden,
     suite_of,
     unanswerable,
 )
+
+RETRIEVAL_CONFIG = load_retrieval_config(REPO_ROOT / "config/retrieval.yaml")
 
 FIXTURE_NAME = "dense_eval_2_0.json"
 FIXED_NOW = datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC)
@@ -77,6 +81,9 @@ def run_equivalence(**extra: Any) -> dict[str, Any]:
             suite=equivalence_suite(),
             release_id="seed-v1",
             top_k=5,
+            retrieval_depth=RETRIEVAL_CONFIG.fusion.candidate_depth,
+            chunks_per_document=chunks_per_document_dense(index),
+            ingestion_config={"path": "config/ingestion.yaml", "sha256": "0" * 64},
             authorities=AUTH,
             registry_languages=["en", "x1"],
             repo_root=REPO_ROOT,

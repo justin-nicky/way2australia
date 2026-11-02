@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from way2australia_rag.evaluation.errors import NotComparableError
 from way2australia_rag.evaluation.results import (
     AUTHORITY_VERSIONS,
+    SCHEMA_VERSION,
     CaseRow,
     ComparableRun,
 )
@@ -24,6 +25,11 @@ NEW_BASELINE = "run `make eval-retrieval` on the current system to set a new bas
 IDENTITY_STEP = (
     "compare runs on the same collection, index_version, embedder and lexical index."
 )
+CROSS_INDEX_STEP = (
+    "use COMPARE_ARGS=--cross-index only when both files are result 2.3 and indexes "
+    "may differ."
+)
+FORMAT_RULE_ADVICE = "re-run both with result 2.3"
 FAKE_STEP = (
     "run `make eval-retrieval` with a real embedder (BGE-M3) to produce a "
     "comparable file."
@@ -76,6 +82,49 @@ def _lexical_identity(run: ComparableRun) -> tuple[object, object, object] | Non
     )
 
 
+def _lexical_tokenizer(run: ComparableRun) -> tuple[object, object] | None:
+    identity = _lexical_identity(run)
+    if identity is None:
+        return None
+    return identity[0], identity[1]
+
+
+def _chunker_text(chunker: object) -> str:
+    if not isinstance(chunker, dict):
+        return "unknown"
+    return f"{chunker.get('name')} {chunker.get('version')}"
+
+
+def _legacy_one_chunk_per_document(run: ComparableRun) -> bool:
+    lexical = run.info.get("lexical")
+    if not isinstance(lexical, dict):
+        return False
+    return lexical.get("chunk_count") == run.document_count
+
+
+def _format_rule_problem(base: ComparableRun, cand: ComparableRun) -> str | None:
+    versions = {base.schema_version, cand.schema_version}
+    if SCHEMA_VERSION not in versions or versions == {SCHEMA_VERSION}:
+        return None
+    newer = base if base.schema_version == SCHEMA_VERSION else cand
+    stats = newer.info.get("chunk_stats")
+    if not isinstance(stats, dict) or stats.get("max_chunks_per_document") != 1:
+        return FORMAT_RULE_ADVICE
+    older = cand if newer is base else base
+    if not _legacy_one_chunk_per_document(older):
+        return FORMAT_RULE_ADVICE
+    return None
+
+
+def _metric_unit_problem(base: ComparableRun, cand: ComparableRun) -> str | None:
+    if {base.schema_version, cand.schema_version} != {SCHEMA_VERSION}:
+        return None
+    left, right = base.info.get("metric_unit"), cand.info.get("metric_unit")
+    if left != right:
+        return f"metric_unit changed {left} -> {right}"
+    return None
+
+
 def _lexical_text(identity: tuple[object, object, object] | None) -> str:
     if identity is None:
         return "none"
@@ -83,26 +132,40 @@ def _lexical_text(identity: tuple[object, object, object] | None) -> str:
     return f"{name} v{version} digest {digest}"
 
 
-def _identity_problems(base: ComparableRun, cand: ComparableRun) -> list[str]:
+def _identity_problems(
+    base: ComparableRun, cand: ComparableRun, *, cross_index: bool
+) -> list[str]:
     """Spec 007 R10: unlike systems are refused, unlike strategies are not."""
     problems: list[str] = []
-    old_c, new_c = base.info.get("collection"), cand.info.get("collection")
-    if old_c is not None and new_c is not None and old_c != new_c:
-        problems.append(f"collection changed {old_c} -> {new_c}")
-    old_i, new_i = base.info.get("index_version"), cand.info.get("index_version")
-    if old_i != new_i:
-        problems.append(f"index_version changed {old_i} -> {new_i}")
+    if not cross_index:
+        old_c, new_c = base.info.get("collection"), cand.info.get("collection")
+        if old_c is not None and new_c is not None and old_c != new_c:
+            problems.append(f"collection changed {old_c} -> {new_c}")
+        old_i, new_i = base.info.get("index_version"), cand.info.get("index_version")
+        if old_i != new_i:
+            problems.append(f"index_version changed {old_i} -> {new_i}")
     if _embedder_pair(base) != _embedder_pair(cand):
         problems.append(f"embedder changed {_embedder(base)} -> {_embedder(cand)}")
     old_l, new_l = _lexical_identity(base), _lexical_identity(cand)
-    if old_l is not None and new_l is not None and old_l != new_l:
-        problems.append(
-            f"lexical index changed {_lexical_text(old_l)} -> {_lexical_text(new_l)}"
-        )
+    if old_l is not None and new_l is not None:
+        if cross_index:
+            old_t, new_t = _lexical_tokenizer(base), _lexical_tokenizer(cand)
+            if old_t is not None and new_t is not None and old_t != new_t:
+                problems.append(
+                    f"lexical tokenizer changed {old_t[0]} v{old_t[1]} -> "
+                    f"{new_t[0]} v{new_t[1]}"
+                )
+        elif old_l != new_l:
+            problems.append(
+                "lexical index changed "
+                f"{_lexical_text(old_l)} -> {_lexical_text(new_l)}"
+            )
     return problems
 
 
-def _refusals(base: ComparableRun, cand: ComparableRun) -> list[str]:
+def _refusals(
+    base: ComparableRun, cand: ComparableRun, *, cross_index: bool
+) -> list[str]:
     problems: list[str] = []
     steps: list[str] = []
     for label, run in (("BASE", base), ("CANDIDATE", cand)):
@@ -152,10 +215,21 @@ def _refusals(base: ComparableRun, cand: ComparableRun) -> list[str]:
         )
     if changed:
         steps.append(NEW_BASELINE)
-    identity = _identity_problems(base, cand)
+    if cross_index and (
+        base.schema_version != SCHEMA_VERSION or cand.schema_version != SCHEMA_VERSION
+    ):
+        problems.append("cross-index comparison requires result 2.3 on both sides")
+        steps.append(CROSS_INDEX_STEP)
+    if not cross_index and (problem := _format_rule_problem(base, cand)):
+        problems.append(problem)
+        steps.append(FORMAT_RULE_ADVICE)
+    if metric := _metric_unit_problem(base, cand):
+        problems.append(metric)
+        steps.append(NEW_BASELINE)
+    identity = _identity_problems(base, cand, cross_index=cross_index)
     if identity:
         problems.extend(identity)
-        steps.append(IDENTITY_STEP)
+        steps.append(IDENTITY_STEP if not cross_index else CROSS_INDEX_STEP)
     if not problems:
         return []
     unique_steps = list(dict.fromkeys(steps))
@@ -222,9 +296,41 @@ def _changed(label: str, old: object, new: object) -> str | None:
     return None if old == new else f"{label}: {old} -> {new}"
 
 
-def compare(base: ComparableRun, candidate: ComparableRun) -> Comparison:
+def _cross_index_lines(base: ComparableRun, candidate: ComparableRun) -> list[str]:
+    lines: list[str] = []
+    for label, old, new in (
+        ("collection", base.info.get("collection"), candidate.info.get("collection")),
+        (
+            "index_version",
+            base.info.get("index_version"),
+            candidate.info.get("index_version"),
+        ),
+    ):
+        diff = _changed(label, old, new)
+        if diff:
+            lines.append(f"cross-index: {diff}")
+    old_chunker, new_chunker = base.info.get("chunker"), candidate.info.get("chunker")
+    if old_chunker != new_chunker:
+        lines.append(
+            "cross-index: chunker: "
+            f"{_chunker_text(old_chunker)} -> {_chunker_text(new_chunker)}"
+        )
+    old_cfg, new_cfg = (
+        base.info.get("ingestion_config"),
+        candidate.info.get("ingestion_config"),
+    )
+    if old_cfg != new_cfg:
+        old_path = old_cfg.get("path") if isinstance(old_cfg, dict) else old_cfg
+        new_path = new_cfg.get("path") if isinstance(new_cfg, dict) else new_cfg
+        lines.append(f"cross-index: ingestion_config: {old_path} -> {new_path}")
+    return lines
+
+
+def compare(
+    base: ComparableRun, candidate: ComparableRun, *, cross_index: bool = False
+) -> Comparison:
     """Raise `NotComparableError` for unlike runs; otherwise apply the gate."""
-    refusals = _refusals(base, candidate)
+    refusals = _refusals(base, candidate, cross_index=cross_index)
     if refusals:
         raise NotComparableError(refusals[0])
     keys = sorted(base.cases)
@@ -260,6 +366,8 @@ def compare(base: ComparableRun, candidate: ComparableRun) -> Comparison:
         f"documents {base.document_count}, compared cases {n}",
         _delta_line("overall", base_rows, cand_rows, k),
     ]
+    if cross_index:
+        lines.extend(_cross_index_lines(base, candidate))
     sliced: list[tuple[str, Callable[[CaseRow], str]]] = [
         ("query_language", lambda r: r.query_language),
         ("category", lambda r: r.category),
@@ -312,10 +420,18 @@ def compare(base: ComparableRun, candidate: ComparableRun) -> Comparison:
             lines.append(f"identity differs, {diff}")
     old_l, new_l = _lexical_identity(base), _lexical_identity(candidate)
     if old_l != new_l:
-        lines.append(
-            "identity differs, lexical_index: "
-            f"{_lexical_text(old_l)} -> {_lexical_text(new_l)}"
-        )
+        if cross_index:
+            old_t, new_t = _lexical_tokenizer(base), _lexical_tokenizer(candidate)
+            if old_t is not None and new_t is not None and old_t != new_t:
+                lines.append(
+                    "identity differs, lexical tokenizer: "
+                    f"{old_t[0]} v{old_t[1]} -> {new_t[0]} v{new_t[1]}"
+                )
+        else:
+            lines.append(
+                "identity differs, lexical_index: "
+                f"{_lexical_text(old_l)} -> {_lexical_text(new_l)}"
+            )
     for key in keys:
         old, new = base.cases[key].hit, candidate.cases[key].hit
         if old and not new:

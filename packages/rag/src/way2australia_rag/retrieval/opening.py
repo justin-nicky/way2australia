@@ -6,6 +6,7 @@ standalone: no embedder, no Qdrant client, no model. `hybrid` falls back to
 that same path when the dense side is unavailable at open time.
 """
 
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -74,11 +75,28 @@ def open_standalone_lexical(
     return lexical
 
 
+def _chunks_per_document(
+    lexical: LexicalIndex | None, index: DenseIndex | None
+) -> Callable[[], dict[str, int]]:
+    def counts() -> dict[str, int]:
+        if lexical is not None:
+            return lexical.chunks_per_document()
+        if index is not None:
+            tallies: Counter[str] = Counter()
+            for _point, document_id, _version, _hash in index.chunk_identities():
+                tallies[document_id] += 1
+            return dict(tallies)
+        return {}
+
+    return counts
+
+
 @dataclass
 class OpenedRetrieval:
     retriever: Retriever
     identity: IndexIdentity
     document_count: Callable[[ResolvedAccess], int]
+    chunks_per_document: Callable[[], dict[str, int]]
     embedder: Embedder | None
     index_settings: IndexSettings | None
     lexical: LexicalIndex | None
@@ -128,7 +146,15 @@ def open_retrieval(
         except BaseException:
             lexical.close()
             raise
-        return OpenedRetrieval(retriever, expected, lexical_count, None, None, lexical)
+        return OpenedRetrieval(
+            retriever,
+            expected,
+            lexical_count,
+            _chunks_per_document(lexical, None),
+            None,
+            None,
+            lexical,
+        )
 
     embedder = embedder_factory(ingestion_config, provider)
     timeouts = retrieval_config.qdrant
@@ -178,7 +204,13 @@ def open_retrieval(
             lexical.close()
         raise
     return OpenedRetrieval(
-        retriever, identity, dense_count, embedder, index.settings, lexical
+        retriever,
+        identity,
+        dense_count,
+        _chunks_per_document(lexical, index),
+        embedder,
+        index.settings,
+        lexical,
     )
 
 
@@ -220,4 +252,12 @@ def _open_fallback(
         return lexical.document_count(where, params)
 
     retriever = FallbackRetriever(None, BM25Retriever(expected, lexical), reason)
-    return OpenedRetrieval(retriever, expected, lexical_count, embedder, None, lexical)
+    return OpenedRetrieval(
+        retriever,
+        expected,
+        lexical_count,
+        _chunks_per_document(lexical, None),
+        embedder,
+        None,
+        lexical,
+    )

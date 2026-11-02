@@ -6,6 +6,7 @@ a case's own `access_context` is never consulted. Read-only on Qdrant, on
 chunk text, absolute paths or secrets. The CLI is the only writer.
 """
 
+import hashlib
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime
@@ -33,8 +34,10 @@ from way2australia_rag.evaluation.slices import (
     slice_by,
     source_authority_key,
 )
+from way2australia_rag.ingestion.chunking import ChunkerIdentity
 from way2australia_rag.ingestion.embedding import Embedder
 from way2australia_rag.ingestion.settings import IndexSettings
+from way2australia_rag.lexical.store import LexicalIndex
 from way2australia_rag.retrieval.access import ResolvedAccess
 from way2australia_rag.retrieval.base import Retriever, Strategy
 from way2australia_rag.retrieval.baseline import git_state
@@ -54,6 +57,68 @@ from way2australia_rag.retrieval.strategy import QdrantTimeouts
 OVERLAP_CASES = ("g004", "u001")
 UNANSWERABLE_STATUS = "not_evaluable_before_generation"
 UNANSWERABLE_OWNER = "roadmap-10"
+METRIC_UNIT = "distinct_documents"
+DEPTH_ADVICE = (
+    "lower top_k, raise candidate_depth in config/retrieval.yaml (at most 50), "
+    "or use a coarser chunker."
+)
+
+
+def required_distinct_depth(k: int, max_chunks_per_document: int) -> int:
+    return (k - 1) * max_chunks_per_document + 1
+
+
+def build_chunk_stats(
+    chunks_per_document: Mapping[str, int], *, k: int
+) -> dict[str, int]:
+    if not chunks_per_document:
+        raise EvaluationConfigurationError(
+            "the bound index reports no chunks; run `make ingest` and "
+            "`make index-lexical` on the current configuration."
+        )
+    max_per_doc = max(chunks_per_document.values())
+    return {
+        "chunk_count": sum(chunks_per_document.values()),
+        "document_count": len(chunks_per_document),
+        "max_chunks_per_document": max_per_doc,
+        "required_depth": required_distinct_depth(k, max_per_doc),
+    }
+
+
+def require_retrieval_depth(
+    *, k: int, retrieval_depth: int, chunks_per_document: Mapping[str, int]
+) -> None:
+    stats = build_chunk_stats(chunks_per_document, k=k)
+    required = stats["required_depth"]
+    if required > retrieval_depth:
+        raise EvaluationConfigurationError(
+            "retrieval depth is too shallow for distinct-document metrics at "
+            f"top_k={k}: max_chunks_per_document={stats['max_chunks_per_document']}, "
+            f"required_depth={required}, retrieval_depth={retrieval_depth}. "
+            f"{DEPTH_ADVICE}"
+        )
+
+
+def chunker_for_result(
+    index_settings: IndexSettings | None, lexical: LexicalIndex | None
+) -> ChunkerIdentity:
+    if index_settings is not None:
+        return index_settings.chunker_identity()
+    if lexical is not None:
+        return lexical.settings.chunker_identity()
+    raise EvaluationConfigurationError(
+        "cannot record chunker identity without index settings or a lexical file."
+    )
+
+
+def ingestion_config_report(config_path: Path, repo_root: Path) -> dict[str, str]:
+    resolved = config_path.resolve()
+    try:
+        path = str(resolved.relative_to(repo_root.resolve()))
+    except ValueError:
+        path = resolved.name
+    digest = hashlib.sha256(resolved.read_bytes()).hexdigest()
+    return {"path": path, "sha256": digest}
 
 
 def active_golden_cases(suite: LoadedSuite) -> list[GoldenCase]:
@@ -256,7 +321,14 @@ def _single(values: set[str]) -> str | None:
     return next(iter(values)) if len(values) == 1 else None
 
 
-def _notes(suite: LoadedSuite, *, top_k: int, document_count: int, n: int) -> list[str]:
+def _notes(
+    suite: LoadedSuite,
+    *,
+    top_k: int,
+    document_count: int,
+    n: int,
+    max_chunks_per_document: int,
+) -> list[str]:
     notes = [
         f"Top-{top_k} over {document_count} indexed documents is optimistic; compare "
         f"HitRate@{top_k} with the random expectation "
@@ -264,11 +336,23 @@ def _notes(suite: LoadedSuite, *, top_k: int, document_count: int, n: int) -> li
         f"min(1, {top_k}/{document_count}) understates the random rate for cases "
         "with several relevant documents.",
         f"One case equals 1/{n} of HitRate ({1 / n:.3f}).",
-        "Every document is a single chunk, so section-level and document-level "
-        "results coincide.",
-        "The index was not verified against the declared release's document snapshot.",
-        "Model load and the warm-up query are excluded from p50/p95.",
+        "Metrics use the first "
+        f"{top_k} distinct documents after retrieval to candidate depth "
+        f"(MRR@{top_k}).",
+        f"Chunker max_chunks_per_document={max_chunks_per_document}.",
     ]
+    if max_chunks_per_document == 1:
+        notes.append(
+            "Every document is a single chunk, so section-level and document-level "
+            "results coincide."
+        )
+    notes.extend(
+        [
+            "The index was not verified against the declared release's "
+            "document snapshot.",
+            "Model load and the warm-up query are excluded from p50/p95.",
+        ]
+    )
     active_golden = {c.case_id for c in suite.active(DatasetType.GOLDEN_ANSWERABLE)}
     active_unanswerable = {
         c.case_id for c in suite.active(DatasetType.UNANSWERABLE_REFUSAL)
@@ -289,10 +373,14 @@ def run_retrieval_evaluation(
     document_count: int,
     embedder: Embedder | None,
     index_settings: IndexSettings | None = None,
+    lexical: LexicalIndex | None = None,
     access: ResolvedAccess,
     suite: LoadedSuite,
     release_id: str,
     top_k: int,
+    retrieval_depth: int,
+    chunks_per_document: Mapping[str, int],
+    ingestion_config: dict[str, str],
     authorities: Mapping[str, str],
     registry_languages: Sequence[str],
     repo_root: Path,
@@ -301,13 +389,19 @@ def run_retrieval_evaluation(
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
 ) -> dict[str, Any]:
     """Run the active golden cases, then the active unanswerable cases, and return
-    the 2.2 result document. `fusion` is required when `hybrid` is requested and
+    the 2.3 result document. `fusion` is required when `hybrid` is requested and
     recorded when any case was served by `hybrid`. `qdrant_timeouts` is recorded
     as given (`None` for `bm25`).
 
     Unanswerable cases contribute their top-1 score only; their latency is
     excluded from the p50/p95 figures.
     """
+    require_retrieval_depth(
+        k=top_k,
+        retrieval_depth=retrieval_depth,
+        chunks_per_document=chunks_per_document,
+    )
+    chunk_stats = build_chunk_stats(chunks_per_document, k=top_k)
     require_active_suite(suite)
     if embedder is not None:  # `bm25` builds none
         require_real_embedder(embedder)
@@ -326,9 +420,10 @@ def run_retrieval_evaluation(
             "the hybrid strategy needs its fusion config."
         )
     started = perf_counter()
-    warm_up = retriever.retrieve(cases[0].query, access, top_k)  # unmeasured
+    warm_up = retriever.retrieve(cases[0].query, access, retrieval_depth)  # unmeasured
     warmup_ms = (perf_counter() - started) * 1000.0
     _require_settings_if_dense_served(index_settings, {warm_up.strategy})
+    chunker = chunker_for_result(index_settings, lexical)
     # A real BgeM3Embedder reports no device until the model has loaded.
     device = embedder.device if embedder is not None else None
 
@@ -337,9 +432,10 @@ def run_retrieval_evaluation(
     results: list[RetrievalResult] = []
     section_rows: list[dict[str, Any]] = []
     for case in cases:
-        result = retriever.retrieve(case.query, access, top_k)
+        result = retriever.retrieve(case.query, access, retrieval_depth)
         results.append(result)
-        ranked = dedupe_documents(result.hits)
+        distinct = dedupe_documents(result.hits)
+        ranked = distinct[:top_k]
         relevant = set(case.relevant_document_ids)
         top1 = round(result.hits[0].score, 4) if result.hits else None
         rows.append(
@@ -373,7 +469,7 @@ def run_retrieval_evaluation(
 
     latencies = [r["latency_ms"] for r in rows]
     unanswerable_results = [
-        (case, retriever.retrieve(case.query, access, top_k))
+        (case, retriever.retrieve(case.query, access, retrieval_depth))
         for case in suite.active(DatasetType.UNANSWERABLE_REFUSAL)
     ]
     measured = [*results, *(r for _c, r in unanswerable_results)]
@@ -442,6 +538,11 @@ def run_retrieval_evaluation(
         "lexical_index": _lexical_report(lexical_identity),
         "truncated_query_count": truncated,
         "top_k": top_k,
+        "metric_unit": METRIC_UNIT,
+        "retrieval_depth": retrieval_depth,
+        "chunk_stats": chunk_stats,
+        "chunker": chunker.model_dump(mode="json"),
+        "ingestion_config": ingestion_config,
         "device": device,
         "embedder_is_fake": identity.embedder_is_fake,
         "case_count": len(rows),
@@ -470,5 +571,11 @@ def run_retrieval_evaluation(
             "legs": _leg_latency(results),
         },
         "cases": rows,
-        "notes": _notes(suite, top_k=top_k, document_count=document_count, n=len(rows)),
+        "notes": _notes(
+            suite,
+            top_k=top_k,
+            document_count=document_count,
+            n=len(rows),
+            max_chunks_per_document=chunk_stats["max_chunks_per_document"],
+        ),
     }

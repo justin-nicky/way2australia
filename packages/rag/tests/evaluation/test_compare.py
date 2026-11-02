@@ -12,13 +12,14 @@ import pytest
 from conftest import REPO_ROOT
 from way2australia_rag.evaluation import cli
 from way2australia_rag.evaluation.compare import (
+    FORMAT_RULE_ADVICE,
     HIT_TOLERANCE_CASES,
     MRR_EPSILON,
     compare,
     mrr_tolerance,
 )
 from way2australia_rag.evaluation.errors import NotComparableError
-from way2australia_rag.evaluation.results import read_result
+from way2australia_rag.evaluation.results import SCHEMA_VERSION, read_result
 
 SECRET_QUERY = "SECRET-QUERY text"
 COMMITTED = (
@@ -657,3 +658,143 @@ def test_committed_spec_007_bm25_reads_and_compares_with_standalone_2_2(
     ]
     result = compare(base, read_result(write(tmp_path, "c.json", cand), "CANDIDATE"))
     assert result.passed and result.hits_base == result.hits_candidate
+
+
+# --- Spec 009 R8: cross-index compare and format 2.3 -------------------------
+
+
+def doc23(**over: Any) -> dict[str, Any]:
+    document = doc22("hybrid", standalone=False, n=10)
+    document.update(
+        {
+            "schema_version": SCHEMA_VERSION,
+            "metric_unit": "distinct_documents",
+            "retrieval_depth": 50,
+            "chunk_stats": {
+                "chunk_count": 13,
+                "document_count": 13,
+                "max_chunks_per_document": 1,
+                "required_depth": 5,
+            },
+            "chunker": {
+                "name": "heading",
+                "version": "1",
+                "params": {"max_chunk_chars": 2000},
+                "tokenizer": None,
+            },
+            "ingestion_config": {
+                "path": "config/ingestion.yaml",
+                "sha256": "a" * 64,
+            },
+        }
+    )
+    document.update(over)
+    return document
+
+
+def run_cross(
+    tmp_path: Path, base: dict[str, Any], cand: dict[str, Any], *, cross_index: bool
+):  # noqa: ANN201
+    return compare(
+        read_result(write(tmp_path, "base.json", base), "BASE"),
+        read_result(write(tmp_path, "cand.json", cand), "CANDIDATE"),
+        cross_index=cross_index,
+    )
+
+
+def test_2_3_against_2_2_one_chunk_passes_without_cross_index(tmp_path: Path) -> None:
+    legacy = doc21("hybrid")
+    legacy["document_count"] = 13
+    legacy["lexical_index"] = {**LEXICAL, "chunk_count": 13}
+    modern = doc23(
+        evaluation_suite_id=legacy["evaluation_suite_id"],
+        evaluation_suite_version=legacy["evaluation_suite_version"],
+        document_count=13,
+        lexical_index=legacy["lexical_index"],
+    )
+    assert run_cross(tmp_path, legacy, modern, cross_index=False).passed
+
+
+def test_2_3_multi_chunk_against_2_2_is_refused(tmp_path: Path) -> None:
+    legacy = doc21("hybrid")
+    legacy["lexical_index"] = {**LEXICAL, "chunk_count": 13}
+    modern = doc23(
+        chunk_stats={
+            "chunk_count": 20,
+            "document_count": 10,
+            "max_chunks_per_document": 2,
+            "required_depth": 9,
+        }
+    )
+    message = refusal(tmp_path, legacy, modern)
+    assert FORMAT_RULE_ADVICE in message
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("collection", "way2australia-idx-v2"),
+        ("index_version", "idx-v2"),
+    ],
+)
+def test_cross_index_allows_index_fields(
+    tmp_path: Path, field: str, value: str
+) -> None:
+    base = doc23()
+    cand = doc23(**{field: value})
+    cand["chunker"] = {
+        "name": "recursive",
+        "version": "1",
+        "params": {"target_tokens": 128},
+        "tokenizer": "bge-m3@5617a9f",
+    }
+    cand["ingestion_config"] = {
+        "path": "experiments/configs/chunking/recursive-128.yaml",
+        "sha256": "b" * 64,
+    }
+    result = run_cross(tmp_path, base, cand, cross_index=True)
+    assert result.passed
+    text = "\n".join(result.lines)
+    assert "cross-index: chunker:" in text
+
+
+def test_cross_index_with_2_2_side_is_refused(tmp_path: Path) -> None:
+    with pytest.raises(NotComparableError) as info:
+        run_cross(tmp_path, doc21("hybrid"), doc23(), cross_index=True)
+    assert "cross-index comparison requires result 2.3 on both sides" in str(info.value)
+
+
+def test_index_version_difference_refused_without_cross_index(tmp_path: Path) -> None:
+    message = refusal(tmp_path, doc23(), doc23(index_version="idx-v2"))
+    assert "index_version changed idx-v1 -> idx-v2" in message
+
+
+def test_make_eval_compare_cross_index_prints_chunker(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    base_path = write(tmp_path, "base.json", doc23())
+    cand_path = write(
+        tmp_path,
+        "cand.json",
+        doc23(
+            index_version="idx-v2",
+            chunker={
+                "name": "recursive",
+                "version": "1",
+                "params": {"target_tokens": 128},
+                "tokenizer": "bge-m3@5617a9f",
+            },
+        ),
+    )
+    code = cli.main(
+        [
+            "compare",
+            "--base",
+            str(base_path),
+            "--candidate",
+            str(cand_path),
+            "--cross-index",
+        ]
+    )
+    assert code == 0
+    assert "cross-index: chunker:" in capsys.readouterr().out

@@ -42,6 +42,7 @@ from way2australia_rag.evaluation.results import (
     write_document,
 )
 from way2australia_rag.evaluation.retrieval_eval import (
+    ingestion_config_report,
     require_active_suite,
     require_real_embedder,
     run_retrieval_evaluation,
@@ -305,10 +306,14 @@ def _retrieval(
             document_count=opened.document_count(access),
             embedder=opened.embedder,
             index_settings=opened.index_settings,
+            lexical=opened.lexical,
             access=access,
             suite=suite,
             release_id=release_id,
             top_k=args.top_k,
+            retrieval_depth=retrieval_config.fusion.candidate_depth,
+            chunks_per_document=opened.chunks_per_document(),
+            ingestion_config=ingestion_config_report(config_path, repo_root),
             authorities=authorities,
             registry_languages=languages,
             repo_root=repo_root,
@@ -470,7 +475,7 @@ def _compare(args: argparse.Namespace) -> int:
     try:
         base = read_result(args.base, "BASE")
         candidate = read_result(args.candidate, "CANDIDATE")
-        comparison = compare(base, candidate)
+        comparison = compare(base, candidate, cross_index=args.cross_index)
     except EvaluationError as error:
         print(safe_text(error), file=sys.stderr)
         return EXIT_ERROR
@@ -554,6 +559,13 @@ def main(
     )
     compare_cmd.add_argument("--base", type=Path, required=True)
     compare_cmd.add_argument("--candidate", type=Path, required=True)
+    compare_cmd.add_argument(
+        "--cross-index",
+        action="store_true",
+        help=(
+            "allow collection, index_version and chunker differences (result 2.3 only)"
+        ),
+    )
     args = parser.parse_args(argv)
     if args.command == "compare":
         return _compare(args)

@@ -72,7 +72,7 @@ RETRIEVAL_CONFIG = load_retrieval_config(REPO_ROOT / "config/retrieval.yaml")
 def test_dense_2_2_equals_the_pre_change_2_0_result() -> None:
     before = json.loads(FIXTURE.read_text(encoding="utf-8"))
     after = run_equivalence()
-    assert before["schema_version"] == "2.0" and after["schema_version"] == "2.2"
+    assert before["schema_version"] == "2.0" and after["schema_version"] == "2.3"
     new_row_keys = {
         "query_terms_truncated",
         "leg_ranks",
@@ -92,6 +92,12 @@ def test_dense_2_2_equals_the_pre_change_2_0_result() -> None:
         "fusion",
         "lexical_index",
         "truncated_query_count",
+        "metric_unit",
+        "retrieval_depth",
+        "chunk_stats",
+        "chunker",
+        "ingestion_config",
+        "notes",
     }
     for key, value in before.items():
         if key not in skipped:
@@ -106,7 +112,10 @@ def test_dense_2_2_equals_the_pre_change_2_0_result() -> None:
     assert after["score_kind"] == "dense_cosine"
     assert after["fusion"] is None and after["lexical_index"] is None
     assert after["truncated_query_count"] is None
-    # 2.2 additions on a no-fallback run (Spec 008 R8)
+    # 2.2 / 2.3 additions on a no-fallback run (Spec 008 R8, Spec 009 R7)
+    assert after["metric_unit"] == "distinct_documents"
+    assert after["retrieval_depth"] == RETRIEVAL_CONFIG.fusion.candidate_depth
+    assert after["chunk_stats"]["max_chunks_per_document"] == 1
     assert after["requested_strategy"] == after["retrieval_strategy"] == "dense"
     assert after["served_strategies"] == ["dense"] and after["fallback_counts"] == {}
     assert after["warmup_fallback_reason"] is None
@@ -210,12 +219,21 @@ def run_strategy(tmp_path: Path, strategy: Strategy, suite=None):  # noqa: ANN00
     retriever = build_retriever(
         strategy, IndexIdentity.from_dense(index), index, emb, lexical, RETRIEVAL_CONFIG
     )
+    from .test_retrieval_eval import chunks_per_document_dense
+
+    chunks = (
+        lexical.chunks_per_document()
+        if strategy in (Strategy.BM25, Strategy.HYBRID)
+        else chunks_per_document_dense(index)
+    )
     return run(
         index,
         emb,
         retriever,
         suite or strategy_suite(),
         fusion=RETRIEVAL_CONFIG.fusion if strategy == Strategy.HYBRID else None,
+        lexical=lexical if strategy in (Strategy.BM25, Strategy.HYBRID) else None,
+        chunks_per_document=chunks,
     )
 
 
@@ -236,11 +254,12 @@ COMMON_KEYS = {
         (Strategy.HYBRID, "rrf"),
     ],
 )
-def test_2_2_keys_for_each_strategy(
+def test_2_3_keys_for_each_strategy(
     tmp_path: Path, strategy: Strategy, score_kind: str
 ) -> None:
     doc = run_strategy(tmp_path, strategy)
-    assert doc["schema_version"] == "2.2"
+    assert doc["schema_version"] == "2.3"
+    assert doc["metric_unit"] == "distinct_documents"
     assert COMMON_KEYS <= set(doc)
     assert doc["retrieval_strategy"] == strategy.value
     assert doc["score_kind"] == score_kind
@@ -470,7 +489,7 @@ def test_eval_cli_writes_a_2_2_result_without_text(
     assert eval_cli(factory, "--strategy", strategy, "--output", str(out)) == 0
     text = out.read_text(encoding="utf-8")
     doc = json.loads(text)
-    assert doc["schema_version"] == "2.2" and doc["retrieval_strategy"] == strategy
+    assert doc["schema_version"] == "2.3" and doc["retrieval_strategy"] == strategy
     queries = [
         r["query"]
         for kind in ("golden_answerable", "unanswerable_refusal")
@@ -696,7 +715,7 @@ def test_a_2_2_file_reads_with_strategy_and_lexical(tmp_path: Path) -> None:
     path = tmp_path / "r.json"
     path.write_text(json.dumps(doc), encoding="utf-8")
     run_ = read_result(path)
-    assert run_.schema_version == "2.2"
+    assert run_.schema_version == "2.3"
     assert run_.info["retrieval_strategy"] == "hybrid"
     assert run_.info["lexical"]["tokenizer_name"] == "lexical-v1"
     assert len(run_.cases) == len(doc["cases"])
@@ -742,7 +761,7 @@ def test_eval_cli_bm25_needs_neither_qdrant_nor_the_embedder(
     )
     assert code == 0
     doc = json.loads(out.read_text(encoding="utf-8"))
-    assert doc["schema_version"] == "2.2" and doc["retrieval_strategy"] == "bm25"
+    assert doc["schema_version"] == "2.3" and doc["retrieval_strategy"] == "bm25"
     assert doc["index_settings"] is None and doc["device"] is None
     assert doc["document_count"] == manifest_document_count()
     assert doc["embedder_is_fake"] is False

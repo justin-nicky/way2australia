@@ -209,7 +209,7 @@
   - `chunker_identity`, `build_chunker`, and `chunk_token_cap` live in `chunker_build.py`; ingestion CLI re-exports `build_chunker`.
   - Standalone BM25 and hybrid fallback open paths use `chunker_identity(config)` only; no tokenizer load at open.
   - Recursive v1 seed snapshot at 32 fake tokens uses `context_prefix: none` so all 13 seed documents still chunk under the half-target prefix rule.
-- Usage: (orchestrator)
+- Usage: n/a (Cursor) · 221 tool uses · 22:00
 
 ### Review
 - Model: Grok 4.7 (Cursor). Tier note: task-reviewer is BEST; MODEL_PREFERENCES.md has no Cursor model id (Claude Code BEST is Opus). Mismatch noted; continued as a subagent.
@@ -218,7 +218,7 @@
 - Findings: F1 [MAJOR, IMPLEMENTATION, R5/R6] `lexical/cli.py` chunks with `build_tokenizer(embedder_for_run(...))` but records `chunker_identity(config)`, which reads the file's embedder and ignores `--embedder`. R6 requires the fake embedder to use the fake tokenizer. The recursive command above wrote `BAAI/bge-m3@5617a9f61b028005a4858fdac845db406aefb181` while the chunker that produced the 45 chunks has identity `fake-tokenizer@1` (confirmed: `chunker.identity != chunker_identity(config)`). Dense settings use `chunker.identity`, so `bind_to` refuses `chunker_tokenizer`. Standalone open calls `chunker_identity(config)` and therefore accepts the mislabeled file. Heading is unaffected because its tokenizer is always null, which is why the default `--embedder fake` lexical file looks fine. → Store `chunker.identity` in the lexical build. On the open path, derive the expected identity from `embedder_for_run(config.embedder, provider)` without calling `build_tokenizer`. Add a test that `--embedder fake` with `recursive-128.yaml` stores `fake-tokenizer@1` on both the dense settings and the lexical file, and that BM25 open agrees.
 - Findings: F2 [MINOR, IMPLEMENTATION, R4] `test_overlap_shorter_tail_when_longest_does_not_fit` no longer forces a shorter tail. With `context_prefix: none`, target 32, overlap 10, and one-token words, the shared tail is the full 10 tokens (2 chunks; shared 10). `shared < content_count(words[:12])` passes without the trim loop dropping a unit. The half-target rule makes the old 24-word title illegal. → Replace the fixture with one that still trims under that rule.
 - Findings: F3 [MINOR, IMPLEMENTATION, R5/R6] Three checked test bullets are only partly covered. No freshness case asserts an added document (`documents only in the repository: 1`). `test_collection_with_1_0_settings_still_binds` passes the in-memory 1.1 upgrade into `ensure_collection`, which writes schema 1.1, and it does not ingest. `build_tokenizer` patched to raise is asserted only for `open_retrieval` BM25, not for hybrid open-time, the per-query fallback, or a CLI. → Add those cases. The prefix-rule checkbox itself holds: `recursive` v1 uses the same `count(prefix) > target // 2` check as `structure` v1, raises `IngestionConfigurationError` for that document, and the ingestion loop keeps going.
-- Usage: (orchestrator)
+- Usage: n/a (Cursor) · 108 tool uses · 102:00
 
 ## T3 — round 2
 
@@ -237,7 +237,7 @@
   - `graphify update .` → pass (4286 nodes)
 - Notes:
   - Round 1 F1–F3 only; no spec or task checkbox edits beyond state.
-- Usage: (orchestrator)
+- Usage: n/a (Cursor) · 153 tool uses · 7:00
 
 ### Review
 - Model: Grok 4.6 (Cursor)
@@ -259,7 +259,54 @@
     8. `packages/rag/src/way2australia_rag/lexical/freshness.py` → `verify_fresh`: eligible `(document_id, document_version, content_hash)` set, no re-chunk.
     9. `packages/rag/src/way2australia_rag/retrieval/opening.py` → `open_retrieval`, `open_standalone_lexical`: BM25 and hybrid fallback never call `build_tokenizer`.
     10. Tests and configs: `test_config_schema_11.py`, `test_recursive_integration.py`, `experiments/configs/chunking/recursive-128.yaml`, `heading-idx-v1.yaml` (byte copy of `config/ingestion.yaml`).
-- Usage: (orchestrator)
+- Usage: n/a (Cursor) · 105 tool uses · n/a (Cursor)
 
 ### User decision
 - 2026-11-02: approved (overlap trim test tightened and integration collection cleanup at commit)
+
+## T4 — round 1
+
+### Implementation
+- Model: Grok 4.6 (Cursor agent); tier note: spec-implementer BEST_MINUS_ONE is Composer 2.5 in `MODEL_PREFERENCES.md` — mismatch noted per subagent rule.
+- Files changed:
+  - `packages/rag/src/way2australia_rag/evaluation/retrieval_eval.py` — retrieve at `retrieval_depth`, distinct-document metrics (MRR@k), depth check, chunk stats, chunker and ingestion config on result 2.3
+  - `packages/rag/src/way2australia_rag/evaluation/results.py` — schema 2.3 read/write; compare metadata in `ComparableRun.info`
+  - `packages/rag/src/way2australia_rag/evaluation/compare.py` — `--cross-index` mode, format rule for 2.3 vs legacy, lexical digest ignored across indexes when cross-index
+  - `packages/rag/src/way2australia_rag/evaluation/cli.py` — depth/chunk binding inputs; `compare --cross-index`
+  - `packages/rag/src/way2australia_rag/retrieval/opening.py` — `OpenedRetrieval.chunks_per_document` after bind (lexical when bound, else dense)
+  - `Makefile` — `COMPARE_ARGS` forwarded to `eval-compare`
+  - Tests: `test_retrieval_eval.py`, `test_compare.py`, `test_strategy_eval.py`, `dense_equivalence.py`
+  - `.kiro/specs/009-chunking-experiments/tasks.md` — T4 checkboxes and state
+  - `graphify-out/` (`graphify update`)
+- Verification run:
+  - `make verify` → pass (**1114** passed, 2 skipped)
+  - `git status --porcelain -- evaluation knowledge config` → empty
+  - `graphify update .` → pass (4340 nodes)
+  - `make test-integration` — not required for T4
+- Notes:
+  - `retrieval_depth` is always `config/retrieval.yaml` `fusion.candidate_depth` (50), including dense and standalone bm25.
+  - Chunker on open-time hybrid fallback is taken from the lexical file after warm-up (same as design).
+- Usage: n/a (Cursor) · 160 tool uses · 8:00
+
+### Review
+- Model: Grok 4.6 (Cursor)
+- Verdict: PASS
+- Commands: `HF_HOME=/tmp/w2a-t4-review-hf` `HF_HUB_CACHE=/tmp/w2a-t4-review-hf/hub` `HUGGINGFACE_HUB_CACHE=/tmp/w2a-t4-review-hf/hub` `TRANSFORMERS_CACHE=/tmp/w2a-t4-review-hf/transformers` `HF_HUB_OFFLINE=1` `TRANSFORMERS_OFFLINE=1` `make verify` → pass (1116 collected, 1114 passed, 2 skipped). `make eval-compare BASE=/tmp/w2a-t4-review/base.json CANDIDATE=/tmp/w2a-t4-review/cand.json COMPARE_ARGS=--cross-index` → pass (exit 0; prints collection, index_version, chunker, ingestion_config; different lexical digest not refused). Same files without the flag → exit 2 (collection, index_version, digest). `git status --porcelain -- evaluation knowledge config` → empty. `graphify-out/graph.json` is present from the implementer's update (4340 nodes); not regenerated in this review. `make test-integration` — not required for T4.
+- Findings: none
+- Summary for user (PASS only):
+  - Changed: `eval-retrieval` retrieves each case at `fusion.candidate_depth` (50), dedupes documents in rank order, and scores HitRate@k, Recall@k and MRR on the first k distinct documents. Result files are schema 2.3 (`metric_unit`, `retrieval_depth`, `chunk_stats`, `chunker`, `ingestion_config`). A bound index that is too fine for depth 50 is refused (exit 2). `eval-compare --cross-index` (Makefile `COMPARE_ARGS`) may differ on collection, `index_version`, chunker and ingestion config; suite, embedder, lexical tokenizer, `top_k`, `metric_unit`, mixed served strategies and the D044 gate still apply. Without the flag, 2.3 vs 2.2 is allowed only when both sides are one chunk per document.
+  - Verified by: `make verify` offline with an empty Hugging Face cache (1114 passed, 2 skipped); `make eval-compare COMPARE_ARGS=--cross-index` on two synthetic 2.3 files (chunker printed; digest ignored); protected paths empty.
+  - Worth your attention: bm25/hybrid one-chunk equality is the same scorer as the dense 2.0 snapshot, not a second frozen fixture. The multi-chunk tests score synthetic hit lists, not a fake index through `run_retrieval_evaluation`. Compare-matrix tests use 2.1 files as the "2.2" side; a reviewer probe with real 2.2 JSON passed the format rule. Chunker-only differences without `--cross-index` are neither refused nor printed (D054 still catches a different `index_version`).
+  - Reading order (follow the flow: entry point → core logic → models/errors/config → tests):
+    1. `Makefile` → `eval-compare`: forwards `COMPARE_ARGS` (including `--cross-index`).
+    2. `packages/rag/src/way2australia_rag/evaluation/cli.py` → `_retrieval`, `_compare`: binds depth after open; `compare --cross-index`.
+    3. `packages/rag/src/way2australia_rag/evaluation/retrieval_eval.py` → `run_retrieval_evaluation`, `require_retrieval_depth`, `build_chunk_stats`: retrieve at D, `ranked = dedupe_documents(hits)[:k]`, result 2.3.
+    4. `packages/rag/src/way2australia_rag/retrieval/opening.py` → `OpenedRetrieval.chunks_per_document`: lexical counts when bound, else dense `chunk_identities()`.
+    5. `packages/rag/src/way2australia_rag/evaluation/results.py` → `SCHEMA_VERSION` 2.3, `read_result`: 2.3 metadata on `ComparableRun.info`.
+    6. `packages/rag/src/way2australia_rag/evaluation/compare.py` → `compare`, `_format_rule_problem`, `_cross_index_lines`: flag, format rule, digest skip, D044 gate.
+    7. Tests: `test_retrieval_eval.py` (depth, 2.3 keys, fallback chunker), `test_compare.py` (cross-index matrix), `test_strategy_eval.py` / `dense_equivalence.py` (dense 2.0 snapshot still matches ranked docs and metrics).
+    8. Supporting edits: `Makefile` usage line.
+- Usage: n/a (Cursor) · 103 tool uses · n/a (Cursor)
+
+### User decision
+- 2026-11-02: approved

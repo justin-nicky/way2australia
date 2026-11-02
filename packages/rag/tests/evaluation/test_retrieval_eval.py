@@ -6,6 +6,7 @@ nothing written outside tmp_path.
 
 import json
 import re
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -32,7 +33,17 @@ from way2australia_rag.retrieval.base import Strategy
 from way2australia_rag.retrieval.errors import RetrievalConfigurationError
 from way2australia_rag.retrieval.identity import IndexIdentity
 from way2australia_rag.retrieval.index import DenseIndex
+from way2australia_rag.retrieval.metrics import (
+    dedupe_documents,
+    hit_rate_at_k,
+    recall_at_k,
+    reciprocal_rank,
+)
+from way2australia_rag.retrieval.models import RetrievedChunk
 from way2australia_rag.retrieval.retriever import DenseRetriever
+from way2australia_rag.retrieval.strategy import load_retrieval_config
+
+RETRIEVAL_CONFIG = load_retrieval_config(REPO_ROOT / "config/retrieval.yaml")
 
 pytestmark = pytest.mark.filterwarnings(
     "ignore:Payload indexes have no effect:UserWarning"
@@ -99,6 +110,24 @@ def suite_of(goldens: list[GoldenCase], status: str = "active", **kw: Any):  # n
     )
 
 
+def chunks_per_document_dense(index) -> dict[str, int]:  # noqa: ANN001
+    tallies: Counter[str] = Counter()
+    for _point, document_id, _version, _hash in index.chunk_identities():
+        tallies[document_id] += 1
+    return dict(tallies)
+
+
+def default_eval_extras(index, **over: Any) -> dict[str, Any]:  # noqa: ANN001
+    extras: dict[str, Any] = {
+        "retrieval_depth": RETRIEVAL_CONFIG.fusion.candidate_depth,
+        "chunks_per_document": chunks_per_document_dense(index),
+        "ingestion_config": {"path": "config/ingestion.yaml", "sha256": "0" * 64},
+        "lexical": None,
+    }
+    extras.update(over)
+    return extras
+
+
 def run(index, emb, retriever, suite, **over):  # noqa: ANN001, ANN003, ANN201
     args: dict[str, Any] = {
         "retriever": retriever,
@@ -113,8 +142,8 @@ def run(index, emb, retriever, suite, **over):  # noqa: ANN001, ANN003, ANN201
         "authorities": AUTH,
         "registry_languages": ["en", "x1"],
         "repo_root": REPO_ROOT,
+        **default_eval_extras(index, **over),
     }
-    args.update(over)
     return run_retrieval_evaluation(**args)
 
 
@@ -149,7 +178,7 @@ def test_field_set_is_a_superset_of_the_1_0_keys() -> None:
         "small_sample_threshold",
     ):
         assert key in doc, key
-    assert doc["schema_version"] == "2.2" and doc["kind"] == "retrieval_evaluation"
+    assert doc["schema_version"] == "2.3" and doc["kind"] == "retrieval_evaluation"
     assert doc["case_count"] == 3 and doc["excluded_case_count"] == 1
     assert doc["evaluation_suite"]["excluded_by_status"]["golden_answerable"] == {
         "deprecated": 1
@@ -491,6 +520,11 @@ def fusion_config():  # noqa: ANN202
     return load_retrieval_config(REPO_ROOT / "config/retrieval.yaml").fusion
 
 
+class _LexicalStub:
+    def __init__(self, settings):  # noqa: ANN001
+        self.settings = settings
+
+
 def scripted_run(serve, *, standalone: bool = False, **over):  # noqa: ANN001, ANN003, ANN202
     index, emb, inner = build()
     identity = IndexIdentity.from_dense(index)
@@ -498,6 +532,7 @@ def scripted_run(serve, *, standalone: bool = False, **over):  # noqa: ANN001, A
     if standalone:
         identity = identity.model_copy(update={"source": "lexical_file"})
         extra["index_settings"] = None
+        extra["lexical"] = _LexicalStub(index.settings)
     extra.update(over)
     return run(
         index,
@@ -509,10 +544,15 @@ def scripted_run(serve, *, standalone: bool = False, **over):  # noqa: ANN001, A
     )
 
 
-def test_2_2_keys_on_a_plain_run() -> None:
+def test_2_3_keys_on_a_plain_run() -> None:
     index, emb, retriever = build()
     doc = run(index, emb, retriever, suite_with_unanswerable())
-    assert doc["schema_version"] == "2.2"
+    assert doc["schema_version"] == "2.3"
+    assert doc["metric_unit"] == "distinct_documents"
+    assert doc["retrieval_depth"] == RETRIEVAL_CONFIG.fusion.candidate_depth
+    assert doc["chunk_stats"]["max_chunks_per_document"] == 1
+    assert set(doc["chunker"]) == {"name", "version", "params", "tokenizer"}
+    assert set(doc["ingestion_config"]) == {"path", "sha256"}
     assert doc["requested_strategy"] == doc["retrieval_strategy"] == "dense"
     assert doc["served_strategies"] == ["dense"]
     assert doc["fallback_counts"] == {} and doc["warmup_fallback_reason"] is None
@@ -597,7 +637,99 @@ def test_index_settings_none_is_accepted_for_standalone_bm25_and_open_fallback()
                 }
             )
 
-    doc = run(index, emb, Bm25Only(), basic_suite(), index_settings=None, embedder=None)
+    doc = run(
+        index,
+        emb,
+        Bm25Only(),
+        basic_suite(),
+        index_settings=None,
+        embedder=None,
+        lexical=_LexicalStub(index.settings),
+    )
     assert doc["index_settings"] is None and doc["retrieval_strategy"] == "bm25"
     fallback = scripted_run(lambda _i: "qdrant_unavailable", standalone=True)
     assert fallback["index_settings"] is None  # hybrid open-time fallback
+    assert fallback["chunker"]["name"] == "heading"
+
+
+# ---- Spec 009 R7: distinct-document metrics -----------------------------------
+
+
+def test_depth_check_boundary() -> None:
+    from way2australia_rag.evaluation.retrieval_eval import require_retrieval_depth
+
+    chunks = {"doc_a": 4}
+    require_retrieval_depth(k=5, retrieval_depth=17, chunks_per_document=chunks)
+    with pytest.raises(EvaluationConfigurationError) as info:
+        require_retrieval_depth(k=5, retrieval_depth=16, chunks_per_document=chunks)
+    message = str(info.value)
+    assert "max_chunks_per_document=4" in message
+    assert "required_depth=17" in message
+    assert "retrieval_depth=16" in message
+
+
+def _metric_chunk(rank: int, document_id: str, *, position: int = 0) -> RetrievedChunk:
+    return RetrievedChunk(
+        rank=rank,
+        point_id=f"{document_id}-{position}",
+        score=1.0 / rank,
+        document_id=document_id,
+        document_version=1,
+        section_id="main",
+        chunk_position=position,
+        title="t",
+        chunk_text="c",
+        knowledge_domain="business",
+        source_authority="owner_approved",
+        source_type="faq",
+        source_url=None,
+        content_language="en",
+        lote_languages=["*"],
+    )
+
+
+def _metrics_from_hits(
+    hits: list[RetrievedChunk], relevant: set[str], *, k: int
+) -> tuple[bool, float, float, list[str]]:
+    distinct = dedupe_documents(hits)
+    ranked = distinct[:k]
+    return (
+        hit_rate_at_k(ranked, relevant, k) == 1.0,
+        recall_at_k(ranked, relevant, k),
+        reciprocal_rank(ranked, relevant),
+        ranked,
+    )
+
+
+def test_one_chunk_metrics_match_the_2_2_style() -> None:
+    hits = [_metric_chunk(i + 1, f"doc_{i}") for i in range(8)]
+    relevant = {"doc_2"}
+    k = 5
+    old_ranked = dedupe_documents(hits[:k])
+    old = (
+        hit_rate_at_k(old_ranked, relevant, k) == 1.0,
+        recall_at_k(old_ranked, relevant, k),
+        reciprocal_rank(old_ranked, relevant),
+        old_ranked,
+    )
+    new = _metrics_from_hits(hits, relevant, k=k)
+    assert old == new
+
+
+def test_multi_chunk_document_found_when_second_chunk_ranks_six() -> None:
+    hits = [
+        _metric_chunk(1, "doc_0"),
+        _metric_chunk(2, "doc_t", position=0),
+        _metric_chunk(3, "doc_1"),
+        _metric_chunk(4, "doc_2"),
+        _metric_chunk(5, "doc_3"),
+        _metric_chunk(6, "doc_t", position=1),
+    ]
+    hit, _recall, rr, ranked = _metrics_from_hits(hits, {"doc_t"}, k=5)
+    assert hit is True and rr == 0.5 and ranked.index("doc_t") == 1
+
+
+def test_distinct_rank_beyond_k_gives_zero_reciprocal_rank() -> None:
+    hits = [_metric_chunk(i + 1, f"doc_{i}") for i in range(7)]
+    _hit, _recall, rr, _ranked = _metrics_from_hits(hits, {"doc_6"}, k=5)
+    assert rr == 0.0

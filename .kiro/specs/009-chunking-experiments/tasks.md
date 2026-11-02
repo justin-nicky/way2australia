@@ -104,15 +104,15 @@ Allowed protected-path changes: none.
 
 ## T4 — Distinct-document metrics, result 2.3 and cross-index compare
 
-**State:** not started
+**State:** approved (2026-11-02)
 **Requirements:** R7, R8
 
-- [ ] `evaluation/retrieval_eval.py`: retrieve each case at `D = fusion.candidate_depth`; `ranked = dedupe_documents(hits)[:k]`; hit, recall and reciprocal rank on that list (MRR@k); leg ranks unchanged.
-- [ ] Depth check after binding: `m` from `chunks_per_document()` (lexical file bound) or the dense `chunk_identities()`; refuse (exit 2) unless `(k − 1) · m + 1 <= D`, naming `m`, `k`, `D` and the advice.
-- [ ] `evaluation/results.py`: result 2.3 adds `metric_unit`, `retrieval_depth`, `chunk_stats {chunk_count, document_count, max_chunks_per_document, required_depth}`, `chunker` (from the bound settings, or the lexical file on standalone and fallback paths) and `ingestion_config {path, sha256}`; every 2.2 field keeps its meaning.
-- [ ] `evaluation/compare.py`: read 2.3; `--cross-index` allows collection, `index_version`, `chunker` and `ingestion_config` differences (printed) and keeps every other refusal (suite and version, embedder pair, lexical tokenizer, `top_k`, `metric_unit`, mixed served strategies, Spec 006 refusals) and the D044 gate; the chunk digest is not compared across indexes; cross-index needs 2.3 on both sides; without the flag, 2.3 against 2.0–2.2 only under the one-chunk-per-document rule, else refused with "re-run both with result 2.3".
-- [ ] `evaluation/cli.py` `compare --cross-index`; `Makefile` `eval-compare` passes `$(COMPARE_ARGS)`; usage line updated.
-- [ ] Tests:
+- [x] `evaluation/retrieval_eval.py`: retrieve each case at `D = fusion.candidate_depth`; `ranked = dedupe_documents(hits)[:k]`; hit, recall and reciprocal rank on that list (MRR@k); leg ranks unchanged.
+- [x] Depth check after binding: `m` from `chunks_per_document()` (lexical file bound) or the dense `chunk_identities()`; refuse (exit 2) unless `(k − 1) · m + 1 <= D`, naming `m`, `k`, `D` and the advice.
+- [x] `evaluation/results.py`: result 2.3 adds `metric_unit`, `retrieval_depth`, `chunk_stats {chunk_count, document_count, max_chunks_per_document, required_depth}`, `chunker` (from the bound settings, or the lexical file on standalone and fallback paths) and `ingestion_config {path, sha256}`; every 2.2 field keeps its meaning.
+- [x] `evaluation/compare.py`: read 2.3; `--cross-index` allows collection, `index_version`, `chunker` and `ingestion_config` differences (printed) and keeps every other refusal (suite and version, embedder pair, lexical tokenizer, `top_k`, `metric_unit`, mixed served strategies, Spec 006 refusals) and the D044 gate; the chunk digest is not compared across indexes; cross-index needs 2.3 on both sides; without the flag, 2.3 against 2.0–2.2 only under the one-chunk-per-document rule, else refused with "re-run both with result 2.3".
+- [x] `evaluation/cli.py` `compare --cross-index`; `Makefile` `eval-compare` passes `$(COMPARE_ARGS)`; usage line updated.
+- [x] Tests:
   - on a frozen one-chunk-per-document fixture (fake index) per-case ranked documents, hits, recall, reciprocal ranks and aggregates equal the 2.2 computation for `dense`, `bm25` and `hybrid`.
   - a multi-chunk fake index: a document whose second chunk ranks 6 is still found at k distinct documents; a relevant document at distinct rank 7 gives reciprocal rank 0.
   - depth check: passes at the boundary `(k − 1) · m + 1 == D`, refuses one above it, with the message fields.
@@ -132,7 +132,15 @@ Allowed protected-path changes: none.
 ## T5 — Security gate across chunkers
 
 **State:** not started
-**Requirements:** R9
+**Requirements:** R7, R8 (T4 review follow-ups), R9
+
+### T4 review follow-ups (planner amendment 2026-11-02)
+
+- [ ] End-to-end test: `run_retrieval_evaluation` on a fake multi-chunk index (recursive chunker, fake embedder), asserting distinct-document metrics and `chunk_stats`.
+- [ ] `eval-compare` without `--cross-index` refuses (exit 2) two 2.3 files whose chunker identity differs, naming the field.
+- [ ] Compare-matrix tests use a real 2.2 result fixture instead of 2.1 files standing in for 2.2.
+
+### Security gate (R9)
 
 - [ ] `evaluation/security_index.py` and `security_eval.py`: run the five paths (`dense`, standalone `bm25`, `hybrid`, `hybrid_fallback_open`, `hybrid_fallback_query`) for `heading` v1 (2000 characters), `structure` v1 (`max_chunk_tokens` 64, `title_and_headings`) and `recursive` v1 (`target_tokens` 32, `overlap_tokens` 4, `title`) with `FakeEmbedder` and `FakeTokenizer`; forbidden and canary points built per chunker, nearest by construction; lexical identity checks use `ChunkerIdentity`.
 - [ ] Security result 1.3: `runs: [{chunker, paths: {...1.2 shape...}}]` and overall `pass`.
