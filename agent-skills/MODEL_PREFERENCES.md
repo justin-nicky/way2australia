@@ -15,6 +15,7 @@ Record the model actually used in every implementer run, every task review and e
 - `spec-implementer` → **BEST_MINUS_ONE**
 - `task-reviewer` → **BEST** (fresh session, ideally a different model from the implementer)
 - `spec-reviewer` → **BEST** (optional retrospective, fresh session)
+- `workflow-reviewer` → **BEST** (on request, fresh session, report only)
 
 ## Preferred models
 
@@ -24,6 +25,7 @@ Fill these in with exact model IDs. Leave a placeholder unset if you have no pre
 |---|---|---|
 | Codex | `<CODEX_BEST_MODEL>` | `<CODEX_BEST_MINUS_ONE_MODEL>` |
 | Claude Code | `Opus` | `Sonnet` |
+| Cursor | `Grok 4.7` | `Composer 2.5` |
 | Kiro | `<KIRO_BEST_MODEL>` | `<KIRO_BEST_MINUS_ONE_MODEL>` |
 
 ## Runtime rule
