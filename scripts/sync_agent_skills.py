@@ -48,6 +48,10 @@ HOST_FRONTMATTER = {
             "disable-model-invocation: true",
             "argument-hint: [NNN-spec]",
         ],
+        "workflow-reviewer": [
+            "disable-model-invocation: true",
+            "argument-hint: [NNN-spec [task-ids]] [--host claude|cursor|any]",
+        ],
     },
 }
 

@@ -15,6 +15,7 @@ Record the model actually used in every implementer run, every task review and e
 - `spec-implementer` → **BEST_MINUS_ONE**
 - `task-reviewer` → **BEST** (fresh session, ideally a different model from the implementer)
 - `spec-reviewer` → **BEST** (optional retrospective, fresh session)
+- `workflow-reviewer` → **BEST** (on request, fresh session, report only)
 
 ## Preferred models
 
