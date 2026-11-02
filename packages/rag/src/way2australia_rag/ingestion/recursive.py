@@ -89,10 +89,10 @@ class RecursiveChunker:
             prefix = f"{document.title}\n\n"
 
         count = self._tokenizer.count
-        if prefix and count(prefix) > self._target_tokens:
+        if prefix and count(prefix) > self._target_tokens // 2:
             raise IngestionConfigurationError(
                 f"title prefix for document {document.document_id!r} exceeds "
-                "target_tokens."
+                "half of target_tokens."
             )
 
         def chunk_fits(piece: str) -> bool:

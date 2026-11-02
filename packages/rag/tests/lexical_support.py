@@ -49,9 +49,7 @@ def identity(**over: Any) -> LexicalIdentityInput:
             embedder_model_id=embedder.model_id,
             embedder_revision=embedder.revision,
         ),
-        "chunker_name": chunker.name,
-        "chunker_version": chunker.version,
-        "chunker_max_chunk_chars": chunker.max_chunk_chars,
+        "chunker": chunker.identity,
         "hash_contract": HASH_CONTRACT,
     }
     values.update(over)

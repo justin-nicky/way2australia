@@ -130,15 +130,12 @@ def built(tmp_path: Path) -> tuple[Path, Path]:
 
 
 def open_it(root: Path, directory: Path, **over: Any) -> LexicalIndex:
-    tokenizer = FakeTokenizer()
     return open_standalone_lexical(
         settings_for(directory),
         root,
         expected(**over),
-        HeadingChunker(),
+        HeadingChunker().identity,
         repo_at(root),
-        tokenizer,
-        None,
     )
 
 
@@ -153,15 +150,12 @@ def test_standalone_open_needs_no_client_and_no_embedder(
     monkeypatch.setattr(QdrantClient, "__init__", boom)
     monkeypatch.setattr(embedding.FakeEmbedder, "__init__", boom)
     before = set(sys.modules)
-    tokenizer = FakeTokenizer()
     lexical = open_standalone_lexical(
         settings_for(directory),
         root,
         wanted,
-        HeadingChunker(),
+        HeadingChunker().identity,
         repo_at(root),
-        tokenizer,
-        None,
     )
     lexical.close()
     heavy = {"torch", "sentence_transformers", "transformers"}
@@ -194,13 +188,13 @@ def test_each_dense_identity_field_mismatch_is_refused(
 
 @pytest.mark.parametrize(
     "field",
-    ["chunker_name", "chunker_version", "chunker_max_chunk_chars", "hash_contract"],
+    ["chunker_name", "chunker_version", "chunker_params", "hash_contract"],
 )
 def test_chunker_and_hash_contract_mismatch_is_refused(
     built: tuple[Path, Path], field: str
 ) -> None:
     root, directory = built
-    value: Any = 1 if field == "chunker_max_chunk_chars" else "zz"
+    value: Any = {"max_chunk_chars": 1} if field == "chunker_params" else "zz"
     rewrite_settings(lexical_index_path(directory, COLLECTION), **{field: value})
     with pytest.raises(LexicalIndexBindingError, match=field):
         open_it(root, directory)
@@ -215,7 +209,7 @@ def test_freshness_passes_on_a_matching_copy(built: tuple[Path, Path]) -> None:
     root, directory = built
     lexical = open_it(root, directory)
     try:
-        verify_fresh(lexical, repo_at(root), HeadingChunker(), FakeTokenizer(), None)
+        verify_fresh(lexical, repo_at(root), HeadingChunker().identity)
         assert lexical.settings.chunk_count > 0
     finally:
         lexical.close()
@@ -225,9 +219,7 @@ def test_freshness_passes_on_the_real_corpus(tmp_path: Path) -> None:
     build_production(tmp_path / "lex.sqlite")
     lexical = LexicalIndex.open(tmp_path / "lex.sqlite", COLLECTION, VERSION)
     try:
-        verify_fresh(
-            lexical, repo_at(REPO_ROOT), HeadingChunker(), FakeTokenizer(), None
-        )
+        verify_fresh(lexical, repo_at(REPO_ROOT), HeadingChunker().identity)
     finally:
         lexical.close()
 
@@ -239,7 +231,7 @@ def test_freshness_refuses_after_a_body_edit(built: tuple[Path, Path]) -> None:
         open_it(root, directory)
     message = str(caught.value)
     assert "stale" in message and REBUILD_ADVICE in message
-    assert "with different document_version or content_hash: 1" in message
+    assert "with changed version or hash: 1" in message
     assert "An added sentence" not in message and str(root) not in message
 
 
@@ -251,7 +243,7 @@ def test_freshness_refuses_after_a_document_is_removed(
     with pytest.raises(LexicalIndexBindingError) as caught:
         open_it(root, directory)
     message = str(caught.value)
-    assert "chunks only in the repository: 0" in message
+    assert "documents only in the repository: 0" in message
     assert "only in the lexical index: 1" in message
 
 

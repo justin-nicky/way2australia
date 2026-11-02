@@ -285,7 +285,7 @@ def _check_standalone_open(index: SecurityIndex, identity: IndexIdentity) -> Non
         index.lexical_path, identity.collection, identity.index_version
     )
     try:
-        lexical.check_identity(identity, index.chunker, HASH_CONTRACT)
+        lexical.check_identity(identity, index.chunker.identity, HASH_CONTRACT)
         tokenizer = FakeTokenizer()
         entries = asyncio.run(
             production_entries(index.seed_repository, index.chunker, tokenizer, None)

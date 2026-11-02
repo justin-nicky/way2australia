@@ -1,10 +1,5 @@
 """SQLite FTS5 lexical store: settings, schema, read-only open, bind and search
-(Spec 007 R4, R5).
-
-The file is a derived artifact. Chunk text is tokenized with `lexical-v1` and
-stored as space-joined tokens in an FTS5 table that uses the `ascii` tokenizer
-(it treats every non-ASCII character as a token character, so Malayalam words
-stay whole). Opening is read-only and never writes to the file.
+(Spec 007 R4, R5; Spec 009 R6).
 """
 
 import hashlib
@@ -17,17 +12,18 @@ from urllib.parse import quote
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
-from way2australia_rag.ingestion.chunking import Chunker, legacy_chunker_max_chunk_chars
+from way2australia_rag.ingestion.chunking import ChunkerIdentity
 from way2australia_rag.lexical.tokenizer import TOKENIZER_NAME, TOKENIZER_VERSION
 from way2australia_rag.retrieval.errors import IndexBindingError, RetrievalError
 from way2australia_rag.retrieval.identity import IndexIdentity
 from way2australia_rag.retrieval.index import DenseIndex
 
-SETTINGS_SCHEMA_VERSION = "1.0"
+SETTINGS_SCHEMA_VERSION = "1.1"
+_LEGACY_SETTINGS_SCHEMA_VERSION = "1.0"
 SETTINGS_KIND = "w2a_lexical_index"
 SETTINGS_KEY = "lexical_settings"
 FTS5_TOKENIZER = "ascii"
-BM25_PARAMETERS = {"k1": 1.2, "b": 0.75}  # FTS5's fixed values, recorded
+BM25_PARAMETERS = {"k1": 1.2, "b": 0.75}
 
 REBUILD_ADVICE = (
     "Rebuild the lexical index with `make index-lexical` for this collection "
@@ -87,16 +83,14 @@ class LexicalIdentityInput(BaseModel):
     collection: str
     index_version: str
     dense_identity: DenseIdentity
-    chunker_name: str
-    chunker_version: str
-    chunker_max_chunk_chars: int
+    chunker: ChunkerIdentity
     hash_contract: str
 
 
 class LexicalSettings(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal["1.0"] = SETTINGS_SCHEMA_VERSION
+    schema_version: Literal["1.1"] = SETTINGS_SCHEMA_VERSION
     kind: Literal["w2a_lexical_index"] = SETTINGS_KIND
     collection: str
     index_version: str
@@ -107,21 +101,27 @@ class LexicalSettings(BaseModel):
     bm25: dict[str, float]
     chunker_name: str
     chunker_version: str
-    chunker_max_chunk_chars: int
+    chunker_params: dict[str, str | int | bool]
+    chunker_tokenizer: str | None
     hash_contract: str
     chunk_count: int
     source_chunk_digest: str
     created_at: str
     sqlite_version: str
 
+    def chunker_identity(self) -> ChunkerIdentity:
+        return ChunkerIdentity(
+            name=self.chunker_name,
+            version=self.chunker_version,
+            params=dict(sorted(self.chunker_params.items())),
+            tokenizer=self.chunker_tokenizer,
+        )
 
-ChunkIdentity = tuple[str, str, int, str]  # point_id, document_id, version, hash
+
+ChunkIdentity = tuple[str, str, int, str]
 
 
 class ChunkSetDifference(NamedTuple):
-    """Counts only. `only_expected`: points the reference has and the file lacks;
-    `only_mine`: the reverse; `changed`: same point, other version or hash."""
-
     only_expected: int
     only_mine: int
     changed: int
@@ -140,14 +140,23 @@ def chunk_set_difference(
 
 
 def source_chunk_digest(identities: Iterable[ChunkIdentity]) -> str:
-    """SHA-256 of the sorted lines `point_id\\tdocument_id\\tversion\\thash\\n`."""
     lines = sorted(f"{p}\t{d}\t{v}\t{h}\n" for p, d, v, h in identities)
     return hashlib.sha256("".join(lines).encode("utf-8")).hexdigest()
 
 
-class LexicalRow(BaseModel):
-    """One search row. `score` is SQLite's raw `bm25()` (lower is better)."""
+def _chunker_identity_differences(
+    recorded: ChunkerIdentity, wanted: ChunkerIdentity
+) -> str:
+    triples: list[tuple[str, Any, Any]] = [
+        ("chunker_name", recorded.name, wanted.name),
+        ("chunker_version", recorded.version, wanted.version),
+        ("chunker_params", recorded.params, wanted.params),
+        ("chunker_tokenizer", recorded.tokenizer, wanted.tokenizer),
+    ]
+    return _differences(triples)
 
+
+class LexicalRow(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     point_id: str
@@ -216,16 +225,18 @@ class LexicalIndex:
             raise LexicalIndexBindingError(
                 f"lexical index '{label}' has malformed settings. {REBUILD_ADVICE}"
             )
-        for field, wanted in (
-            ("schema_version", SETTINGS_SCHEMA_VERSION),
-            ("kind", SETTINGS_KIND),
-        ):
-            if raw.get(field) != wanted:
-                raise LexicalIndexBindingError(
-                    f"lexical index '{label}' settings {field}: recorded "
-                    f"{str(raw.get(field))[:40]!r}, wanted {wanted!r}. "
-                    f"{REBUILD_ADVICE}"
-                )
+        if raw.get("schema_version") == _LEGACY_SETTINGS_SCHEMA_VERSION:
+            raise LexicalIndexBindingError(
+                f"lexical index '{label}' was built with lexical settings 1.0; "
+                "run `make index-lexical` (with the same `QDRANT_COLLECTION_BASE`) "
+                f"to rebuild it. {REBUILD_ADVICE}"
+            )
+        if raw.get("kind") != SETTINGS_KIND:
+            raise LexicalIndexBindingError(
+                f"lexical index '{label}' settings kind: recorded "
+                f"{str(raw.get('kind'))[:40]!r}, wanted {SETTINGS_KIND!r}. "
+                f"{REBUILD_ADVICE}"
+            )
         try:
             return LexicalSettings.model_validate(raw)
         except ValidationError as error:
@@ -256,7 +267,6 @@ class LexicalIndex:
             )
 
     def bind_to(self, dense: DenseIndex) -> None:
-        """Refuse unless this file belongs to `dense` (identity, chunker, chunk set)."""
         s = self.settings
         d = dense.settings
         differences = _differences(
@@ -281,16 +291,16 @@ class LexicalIndex:
                     s.dense_identity.embedder_revision,
                     d.embedder_revision,
                 ),
-                ("chunker_name", s.chunker_name, d.chunker_name),
-                ("chunker_version", s.chunker_version, d.chunker_version),
-                (
-                    "chunker_max_chunk_chars",
-                    s.chunker_max_chunk_chars,
-                    d.chunker_max_chunk_chars,
-                ),
                 ("hash_contract", s.hash_contract, d.hash_contract),
             )
         )
+        chunker_diff = _chunker_identity_differences(
+            s.chunker_identity(), d.chunker_identity()
+        )
+        if chunker_diff:
+            differences = (
+                f"{differences}; {chunker_diff}" if differences else chunker_diff
+            )
         if differences:
             raise LexicalIndexBindingError(
                 f"lexical index '{self.label}' does not match the dense index "
@@ -308,10 +318,11 @@ class LexicalIndex:
         )
 
     def check_identity(
-        self, expected: IndexIdentity, chunker: Chunker, hash_contract: str
+        self,
+        expected: IndexIdentity,
+        chunker_identity: ChunkerIdentity,
+        hash_contract: str,
     ) -> None:
-        """Refuse unless this file was built for `expected`, `chunker` and
-        `hash_contract`. Names fields and identity values only."""
         s = self.settings
         differences = _differences(
             (
@@ -335,16 +346,16 @@ class LexicalIndex:
                     s.dense_identity.embedder_revision,
                     expected.embedder_revision,
                 ),
-                ("chunker_name", s.chunker_name, chunker.name),
-                ("chunker_version", s.chunker_version, chunker.version),
-                (
-                    "chunker_max_chunk_chars",
-                    s.chunker_max_chunk_chars,
-                    legacy_chunker_max_chunk_chars(chunker),
-                ),
                 ("hash_contract", s.hash_contract, hash_contract),
             )
         )
+        chunker_diff = _chunker_identity_differences(
+            s.chunker_identity(), chunker_identity
+        )
+        if chunker_diff:
+            differences = (
+                f"{differences}; {chunker_diff}" if differences else chunker_diff
+            )
         if differences:
             raise LexicalIndexBindingError(
                 f"lexical index '{self.label}' does not match the configured "
@@ -352,13 +363,23 @@ class LexicalIndex:
             )
 
     def document_count(self, where_sql: str, params: tuple[Any, ...]) -> int:
-        """Distinct documents under the access clause (`where_sql` comes from
-        the access-clause builder and refers to the table as `c`)."""
         row = self._connection.execute(
             f"SELECT COUNT(DISTINCT c.document_id) FROM chunks c WHERE {where_sql}",  # noqa: S608
             params,
         ).fetchone()
         return int(row[0])
+
+    def document_versions(self) -> set[tuple[str, int, str]]:
+        rows = self._connection.execute(
+            "SELECT DISTINCT document_id, document_version, content_hash FROM chunks"
+        ).fetchall()
+        return {(str(a), int(b), str(c)) for a, b, c in rows}
+
+    def chunks_per_document(self) -> dict[str, int]:
+        rows = self._connection.execute(
+            "SELECT document_id, COUNT(*) FROM chunks GROUP BY document_id"
+        ).fetchall()
+        return {str(document_id): int(count) for document_id, count in rows}
 
     def chunk_identities(self) -> set[ChunkIdentity]:
         rows = self._connection.execute(
@@ -373,8 +394,6 @@ class LexicalIndex:
         params: tuple[Any, ...],
         limit: int,
     ) -> list[LexicalRow]:
-        """The only query method. `where_sql` must come from the access-clause
-        builder; `match_expression` is bound as a parameter, never formatted."""
         sql = SEARCH_SQL.format(where=where_sql)
         rows = self._connection.execute(
             sql, (match_expression, *params, limit)

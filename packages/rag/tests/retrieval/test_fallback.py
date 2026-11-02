@@ -7,6 +7,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from time import perf_counter
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from conftest import REPO_ROOT
@@ -279,7 +280,12 @@ def open_hybrid(
 def test_closed_port_hybrid_serves_bm25_with_qdrant_unavailable(
     fake_lexical: Path,  # noqa: F811
 ) -> None:
-    opened = open_hybrid(Strategy.HYBRID, client_at(closed_port()))
+    tokenizer_patch = patch(
+        "way2australia_rag.ingestion.tokenization.build_tokenizer",
+        side_effect=AssertionError("must not load tokenizer on hybrid open fallback"),
+    )
+    with tokenizer_patch:
+        opened = open_hybrid(Strategy.HYBRID, client_at(closed_port()))
     try:
         result = opened.retriever.retrieve("Is coaching compulsory?", access(), 5)
         assert result.strategy == "bm25" and result.hits
@@ -287,7 +293,8 @@ def test_closed_port_hybrid_serves_bm25_with_qdrant_unavailable(
         assert result.fallback_reason == "qdrant_unavailable"
         assert opened.index_settings is None
         assert opened.document_count(access()) > 0
-        bm25 = open_hybrid(Strategy.BM25, client_at(closed_port()))
+        with tokenizer_patch:
+            bm25 = open_hybrid(Strategy.BM25, client_at(closed_port()))
         try:
             plain = bm25.retriever.retrieve("Is coaching compulsory?", access(), 5)
         finally:
@@ -361,7 +368,11 @@ def test_cli_hybrid_with_qdrant_down_prints_the_fallback_header(
     fake_lexical: Path,  # noqa: F811
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    assert run_cli("--strategy", "hybrid", port=closed_port()) == 0
+    with patch(
+        "way2australia_rag.ingestion.tokenization.build_tokenizer",
+        side_effect=AssertionError("must not load tokenizer on hybrid cli fallback"),
+    ):
+        assert run_cli("--strategy", "hybrid", port=closed_port()) == 0
     out = capsys.readouterr()
     assert out.out.splitlines()[0] == (
         "strategy: bm25 (requested: hybrid; fallback: qdrant_unavailable)"

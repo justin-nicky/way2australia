@@ -57,7 +57,7 @@ def read_index_settings(client: QdrantClient, collection: str) -> IndexSettings 
     if not found or found[0].payload is None:
         return None
     try:
-        return IndexSettings.model_validate(found[0].payload)
+        return IndexSettings.from_stored(found[0].payload)
     except ValidationError as error:
         # Field names only: never echo the payload.
         fields = sorted({".".join(map(str, e["loc"])) for e in error.errors()})

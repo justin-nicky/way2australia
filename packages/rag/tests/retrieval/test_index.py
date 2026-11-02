@@ -93,7 +93,9 @@ def test_open_succeeds_when_matching(client: QdrantClient) -> None:
 
 def test_chunker_and_hash_contract_not_compared(client: QdrantClient) -> None:
     other = make_settings(
-        chunker_name="other", chunker_max_chunk_chars=5, hash_contract="x"
+        chunker_name="other",
+        chunker_params={"max_chunk_chars": 5},
+        hash_contract="x",
     )
     client.upsert(
         COLLECTION + SETTINGS_COLLECTION_SUFFIX,

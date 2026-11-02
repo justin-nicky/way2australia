@@ -14,7 +14,12 @@ from snapshot_support import (  # type: ignore[import-not-found]
 from test_chunking import make_document  # type: ignore[import-not-found]
 from way2australia_rag.ingestion.chunking import MAIN_SECTION_ID, split_at_sentence_ends
 from way2australia_rag.ingestion.errors import IngestionConfigurationError
-from way2australia_rag.ingestion.recursive import RecursiveChunker
+from way2australia_rag.ingestion.recursive import (
+    RecursiveChunker,
+    _join_units,
+    _overlap_for_next_chunk,
+    _overlap_tail,
+)
 from way2australia_rag.ingestion.tokenization import FakeTokenizer
 
 
@@ -69,6 +74,22 @@ def test_deterministic() -> None:
     assert chunker.chunk(doc) == chunker.chunk(doc)
 
 
+def test_title_prefix_over_half_target_is_per_document_error() -> None:
+    long_title = "word " * 40
+    doc = make_document("body", title=long_title.strip())
+    tokenizer = FakeTokenizer()
+    chunker = RecursiveChunker(
+        target_tokens=32,
+        overlap_tokens=4,
+        context_prefix="title",
+        tokenizer=tokenizer,
+    )
+    prefix = f"{doc.title}\n\n"
+    assert tokenizer.count(prefix) > 32 // 2
+    with pytest.raises(IngestionConfigurationError, match="half of target_tokens"):
+        chunker.chunk(doc)
+
+
 @pytest.mark.parametrize(
     ("target", "overlap"),
     [
@@ -92,7 +113,7 @@ def test_seed_documents_many_chunks_at_small_target() -> None:
 
     repository = LocalDocumentRepository(LocalRepositoryConfig(repo_root=REPO_ROOT))
     documents = asyncio.run(list_eligible_documents(repository, GUEST_PUBLIC_POLICY))
-    chunker = recursive_chunker(target_tokens=32)
+    chunker = recursive_chunker(target_tokens=32, context_prefix="none")
     multi = sum(1 for d in documents if len(chunker.chunk(d)) > 1)
     assert multi >= len(documents) - 1
 
@@ -142,41 +163,42 @@ def test_whitespace_collapsed_fidelity_on_seed_corpus() -> None:
     chunker = recursive_chunker(
         target_tokens=32, overlap_tokens=4, context_prefix="title"
     )
+    tokenizer = FakeTokenizer()
     for document in documents:
+        prefix = f"{document.title}\n\n"
+        if tokenizer.count(prefix) > 32 // 2:
+            continue
         assert_recursive_chunks_whitespace_fidelity(
             chunker.chunk(document), document, context_prefix="title"
         )
 
 
 def test_overlap_shorter_tail_when_longest_does_not_fit() -> None:
-    title = " ".join(["abcd"] * 24)
-    words = [f"w{i:02d}" for i in range(40)]
-    doc = make_document(" ".join(words), title=title)
     tokenizer = FakeTokenizer()
+    target = 31
     overlap = 10
-    chunker = RecursiveChunker(
-        target_tokens=32,
-        overlap_tokens=overlap,
-        context_prefix="title",
-        tokenizer=tokenizer,
+    title = " ".join(["abcd"] * 24)
+    prefix = f"{title}\n\n"
+    assert tokenizer.count(prefix) == 26
+    assert tokenizer.count(prefix) <= 52 // 2
+
+    def chunk_fits(piece: str) -> bool:
+        return tokenizer.count(f"{prefix}{piece}") <= target
+
+    prev_units = [f"w{i:02d}" for i in range(6)]
+    next_unit = "w06"
+    full_tail = _overlap_tail(prev_units, overlap, tokenizer)
+    full_content = sum(tokenizer.content_count(unit) for unit in full_tail)
+    assert full_content == 6
+    assert not chunk_fits(_join_units(full_tail + [next_unit]))
+
+    trimmed = _overlap_for_next_chunk(
+        prev_units, next_unit, overlap, tokenizer, chunk_fits
     )
-    chunks = chunker.chunk(doc)
-    assert len(chunks) > 2
-    for left, right in zip(chunks, chunks[1:], strict=False):
-        best = 0
-        for size in range(1, min(len(left.text), len(right.text)) + 1):
-            suffix = left.text[-size:]
-            if right.text.startswith(suffix):
-                best = max(best, tokenizer.content_count(suffix))
-        assert best <= overlap
-    body_left = chunks[0].text.split("\n\n", 1)[-1]
-    body_right = chunks[1].text.split("\n\n", 1)[-1]
-    shared = 0
-    for size in range(1, min(len(body_left), len(body_right)) + 1):
-        if body_right.startswith(body_left[-size:]):
-            shared = max(shared, tokenizer.content_count(body_left[-size:]))
-    assert 0 < shared <= overlap
-    assert shared < tokenizer.content_count(" ".join(words[:6]))
+    trimmed_content = sum(tokenizer.content_count(unit) for unit in trimmed)
+    assert trimmed_content < full_content
+    assert chunk_fits(_join_units(trimmed + [next_unit]))
+    assert trimmed_content == 5
 
 
 def test_sentence_end_rule_shared_with_structure() -> None:
@@ -213,7 +235,7 @@ def test_recursive_seed_snapshot() -> None:
     repository = LocalDocumentRepository(LocalRepositoryConfig(repo_root=REPO_ROOT))
     documents = asyncio.run(list_eligible_documents(repository, GUEST_PUBLIC_POLICY))
     assert_matches_snapshot(
-        recursive_chunker(target_tokens=32, overlap_tokens=4, context_prefix="title"),
+        recursive_chunker(target_tokens=32, overlap_tokens=4, context_prefix="none"),
         documents,
         "recursive-v1-seed-fake-32.json",
     )

@@ -37,13 +37,14 @@ def base_settings() -> IndexSettings:
 
 def test_build_index_settings_records_embedder_and_chunker() -> None:
     s = base_settings()
-    assert s.schema_version == "1.0"
+    assert s.schema_version == "1.1"
     assert s.index_version == "idx-v1"
     assert s.embedder_model_id == "fake-hash-embedder"
     assert s.embedder_vector_size == 64
     assert s.embedder_is_fake is True
     assert s.chunker_name == "heading"
-    assert s.chunker_max_chunk_chars == 2000
+    assert s.chunker_params == {"max_chunk_chars": 2000}
+    assert s.chunker_tokenizer is None
     assert s.hash_contract == "content-hash-v1"
     with pytest.raises(ValidationError):
         s.index_version = "x"  # type: ignore[misc]  # frozen
@@ -66,7 +67,7 @@ def test_compare_equal_and_ignores_hash_contract() -> None:
         ("embedder_is_fake", False),
         ("chunker_name", "recursive"),
         ("chunker_version", "2"),
-        ("chunker_max_chunk_chars", 500),
+        ("chunker_params", {"max_chunk_chars": 500}),
     ],
 )
 def test_compare_reports_each_other_field(field: str, value: object) -> None:
@@ -76,7 +77,7 @@ def test_compare_reports_each_other_field(field: str, value: object) -> None:
 
 def test_every_field_except_hash_contract_is_compared() -> None:
     s = base_settings()
-    compared = set(IndexSettings.model_fields) - {"hash_contract"}
+    compared = set(IndexSettings.model_fields) - {"hash_contract", "schema_version"}
     for name in compared:
         current = getattr(s, name)
         changed = (not current) if isinstance(current, bool) else f"{current}-x"

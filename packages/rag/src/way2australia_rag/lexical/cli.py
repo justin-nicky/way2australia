@@ -12,8 +12,10 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from way2australia_rag.ingestion.chunking import legacy_chunker_max_chunk_chars
-from way2australia_rag.ingestion.cli import build_chunker
+from way2australia_rag.ingestion.chunker_build import (
+    build_chunker,
+    chunk_token_cap,
+)
 from way2australia_rag.ingestion.config import (
     DEFAULT_CONFIG_PATH,
     load_ingestion_config,
@@ -147,8 +149,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         settings = load_runtime_settings()
         provider = args.embedder or config.embedder.provider
         model_id, revision = embedder_identity(config, provider)
-        chunker = build_chunker(config)
         tokenizer = build_tokenizer(embedder_for_run(config.embedder, provider))
+        chunker = build_chunker(config, tokenizer)
         collection = collection_name(settings.collection_base, config.index_version)
         target: Path = args.output or lexical_index_path(
             settings.lexical_index_dir or default_lexical_dir(repo_root), collection
@@ -157,7 +159,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             target = repo_root / target
         check_target_allowed(target, repo_root)
         repository = LocalDocumentRepository(LocalRepositoryConfig(repo_root=repo_root))
-        entries = asyncio.run(production_entries(repository, chunker, tokenizer, None))
+        entries = asyncio.run(
+            production_entries(repository, chunker, tokenizer, chunk_token_cap(config))
+        )
         identity = LexicalIdentityInput(
             collection=collection,
             index_version=config.index_version,
@@ -167,9 +171,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 embedder_model_id=model_id,
                 embedder_revision=revision,
             ),
-            chunker_name=chunker.name,
-            chunker_version=chunker.version,
-            chunker_max_chunk_chars=legacy_chunker_max_chunk_chars(chunker),
+            chunker=chunker.identity,
             hash_contract=HASH_CONTRACT,
         )
         built = build_lexical_index(entries, target, identity)

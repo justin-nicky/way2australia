@@ -172,7 +172,7 @@ def test_empty_without_settings_recreates_payload_indexes() -> None:
         ("embedder_vector_size", 128),
         ("embedder_normalize", False),
         ("chunker_version", "2"),
-        ("chunker_max_chunk_chars", 999),
+        ("chunker_params", {"max_chunk_chars": 999}),
         ("embedder_is_fake", False),
         ("chunker_name", "other"),
     ],

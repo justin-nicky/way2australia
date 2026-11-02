@@ -1,46 +1,64 @@
-"""Freshness of a lexical file against the document repository (Spec 008 R4).
-
-Recomputes the chunk digest from the same eligible documents, chunker and point
-IDs that `make index-lexical` writes, and compares it with the digest recorded
-in the file. Messages carry counts only, never text.
-
-Cost: every call reads, parses, chunks and hashes every eligible document.
-Revisit for a large corpus (D060).
-"""
+"""Per-document freshness of a lexical file (Spec 009 R6)."""
 
 import asyncio
 
-from way2australia_rag.ingestion.chunking import Chunker
-from way2australia_rag.ingestion.tokenization import ChunkTokenizer
-from way2australia_rag.lexical.build import _identity, production_entries
+from way2australia_rag.ingestion.chunking import ChunkerIdentity
 from way2australia_rag.lexical.store import (
     REBUILD_ADVICE,
     LexicalIndex,
     LexicalIndexBindingError,
-    chunk_set_difference,
-    source_chunk_digest,
 )
-from way2australia_rag.repositories import DocumentRepository
+from way2australia_rag.repositories import GUEST_PUBLIC_POLICY, DocumentRepository
+from way2australia_rag.repositories.eligibility import list_eligible_documents
 
 
 def verify_fresh(
     lexical: LexicalIndex,
     repository: DocumentRepository,
-    chunker: Chunker,
-    tokenizer: ChunkTokenizer,
-    chunk_token_cap: int | None,
+    chunker_identity: ChunkerIdentity,
 ) -> None:
     """Return when the file matches the repository; else `LexicalIndexBindingError`."""
-    entries = asyncio.run(
-        production_entries(repository, chunker, tokenizer, chunk_token_cap)
-    )
-    identities = {_identity(point, payload) for point, payload in entries}
-    if source_chunk_digest(identities) == lexical.settings.source_chunk_digest:
+    recorded_identity = lexical.settings.chunker_identity()
+    if recorded_identity != chunker_identity:
+        raise LexicalIndexBindingError(
+            f"lexical index '{lexical.label}' chunker identity does not match "
+            f"the configured chunker (chunker_name: recorded "
+            f"{recorded_identity.name!r}, wanted {chunker_identity.name!r}). "
+            f"{REBUILD_ADVICE}"
+        )
+
+    expected = asyncio.run(_eligible_document_versions(repository))
+    recorded = lexical.document_versions()
+    if expected == recorded:
         return
-    diff = chunk_set_difference(identities, lexical.chunk_identities())
+    expected_by_id = {
+        document_id: (version, content_hash)
+        for document_id, version, content_hash in expected
+    }
+    recorded_by_id = {
+        document_id: (version, content_hash)
+        for document_id, version, content_hash in recorded
+    }
+    only_repository = len(set(expected_by_id) - set(recorded_by_id))
+    only_file = len(set(recorded_by_id) - set(expected_by_id))
+    changed = sum(
+        1
+        for document_id in set(expected_by_id) & set(recorded_by_id)
+        if expected_by_id[document_id] != recorded_by_id[document_id]
+    )
     raise LexicalIndexBindingError(
         f"lexical index '{lexical.label}' is stale against the document "
-        f"repository (chunks only in the repository: {diff.only_expected}; "
-        f"only in the lexical index: {diff.only_mine}; with different "
-        f"document_version or content_hash: {diff.changed}). {REBUILD_ADVICE}"
+        f"repository (documents only in the repository: {only_repository}; "
+        f"only in the lexical index: {only_file}; with changed version or hash: "
+        f"{changed}). {REBUILD_ADVICE}"
     )
+
+
+async def _eligible_document_versions(
+    repository: DocumentRepository,
+) -> set[tuple[str, int, str]]:
+    documents = await list_eligible_documents(repository, GUEST_PUBLIC_POLICY)
+    return {
+        (document.document_id, document.document_version, document.content_hash)
+        for document in documents
+    }

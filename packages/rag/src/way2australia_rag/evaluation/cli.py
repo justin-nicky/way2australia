@@ -62,7 +62,7 @@ from way2australia_rag.evaluation.security_index import (
 from way2australia_rag.evaluation.slices import active_registry_languages
 from way2australia_rag.evaluation.suite import declared_release_id, load_suite
 from way2australia_rag.evaluation.validate import validate_evaluation
-from way2australia_rag.ingestion.chunking import HeadingChunker
+from way2australia_rag.ingestion.chunker_build import build_chunker
 from way2australia_rag.ingestion.cli import ClientFactory, build_embedder
 from way2australia_rag.ingestion.config import (
     DEFAULT_CONFIG_PATH,
@@ -72,6 +72,7 @@ from way2australia_rag.ingestion.config import (
 )
 from way2australia_rag.ingestion.embedding import Embedder, FakeEmbedder
 from way2australia_rag.ingestion.errors import IngestionError
+from way2australia_rag.ingestion.tokenization import FakeTokenizer
 from way2australia_rag.repositories import (
     GUEST_PUBLIC_POLICY,
     DocumentRepositoryError,
@@ -379,7 +380,7 @@ def _security(args: argparse.Namespace) -> int:
                 base,
                 [q.text for q in queries],
                 FakeEmbedder(FAKE_VECTOR_SIZE),
-                HeadingChunker(config.chunker.max_chunk_chars),
+                build_chunker(config, FakeTokenizer()),
                 seed_repository=LocalDocumentRepository(
                     LocalRepositoryConfig(repo_root)
                 ),

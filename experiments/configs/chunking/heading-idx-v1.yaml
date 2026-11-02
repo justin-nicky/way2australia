@@ -1,0 +1,17 @@
+# Index-defining ingestion configuration (Spec 004). Reviewed like other config.
+# Environment-specific values (Qdrant URL, collection base, API key) are NOT here;
+# they come from the environment (QDRANT_URL, QDRANT_COLLECTION_BASE, QDRANT_API_KEY).
+# Changing embedder, revision, chunker or max_chunk_chars requires a new index_version.
+schema_version: "1.0"
+index_version: "idx-v1"
+embedder:
+  provider: bge_m3              # bge_m3 | fake
+  model_id: BAAI/bge-m3
+  revision: "5617a9f61b028005a4858fdac845db406aefb181"   # full commit SHA of BAAI/bge-m3
+  batch_size: 16
+  normalize: true
+  fake_vector_size: 64
+chunker:
+  name: heading
+  version: "1"
+  max_chunk_chars: 2000

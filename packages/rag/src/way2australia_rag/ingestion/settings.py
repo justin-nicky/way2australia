@@ -5,15 +5,18 @@ change the vectors an embedder produces, so a change to them never requires a
 new index.
 """
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from way2australia_rag.ingestion.chunking import Chunker, legacy_chunker_max_chunk_chars
+from way2australia_rag.ingestion.chunking import Chunker, ChunkerIdentity
 from way2australia_rag.ingestion.embedding import EmbedderInfo
 from way2australia_rag.repositories.hashing import HASH_CONTRACT
 
-SETTINGS_SCHEMA_VERSION = "1.0"
+SETTINGS_SCHEMA_VERSION = "1.1"
+_LEGACY_SCHEMA_VERSION = "1.0"
+
+_IGNORED_FIELDS = frozenset({"hash_contract", "schema_version"})
 
 
 class IndexSettings(BaseModel):
@@ -21,7 +24,7 @@ class IndexSettings(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal["1.0"] = SETTINGS_SCHEMA_VERSION
+    schema_version: Literal["1.1"] = SETTINGS_SCHEMA_VERSION
     index_version: str
     embedder_model_id: str
     embedder_revision: str
@@ -30,11 +33,29 @@ class IndexSettings(BaseModel):
     embedder_is_fake: bool
     chunker_name: str
     chunker_version: str
-    chunker_max_chunk_chars: int
+    chunker_params: dict[str, str | int | bool]
+    chunker_tokenizer: str | None
     hash_contract: str
 
+    @classmethod
+    def from_stored(cls, payload: dict[str, Any]) -> "IndexSettings":
+        """Upgrade schema 1.0 in memory; stored 1.0 payloads are never rewritten."""
+        data = dict(payload)
+        if data.get("schema_version") == _LEGACY_SCHEMA_VERSION:
+            data["schema_version"] = SETTINGS_SCHEMA_VERSION
+            data["chunker_params"] = {
+                "max_chunk_chars": data.pop("chunker_max_chunk_chars")
+            }
+            data["chunker_tokenizer"] = None
+        return cls.model_validate(data)
 
-_IGNORED_FIELDS = frozenset({"hash_contract"})
+    def chunker_identity(self) -> ChunkerIdentity:
+        return ChunkerIdentity(
+            name=self.chunker_name,
+            version=self.chunker_version,
+            params=dict(sorted(self.chunker_params.items())),
+            tokenizer=self.chunker_tokenizer,
+        )
 
 
 def build_index_settings(
@@ -43,6 +64,7 @@ def build_index_settings(
     chunker: Chunker,
     hash_contract: str = HASH_CONTRACT,
 ) -> IndexSettings:
+    identity = chunker.identity
     return IndexSettings(
         index_version=index_version,
         embedder_model_id=embedder.model_id,
@@ -50,15 +72,16 @@ def build_index_settings(
         embedder_vector_size=embedder.vector_size,
         embedder_normalize=embedder.normalize,
         embedder_is_fake=embedder.is_fake,
-        chunker_name=chunker.name,
-        chunker_version=chunker.version,
-        chunker_max_chunk_chars=legacy_chunker_max_chunk_chars(chunker),
+        chunker_name=identity.name,
+        chunker_version=identity.version,
+        chunker_params=dict(sorted(identity.params.items())),
+        chunker_tokenizer=identity.tokenizer,
         hash_contract=hash_contract,
     )
 
 
 def compare(recorded: IndexSettings, wanted: IndexSettings) -> list[str]:
-    """Names of fields that differ, ignoring `hash_contract`. Empty means compatible."""
+    """Names of fields that differ, ignoring `hash_contract` and `schema_version`."""
     return [
         name
         for name in IndexSettings.model_fields

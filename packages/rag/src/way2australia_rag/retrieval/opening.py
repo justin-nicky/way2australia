@@ -10,23 +10,12 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from way2australia_rag.ingestion.chunking import Chunker
-from way2australia_rag.ingestion.cli import (
-    ClientFactory,
-    build_chunker,
-    build_embedder,
-)
-from way2australia_rag.ingestion.config import (
-    IngestionConfig,
-    RuntimeSettings,
-)
+from way2australia_rag.ingestion.chunker_build import chunker_identity_for_run
+from way2australia_rag.ingestion.chunking import ChunkerIdentity
+from way2australia_rag.ingestion.cli import ClientFactory, build_embedder
+from way2australia_rag.ingestion.config import IngestionConfig, RuntimeSettings
 from way2australia_rag.ingestion.embedding import Embedder
 from way2australia_rag.ingestion.settings import IndexSettings
-from way2australia_rag.ingestion.tokenization import (
-    ChunkTokenizer,
-    build_tokenizer,
-    embedder_for_run,
-)
 from way2australia_rag.lexical.build import default_lexical_dir, lexical_index_path
 from way2australia_rag.lexical.freshness import verify_fresh
 from way2australia_rag.lexical.store import LexicalIndex
@@ -64,14 +53,10 @@ def open_standalone_lexical(
     settings: RuntimeSettings,
     repo_root: Path,
     expected: IndexIdentity,
-    chunker: Chunker,
+    configured_chunker: ChunkerIdentity,
     repository: DocumentRepository,
-    tokenizer: ChunkTokenizer,
-    chunk_token_cap: int | None,
 ) -> LexicalIndex:
-    """Open the lexical file with no Qdrant client and no embedder: file identity,
-    configured dense identity and chunker, then freshness against the repository.
-    Any refusal closes the file and raises `LexicalIndexBindingError`."""
+    """Open the lexical file with no Qdrant client and no embedder."""
     directory = settings.lexical_index_dir or default_lexical_dir(repo_root)
     if not directory.is_absolute():
         directory = repo_root / directory
@@ -81,8 +66,8 @@ def open_standalone_lexical(
         expected.index_version,
     )
     try:
-        lexical.check_identity(expected, chunker, HASH_CONTRACT)
-        verify_fresh(lexical, repository, chunker, tokenizer, chunk_token_cap)
+        lexical.check_identity(expected, configured_chunker, HASH_CONTRACT)
+        verify_fresh(lexical, repository, configured_chunker)
     except BaseException:
         lexical.close()
         raise
@@ -91,11 +76,6 @@ def open_standalone_lexical(
 
 @dataclass
 class OpenedRetrieval:
-    """An opened retriever and what the callers report about it.
-
-    `embedder` and `index_settings` are `None` when the run never built an
-    embedder or never reached Qdrant (`bm25`)."""
-
     retriever: Retriever
     identity: IndexIdentity
     document_count: Callable[[ResolvedAccess], int]
@@ -123,11 +103,8 @@ def open_retrieval(
 ) -> OpenedRetrieval:
     """Open the stack for `strategy` (`dense`, `bm25` or `hybrid`)."""
     strategy = Strategy(strategy)
+    configured_chunker = chunker_identity_for_run(ingestion_config, provider)
     if strategy == Strategy.BM25:
-        chunker = build_chunker(ingestion_config)
-        tokenizer = build_tokenizer(
-            embedder_for_run(ingestion_config.embedder, provider)
-        )
         repository = repository or LocalDocumentRepository(
             LocalRepositoryConfig(repo_root=repo_root)
         )
@@ -136,10 +113,8 @@ def open_retrieval(
             settings,
             repo_root,
             expected,
-            chunker,
+            configured_chunker,
             repository,
-            tokenizer,
-            None,
         )
 
         def lexical_count(access: ResolvedAccess) -> int:
@@ -155,7 +130,7 @@ def open_retrieval(
             raise
         return OpenedRetrieval(retriever, expected, lexical_count, None, None, lexical)
 
-    embedder = embedder_factory(ingestion_config, provider)  # missing extra exits here
+    embedder = embedder_factory(ingestion_config, provider)
     timeouts = retrieval_config.qdrant
     client = None
     try:
@@ -178,7 +153,6 @@ def open_retrieval(
     except RetrievalUnavailableError as error:
         if strategy != Strategy.HYBRID:
             raise
-        # Hybrid only: serve BM25 from the standalone-opened lexical file.
         _close_quietly(client)
         return _open_fallback(
             error.reason,
@@ -189,6 +163,7 @@ def open_retrieval(
             repo_root=repo_root,
             embedder=embedder,
             repository=repository,
+            configured_chunker=configured_chunker,
         )
 
     def dense_count(access: ResolvedAccess) -> int:
@@ -212,7 +187,7 @@ def _close_quietly(client: object) -> None:
     if callable(close):
         try:
             close()
-        except Exception:  # noqa: BLE001 - best effort on a failed connection
+        except Exception:  # noqa: BLE001
             pass
 
 
@@ -226,10 +201,8 @@ def _open_fallback(
     repo_root: Path,
     embedder: Embedder,
     repository: DocumentRepository | None,
+    configured_chunker: ChunkerIdentity,
 ) -> OpenedRetrieval:
-    """Open-time hybrid fallback: BM25 over the standalone lexical file."""
-    chunker = build_chunker(ingestion_config)
-    tokenizer = build_tokenizer(embedder_for_run(ingestion_config.embedder, provider))
     repository = repository or LocalDocumentRepository(
         LocalRepositoryConfig(repo_root=repo_root)
     )
@@ -238,10 +211,8 @@ def _open_fallback(
         settings,
         repo_root,
         expected,
-        chunker,
+        configured_chunker,
         repository,
-        tokenizer,
-        None,
     )
 
     def lexical_count(access: ResolvedAccess) -> int:

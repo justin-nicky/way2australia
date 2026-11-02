@@ -72,18 +72,18 @@ Allowed protected-path changes: none.
 
 ## T3 — Configuration, index settings, lexical identity and per-document freshness
 
-**State:** implementing (round 1)
+**State:** approved (2026-11-02)
 **Requirements:** R5, R6
 
-- [ ] `ingestion/recursive.py`: apply the `structure` v1 prefix rule — if `count(prefix)` leaves less than half of `target_tokens` for body packing, that document fails with a configuration error (per-document, not whole-run abort). Test; regenerate all `recursive` v1 snapshot files if outputs change. Must complete before T6 indexes with `recursive` v1.
-- [ ] `ingestion/config.py`: `IngestionConfig` schema 1.1 with a discriminated `chunker` union (`heading` / `structure` / `recursive` and their parameters); 1.0 files still valid (`heading` only); `chunker_identity(config)` without loading a tokenizer (tokenizer identity string from the embedder configuration).
-- [ ] `ingestion/cli.py`: `build_chunker` dispatches on the name and validates the cap against the built tokenizer's maximum; the existing `--config PATH` option of `ingestion/cli.py`, `lexical/cli.py`, `retrieval/cli.py` and `evaluation/cli.py retrieval` selects a 1.1 file unchanged; a test runs each CLI's config loading with `recursive-128.yaml`.
-- [ ] `ingestion/settings.py`: `IndexSettings` 1.1 (`chunker_params`, `chunker_tokenizer` in place of `chunker_max_chunk_chars`); 1.0 records upgraded in memory and never rewritten; `compare` ignores `schema_version` and `hash_contract`; new collections written as 1.1; mismatch message lists the chunker fields.
-- [ ] `lexical/store.py`: lexical settings 1.1 with the `ChunkerIdentity` fields; `open` refuses a 1.0 file with the rebuild advice from the design; `check_identity(expected, chunker_identity, hash_contract)`; `document_versions()`; `chunks_per_document()`; `bind_to` compares the chunker identity with the dense settings' 1.1 view and keeps the chunk-digest comparison.
-- [ ] `lexical/freshness.py`: `verify_fresh(lexical, repository, chunker_identity)` compares the eligible `(document_id, document_version, content_hash)` set with `document_versions()`; refusal with counts and advice; no chunker, no tokenizer.
-- [ ] `retrieval/opening.py`: the standalone and fallback paths use `chunker_identity(config)` from the config the CLI's `--config` selected; `build_tokenizer` is never called on these paths.
-- [ ] New `experiments/configs/chunking/recursive-128.yaml` (schema 1.1, `idx-v2`, `recursive` v1, 128 / 16, `title`, embedder block equal to `config/ingestion.yaml`) and `experiments/configs/chunking/heading-idx-v1.yaml` (byte copy of `config/ingestion.yaml`).
-- [ ] Tests:
+- [x] `ingestion/recursive.py`: apply the `structure` v1 prefix rule — if `count(prefix)` leaves less than half of `target_tokens` for body packing, that document fails with a configuration error (per-document, not whole-run abort). Test; regenerate all `recursive` v1 snapshot files if outputs change. Must complete before T6 indexes with `recursive` v1.
+- [x] `ingestion/config.py`: `IngestionConfig` schema 1.1 with a discriminated `chunker` union (`heading` / `structure` / `recursive` and their parameters); 1.0 files still valid (`heading` only); `chunker_identity(config)` without loading a tokenizer (tokenizer identity string from the embedder configuration).
+- [x] `ingestion/cli.py`: `build_chunker` dispatches on the name and validates the cap against the built tokenizer's maximum; the existing `--config PATH` option of `ingestion/cli.py`, `lexical/cli.py`, `retrieval/cli.py` and `evaluation/cli.py retrieval` selects a 1.1 file unchanged; a test runs each CLI's config loading with `recursive-128.yaml`.
+- [x] `ingestion/settings.py`: `IndexSettings` 1.1 (`chunker_params`, `chunker_tokenizer` in place of `chunker_max_chunk_chars`); 1.0 records upgraded in memory and never rewritten; `compare` ignores `schema_version` and `hash_contract`; new collections written as 1.1; mismatch message lists the chunker fields.
+- [x] `lexical/store.py`: lexical settings 1.1 with the `ChunkerIdentity` fields; `open` refuses a 1.0 file with the rebuild advice from the design; `check_identity(expected, chunker_identity, hash_contract)`; `document_versions()`; `chunks_per_document()`; `bind_to` compares the chunker identity with the dense settings' 1.1 view and keeps the chunk-digest comparison.
+- [x] `lexical/freshness.py`: `verify_fresh(lexical, repository, chunker_identity)` compares the eligible `(document_id, document_version, content_hash)` set with `document_versions()`; refusal with counts and advice; no chunker, no tokenizer.
+- [x] `retrieval/opening.py`: the standalone and fallback paths use `chunker_identity(config)` from the config the CLI's `--config` selected; `build_tokenizer` is never called on these paths.
+- [x] New `experiments/configs/chunking/recursive-128.yaml` (schema 1.1, `idx-v2`, `recursive` v1, 128 / 16, `title`, embedder block equal to `config/ingestion.yaml`) and `experiments/configs/chunking/heading-idx-v1.yaml` (byte copy of `config/ingestion.yaml`).
+- [x] Tests:
   - config 1.0 and 1.1 parsing and refusals (unknown chunker, bad parameters); `chunker_identity(config)` equals `build_chunker(config).identity` for all three chunkers.
   - a stored 1.0 `IndexSettings` record matches a `heading` v1 configuration and is not rewritten; a 1.1 mismatch lists the chunker fields; `DenseIndex` binding still ignores chunker fields (D036).
   - a 1.0 lexical fixture file is refused with the advice; rebuilding it through `build_lexical_index` gives a 1.1 file with the same `source_chunk_digest` and chunk count.

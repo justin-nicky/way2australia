@@ -26,7 +26,7 @@
   "collection": "way2australia-idx-v1",
   "index_version": "idx-v1",
   "index_settings": {
-    "schema_version": "1.0",
+    "schema_version": "1.1",
     "index_version": "idx-v1",
     "embedder_model_id": "fake-hash-embedder",
     "embedder_revision": "1",
@@ -35,7 +35,10 @@
     "embedder_is_fake": false,
     "chunker_name": "heading",
     "chunker_version": "1",
-    "chunker_max_chunk_chars": 2000,
+    "chunker_params": {
+      "max_chunk_chars": 2000
+    },
+    "chunker_tokenizer": null,
     "hash_contract": "content-hash-v1"
   },
   "retrieval_strategy": "dense",

@@ -17,7 +17,10 @@ from pathlib import Path
 
 from qdrant_client import QdrantClient
 
-from way2australia_rag.ingestion.chunking import HeadingChunker
+from way2australia_rag.ingestion.chunker_build import (  # noqa: F401
+    build_chunker,
+    chunk_token_cap,
+)
 from way2australia_rag.ingestion.config import (
     DEFAULT_CONFIG_PATH,
     IngestionConfig,
@@ -70,19 +73,6 @@ def build_embedder(config: IngestionConfig, provider: str) -> Embedder:
             "normalize: true; check embedder.model_id and embedder.normalize."
         )
     return BgeM3Embedder(embedder.revision, embedder.batch_size)
-
-
-def build_chunker(config: IngestionConfig) -> HeadingChunker:
-    chunker = HeadingChunker(config.chunker.max_chunk_chars)
-    if (config.chunker.name, config.chunker.version) != (
-        chunker.name,
-        chunker.version,
-    ):
-        raise IngestionConfigurationError(
-            f"unsupported chunker '{config.chunker.name}' version "
-            f"'{config.chunker.version}'; check chunker.name and chunker.version."
-        )
-    return chunker
 
 
 def format_summary(report: RunReport, embedder_revision: str) -> str:
@@ -141,8 +131,8 @@ def main(
         settings = load_runtime_settings(IngestionConfigurationError)
         provider = args.embedder or config.embedder.provider
         embedder = build_embedder(config, provider)  # the run's only embedder
-        chunker = build_chunker(config)
         tokenizer = build_tokenizer(embedder_for_run(config.embedder, provider))
+        chunker = build_chunker(config, tokenizer)
         repository = LocalDocumentRepository(LocalRepositoryConfig(repo_root=repo_root))
         store = QdrantIndexStore(
             client_factory(settings), settings.collection_base, config.index_version
@@ -155,7 +145,7 @@ def main(
             store,
             config.embedder.batch_size,
             tokenizer,
-            None,
+            chunk_token_cap(config),
         )
         report = asyncio.run(service.run())
     except (IngestionError, DocumentRepositoryError) as error:

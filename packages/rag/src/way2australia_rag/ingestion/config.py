@@ -1,4 +1,4 @@
-"""Ingestion configuration (Spec 004 R12).
+"""Ingestion configuration (Spec 004 R12, Spec 009 R5).
 
 `IngestionConfig` is the versioned, index-defining file `config/ingestion.yaml`.
 `RuntimeSettings` holds environment-specific values; the API key is a secret and
@@ -6,7 +6,7 @@ never appears in reprs, messages or the run summary.
 """
 
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal, Union
 
 import yaml
 from pydantic import (
@@ -16,6 +16,7 @@ from pydantic import (
     SecretStr,
     ValidationError,
     field_validator,
+    model_validator,
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -37,21 +38,54 @@ class EmbedderConfig(BaseModel):
     fake_max_sequence_length: int = Field(default=512, ge=1)
 
 
-class ChunkerConfig(BaseModel):
+class HeadingChunkerSpec(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    name: str
-    version: str
+    name: Literal["heading"]
+    version: Literal["1"]
     max_chunk_chars: int = Field(ge=16)
 
 
-class IngestionConfig(BaseModel):
+class StructureChunkerSpec(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal["1.0"]
+    name: Literal["structure"]
+    version: Literal["1"]
+    max_chunk_tokens: int = Field(ge=32)
+    context_prefix: Literal["none", "title_and_headings"]
+
+
+class RecursiveChunkerSpec(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    name: Literal["recursive"]
+    version: Literal["1"]
+    target_tokens: int = Field(ge=32)
+    overlap_tokens: int = Field(ge=0)
+    context_prefix: Literal["none", "title"]
+
+
+ChunkerSpec = Union[HeadingChunkerSpec, StructureChunkerSpec, RecursiveChunkerSpec]
+
+
+class IngestionConfig(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    schema_version: Literal["1.0", "1.1"]
     index_version: str = Field(min_length=1)
     embedder: EmbedderConfig
-    chunker: ChunkerConfig
+    chunker: Annotated[
+        ChunkerSpec,
+        Field(discriminator="name"),
+    ]
+
+    @model_validator(mode="after")
+    def _schema_1_0_heading_only(self) -> "IngestionConfig":
+        if self.schema_version == "1.0" and not isinstance(
+            self.chunker, HeadingChunkerSpec
+        ):
+            raise ValueError("schema 1.0 supports only the heading chunker")
+        return self
 
 
 def load_ingestion_config(path: Path) -> IngestionConfig:
@@ -59,7 +93,6 @@ def load_ingestion_config(path: Path) -> IngestionConfig:
     try:
         raw = yaml.safe_load(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, yaml.YAMLError) as error:
-        # Only the file name: never the absolute path or parser excerpts.
         raise IngestionConfigurationError(
             f"cannot read ingestion config '{path.name}' ({type(error).__name__})"
         ) from None
@@ -98,8 +131,6 @@ class RuntimeSettings(BaseSettings):
         default="way2australia", validation_alias="QDRANT_COLLECTION_BASE"
     )
     tenant_id: str = Field(default="way2australia", validation_alias="W2A_TENANT_ID")
-    # Directory of the derived lexical index files (Spec 007 R4). None means the
-    # default `<repo-root>/.local/lexical`. Not index-defining.
     lexical_index_dir: Path | None = Field(
         default=None, validation_alias="W2A_LEXICAL_INDEX_DIR"
     )
@@ -123,11 +154,7 @@ class RuntimeSettings(BaseSettings):
 def load_runtime_settings(
     error_type: type[Exception] = IngestionConfigurationError,
 ) -> RuntimeSettings:
-    """The one place `RuntimeSettings` is built for the CLIs (Spec 005 R1).
-
-    A validation failure becomes `error_type` naming only environment variable
-    names, never their values.
-    """
+    """The one place `RuntimeSettings` is built for the CLIs (Spec 005 R1)."""
     try:
         return RuntimeSettings()
     except ValidationError as error:
@@ -142,7 +169,7 @@ def load_runtime_settings(
                 if e["loc"]
             }
         )
-        if not names:  # e.g. a model-level error with no field location
+        if not names:
             raise error_type("invalid runtime settings.") from None
         raise error_type(
             f"invalid runtime settings: check {', '.join(names)}."

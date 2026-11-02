@@ -106,7 +106,7 @@ def test_bind_does_not_write_to_qdrant(tmp_path: Path) -> None:
         ({"dense_identity.index_version": "v7"}, "dense_identity.index_version"),
         ({"chunker_name": "recursive"}, "chunker_name"),
         ({"chunker_version": "99"}, "chunker_version"),
-        ({"chunker_max_chunk_chars": 17}, "chunker_max_chunk_chars"),
+        ({"chunker_params": {"max_chunk_chars": 17}}, "chunker_params"),
         ({"hash_contract": "content-hash-v0"}, "hash_contract"),
     ],
 )

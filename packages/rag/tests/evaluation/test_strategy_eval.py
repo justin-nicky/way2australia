@@ -188,9 +188,7 @@ def build_lexical(client: QdrantClient, target: Path, drop: int = 0) -> LexicalI
                 embedder_model_id=info.model_id,
                 embedder_revision=info.revision,
             ),
-            chunker_name=chunker.name,
-            chunker_version=chunker.version,
-            chunker_max_chunk_chars=chunker.max_chunk_chars,
+            chunker=chunker.identity,
             hash_contract=HASH_CONTRACT,
         ),
     )
@@ -417,16 +415,6 @@ def test_truncation_flag_and_count(tmp_path: Path, strategy: Strategy) -> None:
 def lexical_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     directory = tmp_path / "lex"
     monkeypatch.setenv("W2A_LEXICAL_INDEX_DIR", str(directory))
-    from way2australia_rag.ingestion.config import EmbedderConfig
-    from way2australia_rag.ingestion.tokenization import FakeTokenizer
-
-    def fake_tokenizer_without_hub(embedder: EmbedderConfig) -> FakeTokenizer:
-        return FakeTokenizer(embedder.fake_max_sequence_length)
-
-    monkeypatch.setattr(
-        "way2australia_rag.retrieval.opening.build_tokenizer",
-        fake_tokenizer_without_hub,
-    )
     return directory
 
 
@@ -435,9 +423,10 @@ def configured_lexical(lexical_dir: Path) -> None:
     and chunker with the dense identity taken from `config/ingestion.yaml`."""
     config = load_ingestion_config(REPO_ROOT / "config/ingestion.yaml")
     model_id, revision = embedder_identity(config, config.embedder.provider)
-    chunker = build_chunker(config)
-    repository = LocalDocumentRepository(LocalRepositoryConfig(repo_root=REPO_ROOT))
     from way2australia_rag.ingestion.tokenization import FakeTokenizer
+
+    chunker = build_chunker(config, FakeTokenizer())
+    repository = LocalDocumentRepository(LocalRepositoryConfig(repo_root=REPO_ROOT))
 
     entries = asyncio.run(
         production_entries(repository, chunker, FakeTokenizer(), None)
@@ -454,9 +443,7 @@ def configured_lexical(lexical_dir: Path) -> None:
                 embedder_model_id=model_id,
                 embedder_revision=revision,
             ),
-            chunker_name=chunker.name,
-            chunker_version=chunker.version,
-            chunker_max_chunk_chars=chunker.max_chunk_chars,
+            chunker=chunker.identity,
             hash_contract=HASH_CONTRACT,
         ),
     )

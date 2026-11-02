@@ -23,7 +23,7 @@ from way2australia_rag.evaluation.errors import (
     EvaluationConfigurationError,
     EvaluationHarnessError,
 )
-from way2australia_rag.ingestion.chunking import Chunker, legacy_chunker_max_chunk_chars
+from way2australia_rag.ingestion.chunking import Chunker
 from way2australia_rag.ingestion.embedding import DEFAULT_FAKE_VECTOR_SIZE, Embedder
 from way2australia_rag.ingestion.identity import point_id
 from way2australia_rag.ingestion.payload import PointPayload, build_payload
@@ -241,9 +241,7 @@ def build_security_index(
                 embedder_model_id=embedder.info.model_id,
                 embedder_revision=embedder.info.revision,
             ),
-            chunker_name=chunker.name,
-            chunker_version=chunker.version,
-            chunker_max_chunk_chars=legacy_chunker_max_chunk_chars(chunker),
+            chunker=chunker.identity,
             hash_contract=HASH_CONTRACT,
         ),
     )

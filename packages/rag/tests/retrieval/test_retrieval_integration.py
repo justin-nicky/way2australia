@@ -14,7 +14,7 @@ import pytest
 from conftest import REPO_ROOT
 from qdrant_client import QdrantClient
 from way2australia_core import AccessContext, Role
-from way2australia_rag.ingestion.chunking import HeadingChunker
+from way2australia_rag.ingestion.chunker_build import build_chunker
 from way2australia_rag.ingestion.config import RuntimeSettings, load_ingestion_config
 from way2australia_rag.ingestion.embedding import FakeEmbedder
 from way2australia_rag.ingestion.service import IngestionService
@@ -67,7 +67,7 @@ def test_seed_corpus_retrieval_under_guest_access(live_client: QdrantClient) -> 
         service = IngestionService(
             repository,
             GUEST_PUBLIC_POLICY,
-            HeadingChunker(config.chunker.max_chunk_chars),
+            build_chunker(config, FakeTokenizer()),
             embedder,
             store,
             config.embedder.batch_size,

@@ -55,7 +55,7 @@ def fake_lexical(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     config = load_ingestion_config(REPO_ROOT / "config/ingestion.yaml")
     collection = collection_name("way2australia", config.index_version)
     model_id, revision = embedder_identity(config, "fake")
-    chunker = build_chunker(config)
+    chunker = build_chunker(config, FakeTokenizer())
     repository = LocalDocumentRepository(LocalRepositoryConfig(repo_root=REPO_ROOT))
     entries = asyncio.run(
         production_entries(repository, chunker, FakeTokenizer(), None)
@@ -73,9 +73,7 @@ def fake_lexical(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
                 embedder_model_id=model_id,
                 embedder_revision=revision,
             ),
-            chunker_name=chunker.name,
-            chunker_version=chunker.version,
-            chunker_max_chunk_chars=chunker.max_chunk_chars,
+            chunker=chunker.identity,
             hash_contract=HASH_CONTRACT,
         ),
     )
