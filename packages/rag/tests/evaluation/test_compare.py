@@ -664,7 +664,8 @@ def test_committed_spec_007_bm25_reads_and_compares_with_standalone_2_2(
 
 
 def doc23(**over: Any) -> dict[str, Any]:
-    document = doc22("hybrid", standalone=False, n=10)
+    n = over.pop("n", 10)
+    document = doc22("hybrid", standalone=False, n=n)
     document.update(
         {
             "schema_version": SCHEMA_VERSION,
@@ -703,10 +704,11 @@ def run_cross(
 
 
 def test_2_3_against_2_2_one_chunk_passes_without_cross_index(tmp_path: Path) -> None:
-    legacy = doc21("hybrid")
+    legacy = doc22("hybrid", standalone=False, n=13)
     legacy["document_count"] = 13
     legacy["lexical_index"] = {**LEXICAL, "chunk_count": 13}
     modern = doc23(
+        n=13,
         evaluation_suite_id=legacy["evaluation_suite_id"],
         evaluation_suite_version=legacy["evaluation_suite_version"],
         document_count=13,
@@ -716,7 +718,7 @@ def test_2_3_against_2_2_one_chunk_passes_without_cross_index(tmp_path: Path) ->
 
 
 def test_2_3_multi_chunk_against_2_2_is_refused(tmp_path: Path) -> None:
-    legacy = doc21("hybrid")
+    legacy = doc22("hybrid", standalone=False, n=13)
     legacy["lexical_index"] = {**LEXICAL, "chunk_count": 13}
     modern = doc23(
         chunk_stats={
@@ -760,8 +762,28 @@ def test_cross_index_allows_index_fields(
 
 def test_cross_index_with_2_2_side_is_refused(tmp_path: Path) -> None:
     with pytest.raises(NotComparableError) as info:
-        run_cross(tmp_path, doc21("hybrid"), doc23(), cross_index=True)
+        run_cross(tmp_path, doc22("hybrid"), doc23(), cross_index=True)
     assert "cross-index comparison requires result 2.3 on both sides" in str(info.value)
+
+
+def test_2_3_chunker_difference_refused_without_cross_index(tmp_path: Path) -> None:
+    message = refusal(
+        tmp_path,
+        doc23(),
+        doc23(
+            chunker={
+                "name": "recursive",
+                "version": "1",
+                "params": {
+                    "context_prefix": "title",
+                    "overlap_tokens": 4,
+                    "target_tokens": 32,
+                },
+                "tokenizer": "fake-tokenizer@0",
+            }
+        ),
+    )
+    assert "chunker changed heading 1 -> recursive 1" in message
 
 
 def test_index_version_difference_refused_without_cross_index(tmp_path: Path) -> None:

@@ -310,3 +310,49 @@
 
 ### User decision
 - 2026-11-02: approved
+
+## T5 — round 1
+
+### Implementation
+- Model: Composer 2.5 (Cursor subagent); tier note: spec-implementer BEST_MINUS_ONE matches `MODEL_PREFERENCES.md` for Cursor.
+- Files changed:
+  - `packages/rag/src/way2australia_rag/evaluation/compare.py` — refuse 2.3 vs 2.3 when `chunker` differs without `--cross-index`
+  - `packages/rag/src/way2australia_rag/evaluation/security_eval.py` — `security_gate_chunkers()`, security result **1.3** (`runs[]` per chunker), `security_run_record()`
+  - `packages/rag/src/way2australia_rag/evaluation/cli.py` — `eval-security` runs all three chunkers; summary lists each run
+  - Tests: `test_retrieval_eval.py` (E2E multi-chunk `run_retrieval_evaluation`), `test_compare.py` (2.2 fixtures, chunker refusal), `test_security_eval.py` (parameterized chunkers, 1.3 shape), `test_security_integration.py` (recursive v1 full gate on Docker)
+  - `.kiro/specs/009-chunking-experiments/tasks.md` — T5 checkboxes and state
+  - `graphify-out/` (`graphify update`, 4356 nodes)
+- Verification run:
+  - `make verify` → pass (**1119** passed, 2 skipped)
+  - `make eval-security` → PASS (3 chunkers × 5 paths; 74 queries each; ~2562 ms; result under `experiments/results/tmp/security-evaluation-20261102T142023Z.json`)
+  - `make test-integration` → **27** passed
+  - `git status --porcelain -- evaluation knowledge config` → empty
+  - `git diff main -- packages/rag/src/way2australia_rag/retrieval/access.py packages/rag/src/way2australia_rag/retrieval/bm25.py` → empty
+  - `graphify update .` → pass (4356 nodes)
+- Notes:
+  - **Recursive security chunker:** R9/design list `target_tokens` 32 with `title`, but after the T3 prefix rule `official_003_booking_fees_validity` cannot ingest at 32+title on the full seed corpus. `security_gate_chunkers()` uses **48** tokens (same overlap, title) so all 13 seed documents index and the gate stays non-vacuous; recommend a spec-planner amendment to R9/design or accept the deviation.
+  - `security_index.py` unchanged; existing builder already carries `ChunkerIdentity` and per-chunker forbidden/canary construction (Spec 008).
+- Usage: n/a (Cursor) · 160 tool uses · n/a (Cursor)
+
+### Review
+- Model: Grok 4.6 (Cursor)
+- Verdict: PASS
+- Commands: `HF_HOME=/tmp/w2a-t5-review-hf` `HF_HUB_CACHE=/tmp/w2a-t5-review-hf/hub` `HUGGINGFACE_HUB_CACHE=/tmp/w2a-t5-review-hf/hub` `TRANSFORMERS_CACHE=/tmp/w2a-t5-review-hf/transformers` `HF_HUB_OFFLINE=1` `TRANSFORMERS_OFFLINE=1` `make verify` → pass (1121 collected, 1119 passed, 2 skipped). `make eval-security EVAL_ARGS="--output /tmp/w2a-t5-review-security.json"` → PASS (3 chunkers × 5 paths; 74 queries each; 2485 ms; schema 1.3; heading 2000 / structure 64 title_and_headings / recursive 48 title; 13 seed documents each). `make test-integration` → pass (27 passed, 1094 deselected). `git status --porcelain -- evaluation knowledge config` → empty. `git diff main -- packages/rag/src/way2australia_rag/retrieval/access.py packages/rag/src/way2australia_rag/retrieval/bm25.py` → empty. `graphify-out/graph.json` is present from the implementer's update (4356 nodes); not regenerated in this review.
+- Findings: none
+- Summary for user (PASS only):
+  - Changed: T4 follow-ups plus the R9 security gate. `eval-compare` without `--cross-index` now refuses two result 2.3 files whose chunker identity differs (exit 2, field named). Compare-matrix 2.2 sides use schema 2.2 constructors. `eval-security` runs `heading` v1, `structure` v1 and `recursive` v1 on the throwaway corpus with the fake embedder; the result is schema 1.3 (`runs[]` per chunker, overall `pass`).
+  - Verified by: `make verify` offline with an empty Hugging Face cache (1119 passed, 2 skipped); `make eval-security` PASS (3 × 5 paths, 74 queries, 13 seed documents); `make test-integration` (27 passed, including recursive v1 on Docker); protected paths empty; `access.py` and `bm25.py` unchanged versus `main`.
+  - Worth your attention: The recursive security arm uses `target_tokens` 48, not the spec's 32. After T3's prefix rule, `official_003_booking_fees_validity` cannot ingest at 32+title (`FakeTokenizer` title prefix counts 21, half of 32 is 16). 48 still splits documents, ingested all 13, and kept forbidden/canary points nearest by construction. Recommend a planner amendment to R9/design, or accept 48 for the throwaway gate only. The new `run_retrieval_evaluation` test builds a real multi-chunk recursive index for `chunk_stats` and chunker identity, then scores a scripted hit list rather than `DenseRetriever` output.
+  - Reading order (follow the flow: entry point → core logic → models/errors/config → tests):
+    1. `packages/rag/src/way2australia_rag/evaluation/cli.py` → `_security`, `format_security_summary`: loops the three gate chunkers and writes result 1.3.
+    2. `packages/rag/src/way2australia_rag/evaluation/security_eval.py` → `security_gate_chunkers`, `security_run_record`, `security_document`: chunker matrix and the 1.3 envelope.
+    3. `packages/rag/src/way2australia_rag/evaluation/compare.py` → `_identity_problems`: 2.3 vs 2.3 chunker mismatch refused without `--cross-index`.
+    4. `packages/rag/tests/evaluation/test_security_eval.py` → `test_full_gate_passes_on_the_seed_corpus`: parameterized over the three chunkers.
+    5. `packages/rag/tests/evaluation/test_security_integration.py` → `test_recursive_v1_full_gate_on_docker`.
+    6. `packages/rag/tests/evaluation/test_compare.py` → `test_2_3_chunker_difference_refused_without_cross_index` and the 2.2 format-rule cases.
+    7. `packages/rag/tests/evaluation/test_retrieval_eval.py` → `test_run_retrieval_evaluation_on_multi_chunk_recursive_index`.
+    8. Supporting edits: `tasks.md` T5 checkboxes; `security_index.py` unchanged (already takes `ChunkerIdentity`).
+- Usage: n/a (Cursor) · 103 tool uses · n/a (Cursor)
+
+### User decision
+- 2026-11-02: approved (R9 recursive security at 48 tokens; E2E test uses real `DenseRetriever` through `run_retrieval_evaluation`)

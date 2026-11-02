@@ -42,6 +42,7 @@ from way2australia_rag.evaluation.security_eval import (
     SecurityQuery,
     run_security_evaluation,
     security_document,
+    security_gate_chunkers,
     select_security_queries,
 )
 from way2australia_rag.evaluation.security_index import (
@@ -54,6 +55,8 @@ from way2australia_rag.evaluation.suite import load_suite
 from way2australia_rag.ingestion.chunking import HeadingChunker
 from way2australia_rag.ingestion.embedding import FakeEmbedder
 from way2australia_rag.ingestion.payload import PointPayload
+from way2australia_rag.ingestion.recursive import RecursiveChunker
+from way2australia_rag.ingestion.structure import StructureChunker
 from way2australia_rag.lexical.store import LexicalRow
 from way2australia_rag.lexical.tokenizer import query_terms
 from way2australia_rag.repositories import (
@@ -110,17 +113,29 @@ def build(
     client: QdrantClient | None = None,
     base: str | None = None,
     lexical_dir: Path | None = None,
+    chunker: HeadingChunker | StructureChunker | RecursiveChunker | None = None,
 ) -> SecurityIndex:
     return build_security_index(
         client or QdrantClient(":memory:"),
         base or new_base(),
         queries,
         FakeEmbedder(FAKE_VECTOR_SIZE),
-        HeadingChunker(),
+        chunker or HeadingChunker(2000),
         seed_repository=seed_repository(),
         security_repository=security_repository,
         tenant_id=TENANT,
         lexical_dir=lexical_dir or _WORK["dir"],
+    )
+
+
+def security_result(index: SecurityIndex, report: Any) -> dict[str, Any]:
+    return security_document(
+        runs=[(index, report)],
+        suite=load_suite(REPO_ROOT, SUITE),
+        access=guest_access(),
+        duration_ms=1.0,
+        created_at="2026-01-01T00:00:00+00:00",
+        repo_root=REPO_ROOT,
     )
 
 
@@ -152,11 +167,17 @@ def real_queries() -> tuple[list[SecurityQuery], list[dict[str, Any]]]:
     return select_security_queries(load_suite(REPO_ROOT, SUITE))
 
 
+@pytest.mark.parametrize(
+    "chunker",
+    security_gate_chunkers(),
+    ids=["heading", "structure", "recursive"],
+)
 def test_full_gate_passes_on_the_seed_corpus(
+    chunker: HeadingChunker | StructureChunker | RecursiveChunker,
     security_repository: LocalDocumentRepository,
 ) -> None:
     queries, deferred = real_queries()
-    index = build([q.text for q in queries], security_repository)
+    index = build([q.text for q in queries], security_repository, chunker=chunker)
     report = run_security_evaluation(
         index, guest_access(), queries, deferred, RETRIEVAL_CONFIG
     )
@@ -175,10 +196,16 @@ def test_full_gate_passes_on_the_seed_corpus(
         for r in security
         if r["attack_type"] not in RETRIEVAL_SIDE_ATTACK_TYPES
     }
-    assert index.points_per_variant == {
-        **{v: len(queries) for v in FORBIDDEN_VARIANTS},
-        "staff_canary": len(queries) + 1,
-    }
+    if chunker.name == "heading" and chunker.version == "1":
+        assert index.points_per_variant == {
+            **{v: len(queries) for v in FORBIDDEN_VARIANTS},
+            "staff_canary": len(queries) + 1,
+        }
+    else:
+        assert index.points_per_variant["staff_canary"] >= len(queries) + 1
+        assert all(
+            index.points_per_variant[v] == len(queries) for v in FORBIDDEN_VARIANTS
+        )
 
 
 def test_sanity_check_holds_for_every_query(
@@ -532,21 +559,13 @@ def test_violation_names_the_document_from_the_error_attribute(
     assert report.violations
     assert all(v["document_id"] == expected for v in report.violations)
 
-    document = security_document(
-        index=broken,
-        report=report,
-        suite=load_suite(REPO_ROOT, SUITE),
-        access=guest_access(),
-        duration_ms=1.0,
-        created_at="2026-01-01T00:00:00+00:00",
-        repo_root=REPO_ROOT,
-    )
+    document = security_result(broken, report)
     assert document["passed"] is False
-    assert document["violations"]
-    assert all(v["document_id"] == expected for v in document["violations"])
+    assert document["runs"][0]["violations"]
+    assert all(v["document_id"] == expected for v in document["runs"][0]["violations"])
 
     lines = cli.format_security_summary(document, Path("result.json")).splitlines()
-    violation_lines = [line for line in lines if line.startswith("VIOLATION")]
+    violation_lines = [line for line in lines if "VIOLATION" in line]
     assert violation_lines
     assert all(f"document {expected}" in line for line in violation_lines)
 
@@ -569,22 +588,14 @@ def test_result_document_has_ids_only(
     report = run_security_evaluation(
         index, guest_access(), queries, deferred, RETRIEVAL_CONFIG
     )
-    document = security_document(
-        index=index,
-        report=report,
-        suite=load_suite(REPO_ROOT, SUITE),
-        access=guest_access(),
-        duration_ms=1.0,
-        created_at="2026-01-01T00:00:00+00:00",
-        repo_root=REPO_ROOT,
-    )
+    document = security_result(index, report)
     text = json.dumps(document, ensure_ascii=False)
     assert all(q.text not in text for q in queries)
     assert document["passed"] is True
     assert [e["document_id"] for e in document["excluded_fixtures"]] == [
         "fixture_public_poisoned"
     ]
-    assert document["index"]["embedder_is_fake"] is True
+    assert document["runs"][0]["index"]["embedder_is_fake"] is True
 
 
 def test_the_whole_gate_finishes_under_ten_seconds(
@@ -777,7 +788,7 @@ def test_the_missing_owner_row_is_excluded_by_owner_present_not_check_hit(
     assert report.passed
 
 
-def test_security_result_1_2_has_paths_strategies_and_no_text(
+def test_security_result_1_3_has_runs_paths_and_no_text(
     security_repository: LocalDocumentRepository,
 ) -> None:
     queries, deferred = real_queries()
@@ -787,27 +798,20 @@ def test_security_result_1_2_has_paths_strategies_and_no_text(
         report = run_security_evaluation(
             candidate, guest_access(), queries, deferred, RETRIEVAL_CONFIG
         )
-        document = security_document(
-            index=candidate,
-            report=report,
-            suite=load_suite(REPO_ROOT, SUITE),
-            access=guest_access(),
-            duration_ms=1.0,
-            created_at="2026-01-01T00:00:00+00:00",
-            repo_root=REPO_ROOT,
-        )
-        assert document["schema_version"] == "1.2"
+        document = security_result(candidate, report)
+        assert document["schema_version"] == "1.3"
         assert document["passed"] is passed
-        assert document["paths"] == list(PATHS)
-        assert document["strategies"] == ["dense", "bm25", "hybrid"]
-        assert document["bm25_no_term_queries"] == 0
+        run = document["runs"][0]
+        assert run["paths"] == list(PATHS)
+        assert run["strategies"] == ["dense", "bm25", "hybrid"]
+        assert run["bm25_no_term_queries"] == 0
         assert (
-            document["index"]["lexical_rows_per_variant"]
-            == (document["index"]["forbidden_points_per_variant"])
+            run["index"]["lexical_rows_per_variant"]
+            == run["index"]["forbidden_points_per_variant"]
         )
         assert all(
-            v["strategy"] in document["strategies"] and v["path"] in document["paths"]
-            for v in document["violations"]
+            v["strategy"] in run["strategies"] and v["path"] in run["paths"]
+            for v in run["violations"]
         )
         text = json.dumps(document, ensure_ascii=False)
         assert all(q.text not in text for q in queries)
@@ -926,10 +930,13 @@ def test_cli_lexical_file_is_removed_after_a_pass(
         ["security", "--repo-root", str(REPO_ROOT), "--output", str(output)]
     )
     assert code == 0
-    assert len(paths) == 1
-    assert not paths[0].exists() and not paths[0].parent.exists()
-    assert "strategies: dense, bm25, hybrid" in capsys.readouterr().out
-    assert json.loads(output.read_text(encoding="utf-8"))["schema_version"] == "1.2"
+    assert len(paths) == 3
+    assert all(not path.exists() for path in paths)
+    out = capsys.readouterr().out
+    assert "strategies: dense, bm25, hybrid" in out
+    document = json.loads(output.read_text(encoding="utf-8"))
+    assert document["schema_version"] == "1.3"
+    assert len(document["runs"]) == 3
 
 
 def test_cli_clause_less_lexical_store_exits_one_naming_strategies(
@@ -946,7 +953,8 @@ def test_cli_clause_less_lexical_store_exits_one_naming_strategies(
     )
     assert code == 1
     document = json.loads(output.read_text(encoding="utf-8"))
-    assert {v["strategy"] for v in document["violations"]} == {"bm25", "hybrid"}
+    violations = [v for run in document["runs"] for v in run["violations"]]
+    assert {v["strategy"] for v in violations} == {"bm25", "hybrid"}
     assert "eval-security: FAIL" in capsys.readouterr().out
     assert not paths[0].exists()
 
@@ -971,7 +979,7 @@ def test_cli_lexical_file_is_removed_after_a_failed_run(
     assert code == 2
     assert not output.exists()
     assert len(paths) == 1
-    assert not paths[0].exists() and not paths[0].parent.exists()
+    assert not paths[0].exists()
     assert "EvaluationHarnessError" in capsys.readouterr().err
 
 

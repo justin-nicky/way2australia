@@ -17,6 +17,7 @@ from way2australia_core import AccessContext, Role
 from way2australia_rag.evaluation.security_eval import (
     PATHS,
     run_security_evaluation,
+    security_gate_chunkers,
     select_security_queries,
 )
 from way2australia_rag.evaluation.security_index import (
@@ -96,5 +97,45 @@ def test_server_filter_keeps_every_forbidden_point_out(
         if index is not None:
             delete_security_index(index)
         for name in names:  # belt and braces if the build failed half way
+            if live_client.collection_exists(name):
+                live_client.delete_collection(name)
+
+
+def test_recursive_v1_full_gate_on_docker(
+    live_client: QdrantClient,
+    security_repository: LocalDocumentRepository,
+    tmp_path: Path,
+) -> None:
+    """Spec 009 R9: the recursive chunker gate on the real Qdrant server."""
+    suite = load_suite(REPO_ROOT, "evaluation/suites/public-eval-v2.json")
+    queries, deferred = select_security_queries(suite)
+    base = f"w2a-sectest-{uuid.uuid4().hex[:8]}"
+    chunker = next(c for c in security_gate_chunkers() if c.name == "recursive")
+    index = None
+    try:
+        index = build_security_index(
+            live_client,
+            base,
+            [q.text for q in queries],
+            FakeEmbedder(FAKE_VECTOR_SIZE),
+            chunker,
+            seed_repository=LocalDocumentRepository(LocalRepositoryConfig(REPO_ROOT)),
+            security_repository=security_repository,
+            tenant_id="way2australia",
+            lexical_dir=tmp_path / "lexical-rec",
+        )
+        access = resolve_access(
+            AccessContext(role=Role.GUEST, tenant_id="way2australia")
+        )
+        config = load_retrieval_config(REPO_ROOT / "config/retrieval.yaml")
+        report = run_security_evaluation(index, access, queries, deferred, config)
+        assert report.passed
+        assert report.violations == []
+        assert index.chunker.name == "recursive"
+    finally:
+        names = [f"{base}-sec-v1", f"{base}-sec-v1-settings"]
+        if index is not None:
+            delete_security_index(index)
+        for name in names:
             if live_client.collection_exists(name):
                 live_client.delete_collection(name)

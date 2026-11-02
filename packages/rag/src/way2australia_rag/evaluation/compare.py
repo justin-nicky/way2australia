@@ -144,6 +144,19 @@ def _identity_problems(
         old_i, new_i = base.info.get("index_version"), cand.info.get("index_version")
         if old_i != new_i:
             problems.append(f"index_version changed {old_i} -> {new_i}")
+        if (
+            base.schema_version == SCHEMA_VERSION
+            and cand.schema_version == SCHEMA_VERSION
+        ):
+            old_chunker, new_chunker = (
+                base.info.get("chunker"),
+                cand.info.get("chunker"),
+            )
+            if old_chunker != new_chunker:
+                problems.append(
+                    f"chunker changed {_chunker_text(old_chunker)} -> "
+                    f"{_chunker_text(new_chunker)}"
+                )
     if _embedder_pair(base) != _embedder_pair(cand):
         problems.append(f"embedder changed {_embedder(base)} -> {_embedder(cand)}")
     old_l, new_l = _lexical_identity(base), _lexical_identity(cand)

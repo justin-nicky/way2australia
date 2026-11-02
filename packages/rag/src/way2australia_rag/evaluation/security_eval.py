@@ -25,7 +25,10 @@ from way2australia_rag.evaluation.security_index import (
     forbidden_variant,
     is_forbidden_document,
 )
+from way2australia_rag.ingestion.chunking import Chunker, HeadingChunker
+from way2australia_rag.ingestion.recursive import RecursiveChunker
 from way2australia_rag.ingestion.store import DENSE_VECTOR_NAME
+from way2australia_rag.ingestion.structure import StructureChunker
 from way2australia_rag.ingestion.tokenization import FakeTokenizer
 from way2australia_rag.lexical.build import production_entries
 from way2australia_rag.lexical.store import LexicalIndex, LexicalIndexBindingError
@@ -101,8 +104,31 @@ __all__ = [
     "SecurityReport",
     "run_security_evaluation",
     "security_document",
+    "security_gate_chunkers",
+    "security_run_record",
     "select_security_queries",
 ]
+
+
+def security_gate_chunkers() -> tuple[Chunker, ...]:
+    """The three chunkers exercised by ``make eval-security`` (Spec 009 R9)."""
+    tokenizer = FakeTokenizer()
+    return (
+        HeadingChunker(2000),
+        StructureChunker(
+            max_chunk_tokens=64,
+            context_prefix="title_and_headings",
+            tokenizer=tokenizer,
+        ),
+        RecursiveChunker(
+            # 32 + title refuses official_003 on the seed corpus (T3 prefix rule);
+            # 48 keeps several chunks per document and ingests all 13 documents.
+            target_tokens=48,
+            overlap_tokens=4,
+            context_prefix="title",
+            tokenizer=tokenizer,
+        ),
+    )
 
 
 @dataclass(frozen=True)
@@ -419,13 +445,35 @@ def _lexical_sanity_check(
 
 
 SECURITY_RESULT_KIND = "security_evaluation"
-SECURITY_SCHEMA_VERSION = "1.2"
+SECURITY_SCHEMA_VERSION = "1.3"
+
+
+def security_run_record(index: SecurityIndex, report: SecurityReport) -> dict[str, Any]:
+    """One chunker's gate outcome (the 1.2 per-run fields under ``runs``)."""
+    return {
+        "chunker": index.chunker.identity.model_dump(mode="json"),
+        "passed": report.passed,
+        "query_count": report.query_count,
+        "security_cases_run": report.security_case_count,
+        "golden_queries_run": report.golden_query_count,
+        "paths": list(report.paths),
+        "strategies": list(report.strategies),
+        "bm25_no_term_queries": report.bm25_no_term_queries,
+        "violations": report.violations,
+        "index": {
+            "collection": index.collection,
+            "index_version": index.dense.index_version,
+            "embedder_is_fake": index.dense.settings.embedder_is_fake,
+            "seed_document_count": len(index.seed_document_ids),
+            "forbidden_points_per_variant": dict(index.points_per_variant),
+            "lexical_rows_per_variant": dict(index.lexical_rows_per_variant),
+        },
+    }
 
 
 def security_document(
     *,
-    index: SecurityIndex,
-    report: SecurityReport,
+    runs: Sequence[tuple[SecurityIndex, SecurityReport]],
     suite: LoadedSuite,
     access: ResolvedAccess,
     duration_ms: float,
@@ -434,13 +482,14 @@ def security_document(
 ) -> dict[str, Any]:
     """Result document: IDs, counts and verdicts only. No query or chunk text."""
     commit, dirty = git_state(repo_root)
+    run_rows = [security_run_record(index, report) for index, report in runs]
     return {
         "kind": SECURITY_RESULT_KIND,
         "schema_version": SECURITY_SCHEMA_VERSION,
         "created_at": created_at,
         "git_commit": commit,
         "git_dirty": dirty,
-        "passed": report.passed,
+        "passed": all(row["passed"] for row in run_rows),
         "evaluation_suite_id": suite.manifest.evaluation_suite_id,
         "evaluation_suite_version": suite.manifest.version,
         "access": {
@@ -450,22 +499,8 @@ def security_document(
                 str(s) for s in access.policy.allowed_access_scopes
             ),
         },
-        "index": {
-            "collection": index.collection,
-            "index_version": index.dense.index_version,
-            "embedder_is_fake": index.dense.settings.embedder_is_fake,
-            "seed_document_count": len(index.seed_document_ids),
-            "forbidden_points_per_variant": dict(index.points_per_variant),
-            "lexical_rows_per_variant": dict(index.lexical_rows_per_variant),
-        },
-        "query_count": report.query_count,
-        "security_cases_run": report.security_case_count,
-        "golden_queries_run": report.golden_query_count,
-        "paths": list(report.paths),
-        "strategies": list(report.strategies),
-        "bm25_no_term_queries": report.bm25_no_term_queries,
-        "violations": report.violations,
-        "deferred": report.deferred,
+        "runs": run_rows,
+        "deferred": list(runs[0][1].deferred) if runs else [],
         "excluded_fixtures": EXCLUDED_FIXTURES,
         "duration_ms": round(duration_ms, 1),
     }

@@ -52,6 +52,7 @@ from way2australia_rag.evaluation.security_corpus import build_security_reposito
 from way2australia_rag.evaluation.security_eval import (
     run_security_evaluation,
     security_document,
+    security_gate_chunkers,
     select_security_queries,
 )
 from way2australia_rag.evaluation.security_index import (
@@ -63,7 +64,6 @@ from way2australia_rag.evaluation.security_index import (
 from way2australia_rag.evaluation.slices import active_registry_languages
 from way2australia_rag.evaluation.suite import declared_release_id, load_suite
 from way2australia_rag.evaluation.validate import validate_evaluation
-from way2australia_rag.ingestion.chunker_build import build_chunker
 from way2australia_rag.ingestion.cli import ClientFactory, build_embedder
 from way2australia_rag.ingestion.config import (
     DEFAULT_CONFIG_PATH,
@@ -73,7 +73,6 @@ from way2australia_rag.ingestion.config import (
 )
 from way2australia_rag.ingestion.embedding import Embedder, FakeEmbedder
 from way2australia_rag.ingestion.errors import IngestionError
-from way2australia_rag.ingestion.tokenization import FakeTokenizer
 from way2australia_rag.repositories import (
     GUEST_PUBLIC_POLICY,
     DocumentRepositoryError,
@@ -354,12 +353,10 @@ def _security(args: argparse.Namespace) -> int:
     # In-memory Qdrant warns that payload indexes have no effect; expected here.
     warnings.filterwarnings("ignore", message="Payload indexes have no effect")
     repo_root: Path = args.repo_root.resolve()
-    config_path: Path = args.config or repo_root / DEFAULT_CONFIG_PATH
     fixture_root: Path = args.fixture_root or repo_root / DEFAULT_FIXTURE_ROOT
     client: QdrantClient | None = None
-    index = None
+    completed_runs: list[tuple[Any, Any]] = []
     try:
-        config = load_ingestion_config(config_path)
         settings = load_runtime_settings(EvaluationConfigurationError)
         retrieval_config = load_retrieval_config(
             args.retrieval_config or repo_root / DEFAULT_RETRIEVAL_CONFIG
@@ -373,43 +370,46 @@ def _security(args: argparse.Namespace) -> int:
         access = resolve_access(guest_access(settings))
         started = perf_counter()
         client = QdrantClient(location=":memory:")
-        base = f"{SECURITY_COLLECTION_PREFIX}{uuid.uuid4().hex[:8]}"
+        seed_repository = LocalDocumentRepository(LocalRepositoryConfig(repo_root))
         with tempfile.TemporaryDirectory(prefix="w2a-sectest-") as work:
+            work_path = Path(work)
             security_repository = build_security_repository(
                 fixture_root,
-                Path(work),
+                work_path,
                 schema_source=repo_root / SECURITY_SCHEMA,
             )
-            index = build_security_index(
-                client,
-                base,
-                [q.text for q in queries],
-                FakeEmbedder(FAKE_VECTOR_SIZE),
-                build_chunker(config, FakeTokenizer()),
-                seed_repository=LocalDocumentRepository(
-                    LocalRepositoryConfig(repo_root)
-                ),
-                security_repository=security_repository,
-                tenant_id=settings.tenant_id,
-                lexical_dir=Path(work) / "lexical",
-            )
-            log.info(
-                "security index %s built; %d queries, %d deferred case(s)",
-                safe_text(index.collection),
-                len(queries),
-                len(deferred),
-            )
-            try:
-                report = run_security_evaluation(
-                    index, access, queries, deferred, retrieval_config
+            for chunker in security_gate_chunkers():
+                base = f"{SECURITY_COLLECTION_PREFIX}{uuid.uuid4().hex[:8]}"
+                index = build_security_index(
+                    client,
+                    base,
+                    [q.text for q in queries],
+                    FakeEmbedder(FAKE_VECTOR_SIZE),
+                    chunker,
+                    seed_repository=seed_repository,
+                    security_repository=security_repository,
+                    tenant_id=settings.tenant_id,
+                    lexical_dir=work_path / "lexical",
                 )
-            finally:
-                # close the lexical file before its temporary directory goes
-                index.lexical.close()
+                log.info(
+                    "security index %s built (%s v%s); %d queries, %d deferred case(s)",
+                    safe_text(index.collection),
+                    chunker.name,
+                    chunker.version,
+                    len(queries),
+                    len(deferred),
+                )
+                try:
+                    report = run_security_evaluation(
+                        index, access, queries, deferred, retrieval_config
+                    )
+                    completed_runs.append((index, report))
+                finally:
+                    index.lexical.close()
+                    delete_security_index(index)
         duration_ms = (perf_counter() - started) * 1000.0
         document = security_document(
-            index=index,
-            report=report,
+            runs=completed_runs,
             suite=suite,
             access=access,
             duration_ms=duration_ms,
@@ -429,8 +429,6 @@ def _security(args: argparse.Namespace) -> int:
         print(f"ERROR {type(error).__name__}", file=sys.stderr)
         return EXIT_ERROR
     finally:
-        if index is not None:
-            delete_security_index(index)
         if client is not None:
             client.close()
     try:
@@ -438,32 +436,38 @@ def _security(args: argparse.Namespace) -> int:
     except ValueError:
         shown = Path(output.name)
     print(format_security_summary(document, shown))
-    return EXIT_OK if report.passed else EXIT_PROBLEMS
+    return EXIT_OK if document["passed"] else EXIT_PROBLEMS
 
 
 def format_security_summary(document: dict[str, Any], shown: Path) -> str:
     lines = [
         f"suite: {document['evaluation_suite_id']} "
         f"v{document['evaluation_suite_version']}",
-        f"throwaway index: {document['index']['collection']} (removed after the run)",
-        f"strategies: {', '.join(document['strategies'])}",
-        f"paths: {', '.join(document['paths'])}",
-        f"queries: {document['query_count']} "
-        f"({document['security_cases_run']} security cases, "
-        f"{document['golden_queries_run']} golden); "
+        f"chunker runs: {len(document['runs'])}; "
         f"deferred security cases: {len(document['deferred'])}",
     ]
+    for run in document["runs"]:
+        chunker = run["chunker"]
+        lines.append(
+            f"chunker {chunker['name']} v{chunker['version']}: "
+            f"{'PASS' if run['passed'] else 'FAIL'} "
+            f"({run['query_count']} queries, "
+            f"{run['security_cases_run']} security, "
+            f"{run['golden_queries_run']} golden)"
+        )
+        lines.append(f"  paths: {', '.join(run['paths'])}")
+        lines.append(f"  strategies: {', '.join(run['strategies'])}")
+        for v in run["violations"]:
+            lines.append(
+                f"  VIOLATION path {v['path']} case {v['case_id']} "
+                f"document {v['document_id'] or '-'} variant {v['variant']}"
+            )
     for item in document["deferred"]:
         lines.append(
             f"deferred {item['case_id']} ({item['attack_type']}): {item['owner']}"
         )
     for item in document["excluded_fixtures"]:
         lines.append(f"excluded fixture {item['document_id']}")
-    for v in document["violations"]:
-        lines.append(
-            f"VIOLATION path {v['path']} case {v['case_id']} "
-            f"document {v['document_id'] or '-'} variant {v['variant']}"
-        )
     verdict = "PASS" if document["passed"] else "FAIL"
     lines.append(
         f"eval-security: {verdict} in {document['duration_ms']:.0f} ms; result: {shown}"

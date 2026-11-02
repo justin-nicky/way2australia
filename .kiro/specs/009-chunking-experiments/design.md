@@ -235,7 +235,7 @@ evaluation_suite_id: "public-eval-v1"   # copied unchanged; informational in ing
 - `eval-security` runs its five paths for three chunkers on the throwaway corpus, all with the fake embedder and `FakeTokenizer`:
   - `heading` v1 (2000 characters);
   - `structure` v1 (`max_chunk_tokens` 64, `title_and_headings`);
-  - `recursive` v1 (`target_tokens` 32, `overlap_tokens` 4, `title`).
+  - `recursive` v1 (`target_tokens` 48, `overlap_tokens` 4, `title`; 32+title refuses `official_003_booking_fees_validity` after the T3 prefix rule).
 - The small caps force several chunks per document. The forbidden and canary points are built per chunker, so they stay nearest by construction.
 - Security result 1.3: `runs: [{chunker, paths: {...1.2 shape...}}]` and overall `pass`. The gate inside `make verify` (`test_security_eval.py`) is parameterized over the three chunkers.
 

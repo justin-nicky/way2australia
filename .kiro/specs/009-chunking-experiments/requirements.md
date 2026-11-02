@@ -148,7 +148,7 @@ Authorization is unchanged by chunking.
 
 ### Acceptance criteria
 
-- `make eval-security` passes all five Spec 008 paths (`dense`, standalone `bm25`, `hybrid`, `hybrid_fallback_open`, `hybrid_fallback_query`) for `heading` v1, the structure chunker and the recursive chunker on the throwaway corpus with the fake embedder and fake tokenizer, with forbidden points still nearest by construction.
+- `make eval-security` passes all five Spec 008 paths (`dense`, standalone `bm25`, `hybrid`, `hybrid_fallback_open`, `hybrid_fallback_query`) for `heading` v1, the structure chunker and the recursive chunker on the throwaway corpus with the fake embedder and fake tokenizer, with forbidden points still nearest by construction. The throwaway `recursive` v1 arm uses `target_tokens` 48, `overlap_tokens` 4 and `title` (not 32), because the T3 prefix rule refuses `official_003_booking_fees_validity` at 32+title with `FakeTokenizer`.
 - The security result (new minor version) records the chunker identity per run; the gate inside `make verify` covers every chunker.
 - No new authorization path: the same `ResolvedAccess`, `build_access_filter`, SQL access clause and `check_hit`.
 
@@ -224,3 +224,4 @@ The repository records what was built.
 - 2026-11-02 — R3/R4: T2 review clarification (user-approved during round 2). Chunk bodies must equal the source apart from whitespace; the test collapses whitespace runs in the body and in the document, then requires the collapsed body to be a substring of the collapsed document (exact byte-level substrings are not required, because `structure` v1 normalizes joins). `recursive` v1 overlap takes the longest trailing run of whole units within `overlap_tokens` (content tokens), then drops units from the front until `count(prefix + tail + next unit) <= target_tokens`, and never repeats a unit that alone exceeds the budget. Design amended. T2 re-opened for implementer round 3.
 - 2026-11-02 — R4/T3: apply the `structure` v1 prefix rule to `recursive` v1 — if the prefix alone leaves less than half of `target_tokens`, that document fails with a configuration error; test and regenerate `recursive` v1 snapshots if outputs change. Must land before T6 indexes `recursive` v1. Design and tasks T3 amended.
 - 2026-11-02 — R7/R8/T5: T4 review follow-ups — E2E `run_retrieval_evaluation` on a fake multi-chunk index; refuse 2.3 vs 2.3 compare when chunker identity differs without `--cross-index`; real 2.2 fixture in the compare matrix. R8 amended. T5 amended (follow-up boxes added).
+- 2026-11-02 — R9/T5: accept `recursive` v1 security gate at `target_tokens` 48 (was 32) with `overlap_tokens` 4 and `title`; T3 prefix rule blocks `official_003_booking_fees_validity` at 32+title on the seed corpus. Design amended.

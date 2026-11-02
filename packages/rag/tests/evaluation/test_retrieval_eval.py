@@ -733,3 +733,199 @@ def test_distinct_rank_beyond_k_gives_zero_reciprocal_rank() -> None:
     hits = [_metric_chunk(i + 1, f"doc_{i}") for i in range(7)]
     _hit, _recall, rr, _ranked = _metrics_from_hits(hits, {"doc_6"}, k=5)
     assert rr == 0.0
+
+
+def _cosine_to_query(emb: FakeEmbedder, query: str, text: str) -> float:
+    q = emb.embed_query(query)
+    v = emb.embed_documents([text])[0]
+    return sum(a * b for a, b in zip(q, v, strict=True))
+
+
+def _text_with_score_below(emb: FakeEmbedder, query: str, ceiling: float) -> str:
+    for n in range(300_000):
+        text = f"e2e-fill-{ceiling:.8f}-{n}"
+        if _cosine_to_query(emb, query, text) < ceiling:
+            return text
+    raise AssertionError("could not find filler text below the score ceiling")
+
+
+def test_run_retrieval_evaluation_on_multi_chunk_recursive_index() -> None:
+    from way2australia_core.documents import KnowledgeDocument
+    from way2australia_rag.ingestion.recursive import RecursiveChunker
+    from way2australia_rag.ingestion.tokenization import FakeTokenizer
+
+    tokenizer = FakeTokenizer()
+    chunker = RecursiveChunker(
+        target_tokens=32,
+        overlap_tokens=4,
+        context_prefix="title",
+        tokenizer=tokenizer,
+    )
+    target_id = "doc_t"
+    chunks = chunker.chunk(
+        KnowledgeDocument.model_validate(
+            {
+                "document_id": target_id,
+                "document_version": 1,
+                "title": "T",
+                "tenant_id": "way2australia",
+                "knowledge_domain": "business",
+                "access_scope": "public",
+                "content_language": "en",
+                "language_scope": "global",
+                "lote_languages": ("*",),
+                "source_authority": "owner_approved",
+                "source_type": "faq",
+                "approval_status": "approved",
+                "lifecycle_status": "active",
+                "introduced_in_release": "r1",
+                "retrieval_enabled": True,
+                "synthetic": False,
+                "content_hash": "1" * 64,
+                "content": "word " * 30,
+            }
+        )
+    )
+    assert len(chunks) > 1
+
+    eval_base, eval_version = "w2a-t009-eval", "idx-v1"
+    emb = RealStub()
+    depth = RETRIEVAL_CONFIG.fusion.candidate_depth
+    target_query: str | None = None
+    filler_texts: list[str] | None = None
+
+    for qn in range(30_000):
+        query = f"e2e-multi-chunk-query-{qn}"
+        scores = [_cosine_to_query(emb, query, chunk.text) for chunk in chunks]
+        if len({round(s, 8) for s in scores}) < len(scores):
+            continue
+        high = max(scores)
+        mid = sorted(scores)[len(scores) // 2]
+        try:
+            fillers = [
+                _text_with_score_below(emb, query, high + 0.05),
+                _text_with_score_below(emb, query, scores[0] + 1e-5),
+                _text_with_score_below(emb, query, mid),
+                _text_with_score_below(emb, query, mid - 1e-5),
+                _text_with_score_below(emb, query, scores[1] - 1e-5),
+                _text_with_score_below(emb, query, min(scores) - 1e-4),
+            ]
+        except AssertionError:
+            continue
+
+        client = QdrantClient(":memory:")
+        store = QdrantIndexStore(client, eval_base, eval_version)
+        settings = build_index_settings(eval_version, emb.info, chunker)
+        store.ensure_collection(settings)
+        store.replace_document(
+            target_id,
+            [
+                IndexPoint(
+                    point_id=point_id(target_id, chunk.section_id, chunk.position),
+                    vector=emb.embed_documents([chunk.text])[0],
+                    payload=make_payload(
+                        target_id,
+                        chunk.text,
+                        section_id=chunk.section_id,
+                        chunk_position=chunk.position,
+                    ),
+                )
+                for chunk in chunks
+            ],
+        )
+        for i, text in enumerate(fillers):
+            filler = f"doc_{i}"
+            store.replace_document(
+                filler,
+                [
+                    IndexPoint(
+                        point_id=point_id(filler, "main", 0),
+                        vector=emb.embed_documents([text])[0],
+                        payload=make_payload(filler, text),
+                    )
+                ],
+            )
+        index = DenseIndex.open(client, eval_base, eval_version, emb.info)
+        retriever = DenseRetriever(index, emb)
+        probe = retriever.retrieve(query, guest(), depth)
+        top5 = probe.hits[:5]
+        if probe.hits[0].document_id != "doc_0":
+            continue
+        target_chunks_in_top5 = sum(1 for hit in top5 if hit.document_id == target_id)
+        if target_chunks_in_top5 < 2:
+            continue
+        target_query = query
+        filler_texts = fillers
+        break
+
+    assert target_query is not None and filler_texts is not None
+
+    client = QdrantClient(":memory:")
+    store = QdrantIndexStore(client, eval_base, eval_version)
+    settings = build_index_settings(eval_version, emb.info, chunker)
+    store.ensure_collection(settings)
+    store.replace_document(
+        target_id,
+        [
+            IndexPoint(
+                point_id=point_id(target_id, chunk.section_id, chunk.position),
+                vector=emb.embed_documents([chunk.text])[0],
+                payload=make_payload(
+                    target_id,
+                    chunk.text,
+                    section_id=chunk.section_id,
+                    chunk_position=chunk.position,
+                ),
+            )
+            for chunk in chunks
+        ],
+    )
+    for i, text in enumerate(filler_texts):
+        filler = f"doc_{i}"
+        store.replace_document(
+            filler,
+            [
+                IndexPoint(
+                    point_id=point_id(filler, "main", 0),
+                    vector=emb.embed_documents([text])[0],
+                    payload=make_payload(filler, text),
+                )
+            ],
+        )
+    index = DenseIndex.open(client, eval_base, eval_version, emb.info)
+    chunks_per_document = chunks_per_document_dense(index)
+    assert chunks_per_document[target_id] > 1
+    retriever = DenseRetriever(index, emb)
+
+    suite = suite_of(
+        [
+            GoldenCase(
+                case_id="g001",
+                case_version=1,
+                status="active",
+                query=target_query,
+                answerable=True,
+                relevant_document_ids=[target_id],
+                query_language="en",
+                category="business",
+            )
+        ]
+    )
+    doc = run(
+        index,
+        emb,
+        retriever,
+        suite,
+        identity=IndexIdentity.from_dense(index),
+        chunks_per_document=chunks_per_document,
+    )
+    case = doc["cases"][0]
+    assert case["hit"] is True
+    assert case["reciprocal_rank"] == pytest.approx(0.5)
+    ranked = case["ranked_document_ids"]
+    assert len(ranked) == len(set(ranked))
+    assert ranked.index(target_id) == 1
+    assert doc["chunk_stats"]["max_chunks_per_document"] > 1
+    assert doc["chunk_stats"]["chunk_count"] == sum(chunks_per_document.values())
+    assert doc["chunker"]["name"] == "recursive"
+    assert doc["metric_unit"] == "distinct_documents"

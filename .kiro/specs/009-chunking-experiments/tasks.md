@@ -131,21 +131,21 @@ Allowed protected-path changes: none.
 
 ## T5 — Security gate across chunkers
 
-**State:** not started
+**State:** approved (2026-11-02)
 **Requirements:** R7, R8 (T4 review follow-ups), R9
 
 ### T4 review follow-ups (planner amendment 2026-11-02)
 
-- [ ] End-to-end test: `run_retrieval_evaluation` on a fake multi-chunk index (recursive chunker, fake embedder), asserting distinct-document metrics and `chunk_stats`.
-- [ ] `eval-compare` without `--cross-index` refuses (exit 2) two 2.3 files whose chunker identity differs, naming the field.
-- [ ] Compare-matrix tests use a real 2.2 result fixture instead of 2.1 files standing in for 2.2.
+- [x] End-to-end test: `run_retrieval_evaluation` on a fake multi-chunk index (recursive chunker, fake embedder), asserting distinct-document metrics and `chunk_stats`.
+- [x] `eval-compare` without `--cross-index` refuses (exit 2) two 2.3 files whose chunker identity differs, naming the field.
+- [x] Compare-matrix tests use a real 2.2 result fixture instead of 2.1 files standing in for 2.2.
 
 ### Security gate (R9)
 
-- [ ] `evaluation/security_index.py` and `security_eval.py`: run the five paths (`dense`, standalone `bm25`, `hybrid`, `hybrid_fallback_open`, `hybrid_fallback_query`) for `heading` v1 (2000 characters), `structure` v1 (`max_chunk_tokens` 64, `title_and_headings`) and `recursive` v1 (`target_tokens` 32, `overlap_tokens` 4, `title`) with `FakeEmbedder` and `FakeTokenizer`; forbidden and canary points built per chunker, nearest by construction; lexical identity checks use `ChunkerIdentity`.
-- [ ] Security result 1.3: `runs: [{chunker, paths: {...1.2 shape...}}]` and overall `pass`.
-- [ ] `test_security_eval.py` parameterized over the three chunkers (inside `make verify`); `test_security_integration.py` covers at least the `recursive` v1 run on Docker.
-- [ ] No new authorization code: `git diff main -- packages/rag/src/way2australia_rag/retrieval/access.py packages/rag/src/way2australia_rag/retrieval/bm25.py` shows no change to the access clause or `check_hit`.
+- [x] `evaluation/security_index.py` and `security_eval.py`: run the five paths (`dense`, standalone `bm25`, `hybrid`, `hybrid_fallback_open`, `hybrid_fallback_query`) for `heading` v1 (2000 characters), `structure` v1 (`max_chunk_tokens` 64, `title_and_headings`) and `recursive` v1 (`target_tokens` 48, `overlap_tokens` 4, `title`) with `FakeEmbedder` and `FakeTokenizer`; forbidden and canary points built per chunker, nearest by construction; lexical identity checks use `ChunkerIdentity`.
+- [x] Security result 1.3: `runs: [{chunker, paths: {...1.2 shape...}}]` and overall `pass`.
+- [x] `test_security_eval.py` parameterized over the three chunkers (inside `make verify`); `test_security_integration.py` covers at least the `recursive` v1 run on Docker.
+- [x] No new authorization code: `git diff main -- packages/rag/src/way2australia_rag/retrieval/access.py packages/rag/src/way2australia_rag/retrieval/bm25.py` shows no change to the access clause or `check_hit`.
 
 Allowed protected-path changes: none.
 
