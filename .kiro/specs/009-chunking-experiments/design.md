@@ -106,9 +106,10 @@ except Exception: per-document failure (reason, plus structured fields for Chunk
    - The preamble has no heading line, so it gets the title only, or nothing when the setting is `none`.
 5. **Packing.**
    - Blocks are packed greedily into `prefix + "\n\n" + body`, with `count(composed) <= max_chunk_tokens`. Tokens are counted on the composed string, never summed.
-   - Blocks are joined with `"\n"` between consecutive list items and `"\n\n"` otherwise.
+   - Blocks are joined with `"\n"` between consecutive list items and `"\n\n"` otherwise. Those joins are normalized by design.
    - A block that alone exceeds the budget is split at line breaks, then at sentence ends, then at whitespace, then at characters (binary search on `count`) as the last resort.
    - **Sentence end** (shared by both chunkers): `.`, `?`, `!` or `।` immediately followed by whitespace or the end of the text; the split falls after the punctuation and the whitespace is dropped. A mark followed by anything else never splits, so `1.5`, `A$20.00`, `naati.com.au` and the inner dot of `e.g.` stay whole. (The final dot of `e.g.` followed by a space does split; accepted, since splitting is only a fallback for oversized blocks.)
+   - **Text fidelity.** The chunk body equals the source apart from whitespace. Exact byte-level substrings are not required: joins are normalized (`"\n"` between consecutive list items, `"\n\n"` otherwise) and the sentence-end fallback drops the whitespace after the punctuation. Test invariant, for every seed document and every synthetic fixture: collapse each maximal whitespace run to a single space in the chunk body and in the document text the chunker received; the collapsed body must then be a substring of the collapsed document. The same invariant applies to `recursive` v1.
    - If the prefix alone leaves less than half the cap, the result is `IngestionConfigurationError` for that document.
 6. **Parameters:**
    - `max_chunk_tokens`, an integer from 32 up to the model maximum (checked once the tokenizer is built);
@@ -116,13 +117,15 @@ except Exception: per-document failure (reason, plus structured fields for Chunk
 
 ### `recursive` v1 (R4)
 
-- **Prefix.** `context_prefix: none` or `title`; the title prefix is `title + "\n\n"`.
+- **Prefix.** `context_prefix: none` or `title`; the title prefix is `title + "\n\n"`. If the prefix alone leaves less than half of `target_tokens`, the result is a per-document configuration error (same rule as `structure` v1 with `max_chunk_tokens`).
 - **Splitting.** Body (frontmatter already removed by the repository) split by the separators `["\n\n", "\n", sentence end (as defined for `structure` v1), " "]`. A unit is split further only while it exceeds the budget; the final fallback is a character split, as in `structure` v1.
-- **Packing.** Units are packed greedily into chunks with `count(prefix + chunk) <= target_tokens`. Each new chunk starts with the trailing units of the previous one whose combined count (without special tokens) is at most `overlap_tokens`. A unit is never repeated if that alone would exceed the budget.
+- **Packing.** Units are packed greedily so that `count(prefix + chunk) <= target_tokens`.
+- **Overlap.** From the previous chunk's units, take the longest trailing run of whole units whose content-token count (the count without special tokens) is at most `overlap_tokens`. Then drop units from the front of that run until `count(prefix + tail + next unit) <= target_tokens`. Never repeat a unit that alone exceeds the budget.
+- **Text fidelity.** The same whitespace-collapsed substring invariant as `structure` v1, on every seed document and every synthetic fixture. Exact byte-level substrings are not required.
 - **Parameters.** `target_tokens` is at least 32; `0 <= overlap_tokens < target_tokens / 2`. Violations are a configuration error at load time.
 - **IDs.** All chunks use `section_id` `main`, with positions `0..n-1`.
 
-All three chunkers are pure, deterministic and free of language-specific code. Each chunker version has an output snapshot test on the seed corpus and on synthetic fixtures. Any change to the output therefore needs a version bump, and that is what keeps per-document freshness (R6) sound.
+All three chunkers are pure, deterministic and free of language-specific code. Each chunker version has an output snapshot test on the seed corpus and on synthetic fixtures. Any change to the output therefore needs a version bump, and that is what keeps per-document freshness (R6) sound. Until T2 is approved, a correction to this design updates the `structure` v1 and `recursive` v1 snapshots in place; it is not a version bump.
 
 ### Chunker identity, settings and configuration (R5)
 
@@ -201,6 +204,10 @@ evaluation_suite_id: "public-eval-v1"   # copied unchanged; informational in ing
 | **128 / 16** | **title** | **2 4 2 3 3 4 3 2 2 2 3 3 1** | **34** | **4** | **127** |
 | 128 / 16 | none | 2 3 2 3 3 4 3 2 2 2 3 2 1 | 32 | 4 | 125 |
 | 192 / 24 | title | 2 2 2 2 2 3 2 1 2 2 2 2 1 | 25 | 3 | 188 |
+
+## As-built notes
+
+- **T2 BGE-M3 `recursive` v1 counts (128 / 16, title).** Measured on 2026-11-02 (T2 round 3) with the cached BGE-M3 tokenizer at the pinned revision from `config/ingestion.yaml`: per-document chunk counts `2 4 2 3 3 4 3 2 2 2 3 3 1` (13 seed documents), total **34**, **max 4** per document, largest chunk **127** tokens (matches the 2026-11-01 prototype table). T6 `chunk_stats` on the arm run is the promotion record.
 
 - **Chosen arm:** `recursive` v1, `target_tokens` 128, `overlap_tokens` 16, `context_prefix: title`, `index_version` `idx-v2`.
   - It gives 34 chunks, at most 4 per document.
@@ -322,10 +329,10 @@ No new authorization code. Chunkers run only on documents `GUEST_PUBLIC_POLICY` 
   - `BgeM3Tokenizer` cache-miss offline error (monkeypatched `hf_hub_download`);
   - import pin (no torch);
   - guard: oversized, at the limit, per-document failure, chunker exception inside the `try`;
-  - `structure` v1 synthetic fixtures (nested, cousins, duplicate siblings, `main` collision, fences, long lists, a long Malayalam paragraph, an oversized block, prefix modes, reorder and insert stability of IDs);
+  - `structure` v1 synthetic fixtures (nested, cousins, duplicate siblings, `main` collision, fences, long lists, a long Malayalam paragraph, an oversized block, prefix modes, reorder and insert stability of IDs); the whitespace-collapsed substring invariant on every synthetic fixture and every seed document;
   - sentence-end rule (both chunkers): splits after `.`, `?`, `!` and `।` followed by a space, a newline or the end of text; no split inside `1.5`, `A$20.00`, `naati.com.au` or the inner dot of `e.g.`; a Malayalam sentence ending in `।` followed by a space splits;
-  - `recursive` v1 (no piece over target, overlap, repeatability, configuration validation);
-  - snapshot tests per chunker on the seed corpus;
+  - `recursive` v1 (no piece over target; overlap per the rule above, including a case where the longest tail does not fit and a shorter tail does; repeatability; configuration validation); the same whitespace-collapsed substring invariant on every seed document and every synthetic fixture;
+  - snapshot tests per chunker on the seed corpus (v1 snapshots updated in place until T2 is approved);
   - `chunker_identity(config)` equals `Chunker.identity`;
   - settings 1.0 read and compare;
   - lexical 1.0 refusal and rebuild equality;
