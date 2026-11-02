@@ -228,8 +228,8 @@
     "semantic_hash": "b515766c3b9ca5e1b2453fa7a7a2c68a"
   },
   "packages/rag/pyproject.toml": {
-    "mtime": 1793557166.4979675,
-    "seen": 1793558543.834309,
+    "mtime": 1793595589.0176668,
+    "seen": 1793595939.322371,
     "ast_hash": "1445b2b8270e9d6705a86f704f208780",
     "semantic_hash": ""
   },
@@ -300,15 +300,15 @@
     "semantic_hash": "5976f3c64b401cf88aa2b3d11518cdab"
   },
   "packages/rag/src/way2australia_rag/evaluation/security_eval.py": {
-    "mtime": 1793557208.1309266,
-    "seen": 1793558543.83433,
+    "mtime": 1793595589.017927,
+    "seen": 1793595939.3223839,
     "ast_hash": "9c5db00d9c10833261d8efbac337de05",
     "semantic_hash": ""
   },
   "packages/rag/src/way2australia_rag/evaluation/security_index.py": {
-    "mtime": 1793557301.5701478,
-    "seen": 1793558543.834332,
-    "ast_hash": "5178e23c2515b32fee7fa6fdd428cdb5",
+    "mtime": 1793595847.5983803,
+    "seen": 1793595939.3223848,
+    "ast_hash": "81b0ac5e539121aa6579164a4ccf5270",
     "semantic_hash": ""
   },
   "packages/rag/src/way2australia_rag/evaluation/slices.py": {
@@ -342,20 +342,20 @@
     "semantic_hash": "a2abcd137b101a8975891039353a1f57"
   },
   "packages/rag/src/way2australia_rag/ingestion/chunking.py": {
-    "mtime": 1792225496.2043233,
-    "seen": 1792912072.6713579,
-    "ast_hash": "d4fd3ea47507f6f06a6f7bcc3c699e96",
-    "semantic_hash": "d4fd3ea47507f6f06a6f7bcc3c699e96"
+    "mtime": 1793596705.8768427,
+    "seen": 1793596913.455648,
+    "ast_hash": "8d1e9a71c876f93fa1dde19cea56d19a",
+    "semantic_hash": ""
   },
   "packages/rag/src/way2australia_rag/ingestion/cli.py": {
-    "mtime": 1793559196.2808034,
-    "seen": 1793559569.87358,
+    "mtime": 1793595589.0184596,
+    "seen": 1793595939.322391,
     "ast_hash": "8ad30b285667719445c6118b1dc33773",
     "semantic_hash": ""
   },
   "packages/rag/src/way2australia_rag/ingestion/config.py": {
-    "mtime": 1793557172.809727,
-    "seen": 1793558543.834346,
+    "mtime": 1793595589.0187995,
+    "seen": 1793595939.322392,
     "ast_hash": "46923487c74fcd207af67b26a939a56e",
     "semantic_hash": ""
   },
@@ -384,16 +384,16 @@
     "semantic_hash": "93d15266d4ef537b3429e6b3b4210edd"
   },
   "packages/rag/src/way2australia_rag/ingestion/service.py": {
-    "mtime": 1793557179.1244552,
-    "seen": 1793558543.834357,
+    "mtime": 1793595589.0201564,
+    "seen": 1793595939.322398,
     "ast_hash": "15defee453c76b78a7c6fdac8bc2b481",
     "semantic_hash": ""
   },
   "packages/rag/src/way2australia_rag/ingestion/settings.py": {
-    "mtime": 1792225496.207113,
-    "seen": 1792912072.671369,
-    "ast_hash": "1c6d43d624fd48c9ff256cc0396bbd2a",
-    "semantic_hash": "1c6d43d624fd48c9ff256cc0396bbd2a"
+    "mtime": 1793595842.3753028,
+    "seen": 1793595939.322399,
+    "ast_hash": "82b0921d7634498d7fecd8f6bca27732",
+    "semantic_hash": ""
   },
   "packages/rag/src/way2australia_rag/ingestion/store.py": {
     "mtime": 1792736843.5968056,
@@ -612,10 +612,10 @@
     "semantic_hash": "0a2b134506d199563f833b424585eb47"
   },
   "packages/rag/tests/ingestion/test_chunking.py": {
-    "mtime": 1792870036.083984,
-    "seen": 1792912072.671419,
-    "ast_hash": "ff14e96ff9c9274305586c57d83c2798",
-    "semantic_hash": "ff14e96ff9c9274305586c57d83c2798"
+    "mtime": 1793595848.8199594,
+    "seen": 1793595939.322464,
+    "ast_hash": "f3916afb1a0a1d7c8b7d2f3dc69a2d65",
+    "semantic_hash": ""
   },
   "packages/rag/tests/ingestion/test_cli_config.py": {
     "mtime": 1792870036.0845068,
@@ -636,8 +636,8 @@
     "semantic_hash": "029c1b81851f1b9a9864d16922d14e1c"
   },
   "packages/rag/tests/ingestion/test_service.py": {
-    "mtime": 1793559202.5630505,
-    "seen": 1793559569.873708,
+    "mtime": 1793595589.0247169,
+    "seen": 1793595939.3224692,
     "ast_hash": "1d85daf47c99506dd176de2dad2ac259",
     "semantic_hash": ""
   },
@@ -708,8 +708,8 @@
     "semantic_hash": "acc0b3fa3da4ace4fd0aea71796eea2d"
   },
   "packages/rag/tests/retrieval/test_retrieval_integration.py": {
-    "mtime": 1793557301.5697846,
-    "seen": 1793558543.83452,
+    "mtime": 1793595589.0260406,
+    "seen": 1793595939.3224928,
     "ast_hash": "003ee7fca7022c945e9a36489a8e5604",
     "semantic_hash": ""
   },
@@ -948,14 +948,14 @@
     "semantic_hash": "4ff66b7330db2dba4578e6ad14871720"
   },
   "AGENTS.md": {
-    "mtime": 1793556165.214979,
-    "seen": 1793558543.834613,
+    "mtime": 1793595588.9591107,
+    "seen": 1793595939.3225431,
     "ast_hash": "223fb9e72d08769c11541750c22be7d4",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1793556165.2153676,
-    "seen": 1793558543.834614,
+    "mtime": 1793595588.9594047,
+    "seen": 1793595939.322544,
     "ast_hash": "65a27acc83e57b79d0e636e789bb80cc",
     "semantic_hash": ""
   },
@@ -978,16 +978,16 @@
     "semantic_hash": "f5eb99aeecc072fc460c98d1327818fe"
   },
   "agent-skills/README.md": {
-    "mtime": 1793556165.2169087,
-    "seen": 1793558543.834621,
+    "mtime": 1793595588.9608693,
+    "seen": 1793595939.322547,
     "ast_hash": "afe8fa373486cbfbe5a4ec03cf9c036a",
     "semantic_hash": ""
   },
   "agent-skills/spec-implementer/SKILL.md": {
-    "mtime": 1792911278.9608002,
-    "seen": 1792912072.671503,
-    "ast_hash": "9aee9ddf169fe7c6243816a2be7a0114",
-    "semantic_hash": "9aee9ddf169fe7c6243816a2be7a0114"
+    "mtime": 1793595588.987049,
+    "seen": 1793595939.322548,
+    "ast_hash": "7667b55a146cf625324bdbe351f459b3",
+    "semantic_hash": ""
   },
   "agent-skills/spec-implementer/references/implementation-checklist.md": {
     "mtime": 1792004821.171157,
@@ -1056,16 +1056,16 @@
     "semantic_hash": "caeba6272969f0901c2a2d47b09c283c"
   },
   "agent-skills/task-reviewer/SKILL.md": {
-    "mtime": 1792911278.9430833,
-    "seen": 1792912072.671521,
-    "ast_hash": "d9d093920c2aa69f2a592f15b3dc29d4",
-    "semantic_hash": "d9d093920c2aa69f2a592f15b3dc29d4"
+    "mtime": 1793595588.9872034,
+    "seen": 1793595939.322558,
+    "ast_hash": "ddb9ad5edc0e230564cf37ef91d50543",
+    "semantic_hash": ""
   },
   "agent-skills/task-reviewer/assets/task-review-template.md": {
-    "mtime": 1792736842.7125213,
-    "seen": 1792912072.6715221,
-    "ast_hash": "cf3379c300bde4e9932ac57687fd0991",
-    "semantic_hash": "cf3379c300bde4e9932ac57687fd0991"
+    "mtime": 1793595588.9873135,
+    "seen": 1793595939.3225589,
+    "ast_hash": "50a7beacbb42d217b77208afabe239a9",
+    "semantic_hash": ""
   },
   "analytics/schemas/README.md": {
     "mtime": 1791711712.0,
@@ -1116,8 +1116,8 @@
     "semantic_hash": "32f7741d7f1dfbe0441d6a1a962c65e7"
   },
   "docs/project/CONSTITUTION.md": {
-    "mtime": 1793556165.2180223,
-    "seen": 1793558543.834663,
+    "mtime": 1793595588.9614265,
+    "seen": 1793595939.322568,
     "ast_hash": "3c9512c3ce26cef8e517540a46e20d74",
     "semantic_hash": ""
   },
@@ -1128,8 +1128,8 @@
     "semantic_hash": "1a2d2a5428a3063578aeec1099a709f2"
   },
   "docs/project/CURRENT_STATE.md": {
-    "mtime": 1793557110.4686449,
-    "seen": 1793558543.834666,
+    "mtime": 1793595588.9617255,
+    "seen": 1793595939.322569,
     "ast_hash": "35a6993303396302fc7b4abb1ee5ab3f",
     "semantic_hash": ""
   },
@@ -1146,8 +1146,8 @@
     "semantic_hash": "bd6505c09b87b4fcbe56b2dffe688c10"
   },
   "docs/project/README.md": {
-    "mtime": 1793556165.2199502,
-    "seen": 1793558543.834673,
+    "mtime": 1793595588.962402,
+    "seen": 1793595939.322573,
     "ast_hash": "162d43adc8152e1d5372374d9dc35e14",
     "semantic_hash": ""
   },
@@ -1158,9 +1158,9 @@
     "semantic_hash": "f3f5a1d03547552ea6485b5523871f79"
   },
   "docs/project/WORKFLOW.md": {
-    "mtime": 1793556165.2206488,
-    "seen": 1793558543.834678,
-    "ast_hash": "aae12868497c59766939c66fea6482d7",
+    "mtime": 1793595588.9874892,
+    "seen": 1793595939.322575,
+    "ast_hash": "29ab08a841005a46212032969337f92a",
     "semantic_hash": ""
   },
   "knowledge/public/business/business_001_overview_scope.md": {
@@ -1278,14 +1278,14 @@
     "semantic_hash": "f0a0161d00472c07b7e548cb0ea1c9d3"
   },
   "docs/project/COMMANDS.md": {
-    "mtime": 1793556165.2175071,
-    "seen": 1793558543.834661,
+    "mtime": 1793595588.961187,
+    "seen": 1793595939.322567,
     "ast_hash": "78df0266cc0d9a03fc96687e484c1af7",
     "semantic_hash": ""
   },
   "docs/project/DECISIONS.md": {
-    "mtime": 1793556165.219401,
-    "seen": 1793558543.834668,
+    "mtime": 1793595588.9621692,
+    "seen": 1793595939.32257,
     "ast_hash": "18a15a256067ac3de6214b5218630392",
     "semantic_hash": ""
   },
@@ -1302,22 +1302,22 @@
     "semantic_hash": "bbe804577718c1ef70997d831c796ddd"
   },
   "packages/rag/src/way2australia_rag/lexical/build.py": {
-    "mtime": 1793557317.2425842,
-    "seen": 1793558543.8343658,
+    "mtime": 1793595589.020581,
+    "seen": 1793595939.3224041,
     "ast_hash": "1a85a0a2b21bfdcf73c8d2c73971529a",
     "semantic_hash": ""
   },
   "packages/rag/src/way2australia_rag/lexical/cli.py": {
-    "mtime": 1793559196.653091,
-    "seen": 1793559569.873605,
-    "ast_hash": "f6a304786c552a39fc8ee57637196ee7",
+    "mtime": 1793595848.1187408,
+    "seen": 1793595939.322405,
+    "ast_hash": "7e5c795d69613deed561e67b62cd30c1",
     "semantic_hash": ""
   },
   "packages/rag/src/way2australia_rag/lexical/store.py": {
-    "mtime": 1793543340.96228,
-    "seen": 1793543862.34569,
-    "ast_hash": "be5cbc3aebdd826ffcee13d050d88bb8",
-    "semantic_hash": "be5cbc3aebdd826ffcee13d050d88bb8"
+    "mtime": 1793595847.7669432,
+    "seen": 1793595939.322407,
+    "ast_hash": "3502455b6938af3047a86cbb7ce8411a",
+    "semantic_hash": ""
   },
   "packages/rag/src/way2australia_rag/lexical/tokenizer.py": {
     "mtime": 1793200069.091759,
@@ -1332,14 +1332,14 @@
     "semantic_hash": "96cf2b2a797f3c600c9ab4e65384501e"
   },
   "packages/rag/tests/lexical/test_lexical_build.py": {
-    "mtime": 1793559199.0859997,
-    "seen": 1793559569.873717,
+    "mtime": 1793595589.0250711,
+    "seen": 1793595939.322475,
     "ast_hash": "4af50b578dcfa2d042794e6c97749055",
     "semantic_hash": ""
   },
   "packages/rag/tests/lexical/test_lexical_cli.py": {
-    "mtime": 1793559206.5940015,
-    "seen": 1793559569.873719,
+    "mtime": 1793595589.0252504,
+    "seen": 1793595939.3224761,
     "ast_hash": "5719aa7b50bca59c13dbafa8e2618a7d",
     "semantic_hash": ""
   },
@@ -1422,14 +1422,14 @@
     "semantic_hash": "834adb73a7b1124739b313ec9f47586e"
   },
   "packages/rag/tests/evaluation/test_strategy_eval.py": {
-    "mtime": 1793559461.3532233,
-    "seen": 1793559569.8736892,
+    "mtime": 1793595589.0214136,
+    "seen": 1793595939.3224509,
     "ast_hash": "2c41e9dd3a7a1c6149e2a7c037ee04ac",
     "semantic_hash": ""
   },
   "packages/rag/tests/lexical_support.py": {
-    "mtime": 1793557301.5700388,
-    "seen": 1793558543.8344908,
+    "mtime": 1793595589.025707,
+    "seen": 1793595939.322478,
     "ast_hash": "fb2a45bbb1975df4cbbe99cb804f8ea3",
     "semantic_hash": ""
   },
@@ -1482,8 +1482,8 @@
     "semantic_hash": "de32c8127a0d052dc7c26d90fccc61dc"
   },
   "packages/rag/src/way2australia_rag/lexical/freshness.py": {
-    "mtime": 1793557184.5716228,
-    "seen": 1793558543.8343701,
+    "mtime": 1793595589.020902,
+    "seen": 1793595939.3224058,
     "ast_hash": "1e85300652cff2d6e561ab52b938f20b",
     "semantic_hash": ""
   },
@@ -1494,14 +1494,14 @@
     "semantic_hash": "3cdb33be79648dfe5901fd48c777efaf"
   },
   "packages/rag/src/way2australia_rag/retrieval/opening.py": {
-    "mtime": 1793559197.5648847,
-    "seen": 1793559569.8736582,
+    "mtime": 1793595589.021127,
+    "seen": 1793595939.3224351,
     "ast_hash": "23921ce6457c16ccc2fe39ccdb17b8a3",
     "semantic_hash": ""
   },
   "packages/rag/tests/lexical/test_lexical_standalone.py": {
-    "mtime": 1793557209.4860802,
-    "seen": 1793558543.834487,
+    "mtime": 1793595589.025507,
+    "seen": 1793595939.322477,
     "ast_hash": "0d6af5bdbcfd4988bd34fab313f7dcab",
     "semantic_hash": ""
   },
@@ -1512,8 +1512,8 @@
     "semantic_hash": "289d6a09946bf57fd3fc3ad13fe74121"
   },
   "packages/rag/tests/retrieval/test_opening.py": {
-    "mtime": 1793557200.9995086,
-    "seen": 1793558543.834517,
+    "mtime": 1793595589.025878,
+    "seen": 1793595939.322492,
     "ast_hash": "3b8b915fdcef01c7c6bfdef35599aac0",
     "semantic_hash": ""
   },
@@ -1536,63 +1536,123 @@
     "semantic_hash": "e4ce5c88569d89cfbdfb717fcd2c4b15"
   },
   "packages/rag/src/way2australia_rag/ingestion/guard.py": {
-    "mtime": 1793557171.7272396,
-    "seen": 1793558543.834352,
+    "mtime": 1793595589.0197668,
+    "seen": 1793595939.3223941,
     "ast_hash": "b9b8dc3352a10855fa38c68684078fbc",
     "semantic_hash": ""
   },
   "packages/rag/src/way2australia_rag/ingestion/tokenization.py": {
-    "mtime": 1793559195.7550378,
-    "seen": 1793559569.873599,
-    "ast_hash": "49332a19a0b4cb0e726d5162225c6b68",
+    "mtime": 1793596642.4776068,
+    "seen": 1793596913.4556742,
+    "ast_hash": "358f229c3f489cbd23536a2138119e87",
     "semantic_hash": ""
   },
   "packages/rag/tests/ingestion/fixtures/bge_m3/sentence_bert_config.json": {
-    "mtime": 1793557262.00753,
-    "seen": 1793558543.834461,
+    "mtime": 1793595589.0228448,
+    "seen": 1793595939.322455,
     "ast_hash": "9b75d8db11d32559933ef6c213fd94ef",
     "semantic_hash": ""
   },
   "packages/rag/tests/ingestion/fixtures/bge_m3/tokenizer.json": {
-    "mtime": 1793557262.007035,
-    "seen": 1793558543.834462,
+    "mtime": 1793595589.0231638,
+    "seen": 1793595939.3224561,
     "ast_hash": "2a46c1f45ee5e8936ae679dbd627eaec",
     "semantic_hash": ""
   },
   "packages/rag/tests/ingestion/test_guard.py": {
-    "mtime": 1793557301.569389,
-    "seen": 1793558543.834471,
+    "mtime": 1793595589.0243251,
+    "seen": 1793595939.322467,
     "ast_hash": "b7f14435b3f738e0ba93aa6c9df06c46",
     "semantic_hash": ""
   },
   "packages/rag/tests/ingestion/test_tokenization.py": {
-    "mtime": 1793557304.4854715,
-    "seen": 1793558543.83448,
+    "mtime": 1793595589.0248673,
+    "seen": 1793595939.322473,
     "ast_hash": "c7dc15604ec499ae217645f8d60de780",
     "semantic_hash": ""
   },
   ".kiro/specs/009-chunking-experiments/design.md": {
-    "mtime": 1793557110.4644604,
-    "seen": 1793558543.834608,
-    "ast_hash": "94f3993ab3202fff9f3e31766efd712e",
+    "mtime": 1793598397.5012348,
+    "seen": 1793598402.8024588,
+    "ast_hash": "5799ddf12f22e43632a046adc3ce8322",
     "semantic_hash": ""
   },
   ".kiro/specs/009-chunking-experiments/requirements.md": {
-    "mtime": 1793557110.4656103,
-    "seen": 1793558543.83461,
-    "ast_hash": "eddfa385dfa93fafa7a68581baabc6f4",
+    "mtime": 1793598138.654876,
+    "seen": 1793598402.80246,
+    "ast_hash": "9defa06291263fb348edb3933c455c88",
     "semantic_hash": ""
   },
   ".kiro/specs/009-chunking-experiments/tasks.md": {
-    "mtime": 1793559572.3178957,
-    "seen": 1793559937.129199,
-    "ast_hash": "54b8af3a54f01f0a0b9decbaeca014a9",
+    "mtime": 1793598398.369764,
+    "seen": 1793598402.8024619,
+    "ast_hash": "8afafd7d5fcba47af1fe5a78f4105856",
     "semantic_hash": ""
   },
   ".kiro/specs/009-chunking-experiments/task-reviews.md": {
-    "mtime": 1793559573.9368186,
-    "seen": 1793559937.1291971,
-    "ast_hash": "d62f3d4ee7737a1f02fc176a5e9af3a0",
+    "mtime": 1793598408.0333867,
+    "seen": 1793598931.18769,
+    "ast_hash": "ef5ac3067662fdbe2c7f4c5477b989cf",
+    "semantic_hash": ""
+  },
+  "packages/rag/src/way2australia_rag/ingestion/recursive.py": {
+    "mtime": 1793598262.2263436,
+    "seen": 1793598402.802331,
+    "ast_hash": "b8ea819904c6bc8324d0734724410457",
+    "semantic_hash": ""
+  },
+  "packages/rag/src/way2australia_rag/ingestion/structure.py": {
+    "mtime": 1793596705.877096,
+    "seen": 1793596913.455672,
+    "ast_hash": "2534024398c4b3420eafb493f2f7d6ff",
+    "semantic_hash": ""
+  },
+  "packages/rag/tests/ingestion/snapshot_support.py": {
+    "mtime": 1793598344.288725,
+    "seen": 1793598402.802384,
+    "ast_hash": "b0e513f791cb85c1d1c4578aeae67d75",
+    "semantic_hash": ""
+  },
+  "packages/rag/tests/ingestion/snapshots/heading-v1-seed-fake.json": {
+    "mtime": 1793595745.3558092,
+    "seen": 1793595939.322458,
+    "ast_hash": "c0a4116556cb790dc98d090ae99903d1",
+    "semantic_hash": ""
+  },
+  "packages/rag/tests/ingestion/snapshots/recursive-v1-seed-fake-32.json": {
+    "mtime": 1793598331.4256742,
+    "seen": 1793598402.8023849,
+    "ast_hash": "736dd4981ced861b87e6c9f16ffcf394",
+    "semantic_hash": ""
+  },
+  "packages/rag/tests/ingestion/snapshots/recursive-v1-synthetic-fixture.json": {
+    "mtime": 1793596678.63821,
+    "seen": 1793596913.455795,
+    "ast_hash": "550f0382abbfe423efeda0190a692766",
+    "semantic_hash": ""
+  },
+  "packages/rag/tests/ingestion/snapshots/structure-v1-seed-fake.json": {
+    "mtime": 1793596678.6376777,
+    "seen": 1793596913.455796,
+    "ast_hash": "dc52025088867c00f6a95f62e0a2e649",
+    "semantic_hash": ""
+  },
+  "packages/rag/tests/ingestion/snapshots/structure-v1-synthetic-fixture.json": {
+    "mtime": 1793596678.6386304,
+    "seen": 1793596913.455798,
+    "ast_hash": "cf9cf19e1e568fe31fbd52b7dbacdac1",
+    "semantic_hash": ""
+  },
+  "packages/rag/tests/ingestion/test_recursive.py": {
+    "mtime": 1793598339.007669,
+    "seen": 1793598402.8023942,
+    "ast_hash": "58c5d5c32462711c6b406f1cf7c99177",
+    "semantic_hash": ""
+  },
+  "packages/rag/tests/ingestion/test_structure.py": {
+    "mtime": 1793598344.2888095,
+    "seen": 1793598402.802397,
+    "ast_hash": "d0c73b3dcba3bf73d0227274d62594f2",
     "semantic_hash": ""
   }
 }
