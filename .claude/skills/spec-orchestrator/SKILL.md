@@ -28,7 +28,7 @@ Never read or edit product code or diffs. Never write spec content (requirements
 
 ## Procedure
 
-1. Check `git status` and the current branch. Uncommitted changes are expected while a task is in progress (any State other than `not started` / `approved`): that is the task's work awaiting approval. Uncommitted changes with no task in progress, or a branch the state does not imply: stop and ask. Never stash, reset or discard.
+1. Check `git status` and the current branch. Uncommitted changes are expected while a task is in progress (any State other than `not started` / `approved`): that is the task's work awaiting approval. Before spawning a role, if the tree has uncommitted paths that are **not** part of the current task's work, report them and ask the user. Uncommitted changes with no task in progress, or a branch the state does not imply: stop and ask. Never stash, reset or discard. Never commit without a recorded user approval.
 2. Follow the table in `state-machine.md` for the first task whose State is not `approved`. Do the action, re-read the State lines, and repeat until the table says to ask the user (user review, escalation, spec issue, material decision, missing permission) or the spec is complete.
 3. Keep `CURRENT_STATE.md` accurate at each transition.
 
@@ -48,7 +48,7 @@ One writer at a time per checkout: never start a role while another role on the 
 
 Invoking this skill is the user's request to run the loop; do not ask permission to start roles.
 
-1. **Subagent (preferred, Claude Code and desktop app):** spawn the role with the Agent tool, `model` set from the tier (`sonnet` for BEST_MINUS_ONE, `opus` for BEST per `MODEL_PREFERENCES.md`), `run_in_background: false`, and a brief of at most ~10 lines: spec, task ID, round, "read `agent-skills/<role>/SKILL.md` and follow it". Explicit-only skills cannot be called through the Skill tool, so the brief points at the file. A subagent starts with fresh context, so the task reviewer stays independent of the implementer. Spawn the reviewer only after the implementer returns.
+1. **Subagent (preferred, Claude Code and desktop app):** spawn the role with the Agent tool, `model` set from the tier for that host (`MODEL_PREFERENCES.md`), `run_in_background: false`, and a brief of at most ~15 lines: spec, task ID, round; the task's checkbox block in `tasks.md`; the **design section headings** and **requirement IDs (R#)** to read first (the subagent may read more to verify a claim); "read `agent-skills/<role>/SKILL.md` and follow it". For roles that explore the codebase (`spec-implementer`, `task-reviewer`), include the graphify rule: when `graphify-out/graph.json` exists, run `graphify query "<question>"` before the first grep or source read for a codebase question; use `graphify path` / `graphify explain` as needed; read raw files only for lines the graph or an earlier read already located. Explicit-only skills cannot be called through the Skill tool, so the brief points at the file. A subagent starts with fresh context, so the task reviewer stays independent of the implementer. **Spawn the reviewer only after the implementer returns** (never in parallel).
 2. **Separate session:** if subagents are unavailable but the host can start sessions with a model, start one with the same brief.
 3. **Otherwise** print the exact command and intended model, e.g. `New session on Sonnet: /spec-implementer 002 T3`, and stop.
 

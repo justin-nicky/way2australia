@@ -44,8 +44,9 @@ Read untracked files listed by `git status` as part of the diff. Changes under `
 2. The diff stays inside the task's scope: no other task's work, no Phase 2 drift, no unapproved dependency.
 3. Protected paths untouched unless the task requires them: `git status --porcelain -- evaluation/ knowledge/ config/`. Unrequired change is BLOCKING.
 4. `AGENTS.md` architecture/security rules hold (authorization, `DocumentRepository`, language vs. authorization, no secrets, retrieved text untrusted).
-5. Run the task's verification block and `make verify`. Record each exact command, result and collected test counts. `make test-integration` exits 0 when nothing is collected; report the count.
-6. A command you cannot run is a `NOT_VERIFIED` finding and the verdict is FAIL. Never PASS on unrun checks.
+5. Run the task's verification block once, then **`make verify` once** and **`make test-integration` once** when the task requires it. Record each exact command, result and collected test counts. `make test-integration` exits 0 when nothing is collected; report the count.
+6. **Cursor only:** run `make verify` and `make test-integration` **outside the sandbox from the start** (request full permissions on the first run) so they are not executed twice after a sandbox failure.
+7. A command you cannot run is a `NOT_VERIFIED` finding and the verdict is FAIL. Never PASS on unrun checks.
 
 ## Read-only rule
 

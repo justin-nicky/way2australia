@@ -32,9 +32,9 @@ Read `CONVENTIONS.md`, `DECISIONS.md`, `COMMANDS.md` only when needed.
 Proceed only if:
 - `requirements.md`, `design.md` and `tasks.md` are `Status: approved (…)` or `tasks.md` is `implementing (…)`;
 - the task's State allows a run (above) and it has no `> BLOCKED:` note;
-- you are on `spec/<NNN>` (`git branch --show-current`); the orchestrator creates the branch. The tree is clean for round 1; on rework it holds this task's uncommitted earlier rounds. Otherwise stop and report.
+- you are on `spec/<NNN>` (`git branch --show-current`); the orchestrator creates the branch. The tree is clean for round 1; on rework it holds this task's uncommitted earlier rounds. If `git status` shows changes outside this task's scope (files you did not touch for this round), stop and report them; never `git restore`, `git checkout --`, or `git stash` to hide them. Otherwise stop and report.
 
-Round N is 1 for `not started`; for rework it is the previous round + 1. Set `**State:** implementing (round N)` before editing.
+Round N is 1 for `not started`; for rework it is the previous round + 1. Set `**State:** implementing (round N)` once before editing (at most two State updates this round: that line and `in task review` at the end).
 
 ## Material-decision rule
 
@@ -58,7 +58,7 @@ Never silently make code and spec agree after the fact.
 
 1. Inspect existing code before creating abstractions. Before writing code, check whether existing project code, the standard library or an already-selected dependency covers it; reuse before you write. This never removes validation, authorization or tests the task requires.
 2. Implement the minimum complete solution; add or update tests with the behavior.
-3. Run the narrowest verification as you go, then the task's verification block and `make verify`.
+3. While iterating, run only **targeted** `pytest` on the tests for files you touched (plus any test the task's verification block names). After the **last** edit for the round, run the task's verification block once, then **`make verify` once** and **`make test-integration` once** (when the task requires it).
 4. Tick the task's checkboxes only after verification. Never reword checkbox text; never edit `tasks.meta.json`.
 5. On round > 1, implement only the latest round's findings or user feedback.
 
@@ -68,7 +68,7 @@ A checked box means implemented and verified. Never tick with failing tests, unm
 
 ## 4. Finish
 
-1. Append the Implementation block for this round to `<spec>/task-reviews.md` (create the file if missing; format in `WORKFLOW.md` → "`task-reviews.md`"): model, files changed, verification run with test counts, notes on decisions/deviations; end with `- Usage: (orchestrator)` (do not guess tokens or duration).
+1. Append **one** Implementation block for this round to `<spec>/task-reviews.md` (create the file if missing; format in `WORKFLOW.md` → "`task-reviews.md`"): model, files changed, verification run with test counts, notes on decisions/deviations; end with `- Usage: (orchestrator)` (do not guess tokens or duration). Do not append a second Implementation block for the same round.
 2. If `graphify-out/graph.json` exists and you changed code, run `graphify update .` (local, no model cost) so the knowledge graph matches the code; if `graphify` is not installed, skip it and say so in the Implementation block.
 3. Set `**State:** in task review (round N)`.
 4. Do not commit, push or merge. Leave all changes uncommitted; the orchestrator commits and pushes them only after the user approves. Never stash, reset or switch branches.
