@@ -47,7 +47,7 @@ Allowed protected-path changes: none.
 
 ## T2 — Structure and recursive chunkers
 
-**State:** awaiting user review (round 3)
+**State:** approved (2026-11-02)
 **Requirements:** R3, R4
 
 - [x] `ingestion/chunking.py`: `ChunkerIdentity` (name, version, sorted params, tokenizer); `Chunker` Protocol gains `identity` and drops `max_chunk_chars`; `HeadingChunker.identity` (params `{"max_chunk_chars": N}`, tokenizer `None`), output unchanged; shared sentence-end splitter (`.`, `?`, `!`, `।` followed by whitespace or end of text).
