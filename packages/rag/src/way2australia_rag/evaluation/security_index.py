@@ -35,6 +35,7 @@ from way2australia_rag.ingestion.store import (
     IndexPoint,
     QdrantIndexStore,
 )
+from way2australia_rag.ingestion.tokenization import FakeTokenizer
 from way2australia_rag.lexical.build import (
     Entry,
     build_lexical_index,
@@ -172,10 +173,18 @@ def build_security_index(
             )
 
     store = QdrantIndexStore(client, collection_base, SECURITY_INDEX_VERSION)
+    tokenizer = FakeTokenizer()
     # 1. seed corpus through the production ingestion path (creates the collection)
     report = asyncio.run(
         IngestionService(
-            seed_repository, GUEST_PUBLIC_POLICY, chunker, embedder, store, _BATCH_SIZE
+            seed_repository,
+            GUEST_PUBLIC_POLICY,
+            chunker,
+            embedder,
+            store,
+            _BATCH_SIZE,
+            tokenizer,
+            None,
         ).run()
     )
     if report.failures:
@@ -212,7 +221,9 @@ def build_security_index(
     )
 
     # 4. the lexical file: same point IDs, built by the production builder
-    seed_entries = asyncio.run(production_entries(seed_repository, chunker))
+    seed_entries = asyncio.run(
+        production_entries(seed_repository, chunker, tokenizer, None)
+    )
     entries = [
         *seed_entries,
         *_lexical_forbidden_entries(canary_points, queries, tenant_id),

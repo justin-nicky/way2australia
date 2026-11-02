@@ -11,6 +11,7 @@ Revisit for a large corpus (D060).
 import asyncio
 
 from way2australia_rag.ingestion.chunking import Chunker
+from way2australia_rag.ingestion.tokenization import ChunkTokenizer
 from way2australia_rag.lexical.build import _identity, production_entries
 from way2australia_rag.lexical.store import (
     REBUILD_ADVICE,
@@ -23,10 +24,16 @@ from way2australia_rag.repositories import DocumentRepository
 
 
 def verify_fresh(
-    lexical: LexicalIndex, repository: DocumentRepository, chunker: Chunker
+    lexical: LexicalIndex,
+    repository: DocumentRepository,
+    chunker: Chunker,
+    tokenizer: ChunkTokenizer,
+    chunk_token_cap: int | None,
 ) -> None:
     """Return when the file matches the repository; else `LexicalIndexBindingError`."""
-    entries = asyncio.run(production_entries(repository, chunker))
+    entries = asyncio.run(
+        production_entries(repository, chunker, tokenizer, chunk_token_cap)
+    )
     identities = {_identity(point, payload) for point, payload in entries}
     if source_chunk_digest(identities) == lexical.settings.source_chunk_digest:
         return

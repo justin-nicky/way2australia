@@ -19,7 +19,9 @@ from lexical_support import (
     synthetic_entries,
 )
 from way2australia_rag.ingestion.chunking import HeadingChunker
+from way2australia_rag.ingestion.guard import ChunkTooLongError
 from way2australia_rag.ingestion.identity import point_id
+from way2australia_rag.ingestion.tokenization import FakeTokenizer
 from way2australia_rag.lexical import build as build_module
 from way2australia_rag.lexical.build import build_lexical_index, production_entries
 from way2australia_rag.lexical.store import (
@@ -126,9 +128,23 @@ def test_missing_owner_key_is_recorded(tmp_path: Path) -> None:
     assert rows == {"m": 0, "n": 1}
 
 
+def test_oversized_chunk_refuses_production_entries() -> None:
+    with pytest.raises(ChunkTooLongError):
+        asyncio.run(
+            production_entries(
+                repository(),
+                HeadingChunker(),
+                FakeTokenizer(max_sequence_length=2),
+                None,
+            )
+        )
+
+
 def test_production_entries_match_eligible_documents() -> None:
     chunker = HeadingChunker()
-    entries = asyncio.run(production_entries(repository(), chunker))
+    entries = asyncio.run(
+        production_entries(repository(), chunker, FakeTokenizer(), None)
+    )
     documents = asyncio.run(list_eligible_documents(repository(), GUEST_PUBLIC_POLICY))
     expected = {
         point_id(d.document_id, c.section_id, c.position)
@@ -144,7 +160,9 @@ def test_production_entries_match_eligible_documents() -> None:
 
 
 def test_production_entries_never_read_security_fixtures() -> None:
-    entries = asyncio.run(production_entries(repository(), HeadingChunker()))
+    entries = asyncio.run(
+        production_entries(repository(), HeadingChunker(), FakeTokenizer(), None)
+    )
     fixture_ids = {"fixture_staff_canary", "fixture_public_poisoned"}
     assert not fixture_ids & {pl["document_id"] for _, pl in entries}
     fixture_text = (

@@ -32,6 +32,7 @@ from way2australia_rag.ingestion.errors import (
 )
 from way2australia_rag.ingestion.service import IngestionService, RunReport
 from way2australia_rag.ingestion.store import QdrantIndexStore
+from way2australia_rag.ingestion.tokenization import build_tokenizer, embedder_for_run
 from way2australia_rag.repositories import (
     GUEST_PUBLIC_POLICY,
     DocumentRepositoryError,
@@ -141,6 +142,7 @@ def main(
         provider = args.embedder or config.embedder.provider
         embedder = build_embedder(config, provider)  # the run's only embedder
         chunker = build_chunker(config)
+        tokenizer = build_tokenizer(embedder_for_run(config.embedder, provider))
         repository = LocalDocumentRepository(LocalRepositoryConfig(repo_root=repo_root))
         store = QdrantIndexStore(
             client_factory(settings), settings.collection_base, config.index_version
@@ -152,6 +154,8 @@ def main(
             embedder,
             store,
             config.embedder.batch_size,
+            tokenizer,
+            None,
         )
         report = asyncio.run(service.run())
     except (IngestionError, DocumentRepositoryError) as error:

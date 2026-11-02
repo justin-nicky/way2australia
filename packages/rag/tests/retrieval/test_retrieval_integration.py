@@ -19,6 +19,7 @@ from way2australia_rag.ingestion.config import RuntimeSettings, load_ingestion_c
 from way2australia_rag.ingestion.embedding import FakeEmbedder
 from way2australia_rag.ingestion.service import IngestionService
 from way2australia_rag.ingestion.store import QdrantIndexStore
+from way2australia_rag.ingestion.tokenization import FakeTokenizer
 from way2australia_rag.repositories import (
     GUEST_PUBLIC_POLICY,
     LocalDocumentRepository,
@@ -70,6 +71,8 @@ def test_seed_corpus_retrieval_under_guest_access(live_client: QdrantClient) -> 
             embedder,
             store,
             config.embedder.batch_size,
+            FakeTokenizer(),
+            None,
         )
         report = asyncio.run(service.run())
         assert not report.failures

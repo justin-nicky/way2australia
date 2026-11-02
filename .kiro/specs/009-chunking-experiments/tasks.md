@@ -19,17 +19,17 @@ Rules for every task:
 
 ## T1 — Tokenizer and truncation guard
 
-**State:** not started
+**State:** approved (2026-11-02)
 **Requirements:** R1, R2, R11
 
-- [ ] `packages/rag/pyproject.toml`: add `tokenizers` and `huggingface_hub` to the base dependencies; `uv lock`. Confirm with `uv tree` that neither brings `torch`.
-- [ ] New `ingestion/tokenization.py`: `TokenizerIdentity`, `ChunkTokenizer` Protocol, `FakeTokenizer` (count `2 + Σ ceil(len(word)/4)` after NFKC, `max_sequence_length` default 512), `BgeM3Tokenizer(model_id, revision)` (cache first with `local_files_only=True`, download only when missing and `HF_HUB_OFFLINE` is unset; reads `tokenizer.json` and `sentence_bert_config.json`; floating revisions refused; every failure becomes `IngestionConfigurationError` with model ID and revision only), `build_tokenizer(embedder_config)`.
-- [ ] `ingestion/config.py`: optional `embedder.fake_max_sequence_length` (default 512), accepted in schema 1.0 and 1.1 files.
-- [ ] New `ingestion/guard.py`: `ChunkTooLongError(document_id, section_id, position, tokens, limit)` and `check_chunks(document_id, chunks, tokenizer, cap)` with limit `min(max_sequence_length, cap)`.
-- [ ] `ingestion/service.py`: move `chunker.chunk(document)` and the point-ID computation inside the per-document `try` (closes Spec 004 T7 F1); call `check_chunks` before embedding; per-document failure reasons `chunk_too_long` (with the structured fields) and the class name for other errors; `OptionalDependencyError` re-raise unchanged; exit status on failures unchanged.
-- [ ] `ingestion/cli.py` builds the tokenizer with `build_tokenizer` and passes it to the service (`heading` v1 cap is `None`).
-- [ ] `lexical/build.py` `production_entries` runs the same guard (tokenizer passed in); `lexical/cli.py` builds it; a violation refuses the atomic build (exit 2, no file written).
-- [ ] Tests:
+- [x] `packages/rag/pyproject.toml`: add `tokenizers` and `huggingface_hub` to the base dependencies; `uv lock`. Confirm with `uv tree` that neither brings `torch`.
+- [x] New `ingestion/tokenization.py`: `TokenizerIdentity`, `ChunkTokenizer` Protocol, `FakeTokenizer` (count `2 + Σ ceil(len(word)/4)` after NFKC, `max_sequence_length` default 512), `BgeM3Tokenizer(model_id, revision)` (cache first with `local_files_only=True`, download only when missing and `HF_HUB_OFFLINE` is unset; reads `tokenizer.json` and `sentence_bert_config.json`; floating revisions refused; every failure becomes `IngestionConfigurationError` with model ID and revision only), `build_tokenizer(embedder_config)`.
+- [x] `ingestion/config.py`: optional `embedder.fake_max_sequence_length` (default 512), accepted in schema 1.0 and 1.1 files.
+- [x] New `ingestion/guard.py`: `ChunkTooLongError(document_id, section_id, position, tokens, limit)` and `check_chunks(document_id, chunks, tokenizer, cap)` with limit `min(max_sequence_length, cap)`.
+- [x] `ingestion/service.py`: move `chunker.chunk(document)` and the point-ID computation inside the per-document `try` (closes Spec 004 T7 F1); call `check_chunks` before embedding; per-document failure reasons `chunk_too_long` (with the structured fields) and the class name for other errors; `OptionalDependencyError` re-raise unchanged; exit status on failures unchanged.
+- [x] `ingestion/cli.py` builds the tokenizer with `build_tokenizer` and passes it to the service (`heading` v1 cap is `None`).
+- [x] `lexical/build.py` `production_entries` runs the same guard (tokenizer passed in); `lexical/cli.py` builds it; a violation refuses the atomic build (exit 2, no file written).
+- [x] Tests:
   - `tests/ingestion/test_tokenization.py`: fake counts on fixed strings (English, Malayalam, empty); `build_tokenizer` dispatch; `BgeM3Tokenizer` with a monkeypatched `hf_hub_download` (hit, miss offline, miss online, wrong revision, floating revision) and the message contains no path; import pin: importing `tokenization` and building `BgeM3Tokenizer` against fixture files never imports `torch` or `sentence_transformers`.
   - opt-in `W2A_RUN_BGE_M3_SMOKE=1` with the extra: BGE-M3 `count` equals `len(model.tokenizer(text)["input_ids"])` for fixed English and Malayalam texts, and `max_sequence_length == model.max_seq_length`.
   - `tests/ingestion/test_guard.py`: at the limit passes, above it raises with the right fields; cap `None` uses the model maximum.

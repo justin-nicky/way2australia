@@ -17,10 +17,12 @@ from way2australia_core.documents import KnowledgeDocument
 from way2australia_rag.ingestion.chunking import Chunk, Chunker
 from way2australia_rag.ingestion.embedding import Embedder
 from way2australia_rag.ingestion.errors import IngestionError, OptionalDependencyError
+from way2australia_rag.ingestion.guard import ChunkTooLongError, check_chunks
 from way2australia_rag.ingestion.identity import point_id
 from way2australia_rag.ingestion.payload import build_payload
 from way2australia_rag.ingestion.settings import build_index_settings
 from way2australia_rag.ingestion.store import IndexPoint, QdrantIndexStore
+from way2australia_rag.ingestion.tokenization import ChunkTokenizer
 from way2australia_rag.repositories import (
     DocumentRepository,
     EligibilityPolicy,
@@ -54,6 +56,8 @@ class RunReport(BaseModel):
 
 
 def _reason(error: Exception) -> str:
+    if isinstance(error, ChunkTooLongError):
+        return str(error)
     # IngestionError messages are path-free by contract; for anything else
     # (client or model errors) only the class name is safe to report.
     if isinstance(error, IngestionError):
@@ -70,6 +74,8 @@ class IngestionService:
         embedder: Embedder,
         store: QdrantIndexStore,
         batch_size: int,
+        tokenizer: ChunkTokenizer,
+        chunk_token_cap: int | None = None,
     ) -> None:
         if batch_size < 1:
             raise ValueError("batch_size must be at least 1")
@@ -79,6 +85,8 @@ class IngestionService:
         self._embedder = embedder
         self._store = store
         self._batch_size = batch_size
+        self._tokenizer = tokenizer
+        self._chunk_token_cap = chunk_token_cap
 
     async def run(self) -> RunReport:
         settings = build_index_settings(
@@ -114,21 +122,27 @@ class IngestionService:
 
         for document in sorted(target, key=lambda d: d.document_id):
             document_id = document.document_id
-            chunks = self._chunker.chunk(document)
-            expected = {point_id(document_id, c.section_id, c.position) for c in chunks}
             indexed = state.get(document_id)
-            if indexed is None:
-                category = added
-            elif (
-                indexed.content_hash != document.content_hash
-                or indexed.document_version != document.document_version
-                or set(indexed.point_ids) != expected
-            ):
-                category = updated
-            else:
-                unchanged.append(document_id)
-                continue
+            category: list[str] | None = None
             try:
+                chunks = self._chunker.chunk(document)
+                check_chunks(
+                    document_id, chunks, self._tokenizer, self._chunk_token_cap
+                )
+                expected = {
+                    point_id(document_id, c.section_id, c.position) for c in chunks
+                }
+                if indexed is None:
+                    category = added
+                elif (
+                    indexed.content_hash != document.content_hash
+                    or indexed.document_version != document.document_version
+                    or set(indexed.point_ids) != expected
+                ):
+                    category = updated
+                else:
+                    unchanged.append(document_id)
+                    continue
                 points = self._embed(document, chunks)
                 self._store.replace_document(document_id, points)
             except OptionalDependencyError:
@@ -141,6 +155,7 @@ class IngestionService:
                     DocumentFailure(document_id=document_id, reason=_reason(error))
                 )
                 continue
+            assert category is not None
             category.append(document_id)
 
         logger.info(

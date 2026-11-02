@@ -1,6 +1,7 @@
 """IngestionService tests: in-memory Qdrant, fake embedder (Spec 004 R1, R10, R13)."""
 
 import asyncio
+import logging
 import warnings
 from collections.abc import Iterable, Sequence
 from typing import Any
@@ -20,6 +21,7 @@ from way2australia_rag.ingestion.store import (
     IndexPoint,
     QdrantIndexStore,
 )
+from way2australia_rag.ingestion.tokenization import FakeTokenizer
 from way2australia_rag.repositories import (
     GUEST_PUBLIC_POLICY,
     DocumentQuery,
@@ -111,20 +113,32 @@ def doc(
 
 
 class Harness:
-    def __init__(self, documents: Iterable[KnowledgeDocument] = ()) -> None:
+    def __init__(
+        self,
+        documents: Iterable[KnowledgeDocument] = (),
+        *,
+        tokenizer: FakeTokenizer | None = None,
+        chunk_token_cap: int | None = None,
+        chunker: HeadingChunker | None = None,
+    ) -> None:
         self.client = QdrantClient(":memory:")
         self.repository = ListRepository(documents)
         self.embedder = CountingEmbedder()
         self.store = CountingStore(self.client)
+        self.tokenizer = tokenizer or FakeTokenizer()
+        self.chunk_token_cap = chunk_token_cap
+        self.chunker = chunker or HeadingChunker()
 
     def run(self) -> RunReport:
         service = IngestionService(
             self.repository,
             GUEST_PUBLIC_POLICY,
-            HeadingChunker(),
+            self.chunker,
             self.embedder,
             self.store,
             batch_size=2,
+            tokenizer=self.tokenizer,
+            chunk_token_cap=self.chunk_token_cap,
         )
         return asyncio.run(service.run())
 
@@ -357,6 +371,62 @@ def test_report_has_no_paths_or_text() -> None:
     dumped = h.run().model_dump_json()
     assert "distinctive" not in dumped
     assert "/" not in dumped.replace(f"{BASE}-{VERSION}", "")
+
+
+class BoomChunker(HeadingChunker):
+    def chunk(self, document: KnowledgeDocument) -> list:
+        if document.document_id == "boom":
+            raise RuntimeError("secret chunker failure text")
+        return super().chunk(document)
+
+
+def test_oversized_chunk_is_per_document_failure_without_writes(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    body = "word " * 40
+    h = Harness([doc("ok", "short")], tokenizer=FakeTokenizer(max_sequence_length=8))
+    h.run()
+    h.repository.put(doc("big", body))
+    h.repository.put(doc("also", "tiny"))
+    h.reset_counts()
+    with caplog.at_level(logging.WARNING, logger="way2australia_rag.ingestion.service"):
+        report = h.run()
+    assert [f.document_id for f in report.failures] == ["big"]
+    assert report.failures[0].reason.startswith("chunk_too_long:")
+    assert "section_id=" in report.failures[0].reason
+    assert report.added == ["also"]
+    assert "big" not in h.store.replaced
+    assert h.embedder.calls == 1
+    assert body.strip() not in caplog.text
+    assert "word " not in caplog.text
+
+
+def test_chunker_exception_is_per_document_failure(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    h = Harness([doc("ok"), doc("boom", "any")], chunker=BoomChunker())
+    with caplog.at_level(logging.WARNING, logger="way2australia_rag.ingestion.service"):
+        report = h.run()
+    assert report.added == ["ok"]
+    assert [f.document_id for f in report.failures] == ["boom"]
+    assert report.failures[0].reason == "RuntimeError"
+    assert "secret" not in repr(report)
+    assert "secret chunker failure text" not in caplog.text
+
+
+def test_chunk_too_long_report_has_no_chunk_text(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    h = Harness(
+        [doc("big", "word " * 40)],
+        tokenizer=FakeTokenizer(max_sequence_length=8),
+    )
+    with caplog.at_level(logging.WARNING, logger="way2australia_rag.ingestion.service"):
+        report = h.run()
+    assert report.failures
+    dumped = report.model_dump_json()
+    assert "word " not in dumped
+    assert "word " not in caplog.text
 
 
 def test_seed_corpus_indexes_every_document_and_is_idempotent() -> None:

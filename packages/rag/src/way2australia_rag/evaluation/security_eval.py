@@ -26,6 +26,7 @@ from way2australia_rag.evaluation.security_index import (
     is_forbidden_document,
 )
 from way2australia_rag.ingestion.store import DENSE_VECTOR_NAME
+from way2australia_rag.ingestion.tokenization import FakeTokenizer
 from way2australia_rag.lexical.build import production_entries
 from way2australia_rag.lexical.store import LexicalIndex, LexicalIndexBindingError
 from way2australia_rag.lexical.tokenizer import query_terms
@@ -285,7 +286,10 @@ def _check_standalone_open(index: SecurityIndex, identity: IndexIdentity) -> Non
     )
     try:
         lexical.check_identity(identity, index.chunker, HASH_CONTRACT)
-        entries = asyncio.run(production_entries(index.seed_repository, index.chunker))
+        tokenizer = FakeTokenizer()
+        entries = asyncio.run(
+            production_entries(index.seed_repository, index.chunker, tokenizer, None)
+        )
         in_file = lexical.chunk_identities()
         missing = [
             point

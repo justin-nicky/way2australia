@@ -24,6 +24,7 @@ from way2australia_rag.ingestion import embedding
 from way2australia_rag.ingestion.chunking import HeadingChunker
 from way2australia_rag.ingestion.config import RuntimeSettings
 from way2australia_rag.ingestion.embedding import FakeEmbedder
+from way2australia_rag.ingestion.tokenization import FakeTokenizer
 from way2australia_rag.lexical.build import (
     build_lexical_index,
     lexical_index_path,
@@ -80,7 +81,9 @@ def repo_at(root: Path) -> LocalDocumentRepository:
 
 def build_from(root: Path, directory: Path, **over: Any) -> Path:
     target = lexical_index_path(directory, COLLECTION)
-    entries = asyncio.run(production_entries(repo_at(root), HeadingChunker()))
+    entries = asyncio.run(
+        production_entries(repo_at(root), HeadingChunker(), FakeTokenizer(), None)
+    )
     build_lexical_index(entries, target, identity(**over))
     return target
 
@@ -127,8 +130,15 @@ def built(tmp_path: Path) -> tuple[Path, Path]:
 
 
 def open_it(root: Path, directory: Path, **over: Any) -> LexicalIndex:
+    tokenizer = FakeTokenizer()
     return open_standalone_lexical(
-        settings_for(directory), root, expected(**over), HeadingChunker(), repo_at(root)
+        settings_for(directory),
+        root,
+        expected(**over),
+        HeadingChunker(),
+        repo_at(root),
+        tokenizer,
+        None,
     )
 
 
@@ -143,8 +153,15 @@ def test_standalone_open_needs_no_client_and_no_embedder(
     monkeypatch.setattr(QdrantClient, "__init__", boom)
     monkeypatch.setattr(embedding.FakeEmbedder, "__init__", boom)
     before = set(sys.modules)
+    tokenizer = FakeTokenizer()
     lexical = open_standalone_lexical(
-        settings_for(directory), root, wanted, HeadingChunker(), repo_at(root)
+        settings_for(directory),
+        root,
+        wanted,
+        HeadingChunker(),
+        repo_at(root),
+        tokenizer,
+        None,
     )
     lexical.close()
     heavy = {"torch", "sentence_transformers", "transformers"}
@@ -198,7 +215,7 @@ def test_freshness_passes_on_a_matching_copy(built: tuple[Path, Path]) -> None:
     root, directory = built
     lexical = open_it(root, directory)
     try:
-        verify_fresh(lexical, repo_at(root), HeadingChunker())
+        verify_fresh(lexical, repo_at(root), HeadingChunker(), FakeTokenizer(), None)
         assert lexical.settings.chunk_count > 0
     finally:
         lexical.close()
@@ -208,7 +225,9 @@ def test_freshness_passes_on_the_real_corpus(tmp_path: Path) -> None:
     build_production(tmp_path / "lex.sqlite")
     lexical = LexicalIndex.open(tmp_path / "lex.sqlite", COLLECTION, VERSION)
     try:
-        verify_fresh(lexical, repo_at(REPO_ROOT), HeadingChunker())
+        verify_fresh(
+            lexical, repo_at(REPO_ROOT), HeadingChunker(), FakeTokenizer(), None
+        )
     finally:
         lexical.close()
 

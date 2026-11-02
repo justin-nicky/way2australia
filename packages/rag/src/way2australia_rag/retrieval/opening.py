@@ -22,6 +22,11 @@ from way2australia_rag.ingestion.config import (
 )
 from way2australia_rag.ingestion.embedding import Embedder
 from way2australia_rag.ingestion.settings import IndexSettings
+from way2australia_rag.ingestion.tokenization import (
+    ChunkTokenizer,
+    build_tokenizer,
+    embedder_for_run,
+)
 from way2australia_rag.lexical.build import default_lexical_dir, lexical_index_path
 from way2australia_rag.lexical.freshness import verify_fresh
 from way2australia_rag.lexical.store import LexicalIndex
@@ -61,6 +66,8 @@ def open_standalone_lexical(
     expected: IndexIdentity,
     chunker: Chunker,
     repository: DocumentRepository,
+    tokenizer: ChunkTokenizer,
+    chunk_token_cap: int | None,
 ) -> LexicalIndex:
     """Open the lexical file with no Qdrant client and no embedder: file identity,
     configured dense identity and chunker, then freshness against the repository.
@@ -75,7 +82,7 @@ def open_standalone_lexical(
     )
     try:
         lexical.check_identity(expected, chunker, HASH_CONTRACT)
-        verify_fresh(lexical, repository, chunker)
+        verify_fresh(lexical, repository, chunker, tokenizer, chunk_token_cap)
     except BaseException:
         lexical.close()
         raise
@@ -118,12 +125,21 @@ def open_retrieval(
     strategy = Strategy(strategy)
     if strategy == Strategy.BM25:
         chunker = build_chunker(ingestion_config)
+        tokenizer = build_tokenizer(
+            embedder_for_run(ingestion_config.embedder, provider)
+        )
         repository = repository or LocalDocumentRepository(
             LocalRepositoryConfig(repo_root=repo_root)
         )
         expected = IndexIdentity.expected(ingestion_config, settings, provider)
         lexical = open_standalone_lexical(
-            settings, repo_root, expected, chunker, repository
+            settings,
+            repo_root,
+            expected,
+            chunker,
+            repository,
+            tokenizer,
+            None,
         )
 
         def lexical_count(access: ResolvedAccess) -> int:
@@ -213,12 +229,19 @@ def _open_fallback(
 ) -> OpenedRetrieval:
     """Open-time hybrid fallback: BM25 over the standalone lexical file."""
     chunker = build_chunker(ingestion_config)
+    tokenizer = build_tokenizer(embedder_for_run(ingestion_config.embedder, provider))
     repository = repository or LocalDocumentRepository(
         LocalRepositoryConfig(repo_root=repo_root)
     )
     expected = IndexIdentity.expected(ingestion_config, settings, provider)
     lexical = open_standalone_lexical(
-        settings, repo_root, expected, chunker, repository
+        settings,
+        repo_root,
+        expected,
+        chunker,
+        repository,
+        tokenizer,
+        None,
     )
 
     def lexical_count(access: ResolvedAccess) -> int:

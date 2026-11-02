@@ -13,6 +13,7 @@ from way2australia_rag.ingestion.chunking import HeadingChunker
 from way2australia_rag.ingestion.embedding import FakeEmbedder
 from way2australia_rag.ingestion.service import IngestionService
 from way2australia_rag.ingestion.store import QdrantIndexStore
+from way2australia_rag.ingestion.tokenization import FakeTokenizer
 from way2australia_rag.lexical.build import build_lexical_index, production_entries
 from way2australia_rag.lexical.store import (
     DenseIdentity,
@@ -85,6 +86,7 @@ def ingest_dense(client: QdrantClient | None = None) -> tuple[QdrantClient, Dens
     """Ingest the seed corpus with the fake embedder into in-memory Qdrant."""
     client = client or QdrantClient(":memory:")
     embedder = FakeEmbedder()
+    tokenizer = FakeTokenizer()
     service = IngestionService(
         repository(),
         GUEST_PUBLIC_POLICY,
@@ -92,6 +94,7 @@ def ingest_dense(client: QdrantClient | None = None) -> tuple[QdrantClient, Dens
         embedder,
         QdrantIndexStore(client, BASE, VERSION),
         batch_size=8,
+        tokenizer=tokenizer,
     )
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
@@ -101,7 +104,9 @@ def ingest_dense(client: QdrantClient | None = None) -> tuple[QdrantClient, Dens
 
 
 def build_production(target: Path, **over: Any) -> None:
-    entries = asyncio.run(production_entries(repository(), HeadingChunker()))
+    entries = asyncio.run(
+        production_entries(repository(), HeadingChunker(), FakeTokenizer(), None)
+    )
     build_lexical_index(entries, target, identity(**over))
 
 

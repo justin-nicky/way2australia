@@ -34,6 +34,7 @@ class EmbedderConfig(BaseModel):
     batch_size: int = Field(ge=1)
     normalize: bool
     fake_vector_size: int = Field(ge=1)
+    fake_max_sequence_length: int = Field(default=512, ge=1)
 
 
 class ChunkerConfig(BaseModel):

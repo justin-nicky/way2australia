@@ -17,6 +17,7 @@ from way2australia_rag.ingestion.config import (
 )
 from way2australia_rag.ingestion.identity import embedder_identity
 from way2australia_rag.ingestion.settings import collection_name
+from way2australia_rag.ingestion.tokenization import FakeTokenizer
 from way2australia_rag.lexical.build import (
     build_lexical_index,
     lexical_index_path,
@@ -56,7 +57,9 @@ def fake_lexical(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     model_id, revision = embedder_identity(config, "fake")
     chunker = build_chunker(config)
     repository = LocalDocumentRepository(LocalRepositoryConfig(repo_root=REPO_ROOT))
-    entries = asyncio.run(production_entries(repository, chunker))
+    entries = asyncio.run(
+        production_entries(repository, chunker, FakeTokenizer(), None)
+    )
     directory = tmp_path / "lex"
     build_lexical_index(
         entries,

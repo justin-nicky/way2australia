@@ -21,6 +21,7 @@ from way2australia_rag.ingestion.config import (
 from way2australia_rag.ingestion.errors import IngestionError
 from way2australia_rag.ingestion.identity import embedder_identity
 from way2australia_rag.ingestion.settings import collection_name
+from way2australia_rag.ingestion.tokenization import build_tokenizer, embedder_for_run
 from way2australia_rag.lexical.build import (
     build_lexical_index,
     default_lexical_dir,
@@ -146,6 +147,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         provider = args.embedder or config.embedder.provider
         model_id, revision = embedder_identity(config, provider)
         chunker = build_chunker(config)
+        tokenizer = build_tokenizer(embedder_for_run(config.embedder, provider))
         collection = collection_name(settings.collection_base, config.index_version)
         target: Path = args.output or lexical_index_path(
             settings.lexical_index_dir or default_lexical_dir(repo_root), collection
@@ -154,7 +156,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             target = repo_root / target
         check_target_allowed(target, repo_root)
         repository = LocalDocumentRepository(LocalRepositoryConfig(repo_root=repo_root))
-        entries = asyncio.run(production_entries(repository, chunker))
+        entries = asyncio.run(production_entries(repository, chunker, tokenizer, None))
         identity = LexicalIdentityInput(
             collection=collection,
             index_version=config.index_version,

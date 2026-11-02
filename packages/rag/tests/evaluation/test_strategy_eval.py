@@ -417,6 +417,16 @@ def test_truncation_flag_and_count(tmp_path: Path, strategy: Strategy) -> None:
 def lexical_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     directory = tmp_path / "lex"
     monkeypatch.setenv("W2A_LEXICAL_INDEX_DIR", str(directory))
+    from way2australia_rag.ingestion.config import EmbedderConfig
+    from way2australia_rag.ingestion.tokenization import FakeTokenizer
+
+    def fake_tokenizer_without_hub(embedder: EmbedderConfig) -> FakeTokenizer:
+        return FakeTokenizer(embedder.fake_max_sequence_length)
+
+    monkeypatch.setattr(
+        "way2australia_rag.retrieval.opening.build_tokenizer",
+        fake_tokenizer_without_hub,
+    )
     return directory
 
 
@@ -427,7 +437,11 @@ def configured_lexical(lexical_dir: Path) -> None:
     model_id, revision = embedder_identity(config, config.embedder.provider)
     chunker = build_chunker(config)
     repository = LocalDocumentRepository(LocalRepositoryConfig(repo_root=REPO_ROOT))
-    entries = asyncio.run(production_entries(repository, chunker))
+    from way2australia_rag.ingestion.tokenization import FakeTokenizer
+
+    entries = asyncio.run(
+        production_entries(repository, chunker, FakeTokenizer(), None)
+    )
     build_lexical_index(
         entries,
         lexical_index_path(lexical_dir, COLLECTION),

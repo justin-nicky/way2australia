@@ -11,6 +11,7 @@ from conftest import REPO_ROOT
 from way2australia_rag.ingestion import bge_m3
 from way2australia_rag.ingestion.bge_m3 import BgeM3Embedder
 from way2australia_rag.ingestion.config import RuntimeSettings, load_ingestion_config
+from way2australia_rag.ingestion.tokenization import FakeTokenizer
 from way2australia_rag.lexical.build import default_lexical_dir
 from way2australia_rag.lexical.cli import (
     LexicalTargetRefusedError,
@@ -85,6 +86,33 @@ def test_output_option_and_relative_path(
     out = capsys.readouterr().out
     assert out.startswith("lexical index: custom.sqlite (")  # outside repo: name only
     assert target.is_file()
+
+
+def test_oversized_chunk_refuses_cli_exit_2_and_writes_no_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("QDRANT_COLLECTION_BASE", "w2a-t009-lexguard")
+    target = tmp_path / "lex.sqlite"
+    monkeypatch.setattr(
+        "way2australia_rag.lexical.cli.build_tokenizer",
+        lambda _cfg: FakeTokenizer(max_sequence_length=2),
+    )
+    code = main(
+        [
+            "--repo-root",
+            str(REPO_ROOT),
+            "--embedder",
+            "fake",
+            "--output",
+            str(target),
+        ]
+    )
+    assert code == 2
+    captured = capsys.readouterr()
+    assert "ERROR ChunkTooLongError" in captured.err
+    assert not target.exists()
 
 
 def test_bad_config_exits_2(

@@ -15,8 +15,10 @@ from pathlib import Path
 from typing import Any
 
 from way2australia_rag.ingestion.chunking import Chunker
+from way2australia_rag.ingestion.guard import check_chunks
 from way2australia_rag.ingestion.identity import point_id
 from way2australia_rag.ingestion.payload import build_payload
+from way2australia_rag.ingestion.tokenization import ChunkTokenizer
 from way2australia_rag.lexical.store import (
     BM25_PARAMETERS,
     FTS5_TOKENIZER,
@@ -52,14 +54,19 @@ def lexical_index_path(lexical_dir: Path, collection: str) -> Path:
 
 
 async def production_entries(
-    repository: DocumentRepository, chunker: Chunker
+    repository: DocumentRepository,
+    chunker: Chunker,
+    tokenizer: ChunkTokenizer,
+    chunk_token_cap: int | None,
 ) -> list[Entry]:
     """The chunks, payloads and point IDs ingestion writes to Qdrant, for the
     documents eligible under `GUEST_PUBLIC_POLICY`."""
     entries: list[Entry] = []
     documents = await list_eligible_documents(repository, GUEST_PUBLIC_POLICY)
     for document in sorted(documents, key=lambda d: d.document_id):
-        for chunk in chunker.chunk(document):
+        chunks = chunker.chunk(document)
+        check_chunks(document.document_id, chunks, tokenizer, chunk_token_cap)
+        for chunk in chunks:
             payload = build_payload(document, chunk).model_dump(mode="json")
             entries.append(
                 (
