@@ -453,12 +453,10 @@ def configured_lexical(lexical_dir: Path) -> None:
     config = load_ingestion_config(REPO_ROOT / "config/ingestion.yaml")
     provider = config.embedder.provider
     model_id, revision = embedder_identity(config, provider)
-    from way2australia_rag.ingestion.tokenization import (
-        build_tokenizer,
-        embedder_for_run,
-    )
+    from way2australia_rag.ingestion.chunker_build import chunker_identity
+    from way2australia_rag.ingestion.tokenization import FakeTokenizer
 
-    tokenizer = build_tokenizer(embedder_for_run(config.embedder, provider))
+    tokenizer = FakeTokenizer()
     chunker = build_chunker(config, tokenizer)
     repository = LocalDocumentRepository(LocalRepositoryConfig(repo_root=REPO_ROOT))
 
@@ -475,7 +473,7 @@ def configured_lexical(lexical_dir: Path) -> None:
                 embedder_model_id=model_id,
                 embedder_revision=revision,
             ),
-            chunker=chunker.identity,
+            chunker=chunker_identity(config),
             hash_contract=HASH_CONTRACT,
         ),
     )

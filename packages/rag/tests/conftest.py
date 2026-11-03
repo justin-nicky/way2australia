@@ -7,6 +7,7 @@ Schema exactly like real documents (design "Security fixtures").
 """
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -66,6 +67,28 @@ def manifest_document_count() -> int:
     return sum(
         1 for x in manifest.read_text(encoding="utf-8").splitlines() if x.strip()
     )
+
+
+@pytest.fixture(autouse=True)
+def hub_offline_empty_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Unit tests must not depend on a warm Hugging Face cache (Spec 009 T7).
+
+    Opt out with W2A_RUN_BGE_M3_SMOKE=1 for the BGE-M3 smoke test.
+    """
+    if os.environ.get("W2A_RUN_BGE_M3_SMOKE") == "1":
+        return
+    empty = REPO_ROOT / ".local" / "pytest-hf-empty"
+    empty.mkdir(parents=True, exist_ok=True)
+    hub = empty / "hub"
+    hub.mkdir(exist_ok=True)
+    transformers = empty / "transformers"
+    transformers.mkdir(exist_ok=True)
+    monkeypatch.setenv("HF_HUB_OFFLINE", "1")
+    monkeypatch.setenv("HF_HOME", str(empty))
+    monkeypatch.setenv("HF_HUB_CACHE", str(hub))
+    monkeypatch.setenv("HUGGINGFACE_HUB_CACHE", str(hub))
+    monkeypatch.setenv("TRANSFORMERS_CACHE", str(transformers))
+    monkeypatch.setenv("TRANSFORMERS_OFFLINE", "1")
 
 
 @pytest.fixture

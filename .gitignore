@@ -109,6 +109,7 @@ graphify-out/cache/last_query_stamp
 # Derived lexical (BM25) index files (Spec 007)
 # =============================================================================
 /.local/lexical/
+/.local/pytest-hf-empty/
 # workflow-reviewer reports (personal, not tracked)
 /.local/workflow-reviews/
 

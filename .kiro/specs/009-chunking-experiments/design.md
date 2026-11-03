@@ -2,7 +2,7 @@
 
 Status: approved (2026-11-01)
 
-Requirements: `requirements.md` (approved 2026-11-01). Decisions D063 onward are written in T7.
+Requirements: `requirements.md` (approved 2026-11-01). Spec decisions D064–D071 are written in T7 (D063 on `main` is Cursor tooling).
 
 ## Design summary
 

@@ -89,6 +89,27 @@ class CountingEmbedder:
         return self._inner.embed_query(text)
 
 
+class ShortResultEmbedder:
+    """Returns one fewer vector than requested (Spec 004 T7 F3 guard)."""
+
+    def __init__(self) -> None:
+        self._inner = FakeEmbedder()
+        self.info = self._inner.info
+
+    @property
+    def device(self) -> str | None:
+        return None
+
+    def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
+        vectors = self._inner.embed_documents(texts)
+        if len(texts) > 1:
+            return vectors[:-1]
+        return vectors
+
+    def embed_query(self, text: str) -> list[float]:
+        return self._inner.embed_query(text)
+
+
 class CountingStore(QdrantIndexStore):
     def __init__(self, client: QdrantClient) -> None:
         super().__init__(client, BASE, VERSION)
@@ -267,6 +288,23 @@ def test_security_fixtures_never_reach_the_index(security_repository: Any) -> No
     report = h.run()
     assert report.added == [] and report.failures == []
     assert h.store.read_state() == {}
+
+
+def test_wrong_vector_count_is_a_per_document_failure() -> None:
+    h = Harness([doc("a", THREE_SECTIONS), doc("b", "hello")])
+    h.run()
+    h.embedder = ShortResultEmbedder()  # type: ignore[assignment]
+    h.repository.put(doc("a", THREE_SECTIONS + "\n\n# Three\n\nextra"))
+    h.store.replaced.clear()
+    h.store.deleted.clear()
+    report = h.run()
+    a_fail = next(f for f in report.failures if f.document_id == "a")
+    assert a_fail.reason.startswith("IngestionError:")
+    assert "wrong number of vectors" in a_fail.reason
+    assert report.updated == []
+    assert report.unchanged == ["b"]
+    expected_hash = doc("a", THREE_SECTIONS).content_hash
+    assert h.store.read_state()["a"].content_hash == expected_hash
 
 
 def test_embedding_failure_keeps_old_points_and_continues() -> None:

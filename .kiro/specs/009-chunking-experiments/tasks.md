@@ -1,6 +1,6 @@
 # 009 — Chunking Experiments Tasks
 
-Status: approved (2026-11-01)
+Status: all tasks approved (2026-11-03)
 
 Implement the tasks in order; each depends on the ones before it. Requirements: `requirements.md` (approved 2026-11-01). Design: `design.md` (approved 2026-11-01).
 
@@ -189,15 +189,16 @@ Allowed protected-path changes: `config/ingestion.yaml`, only if promoted.
 
 ## T7 — Documentation, decisions, carry-over clean-ups and hand-off
 
-**State:** implementing (round 1)
+**State:** approved (2026-11-03)
 **Requirements:** R11, Definition of Done
 
-- [ ] Document in `CURRENT_STATE.md` / carry-overs: `config/ingestion.yaml` and `experiments/configs/chunking/recursive-128.yaml` still carry top-level `knowledge_release_id` and `evaluation_suite_id` keys that the ingestion loader ignores (`evaluation_suite_id` still says the replaced `public-eval-v1`); remove them at the next `index_version`. Keep the byte copy of `recursive-128.yaml` into `config/ingestion.yaml` for this promotion so the arm's recorded `ingestion_config` hash stays valid.
-- [ ] Clean-ups: rename `lexical/build.py` `_identity` to public `chunk_identity` and import only public names in `freshness.py` and `security_eval.py` (Spec 008 note); correct the `settings.py` `max_length` docstring (Spec 004 T5 F2); add a test for the embedder returning the wrong number of vectors in `IngestionService._embed` (Spec 004 T7 F3).
-- [ ] `DECISIONS.md` D063 onward: tokenizer dependency and loading; truncation guard (closes Spec 004 T7 F1); `structure` v1 and `recursive` v1, heading-path `section_id`s and the duplicate refusal, the sentence-end rule; `ChunkerIdentity`, settings 1.1 and lexical settings 1.1 with per-document freshness, amending D060's large-corpus caveat; distinct-document metrics, the depth check and result 2.3; cross-index compare and the format rule (extends D054); security result 1.3 (extends D061); the default-index decision from T6, stating that the arm's result belongs to "128 tokens + title prefix" together.
-- [ ] `ARCHITECTURE.md` (ingestion and lexical sections, chunkers, freshness), `TECH_STACK.md` (`tokenizers`, `huggingface_hub`), `COMMANDS.md` (`--config` with `experiments/configs/chunking/*.yaml`, `COMPARE_ARGS=--cross-index`, the one-time lexical rebuild), `ROADMAP.md` item 7 status, `CURRENT_STATE.md` (implemented reality, spec status, known issues, carry-overs: headed documents and `relevant_section_ids`, FAQ pairs, semantic chunking, separating size from prefix, per-scope lexical files, Malayalam stemming, the HTTP-route items).
-- [ ] Design `## As-built notes` for every difference from the approved design.
-- [ ] Spec-wide checks and the protected-path diff.
+- [x] Document in `CURRENT_STATE.md` / carry-overs: `config/ingestion.yaml` and `experiments/configs/chunking/recursive-128.yaml` still carry top-level `knowledge_release_id` and `evaluation_suite_id` keys that the ingestion loader ignores (`evaluation_suite_id` still says the replaced `public-eval-v1`); remove them at the next `index_version`. Keep the byte copy of `recursive-128.yaml` into `config/ingestion.yaml` for this promotion so the arm's recorded `ingestion_config` hash stays valid.
+- [x] Clean-ups: rename `lexical/build.py` `_identity` to public `chunk_identity` and import only public names in `freshness.py` and `security_eval.py` (Spec 008 note); correct the `settings.py` `max_length` docstring (Spec 004 T5 F2); add a test for the embedder returning the wrong number of vectors in `IngestionService._embed` (Spec 004 T7 F3).
+- [x] `DECISIONS.md` D063 onward: tokenizer dependency and loading; truncation guard (closes Spec 004 T7 F1); `structure` v1 and `recursive` v1, heading-path `section_id`s and the duplicate refusal, the sentence-end rule; `ChunkerIdentity`, settings 1.1 and lexical settings 1.1 with per-document freshness, amending D060's large-corpus caveat; distinct-document metrics, the depth check and result 2.3; cross-index compare and the format rule (extends D054); security result 1.3 (extends D061); the default-index decision from T6, stating that the arm's result belongs to "128 tokens + title prefix" together.
+- [x] `ARCHITECTURE.md` (ingestion and lexical sections, chunkers, freshness), `TECH_STACK.md` (`tokenizers`, `huggingface_hub`), `COMMANDS.md` (`--config` with `experiments/configs/chunking/*.yaml`, `COMPARE_ARGS=--cross-index`, the one-time lexical rebuild), `ROADMAP.md` item 7 status, `CURRENT_STATE.md` (implemented reality, spec status, known issues, carry-overs: headed documents and `relevant_section_ids`, FAQ pairs, semantic chunking, separating size from prefix, per-scope lexical files, Malayalam stemming, the HTTP-route items).
+- [x] Design `## As-built notes` for every difference from the approved design.
+- [x] Spec-wide checks and the protected-path diff.
+- [x] Round 2 (review F1–F4): D071 / Next step Recall@5 and `en` slice; Current goal and Spec 009 row default setup; D065 heading; `configured_lexical` uses `FakeTokenizer` with `chunker_identity(config)` (T6 test regression — round 1 review ran with a warm HF cache); autouse `HF_HUB_OFFLINE` + empty `HF_HOME` unless `W2A_RUN_BGE_M3_SMOKE=1`.
 
 Allowed protected-path changes: none beyond T6.
 

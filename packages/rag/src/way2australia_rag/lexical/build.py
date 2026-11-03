@@ -77,7 +77,7 @@ async def production_entries(
     return entries
 
 
-def _identity(point: str, payload: Mapping[str, Any]) -> tuple[str, str, int, str]:
+def chunk_identity(point: str, payload: Mapping[str, Any]) -> tuple[str, str, int, str]:
     try:
         return (
             point,
@@ -97,7 +97,7 @@ def build_lexical_index(
 ) -> LexicalSettings:
     """Write the lexical file for `entries` atomically and return its settings."""
     materialized = list(entries)
-    identities = [_identity(p, payload) for p, payload in materialized]
+    identities = [chunk_identity(p, payload) for p, payload in materialized]
     settings = LexicalSettings(
         collection=identity.collection,
         index_version=identity.index_version,
@@ -147,7 +147,7 @@ def build_lexical_index(
 def _insert(
     connection: sqlite3.Connection, point: str, payload: Mapping[str, Any]
 ) -> None:
-    _, document_id, version, content_hash = _identity(point, payload)
+    _, document_id, version, content_hash = chunk_identity(point, payload)
     owner_present = 1 if "owner_user_id" in payload else 0
     cursor = connection.execute(
         "INSERT INTO chunks (point_id, document_id, document_version, content_hash, "

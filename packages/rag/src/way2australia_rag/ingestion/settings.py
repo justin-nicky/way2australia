@@ -1,8 +1,10 @@
 """Index settings recorded with an index, and the mismatch comparison (Spec 004 R7).
 
-`batch_size` and `max_length` are deliberately not index settings: they do not
-change the vectors an embedder produces, so a change to them never requires a
-new index.
+`batch_size` and `max_length` are deliberately not index settings: they are
+run-time embedder options, not properties of the stored vectors. `batch_size`
+does not change vectors. `max_length` could change vectors if inputs exceeded
+the model limit and were truncated; Spec 009 refuses oversize chunks before
+embedding (truncation guard), so production chunks always embed in full.
 """
 
 from typing import Any, Literal

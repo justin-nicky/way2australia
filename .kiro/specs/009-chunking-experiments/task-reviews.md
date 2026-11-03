@@ -375,3 +375,88 @@
 
 ### User decision
 - 2026-11-03: approved (user-owned real runs and promotion steps completed in session)
+
+## T7 — round 1
+
+### Implementation
+- Model: Composer (Cursor agent); tier note: spec-implementer BEST_MINUS_ONE per MODEL_PREFERENCES.md — continued as subagent without user prompt.
+- Files changed:
+  - `packages/rag/src/way2australia_rag/lexical/build.py` — `_identity` → public `chunk_identity`
+  - `packages/rag/src/way2australia_rag/ingestion/settings.py` — `max_length` / guard docstring (Spec 004 T5 F2)
+  - `packages/rag/tests/ingestion/test_service.py` — `test_wrong_vector_count_is_a_per_document_failure` (Spec 004 T7 F3)
+  - `docs/project/DECISIONS.md` — D064–D071 (D063 reserved for Cursor on `main`)
+  - `docs/project/ARCHITECTURE.md`, `TECH_STACK.md`, `COMMANDS.md`, `ROADMAP.md`, `CURRENT_STATE.md`
+  - `.kiro/specs/009-chunking-experiments/tasks.md`, `design.md` (decision numbering note)
+  - `graphify-out/` (graphify update)
+- Verification run:
+  - `make verify` → 1120 passed, 2 skipped
+  - `make test-integration` → 27 passed, 1095 deselected
+  - `make eval-security` → PASS (result under `experiments/results/tmp/`)
+  - `make validate-knowledge` → OK, 0 problems
+  - `make validate-evaluation` → OK, 0 problems
+  - `git diff --name-status main...HEAD -- evaluation knowledge config` → `M config/ingestion.yaml` only (T6 promotion)
+  - `git status --porcelain -- evaluation knowledge config` → empty
+  - `graphify update .` → pass
+- Notes:
+  - Ignored `knowledge_release_id` / `evaluation_suite_id` in ingestion yaml documented as carry-over; byte copy kept for arm hash.
+  - `freshness.py` / `security_eval.py` already imported only public `lexical.build` symbols; no `_identity` import existed.
+- Usage: (orchestrator)
+
+### Review
+- Model: Grok 4.6 (Cursor). Tier: task-reviewer BEST matches `MODEL_PREFERENCES.md` Cursor BEST (`Grok 4.6`). Implementer was Composer.
+- Verdict: FAIL
+- Commands: `HF_HOME=/tmp/w2a-t7-review-hf` `HF_HUB_CACHE=/tmp/w2a-t7-review-hf/hub` `HUGGINGFACE_HUB_CACHE=/tmp/w2a-t7-review-hf/hub` `TRANSFORMERS_CACHE=/tmp/w2a-t7-review-hf/transformers` `HF_HUB_OFFLINE=1` `TRANSFORMERS_OFFLINE=1` `make verify` → fail (1122 collected, 3 failed, 1117 passed, 2 skipped; lint/pyright/skills-check/`validate-knowledge`/`validate-evaluation` passed before pytest). Failures: `test_eval_cli_writes_a_2_2_result_without_text[bm25]`, `test_eval_cli_default_strategy_comes_from_the_config`, `test_eval_cli_bm25_needs_neither_qdrant_nor_the_embedder` (`configured_lexical` constructs `BgeM3Tokenizer` from promoted `config/ingestion.yaml`). `make test-integration` → pass (27 passed, 1095 deselected). `make eval-security EVAL_ARGS="--output /tmp/w2a-t7-review-security.json"` → PASS (3 chunkers × 5 paths; 74 queries each; 2762 ms; schema 1.3). `make validate-knowledge` → OK, 0 problems. `make validate-evaluation` → OK, 0 problems. `git diff --name-status main...HEAD -- evaluation knowledge config` → `M config/ingestion.yaml` only. `git status --porcelain -- evaluation knowledge config` → empty. `graphify-out/graph.json` present from the implementer's update (4393 nodes); not regenerated in this review.
+- Findings: F1 [MAJOR, IMPLEMENTATION, R11] D071 and the T6 wrap-up in `task-reviews.md` record only hits 68→68 and MRR 0.9094→0.9208. Next step item 9 records overall Recall@5 **0.9855 → 0.9783** but not the English slice **1.0 → 0.9815** (arm file `...idx-v2-20261103T104934Z.json`: `en` n=54, `hit_rate_at_5`/`recall_at_5` 0.9815). User-requested completeness: both numbers must appear in D071 and/or the T6 CURRENT_STATE / T6 review record. → Add Recall@5 0.9855 → 0.9783 and en 1.0 → 0.9815 next to the hits/MRR line in D071 and Next step item 9.
+- Findings: F2 [MAJOR, IMPLEMENTATION, R11] `CURRENT_STATE.md` **Current goal** is unchanged (Specs 001–008 complete; no `idx-v2`, no `make ingest` then `make index-lexical`, no ignored yaml keys). The Spec 009 table row names T7 / D064–D071 / deferred items but not the operator setup or the stale keys. Next step item 9 has `idx-v2` default binding and the yaml carry-over, but not `make ingest` then `make index-lexical` (that sentence lives under Spec 007 implemented status and Ingestion operating notes). → Put the default setup (`make ingest`, then `make index-lexical`, for `idx-v2`) and the D071 ignored `knowledge_release_id` / `evaluation_suite_id` keys into Current goal, the Spec 009 row, and Next step.
+- Findings: F3 [MAJOR, IMPLEMENTATION, R11/DoD] Spec-wide rule and T7 DoD: `make verify` never needs tokenizer files. T6 (`7a007f6`) changed `configured_lexical` from `FakeTokenizer()` to `build_tokenizer(embedder_for_run(config.embedder, provider))`, so those three bm25 eval-CLI tests hit the hub. Cache-present verify can pass (implementer: 1120 passed, 2 skipped); empty `HF_HOME` + `HF_HUB_OFFLINE=1` fails as above. → Keep `make verify` hub-free: fixture tokenizer / monkeypatched `hf_hub_download`, or FakeTokenizer with an identity the CLI will accept. T7 spec-wide checks must pass without tokenizer files.
+- Findings: F4 [MINOR, IMPLEMENTATION, R11] D065's title says the truncation guard closes Spec 004 T7 F1. CURRENT_STATE correctly closes T7 F1 on Spec 009 T1 (chunking inside the per-document try). → Point D065 at the guard only; keep the T7 F1 close on T1/D065 body if needed.
+- User-requested doc checks:
+  1. Spec 004 "still open" list: PASS. T5 F2, T7 F1, T7 F3 marked closed with references (settings docstring / T1 per-document try / `test_wrong_vector_count_is_a_per_document_failure`). Remaining: T3 F1, T7 F2, T7 F5, T8 r2 F1, Retro F1, D038 device, heading-coverage note (rewritten for `idx-v2`, not dropped).
+  2. CURRENT_STATE navigation: FAIL (F2). Current goal and Spec 009 row omit the default setup and yaml carry-over; Next step has idx-v2 + yaml keys, not ingest-then-lexical.
+  3. Recall@5 in promotion record: FAIL (F1). Overall 0.9855 → 0.9783 is in Next step item 9; en 1.0 → 0.9815 is in none of D071 / Next step / T6 wrap-up.
+  4. As-built vs ROADMAP: PASS. ROADMAP item 7 splits delivered (`recursive`/`structure`, guard, settings 1.1, result 2.3, `--cross-index`, security 1.3, `idx-v2` confounded arm) from deferred (FAQ, semantic, size vs prefix, `relevant_section_ids`, per-scope lexical, Malayalam stemming, HTTP-route). Design As-built records T2 34/max-4 counts, 48-token security gate, confounded arm, and T7 clean-ups. No unbuilt work described as done.
+- Usage: (orchestrator)
+
+## T7 — round 2
+
+### Implementation
+- Model: Composer (Cursor orchestrator round 2).
+- Files changed:
+  - `packages/rag/tests/evaluation/test_strategy_eval.py` — `configured_lexical` chunks with `FakeTokenizer`, records `chunker_identity(config)` (D067)
+  - `packages/rag/tests/conftest.py` — autouse hub-offline + empty `HF_HOME` (skip when `W2A_RUN_BGE_M3_SMOKE=1`)
+  - `docs/project/DECISIONS.md` — D065 heading; D071 Recall@5 and `en` slice
+  - `docs/project/CURRENT_STATE.md` — Current goal, Spec 009 row, Next step item 9
+  - `.kiro/specs/009-chunking-experiments/tasks.md` — round 2 note (T6 regression / warm-cache review)
+- Verification run:
+  - Targeted bm25 eval-CLI tests (3) with `HF_HUB_OFFLINE=1` → pass
+  - `HF_HOME=/tmp/w2a-t7-r2-empty` `HF_HUB_OFFLINE=1` `make verify` → 1120 passed, 2 skipped
+  - Normal `make verify` → 1120 passed, 2 skipped
+- Notes: T6 commit `7a007f6` switched `configured_lexical` to `build_tokenizer`; round 1 task review ran with a warm HF cache.
+- Usage: (orchestrator)
+
+### Review
+- Model: Grok 4.6 (Cursor). Tier: task-reviewer BEST matches `MODEL_PREFERENCES.md` Cursor BEST (`Grok 4.6`). Implementer was Composer.
+- Verdict: PASS
+- Commands: `HF_HOME=/tmp/w2a-t7-r2-review-hf` `HF_HUB_CACHE=/tmp/w2a-t7-r2-review-hf/hub` `HUGGINGFACE_HUB_CACHE=/tmp/w2a-t7-r2-review-hf/hub` `TRANSFORMERS_CACHE=/tmp/w2a-t7-r2-review-hf/transformers` `HF_HUB_OFFLINE=1` `TRANSFORMERS_OFFLINE=1` `make verify` → pass (1120 passed, 2 skipped; lint/pyright/skills-check/`validate-knowledge`/`validate-evaluation` passed before pytest). Autouse `hub_offline_empty_cache` plus `configured_lexical` FakeTokenizer keep verify hub-free. `make test-integration` → pass (27 passed, 1095 deselected). `make eval-security EVAL_ARGS="--output /tmp/w2a-t7-r2-review-security.json"` → PASS (3 chunkers × 5 paths; 74 queries each; 2027 ms; schema 1.3). `make validate-knowledge` → OK, 0 problems. `make validate-evaluation` → OK, 0 problems. `git diff --name-status main...HEAD -- evaluation knowledge config` → `M config/ingestion.yaml` only (T6 promotion). Working-tree protected paths empty.
+- Findings: none
+- Summary for user (PASS only):
+  - Changed: T7 records Spec 009 as-built (D064–D071; D063 remains Cursor on `main`). Production `idx-v2` operator path is `make ingest` then `make index-lexical`. Spec 004 T5 F2 / T7 F3 closed in code/docs; T7 F1 stays closed on T1. Round 2 restored hub-free `make verify` (`FakeTokenizer` + recorded `chunker_identity(config)`; autouse empty HF cache unless `W2A_RUN_BGE_M3_SMOKE=1`).
+  - Verified by: hub-free `make verify` 1120 passed, 2 skipped; `make test-integration` 27 passed; `make eval-security` PASS; validators OK; protected-path diff `config/ingestion.yaml` only. D071 Recall@5 0.9855→0.9783 and en 1.0→0.9815 / MRR 0.9352→0.9321 match `...idx-v1-20261103T104346Z.json` and `...idx-v2-20261103T104934Z.json`.
+  - Worth your attention: the promoted arm is confounded (128 tokens + title prefix together, D071). Ignored `knowledge_release_id` / `evaluation_suite_id` stay on the yaml until the next `index_version`. Real lexical builds still need cached or downloadable BGE-M3 tokenizer files; unit tests must not. T6 (`7a007f6`) had switched `configured_lexical` to `build_tokenizer` — round 1 review passed locally on a warm cache.
+  - Reading order (follow the flow: entry point → core logic → models/errors/config → tests):
+    1. `docs/project/COMMANDS.md` → `make ingest` / `make index-lexical` / `COMPARE_ARGS=--cross-index`: operator path for `idx-v2` and result 2.3
+    2. `docs/project/ARCHITECTURE.md` → ingestion and lexical sections: schema 1.1 chunkers, guard, per-document freshness, `chunk_identity`
+    3. `packages/rag/src/way2australia_rag/lexical/build.py` → `chunk_identity`: public payload identity used when writing the lexical file
+    4. `packages/rag/src/way2australia_rag/ingestion/settings.py` → module docstring: `max_length` vs truncation guard
+    5. `docs/project/DECISIONS.md` → D064–D071: tokenizer, guard, chunkers, settings 1.1, result 2.3, cross-index, security 1.3, default index
+    6. `docs/project/CURRENT_STATE.md` → Current goal, Spec 009 row, Next step item 9: ingest-then-lexical, Recall@5/`en` slice, yaml carry-overs
+    7. Supporting edits: `TECH_STACK.md`, `ROADMAP.md` item 7, design numbering note, `test_service.py` (`test_wrong_vector_count_is_a_per_document_failure`), `test_strategy_eval.py` (`configured_lexical`), `conftest.py` (`hub_offline_empty_cache`)
+- User-requested doc checks:
+  1. Spec 004 "still open" list: PASS. T5 F2, T7 F1, T7 F3 marked closed with references (settings docstring / T1 per-document try / `test_wrong_vector_count_is_a_per_document_failure`). Remaining: T3 F1, T7 F2, T7 F5, T8 r2 F1, Retro F1, D038 device, heading-coverage note (rewritten for `idx-v2`, not dropped).
+  2. CURRENT_STATE navigation: PASS. Current goal, Spec 009 row, and Next step item 9 all name `make ingest` then `make index-lexical` for `idx-v2` and the D071 ignored yaml keys.
+  3. Recall@5 + en slice: PASS. D071 and Next step item 9 record overall Recall@5 0.9855→0.9783 and en HitRate/Recall 1.0→0.9815, MRR 0.9352→0.9321 (checked against the T6 result files).
+  4. As-built vs ROADMAP: PASS. ROADMAP item 7 splits delivered (`recursive`/`structure`, guard, settings 1.1, result 2.3, `--cross-index`, security 1.3, `idx-v2` confounded arm) from deferred (FAQ, semantic, size vs prefix, `relevant_section_ids`, per-scope lexical, Malayalam stemming, HTTP-route). Design As-built records T2 34/max-4 counts, 48-token security gate, confounded arm, and T7 clean-ups. No unbuilt work described as done.
+- Usage: (orchestrator)
+
+### User decision
+- 2026-11-03: approved (round 2; `.gitignore` for `/.local/pytest-hf-empty/` at commit time)

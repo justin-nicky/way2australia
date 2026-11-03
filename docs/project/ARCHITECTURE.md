@@ -141,24 +141,27 @@ Derived artifacts must be reproducible from:
 - embedding model/version;
 - retrieval/index configuration.
 
-## Ingestion (Phase 1 baseline, Spec 004)
+## Ingestion (Phase 1 baseline, Spec 004; chunking experiments Spec 009)
 
-Batch pipeline in `packages/rag/src/way2australia_rag/ingestion/`, run by `make ingest` (`python -m way2australia_rag.ingestion.cli`). No HTTP route.
+Batch pipeline in `packages/rag/src/way2australia_rag/ingestion/`, run by `make ingest` (`python -m way2australia_rag.ingestion.cli`). No HTTP route. Default production config (after Spec 009 T6): schema 1.1, `index_version` `idx-v2`, `recursive` v1 (128 tokens, 16 overlap, title prefix). Legacy heading index: `--config experiments/configs/chunking/heading-idx-v1.yaml`.
 
 | Module | Role |
 |---|---|
-| `config.py` | `IngestionConfig` from `config/ingestion.yaml` (index-defining: `index_version`, embedder, pinned revision, chunker cap); `RuntimeSettings` from the environment (`QDRANT_URL`, `QDRANT_API_KEY`, `QDRANT_COLLECTION_BASE`, `W2A_TENANT_ID` since Spec 005), built by the shared `load_runtime_settings` |
-| `chunking.py` | `Chunker` Protocol, `HeadingChunker` (`heading` v1, character cap), stable `section_id` slugs |
+| `config.py`, `chunker_build.py` | `IngestionConfig` schema 1.0 (`heading` only) and 1.1 (discriminated `heading` / `structure` / `recursive` chunker union); `chunker_identity(config)` without loading a tokenizer; `build_chunker` after `build_tokenizer` |
+| `tokenization.py`, `guard.py` | `ChunkTokenizer` (`BgeM3Tokenizer`, `FakeTokenizer`), `build_tokenizer`; `check_chunks` truncation guard (D065) |
+| `chunking.py`, `structure.py`, `recursive.py` | `Chunker` Protocol with `ChunkerIdentity`; `HeadingChunker` (`heading` v1, unchanged output), `StructureChunker`, `RecursiveChunker` |
 | `embedding.py`, `bge_m3.py` | `Embedder` Protocol, deterministic `FakeEmbedder`, `BgeM3Embedder` (optional `bge-m3` extra, dense only) |
-| `settings.py`, `payload.py`, `identity.py` | `IndexSettings` and mismatch comparison, 17-field `PointPayload`, UUIDv5 `point_id` under `INGESTION_NAMESPACE` |
+| `settings.py`, `payload.py`, `identity.py` | `IndexSettings` 1.1 (chunker fields; 1.0 upgraded in memory), mismatch comparison, 17-field `PointPayload`, UUIDv5 `point_id` under `INGESTION_NAMESPACE` |
 | `store.py` | `QdrantIndexStore`: collection `<QDRANT_COLLECTION_BASE>-<index_version>` with a named `dense` vector and keyword payload indexes; companion `<collection>-settings` collection holding the recorded settings |
-| `service.py` | `IngestionService.run()` → `RunReport` |
-| `cli.py` | wiring, summary, exit codes 0/1/2 |
+| `service.py` | `IngestionService.run()` → `RunReport`; per-document try covers chunk, guard, embed (wrong vector count refused) |
+| `cli.py` | wiring, `--config`, summary, exit codes 0/1/2 |
 
 Data flow:
 
 ```text
-config/ingestion.yaml + environment
+config/ingestion.yaml (or --config) + environment
+  ↓
+build_embedder, build_tokenizer, build_chunker
   ↓
 ensure_collection (create, or refuse if recorded settings differ)
   ↓
@@ -168,9 +171,9 @@ read_state() from Qdrant payloads                                 ← current st
   ↓
 delete indexed document_ids not in the target
   ↓
-per document: chunk → expected point IDs → added / updated / unchanged
+per document (try): chunk → guard → expected point IDs → classify
   ↓
-changed documents: embed first, then delete the document's points and upsert
+changed documents: embed (batch) → replace_document
   ↓
 run summary
 ```
@@ -178,7 +181,7 @@ run summary
 - Authorization is applied when choosing what to index: only documents that pass `GUEST_PUBLIC_POLICY` are chunked or embedded. The payload also carries `access_scope`, `tenant_id` and `owner_user_id` for retrieval-time filtering, separate from the language fields.
 - Qdrant records what was indexed; there is no other state store. The index holds one version per `document_id`.
 - Changing an index-defining setting means a new `index_version`, which gives a new collection; the store never deletes a collection.
-- Decisions: D025–D030, D032.
+- Decisions: D025–D030, D032, D064–D071.
 
 ## Retrieval (Phase 1 dense baseline, Spec 005; hybrid added by Spec 007; fallback by Spec 008)
 
@@ -202,7 +205,7 @@ Library code in `packages/rag/src/way2australia_rag/retrieval/` plus the shared 
 | `cli.py` | `make retrieve` (`--strategy`) |
 | `metrics.py`, `goldens.py`, `baseline.py`, `baseline_cli.py` | document-level metrics, read-only golden/suite/release loading, baseline runner and writer, `make retrieval-baseline` |
 
-The lexical side lives in `packages/rag/src/way2australia_rag/lexical/` (Spec 007): `tokenizer.py` (`lexical-v1`), `store.py` (SQLite FTS5 file: `chunks` table with access columns and the full payload, `chunk_terms` FTS5 table, a settings row with the dense identity copy; read-only `LexicalIndex.open`, `bind_to(dense)`, `search`), `build.py` (`production_entries`, atomic `build_lexical_index`) and `cli.py` (`make index-lexical`, writes only a git-ignored file), and `freshness.py` (Spec 008: `verify_fresh`, the chunk digest recomputed from the repository). The file is a derived artifact, one per collection, bound by identity and chunk digest either to the dense index in Qdrant (`bind_to`, `hybrid` with Qdrant reachable) or to configuration and the repository (`check_identity` plus `verify_fresh`, the standalone path).
+The lexical side lives in `packages/rag/src/way2australia_rag/lexical/` (Spec 007; settings 1.1 and freshness Spec 009): `tokenizer.py` (`lexical-v1`, unchanged), `store.py` (SQLite FTS5 file: `chunks` table with access columns and the full payload, `chunk_terms` FTS5 table, settings 1.1 with `ChunkerIdentity` fields; read-only `LexicalIndex.open` refuses 1.0 with rebuild advice, `bind_to(dense)`, `document_versions()`, `chunks_per_document()`, `search`), `build.py` (`production_entries` with the same truncation guard as ingestion, public `chunk_identity`, atomic `build_lexical_index`) and `cli.py` (`make index-lexical`, `--config`, writes only a git-ignored file), and `freshness.py` (`verify_fresh`: per-document `(document_id, document_version, content_hash)` set plus chunker identity; no tokenizer at open). The file is a derived artifact, one per collection, bound by identity and chunk set either to the dense index in Qdrant (`bind_to`, `hybrid` with Qdrant reachable) or to configuration and the repository (`check_identity` plus `verify_fresh`, the standalone path).
 
 Query flow as built (dense strategy; `bm25` and `hybrid` described below):
 
@@ -361,9 +364,9 @@ Library code in `packages/rag/src/way2australia_rag/evaluation/`, one CLI (`eval
 |---|---|
 | `models.py`, `suite.py` | tolerant typed cases and suite; `load_suite` reads manifest and datasets read-only, ignores `access_context`, refuses unknown dataset types and escaping paths |
 | `schemas.py`, `validate.py` | local `referencing` registry for the three schemas; all checks behind `validate-evaluation` (schemas, cross-checks, relevant documents through the repository, candidates) |
-| `retrieval_eval.py`, `slices.py`, `sections.py` | run active goldens (and unanswerable cases, top-1 score only) through `DenseRetriever`; slices by query language, category and source authority; section-level metrics |
-| `results.py`, `compare.py` | read result files 1.0, 2.0 and 2.1 into a comparable form; the quality gate and the identity refusals (collection, `index_version`, embedder pair, lexical identity) |
-| `security_corpus.py`, `security_index.py`, `security_eval.py` | isolated security repository, throwaway dense index and lexical file, authorization gate over `dense`, `bm25` and `hybrid` |
+| `retrieval_eval.py`, `slices.py`, `sections.py` | run active goldens (and unanswerable cases, top-1 score only) through the chosen retriever; retrieve to candidate depth, dedupe by document for MRR@k (Spec 009); slices by query language, category and source authority; section-level metrics |
+| `results.py`, `compare.py` | read result files 1.0 through 2.3; the quality gate and identity refusals; optional `--cross-index` for chunker or index_version differences (D069) |
+| `security_corpus.py`, `security_index.py`, `security_eval.py` | isolated security repository, throwaway dense index and lexical file; authorization gate over five paths and three chunkers (security result 1.3, D070) |
 
 Isolation and gates:
 - Access: every query, quality or security, goes through `DenseRetriever` with the one `resolve_access(guest_access(settings))`; evaluation code builds no filter and reads no role, scope or tenant from a case (D033 to D035, D040).
@@ -373,7 +376,7 @@ Isolation and gates:
 - Ingestion eligibility is the only guard against synthetic or unapproved documents. Retrieval does not re-check it because the payload does not carry those fields, so `poisoned_public_document` (public scope, synthetic) is not an authorization case.
 - Section-level keys are `"<document_id>#<section_id>"`. No active golden case has `relevant_section_ids` yet, so the section block reports zero measurable cases.
 - The security result's `access.role` is hard-coded `guest`, correct in Phase 1; it must become the resolved role when other roles are added.
-- Spec 007: `eval-retrieval` takes `--strategy` and writes result 2.1; `eval-security` gates all three strategies on a throwaway lexical file as well (security result 1.1). Decisions: D042 to D047, D053, D054.
+- Spec 007: `eval-retrieval` takes `--strategy` and writes result 2.1; `eval-security` gates all three strategies on a throwaway lexical file as well (security result 1.1). Spec 008: result 2.2 and five fallback paths (security 1.2). Spec 009: distinct-document metrics and result 2.3; `eval-compare --cross-index`; security 1.3 over three chunkers. Decisions: D042 to D047, D053, D054, D061, D068 to D070.
 
 ## Knowledge Release
 

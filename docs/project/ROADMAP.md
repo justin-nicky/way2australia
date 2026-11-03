@@ -67,13 +67,8 @@ Approximately one focused week.
 - dense vs sparse vs hybrid comparisons
 
 ### 7. Chunking experiments
-- recursive baseline
-- structure-aware chunking
-- FAQ-aware retrieval/indexing
-- optional semantic chunking
-- token-based size cap using the embedding model's own tokenizer, instead of Spec 004's character cap (2,000 characters means different token counts per language; Malayalam uses more tokens per character than English)
-- guard against silent truncation: count tokens before embedding and fail when a chunk exceeds the model's maximum sequence length (`sentence-transformers` truncates silently)
-- parent-heading context in chunk text and duplicate-heading `section_id`s that do not depend on order (Spec 004 baseline limitations)
+**Status (Spec 009, branch `spec/009`, T6 promoted):** implemented and under final documentation (T7). Delivered: `recursive` v1 and `structure` v1 chunkers beside unchanged `heading` v1; BGE-M3-aligned token counting and a pre-embed truncation guard; `ChunkerIdentity` and settings 1.1 (dense and lexical); per-document lexical freshness; distinct-document `eval-retrieval` metrics and result 2.3; `eval-compare --cross-index`; security result 1.3 over three chunkers; default production index **`idx-v2`** (`recursive` 128 / 16 with title prefix — confounded arm, D071). One-time operator step: rebuild the production lexical file to settings 1.1 after promotion (same digest and chunk count for `idx-v1` heading rebuild on realcheck).
+- Still deferred (same spec carry-overs / later specs): FAQ-aware retrieval/indexing; optional semantic chunking; separating chunk size from title prefix in experiments; headed-document / `relevant_section_ids` evaluation coverage; per-scope lexical files (D050); Malayalam BM25 stemming (roadmap 8); HTTP-route items from Spec 008 (freshness at scale, circuit breaker).
 
 ### 8. Multilingual retrieval
 - English
