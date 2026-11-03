@@ -98,7 +98,7 @@ make index-lexical
 make index-lexical LEXICAL_ARGS="--embedder fake"
 ```
 
-`make index-lexical` (Spec 007; no Qdrant client, no embedder, no model; writes one local file):
+`make index-lexical` (Spec 007; no Qdrant client, no embedder, no PyTorch; writes one local file). Token-based chunkers (`recursive` / `structure`, including default `idx-v2`) still need the BGE-M3 tokenizer files at the pinned revision (cached or downloadable) for packing and the truncation guard; `heading` v1 / `idx-v1` uses them only for the guard. Standalone `bm25` open does not load the tokenizer (D067):
 - builds the BM25 index (`lexical-v1` tokens in an SQLite FTS5 file) from the same eligible chunks, payloads and point IDs that `make ingest` writes, for the collection `QDRANT_COLLECTION_BASE` plus `index_version` from `config/ingestion.yaml`. Only guest/public eligible chunks go in, so the file's corpus-wide BM25 statistics (IDF, average length) reveal nothing about other scopes; when roles are added, each access scope needs its own lexical file;
 - options (through `LEXICAL_ARGS`): `--embedder {bge_m3,fake}` (the dense identity the file is built for; default from the config, the model is never loaded), `--output`, `--config`; `make index-lexical` passes `--repo-root` itself. A relative `--output` or `W2A_LEXICAL_INDEX_DIR` resolves against the repository root;
 - the file is `<W2A_LEXICAL_INDEX_DIR>/<collection>.sqlite`; the default directory is `.local/lexical` (git-ignored). The target is refused (exit 2, nothing written) inside `knowledge/`, `evaluation/` or `config/`, and, inside a git work tree, anywhere git does not report as ignored; a target outside any git work tree is allowed. It is written to a temporary name and renamed, so a failure leaves the old file;

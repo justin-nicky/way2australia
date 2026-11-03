@@ -217,6 +217,12 @@ evaluation_suite_id: "public-eval-v1"   # copied unchanged; informational in ing
   - The title prefix keeps the document's subject in each small chunk; without it, chunks such as a single bullet about "one repeat per dialogue" lose the "NAATI CCL candidate rules" context.
   - **Confounded by design (user decision 2026-11-01).** The arm changes chunk size and adds the title prefix at once. Its result belongs to "128 tokens + title prefix" together; the two effects are not separated. The T7 decision records this; a later spec may separate them.
 - **96 tokens rejected** because it sits exactly at 50 chunks in total (no headroom for corpus growth). **192 tokens rejected** because it splits most documents only in two.
+- **Retrospective round 1 (2026-11-03).** Differences from the approved design text, already in `task-reviews.md` or the R10 promotion path:
+  - `ingestion/chunker_build.py` holds `build_chunker`, `chunker_identity` and `chunker_identity_for_run` (the design package table listed `build_chunker` on `cli.py`; `ARCHITECTURE.md` matches the code).
+  - `embedder_for_run` / `chunker_identity_for_run` so `--embedder fake` stores `fake-tokenizer@1` and never touches the hub (T1 F1, T3 F1).
+  - `config/ingestion.yaml` is schema 1.1 / `idx-v2` after R10 promotion (the design sentence that it "stays at schema 1.0 and is untouched" was the pre-promotion default).
+  - Autouse `hub_offline_empty_cache` in `packages/rag/tests/conftest.py` (T7 round 2) so `make verify` does not depend on a warm Hugging Face cache; opt out with `W2A_RUN_BGE_M3_SMOKE=1`.
+  - T7 `configured_lexical` chunks with `FakeTokenizer` and records `chunker_identity(config)` (no file load).
 
 ### Cross-index comparison (R8)
 
