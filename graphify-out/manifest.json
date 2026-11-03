@@ -102,10 +102,10 @@
     "semantic_hash": "b5e325c4e20a547929f28eb1029b2d91"
   },
   "config/ingestion.yaml": {
-    "mtime": 1792225496.2003431,
-    "seen": 1792912072.6713018,
-    "ast_hash": "55b00753ea483b9f4992d3583dc9e9a6",
-    "semantic_hash": "55b00753ea483b9f4992d3583dc9e9a6"
+    "mtime": 1793703129.307823,
+    "seen": 1793707137.1480079,
+    "ast_hash": "25c5cdb61c731a254ab1c15044128d90",
+    "semantic_hash": ""
   },
   "config/language_registry.json": {
     "mtime": 1791711712.0,
@@ -528,10 +528,10 @@
     "semantic_hash": "6154c2cf2e5de6d6d7a44c0851b77b07"
   },
   "packages/rag/tests/conftest.py": {
-    "mtime": 1793200069.1060007,
-    "seen": 1793201155.2656798,
-    "ast_hash": "56d7cf987fdb7d368d6d7227ed8f6306",
-    "semantic_hash": "56d7cf987fdb7d368d6d7227ed8f6306"
+    "mtime": 1793706750.5739312,
+    "seen": 1793707137.148107,
+    "ast_hash": "24cac6a8466706975e14e226a4b1fac2",
+    "semantic_hash": ""
   },
   "packages/rag/tests/evaluation/__init__.py": {
     "mtime": 1792870036.0794692,
@@ -540,10 +540,10 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "packages/rag/tests/evaluation/test_cli.py": {
-    "mtime": 1793200069.1077783,
-    "seen": 1793201155.265687,
-    "ast_hash": "1d58a2fb5d1b4058798a52a321476eb1",
-    "semantic_hash": "1d58a2fb5d1b4058798a52a321476eb1"
+    "mtime": 1793706870.310882,
+    "seen": 1793707137.1481118,
+    "ast_hash": "556820e4ee116b3b7f38e3bae2301b26",
+    "semantic_hash": ""
   },
   "packages/rag/tests/evaluation/test_compare.py": {
     "mtime": 1793628934.111389,
@@ -618,10 +618,10 @@
     "semantic_hash": ""
   },
   "packages/rag/tests/ingestion/test_cli_config.py": {
-    "mtime": 1792870036.0845068,
-    "seen": 1792912072.6714199,
-    "ast_hash": "e26a58d542ee6c7e9218b1e86014994d",
-    "semantic_hash": "e26a58d542ee6c7e9218b1e86014994d"
+    "mtime": 1793706752.5212018,
+    "seen": 1793707137.148134,
+    "ast_hash": "7d122a33380a02734a4f570745c212b4",
+    "semantic_hash": ""
   },
   "packages/rag/tests/ingestion/test_embedding.py": {
     "mtime": 1792736843.603318,
@@ -678,10 +678,10 @@
     "semantic_hash": "d79664c60d5406bc8534e0cd5257aa60"
   },
   "packages/rag/tests/retrieval/test_cli.py": {
-    "mtime": 1793543341.01884,
-    "seen": 1793543862.3458219,
-    "ast_hash": "2c5b13d9c77577d99fb6c6fae0df0c63",
-    "semantic_hash": "2c5b13d9c77577d99fb6c6fae0df0c63"
+    "mtime": 1793706880.3514974,
+    "seen": 1793707137.148156,
+    "ast_hash": "88696014d9630b3d5e7ca36305158d3c",
+    "semantic_hash": ""
   },
   "packages/rag/tests/retrieval/test_goldens.py": {
     "mtime": 1793200069.1216764,
@@ -1128,9 +1128,9 @@
     "semantic_hash": "1a2d2a5428a3063578aeec1099a709f2"
   },
   "docs/project/CURRENT_STATE.md": {
-    "mtime": 1793595588.9617255,
-    "seen": 1793595939.322569,
-    "ast_hash": "35a6993303396302fc7b4abb1ee5ab3f",
+    "mtime": 1793706466.1572018,
+    "seen": 1793707137.14825,
+    "ast_hash": "9f19650eb704cf3b2c08c75eb2c6a353",
     "semantic_hash": ""
   },
   "docs/project/MISSION.md": {
@@ -1338,9 +1338,9 @@
     "semantic_hash": ""
   },
   "packages/rag/tests/lexical/test_lexical_cli.py": {
-    "mtime": 1793595589.0252504,
-    "seen": 1793595939.3224761,
-    "ast_hash": "5719aa7b50bca59c13dbafa8e2618a7d",
+    "mtime": 1793706876.414466,
+    "seen": 1793707137.1481469,
+    "ast_hash": "33383eba3009bcdefbc385280025762f",
     "semantic_hash": ""
   },
   "packages/rag/tests/lexical/test_lexical_tokenizer.py": {
@@ -1362,10 +1362,10 @@
     "semantic_hash": "593dc03c52f921da03f2324669588ee1"
   },
   "packages/rag/tests/retrieval/test_bm25.py": {
-    "mtime": 1793543341.0174892,
-    "seen": 1793543862.345821,
-    "ast_hash": "bde2d882c43cf43210b5d5205b45f7d4",
-    "semantic_hash": "bde2d882c43cf43210b5d5205b45f7d4"
+    "mtime": 1793706765.4907954,
+    "seen": 1793707137.148155,
+    "ast_hash": "c05a7bcf08e995c726347284c16c2979",
+    "semantic_hash": ""
   },
   "config/retrieval.yaml": {
     "mtime": 1793543340.7064734,
@@ -1422,15 +1422,15 @@
     "semantic_hash": ""
   },
   "packages/rag/tests/evaluation/test_strategy_eval.py": {
-    "mtime": 1793619327.8169587,
-    "seen": 1793619523.224563,
-    "ast_hash": "ce783cdb70b8a560fb7f5bb8c27213f0",
+    "mtime": 1793707046.5417762,
+    "seen": 1793707137.1481202,
+    "ast_hash": "29db4c37b1c6e33a4ace91ec375ae9ac",
     "semantic_hash": ""
   },
   "packages/rag/tests/lexical_support.py": {
-    "mtime": 1793601537.287411,
-    "seen": 1793602722.7145758,
-    "ast_hash": "3212eed5f08667ee97d350e0c497a9d2",
+    "mtime": 1793706966.1849606,
+    "seen": 1793707137.14815,
+    "ast_hash": "0e137a90e05c429c2b8c228019b3aa85",
     "semantic_hash": ""
   },
   ".kiro/specs/007-hybrid-retrieval/review.md": {
@@ -1584,15 +1584,15 @@
     "semantic_hash": ""
   },
   ".kiro/specs/009-chunking-experiments/tasks.md": {
-    "mtime": 1793631663.0168474,
-    "seen": 1793631677.1639512,
-    "ast_hash": "ce3b07f92adfd2f27025e17cf0db2866",
+    "mtime": 1793706452.1503456,
+    "seen": 1793707137.1482182,
+    "ast_hash": "5b5a56b85c90a8db3d3924dc4534cf77",
     "semantic_hash": ""
   },
   ".kiro/specs/009-chunking-experiments/task-reviews.md": {
-    "mtime": 1793631669.8757346,
-    "seen": 1793631677.1639512,
-    "ast_hash": "4d588918fd9f161bb3711413ba4f62d8",
+    "mtime": 1793706467.7355711,
+    "seen": 1793707137.1482172,
+    "ast_hash": "5daee9c4742505692ce2f9b5f2cd910f",
     "semantic_hash": ""
   },
   "packages/rag/src/way2australia_rag/ingestion/recursive.py": {
@@ -1674,9 +1674,9 @@
     "semantic_hash": ""
   },
   "packages/rag/tests/ingestion/test_config_schema_11.py": {
-    "mtime": 1793609212.2911363,
-    "seen": 1793609304.839241,
-    "ast_hash": "1c8e2b49f7fcb8aa02cd3af898575224",
+    "mtime": 1793706438.3302367,
+    "seen": 1793707137.148135,
+    "ast_hash": "ab1657aa3432516fee8b79b5ba68816e",
     "semantic_hash": ""
   },
   "packages/rag/tests/ingestion/test_recursive_integration.py": {
@@ -1713,6 +1713,12 @@
     "mtime": 1793619068.866534,
     "seen": 1793619523.224671,
     "ast_hash": "b543fc8d8265c5fd17da5968c229f55f",
+    "semantic_hash": ""
+  },
+  "packages/rag/tests/ingestion/fixtures/heading-idx-v1-ingestion.yaml": {
+    "mtime": 1793706436.6564727,
+    "seen": 1793707137.148125,
+    "ast_hash": "55b00753ea483b9f4992d3583dc9e9a6",
     "semantic_hash": ""
   }
 }
