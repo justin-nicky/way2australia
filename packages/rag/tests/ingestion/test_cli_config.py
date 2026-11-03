@@ -7,7 +7,12 @@ from unittest.mock import patch
 
 import pytest
 import yaml
-from conftest import REPO_ROOT, manifest_document_count
+from conftest import (
+    PRODUCTION_COLLECTION,
+    PRODUCTION_INDEX_VERSION,
+    REPO_ROOT,
+    manifest_document_count,
+)
 from qdrant_client import QdrantClient
 from way2australia_core.documents import AccessScope
 from way2australia_rag.ingestion.cli import main
@@ -46,8 +51,8 @@ def test_real_config_loads_with_pinned_revision() -> None:
     config = load_ingestion_config(CONFIG)
     assert config.embedder.revision == PINNED
     assert config.embedder.model_id == "BAAI/bge-m3"
-    assert config.index_version == "idx-v1"
-    assert (config.chunker.name, config.chunker.version) == ("heading", "1")
+    assert config.index_version == PRODUCTION_INDEX_VERSION
+    assert (config.chunker.name, config.chunker.version) == ("recursive", "1")
 
 
 def _write(tmp_path: Path, **embedder_overrides: object) -> Path:
@@ -133,7 +138,7 @@ def test_exit_0_then_idempotent_second_run(
     total = manifest_document_count()
     assert f"added: {total}  updated: 0  unchanged: 0  deleted: 0" in first
     assert "fake=true" in first
-    assert "way2australia-idx-v1" in first
+    assert PRODUCTION_COLLECTION in first
     assert _run(client) == 0
     second = capsys.readouterr().out
     assert f"added: 0  updated: 0  unchanged: {total}  deleted: 0" in second
@@ -268,4 +273,4 @@ def test_collection_base_comes_from_environment(
 ) -> None:
     monkeypatch.setenv("QDRANT_COLLECTION_BASE", "throwaway")
     assert _run(QdrantClient(":memory:")) == 0
-    assert "index: throwaway-idx-v1" in capsys.readouterr().out
+    assert f"index: throwaway-{PRODUCTION_INDEX_VERSION}" in capsys.readouterr().out

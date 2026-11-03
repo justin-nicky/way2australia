@@ -76,6 +76,9 @@ from way2australia_rag.retrieval.strategy import load_retrieval_config
 CONFIG = REPO_ROOT / "config/ingestion.yaml"
 RECURSIVE = REPO_ROOT / "experiments/configs/chunking/recursive-128.yaml"
 HEADING_COPY = REPO_ROOT / "experiments/configs/chunking/heading-idx-v1.yaml"
+HEADING_BASELINE = (
+    Path(__file__).resolve().parent / "fixtures" / "heading-idx-v1-ingestion.yaml"
+)
 RETRIEVAL = REPO_ROOT / "config/retrieval.yaml"
 BGE_FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures" / "bge_m3"
 
@@ -90,8 +93,8 @@ def bge_tokenizer_fixture(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("huggingface_hub.hf_hub_download", fake_download)
 
 
-def test_heading_idx_v1_yaml_matches_production_config() -> None:
-    assert HEADING_COPY.read_bytes() == CONFIG.read_bytes()
+def test_heading_idx_v1_yaml_matches_pre_promotion_baseline() -> None:
+    assert HEADING_COPY.read_bytes() == HEADING_BASELINE.read_bytes()
 
 
 def test_recursive_embedder_block_matches_production() -> None:
@@ -112,7 +115,7 @@ def test_clis_load_recursive_config() -> None:
 
 
 def test_schema_1_0_still_loads_heading() -> None:
-    config = load_ingestion_config(CONFIG)
+    config = load_ingestion_config(HEADING_COPY)
     assert config.schema_version == "1.0"
     assert config.chunker.name == "heading"
 
@@ -146,7 +149,7 @@ def _structure_config(tmp_path: Path) -> Path:
     return path
 
 
-@pytest.mark.parametrize("path", [CONFIG, RECURSIVE])
+@pytest.mark.parametrize("path", [HEADING_COPY, RECURSIVE])
 def test_chunker_identity_matches_built_chunker(path: Path) -> None:
     config = load_ingestion_config(path)
     built = build_chunker(config, build_tokenizer(config.embedder))

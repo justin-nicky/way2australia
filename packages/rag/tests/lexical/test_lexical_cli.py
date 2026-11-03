@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 import qdrant_client
-from conftest import REPO_ROOT
+from conftest import HEADING_INGESTION_FIXTURE, PRODUCTION_INDEX_VERSION, REPO_ROOT
 from way2australia_rag.ingestion import bge_m3
 from way2australia_rag.ingestion.bge_m3 import BgeM3Embedder
 from way2australia_rag.ingestion.config import RuntimeSettings, load_ingestion_config
@@ -47,16 +47,18 @@ def test_success_summary_and_digest_stability(
 ) -> None:
     assert run(["--embedder", "fake"]) == 0
     first = capsys.readouterr()
+    version = PRODUCTION_INDEX_VERSION
     pattern = (
-        r"^lexical index: w2a-t007-abcd1234-idx-v1\.sqlite "
-        r"\(collection w2a-t007-abcd1234-idx-v1, index_version idx-v1; "
+        rf"^lexical index: w2a-t007-abcd1234-{version}\.sqlite "
+        rf"\(collection w2a-t007-abcd1234-{version}, index_version {version}; "
         r"lexical-v1; chunks \d+; digest [0-9a-f]{12}\)$"
     )
     assert re.match(pattern, first.out.strip()), first.out
     assert str(tmp_root := lexical_dir.parent) not in first.out + first.err
     assert str(REPO_ROOT) not in first.out + first.err
     assert tmp_root.exists()
-    assert (lexical_dir / "w2a-t007-abcd1234-idx-v1.sqlite").is_file()
+    sqlite = lexical_dir / f"w2a-t007-abcd1234-{PRODUCTION_INDEX_VERSION}.sqlite"
+    assert sqlite.is_file()
 
     assert run(["--embedder", "fake"]) == 0
     second = capsys.readouterr()
@@ -68,8 +70,10 @@ def test_file_holds_the_identity_and_no_chunk_text_is_printed(
 ) -> None:
     assert run(["--embedder", "fake"]) == 0
     out = capsys.readouterr()
-    path = lexical_dir / "w2a-t007-abcd1234-idx-v1.sqlite"
-    index = LexicalIndex.open(path, "w2a-t007-abcd1234-idx-v1", "idx-v1")
+    version = PRODUCTION_INDEX_VERSION
+    collection = f"w2a-t007-abcd1234-{version}"
+    path = lexical_dir / f"{collection}.sqlite"
+    index = LexicalIndex.open(path, collection, version)
     assert index.settings.dense_identity.embedder_model_id == "fake-hash-embedder"
     rows = index.search('"naati"', "c.tenant_id = ?", ("way2australia",), 1)
     index.close()
@@ -103,6 +107,8 @@ def test_oversized_chunk_refuses_cli_exit_2_and_writes_no_file(
         [
             "--repo-root",
             str(REPO_ROOT),
+            "--config",
+            str(HEADING_INGESTION_FIXTURE),
             "--embedder",
             "fake",
             "--output",
@@ -315,6 +321,8 @@ def test_relative_env_dir_resolves_against_repo_root(
     out_dir = REPO_ROOT / ".local" / "lexical" / "t3-rel-env"
     try:
         assert run(["--embedder", "fake"]) == 0, capsys.readouterr().err
-        assert (out_dir / "w2a-t007-abcd1234-idx-v1.sqlite").is_file()
+        assert (
+            out_dir / f"w2a-t007-abcd1234-{PRODUCTION_INDEX_VERSION}.sqlite"
+        ).is_file()
     finally:
         shutil.rmtree(out_dir, ignore_errors=True)

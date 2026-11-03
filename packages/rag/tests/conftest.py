@@ -11,9 +11,23 @@ from pathlib import Path
 
 import pytest
 from way2australia_rag.evaluation.security_corpus import build_security_repository
+from way2australia_rag.ingestion.config import load_ingestion_config
 from way2australia_rag.repositories import LocalDocumentRepository
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+PRODUCTION_INGESTION = REPO_ROOT / "config/ingestion.yaml"
+HEADING_INGESTION_FIXTURE = (
+    Path(__file__).resolve().parent / "ingestion/fixtures/heading-idx-v1-ingestion.yaml"
+)
+
+
+def load_production_ingestion_config():
+    return load_ingestion_config(PRODUCTION_INGESTION)
+
+
+_PRODUCTION_CONFIG = load_production_ingestion_config()
+PRODUCTION_INDEX_VERSION = _PRODUCTION_CONFIG.index_version
+PRODUCTION_COLLECTION = f"way2australia-{PRODUCTION_INDEX_VERSION}"
 SECURITY_FIXTURES = REPO_ROOT / "tests/fixtures/security"
 SCHEMA = "knowledge/schemas/document_metadata.schema.json"
 

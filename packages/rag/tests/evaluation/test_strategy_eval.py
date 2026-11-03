@@ -11,15 +11,20 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from conftest import REPO_ROOT, live_suite_rows, manifest_document_count
+from conftest import (
+    REPO_ROOT,
+    live_suite_rows,
+    load_production_ingestion_config,
+    manifest_document_count,
+)
 from qdrant_client import QdrantClient
 from retrieval.test_retriever import guest
 from way2australia_rag.evaluation import cli
 from way2australia_rag.evaluation.results import read_result
-from way2australia_rag.ingestion.chunking import HeadingChunker
 from way2australia_rag.ingestion.cli import build_chunker
 from way2australia_rag.ingestion.config import load_ingestion_config
 from way2australia_rag.ingestion.identity import embedder_identity
+from way2australia_rag.ingestion.tokenization import FakeTokenizer
 from way2australia_rag.lexical.build import (
     build_lexical_index,
     lexical_index_path,
@@ -64,6 +69,10 @@ pytestmark = pytest.mark.filterwarnings(
 COLLECTION = f"{BASE}-{VERSION}"
 FIXTURE = Path(__file__).parent / "fixtures" / FIXTURE_NAME
 RETRIEVAL_CONFIG = load_retrieval_config(REPO_ROOT / "config/retrieval.yaml")
+
+
+def production_chunker():  # noqa: ANN201
+    return build_chunker(load_production_ingestion_config(), FakeTokenizer())
 
 
 # ---- dense equivalence ------------------------------------------------------
@@ -162,7 +171,8 @@ def make_world(tmp_path: Path, count: int = 8):  # noqa: ANN201
     emb = RealStub()
     client = QdrantClient(":memory:")
     store = QdrantIndexStore(client, BASE, VERSION)
-    store.ensure_collection(build_index_settings(VERSION, emb.info, HeadingChunker()))
+    chunker = production_chunker()
+    store.ensure_collection(build_index_settings(VERSION, emb.info, chunker))
     for i in range(count):
         text = f"SECRET-CHUNK body {i}"
         store.replace_document(
@@ -184,7 +194,7 @@ def build_lexical(client: QdrantClient, target: Path, drop: int = 0) -> LexicalI
     points, _ = client.scroll(COLLECTION, limit=100, with_payload=True)
     entries = [(str(p.id), dict(p.payload or {})) for p in points]
     info = RealStub().info
-    chunker = HeadingChunker()
+    chunker = production_chunker()
     build_lexical_index(
         entries[drop:],
         target,
@@ -441,15 +451,18 @@ def configured_lexical(lexical_dir: Path) -> None:
     """The file a standalone `bm25` open expects: built from the real repository
     and chunker with the dense identity taken from `config/ingestion.yaml`."""
     config = load_ingestion_config(REPO_ROOT / "config/ingestion.yaml")
-    model_id, revision = embedder_identity(config, config.embedder.provider)
-    from way2australia_rag.ingestion.tokenization import FakeTokenizer
+    provider = config.embedder.provider
+    model_id, revision = embedder_identity(config, provider)
+    from way2australia_rag.ingestion.tokenization import (
+        build_tokenizer,
+        embedder_for_run,
+    )
 
-    chunker = build_chunker(config, FakeTokenizer())
+    tokenizer = build_tokenizer(embedder_for_run(config.embedder, provider))
+    chunker = build_chunker(config, tokenizer)
     repository = LocalDocumentRepository(LocalRepositoryConfig(repo_root=REPO_ROOT))
 
-    entries = asyncio.run(
-        production_entries(repository, chunker, FakeTokenizer(), None)
-    )
+    entries = asyncio.run(production_entries(repository, chunker, tokenizer, None))
     build_lexical_index(
         entries,
         lexical_index_path(lexical_dir, COLLECTION),

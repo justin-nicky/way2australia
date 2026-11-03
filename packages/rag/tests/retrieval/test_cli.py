@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 import yaml
-from conftest import REPO_ROOT
+from conftest import PRODUCTION_COLLECTION, PRODUCTION_INDEX_VERSION, REPO_ROOT
 from qdrant_client import QdrantClient, models
 from way2australia_rag.ingestion import cli as ingestion_cli
 from way2australia_rag.ingestion.config import RuntimeSettings
@@ -72,7 +72,9 @@ def test_success_prints_header_and_hit_lines(
     assert retrieve(indexed, "--strategy", "dense", "--top-k", "3") == 0
     out = capsys.readouterr().out
     lines = out.strip().splitlines()
-    assert lines[0].startswith("index: way2australia-idx-v1 (index_version idx-v1;")
+    assert lines[0].startswith(
+        f"index: {PRODUCTION_COLLECTION} (index_version {PRODUCTION_INDEX_VERSION};"
+    )
     assert "fake=true" in lines[0] and "device=" in lines[0]
     hits = lines[2:]
     assert 1 <= len(hits) <= 3
@@ -93,7 +95,7 @@ def test_output_has_no_secret_path_or_chunk_text(
     assert not re.search(r"(?<![\w.])/(?:Users|home|tmp|private)/", text)
     chunk_texts = [
         str((r.payload or {})["chunk_text"])
-        for r in indexed.client.scroll("way2australia-idx-v1", limit=50)[0]
+        for r in indexed.client.scroll(PRODUCTION_COLLECTION, limit=50)[0]
     ]
     assert chunk_texts
     for chunk in chunk_texts:
@@ -235,9 +237,7 @@ def test_missing_settings_refusal_advice_is_for_retrieval(
 ) -> None:
     from way2australia_rag.ingestion.store import SETTINGS_COLLECTION_SUFFIX
 
-    indexed.client.delete_collection(
-        "way2australia-idx-v1" + SETTINGS_COLLECTION_SUFFIX
-    )
+    indexed.client.delete_collection(PRODUCTION_COLLECTION + SETTINGS_COLLECTION_SUFFIX)
     assert retrieve(indexed) == 2
     _advice_ok(capsys.readouterr().err)
 
@@ -251,7 +251,7 @@ def test_malformed_settings_refusal_advice_is_for_retrieval(
     )
 
     indexed.client.overwrite_payload(
-        "way2australia-idx-v1" + SETTINGS_COLLECTION_SUFFIX,
+        PRODUCTION_COLLECTION + SETTINGS_COLLECTION_SUFFIX,
         payload={"embedder_vector_size": "SECRET-VALUE"},
         points=[SETTINGS_POINT_ID],
     )

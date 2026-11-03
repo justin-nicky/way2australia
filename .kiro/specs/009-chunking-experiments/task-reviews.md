@@ -356,3 +356,22 @@
 
 ### User decision
 - 2026-11-02: approved (R9 recursive security at 48 tokens; E2E test uses real `DenseRetriever` through `run_retrieval_evaluation`)
+
+## T6 — wrap-up (agent, 2026-11-03)
+
+### Implementation
+- Model: Composer (orchestrator session)
+- Files changed:
+  - `config/ingestion.yaml` — promoted to `recursive-128.yaml` content (`idx-v2`)
+  - `experiments/results/` — three T6 retrieval result 2.3 files (committed)
+  - `packages/rag/tests/ingestion/fixtures/heading-idx-v1-ingestion.yaml` (new); `test_config_schema_11.py` — heading byte-copy pins pre-promotion baseline
+  - `docs/project/CURRENT_STATE.md` — T6 runs, promotion, compare output, lexical digest
+  - `.kiro/specs/009-chunking-experiments/tasks.md` — T6 approved; T7 note on ignored config keys
+- Verification run:
+  - `make verify` → pass (after test fix)
+- Notes:
+  - Promotion: hits 68→68, MRR 0.9094→0.9208; flips g061 miss→hit (rank 5), g026 hit→miss (en); `105358Z` result `git_dirty: true` documented as binding check only.
+- Usage: n/a (Cursor)
+
+### User decision
+- 2026-11-03: approved (user-owned real runs and promotion steps completed in session)

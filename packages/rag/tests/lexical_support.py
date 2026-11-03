@@ -10,6 +10,8 @@ from typing import Any
 from conftest import REPO_ROOT
 from qdrant_client import QdrantClient
 from way2australia_rag.ingestion.chunking import HeadingChunker
+from way2australia_rag.ingestion.cli import build_chunker
+from way2australia_rag.ingestion.config import load_ingestion_config
 from way2australia_rag.ingestion.embedding import FakeEmbedder
 from way2australia_rag.ingestion.service import IngestionService
 from way2australia_rag.ingestion.store import QdrantIndexStore
@@ -101,11 +103,31 @@ def ingest_dense(client: QdrantClient | None = None) -> tuple[QdrantClient, Dens
     return client, DenseIndex.open(client, BASE, VERSION, embedder.info)
 
 
-def build_production(target: Path, **over: Any) -> None:
-    entries = asyncio.run(
-        production_entries(repository(), HeadingChunker(), FakeTokenizer(), None)
+HEADING_INGESTION_FIXTURE = (
+    REPO_ROOT / "packages/rag/tests/ingestion/fixtures/heading-idx-v1-ingestion.yaml"
+)
+
+
+def build_production(
+    target: Path, *, config_path: Path | None = None, **over: Any
+) -> None:
+    cfg_path = config_path or HEADING_INGESTION_FIXTURE
+    config = load_ingestion_config(cfg_path)
+    tokenizer = FakeTokenizer()
+    chunker = build_chunker(config, tokenizer)
+    entries = asyncio.run(production_entries(repository(), chunker, tokenizer, None))
+    base = identity(**over)
+    build_lexical_index(
+        entries,
+        target,
+        LexicalIdentityInput(
+            collection=base.collection,
+            index_version=base.index_version,
+            dense_identity=base.dense_identity,
+            chunker=chunker.identity,
+            hash_contract=base.hash_contract,
+        ),
     )
-    build_lexical_index(entries, target, identity(**over))
 
 
 def open_lexical(path: Path) -> LexicalIndex:

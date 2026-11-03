@@ -5,18 +5,25 @@ import shutil
 from pathlib import Path
 
 import pytest
-from conftest import REPO_ROOT, live_suite_rows
+from conftest import (
+    PRODUCTION_COLLECTION,
+    PRODUCTION_INDEX_VERSION,
+    REPO_ROOT,
+    live_suite_rows,
+    load_production_ingestion_config,
+)
 from qdrant_client import QdrantClient, models
 from retrieval.test_cli import Factory
 from retrieval.test_retriever import make_payload
 from way2australia_rag.evaluation import cli
-from way2australia_rag.ingestion.chunking import HeadingChunker
+from way2australia_rag.ingestion.cli import build_chunker
 from way2australia_rag.ingestion.config import RuntimeSettings
 from way2australia_rag.ingestion.embedding import FakeEmbedder
 from way2australia_rag.ingestion.errors import OptionalDependencyError
 from way2australia_rag.ingestion.identity import point_id
 from way2australia_rag.ingestion.settings import build_index_settings
 from way2australia_rag.ingestion.store import IndexPoint, QdrantIndexStore
+from way2australia_rag.ingestion.tokenization import FakeTokenizer
 from way2australia_rag.retrieval.access import (
     build_access_filter,
     guest_access,
@@ -29,7 +36,7 @@ from .test_retrieval_eval import RealStub
 pytestmark = pytest.mark.filterwarnings(
     "ignore:Payload indexes have no effect:UserWarning"
 )
-BASE, VERSION = "way2australia", "idx-v1"
+BASE, VERSION = "way2australia", PRODUCTION_INDEX_VERSION
 
 
 @pytest.fixture(autouse=True)
@@ -47,7 +54,8 @@ def clean_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
 def index_factory(embedder: FakeEmbedder, tenant: str = "way2australia") -> Factory:
     client = QdrantClient(":memory:")
     store = QdrantIndexStore(client, BASE, VERSION)
-    settings = build_index_settings(VERSION, embedder.info, HeadingChunker())
+    chunker = build_chunker(load_production_ingestion_config(), FakeTokenizer())
+    settings = build_index_settings(VERSION, embedder.info, chunker)
     store.ensure_collection(settings)
     for doc_id in cli._authority_map(REPO_ROOT):
         text = f"chunk {doc_id}"
@@ -86,7 +94,7 @@ def test_success_writes_result_prints_collection_and_summary(
     goldens = len(live_suite_rows("golden_answerable", active_only=True))
     unanswerable = len(live_suite_rows("unanswerable_refusal", active_only=True))
     assert doc["kind"] == "retrieval_evaluation" and doc["case_count"] == goldens
-    assert doc["collection"] == "way2australia-idx-v1"
+    assert doc["collection"] == PRODUCTION_COLLECTION
     assert (
         doc["evaluation_suite"]["cases_by_type"]["unanswerable_refusal"] == unanswerable
     )
@@ -97,7 +105,7 @@ def test_success_writes_result_prints_collection_and_summary(
     )
     shown = capsys.readouterr().out
     assert "unanswerable (not_evaluable_before_generation, informational" in shown
-    assert "collection: way2australia-idx-v1" in shown
+    assert f"collection: {PRODUCTION_COLLECTION}" in shown
     assert "HitRate@5" in shown and "e.json" in shown
 
 

@@ -89,7 +89,7 @@ Allowed protected-path changes: none.
   - a 1.0 lexical fixture file is refused with the advice; rebuilding it through `build_lexical_index` gives a 1.1 file with the same `source_chunk_digest` and chunk count.
   - per-document freshness: fresh passes; an edited, removed or added document is refused with the right counts; a chunker identity difference is refused by name.
   - with `build_tokenizer` patched to raise, `--strategy bm25` and the hybrid open-time and per-query fallbacks still serve (`open_retrieval` and CLI tests).
-  - `heading-idx-v1.yaml` is byte-identical to `config/ingestion.yaml` (this test is removed or inverted in T6 only if the arm is promoted); `recursive-128.yaml`'s embedder block equals `config/ingestion.yaml`'s.
+  - `heading-idx-v1.yaml` matches the pre-promotion heading baseline fixture (T6 promotion); `recursive-128.yaml`'s embedder block equals `config/ingestion.yaml`'s.
   - Docker (`make test-integration`): a fake-embedder ingestion with `recursive` v1 into a throwaway base gives several chunks per document and a second run reports 0 added, updated and deleted; a collection whose settings record is 1.0 binds and ingests unchanged.
 
 Allowed protected-path changes: none.
@@ -159,25 +159,25 @@ Allowed protected-path changes: none.
 
 ## T6 — User-owned real runs and the default index
 
-**State:** not started
+**State:** approved (2026-11-03)
 **Requirements:** R10
 
 Run by the user (real model, `w2a-realcheck` collections); the agent prepares the commands, then checks and records the files. Before the runs: the tree (including `graphify-out/`) is clean and earlier result files are committed.
 
-- [ ] **Lexical rebuild for `idx-v1`.** Before rebuilding, record the old file's `source_chunk_digest` and chunk count with a read-only SQLite query. Then `QDRANT_COLLECTION_BASE=w2a-realcheck make index-lexical` (no extra, no Qdrant, no weights; the guard uses the cached tokenizer files). Check that the new file is lexical settings 1.1 with the same digest and chunk count (13), and record both in `CURRENT_STATE.md`. The Qdrant collection is not touched.
-- [ ] **Baseline.** `make setup-bge-m3`; `QDRANT_COLLECTION_BASE=w2a-realcheck make eval-retrieval` (result 2.3, `idx-v1`, `hybrid`); `make eval-compare BASE=experiments/results/retrieval-evaluation-idx-v1-20261101T070736Z.json CANDIDATE=<baseline 2.3>` must pass with 68 → 68 hits, MRR 0.9094 → 0.9094 and no flips. A difference stops T6 for a spec decision.
-- [ ] **Arm.** With `QDRANT_COLLECTION_BASE=w2a-realcheck`: `make ingest INGEST_ARGS="--config experiments/configs/chunking/recursive-128.yaml"` (builds `w2a-realcheck-idx-v2`), `make index-lexical LEXICAL_ARGS="--config experiments/configs/chunking/recursive-128.yaml"`, `make eval-retrieval EVAL_ARGS="--config experiments/configs/chunking/recursive-128.yaml"`. Ingestion must report no `chunk_too_long` failures.
-- [ ] **Depth check from `chunk_stats`.** The agent reads the arm's `chunk_stats`: `chunk_count` (expected about 34), `max_chunks_per_document` (expected about 4, at most 12) and `required_depth <= retrieval_depth` (50); records the numbers and any difference from the T2 counts.
-- [ ] **Compare.** `make eval-compare BASE=<baseline 2.3> CANDIDATE=<arm 2.3> COMPARE_ARGS=--cross-index`.
-- [ ] **Promotion rule.** Promote only if the gate passes, neither hits nor MRR drop, at least one improves, and no `ml` or `mixed` case flips from hit to miss; a tie keeps the baseline. Record the decision with the numbers, flips by `case_id`, the `g061` rank in both runs, and that the result belongs to "128 tokens + title prefix" together.
-- [ ] **If promoted**, in this order:
+- [x] **Lexical rebuild for `idx-v1`.** Before rebuilding, record the old file's `source_chunk_digest` and chunk count with a read-only SQLite query. Then `QDRANT_COLLECTION_BASE=w2a-realcheck make index-lexical` (no extra, no Qdrant, no weights; the guard uses the cached tokenizer files). Check that the new file is lexical settings 1.1 with the same digest and chunk count (13), and record both in `CURRENT_STATE.md`. The Qdrant collection is not touched.
+- [x] **Baseline.** `make setup-bge-m3`; `QDRANT_COLLECTION_BASE=w2a-realcheck make eval-retrieval` (result 2.3, `idx-v1`, `hybrid`); `make eval-compare BASE=experiments/results/retrieval-evaluation-idx-v1-20261101T070736Z.json CANDIDATE=<baseline 2.3>` must pass with 68 → 68 hits, MRR 0.9094 → 0.9094 and no flips. A difference stops T6 for a spec decision.
+- [x] **Arm.** With `QDRANT_COLLECTION_BASE=w2a-realcheck`: `make ingest INGEST_ARGS="--config experiments/configs/chunking/recursive-128.yaml"` (builds `w2a-realcheck-idx-v2`), `make index-lexical LEXICAL_ARGS="--config experiments/configs/chunking/recursive-128.yaml"`, `make eval-retrieval EVAL_ARGS="--config experiments/configs/chunking/recursive-128.yaml"`. Ingestion must report no `chunk_too_long` failures.
+- [x] **Depth check from `chunk_stats`.** The agent reads the arm's `chunk_stats`: `chunk_count` (expected about 34), `max_chunks_per_document` (expected about 4, at most 12) and `required_depth <= retrieval_depth` (50); records the numbers and any difference from the T2 counts.
+- [x] **Compare.** `make eval-compare BASE=<baseline 2.3> CANDIDATE=<arm 2.3> COMPARE_ARGS=--cross-index`.
+- [x] **Promotion rule.** Promote only if the gate passes, neither hits nor MRR drop, at least one improves, and no `ml` or `mixed` case flips from hit to miss; a tie keeps the baseline. Record the decision with the numbers, flips by `case_id`, the `g061` rank in both runs, and that the result belongs to "128 tokens + title prefix" together.
+- [x] **If promoted**, in this order:
   1. `make ingest INGEST_ARGS="--config experiments/configs/chunking/recursive-128.yaml"` without `QDRANT_COLLECTION_BASE` (real BGE-M3, collection `way2australia-idx-v2`); the `w2a-realcheck-idx-v2` collection already exists from the arm run (re-running there reports 0 changes and is optional);
   2. `make index-lexical LEXICAL_ARGS="--config experiments/configs/chunking/recursive-128.yaml"` for the same base;
   3. then the config change: `config/ingestion.yaml` takes the content of `recursive-128.yaml`; the T3 byte-copy test is updated to pin `heading-idx-v1.yaml` to the old content (from git) instead;
   4. check that `make retrieve QUERY="..."` and `make eval-retrieval` without `--config` bind to `idx-v2`, and that `--config experiments/configs/chunking/heading-idx-v1.yaml` still binds to `idx-v1`;
   5. `make setup` restores the default environment.
 - [ ] **If not promoted:** `config/ingestion.yaml` unchanged; default stays `heading` v1 / `idx-v1`.
-- [ ] The agent checks each result file: suite, `index_version`, collection, embedder pair, `chunker`, `ingestion_config` hash, `git_commit`, `git_dirty` false, served strategies, `fallback_counts` empty; any deviation is recorded for the user to accept. Result files are committed.
+- [x] The agent checks each result file: suite, `index_version`, collection, embedder pair, `chunker`, `ingestion_config` hash, `git_commit`, `git_dirty` false, served strategies, `fallback_counts` empty; any deviation is recorded for the user to accept. Result files are committed.
 
 Allowed protected-path changes: `config/ingestion.yaml`, only if promoted.
 
@@ -189,9 +189,10 @@ Allowed protected-path changes: `config/ingestion.yaml`, only if promoted.
 
 ## T7 — Documentation, decisions, carry-over clean-ups and hand-off
 
-**State:** not started
+**State:** implementing (round 1)
 **Requirements:** R11, Definition of Done
 
+- [ ] Document in `CURRENT_STATE.md` / carry-overs: `config/ingestion.yaml` and `experiments/configs/chunking/recursive-128.yaml` still carry top-level `knowledge_release_id` and `evaluation_suite_id` keys that the ingestion loader ignores (`evaluation_suite_id` still says the replaced `public-eval-v1`); remove them at the next `index_version`. Keep the byte copy of `recursive-128.yaml` into `config/ingestion.yaml` for this promotion so the arm's recorded `ingestion_config` hash stays valid.
 - [ ] Clean-ups: rename `lexical/build.py` `_identity` to public `chunk_identity` and import only public names in `freshness.py` and `security_eval.py` (Spec 008 note); correct the `settings.py` `max_length` docstring (Spec 004 T5 F2); add a test for the embedder returning the wrong number of vectors in `IngestionService._embed` (Spec 004 T7 F3).
 - [ ] `DECISIONS.md` D063 onward: tokenizer dependency and loading; truncation guard (closes Spec 004 T7 F1); `structure` v1 and `recursive` v1, heading-path `section_id`s and the duplicate refusal, the sentence-end rule; `ChunkerIdentity`, settings 1.1 and lexical settings 1.1 with per-document freshness, amending D060's large-corpus caveat; distinct-document metrics, the depth check and result 2.3; cross-index compare and the format rule (extends D054); security result 1.3 (extends D061); the default-index decision from T6, stating that the arm's result belongs to "128 tokens + title prefix" together.
 - [ ] `ARCHITECTURE.md` (ingestion and lexical sections, chunkers, freshness), `TECH_STACK.md` (`tokenizers`, `huggingface_hub`), `COMMANDS.md` (`--config` with `experiments/configs/chunking/*.yaml`, `COMPARE_ARGS=--cross-index`, the one-time lexical rebuild), `ROADMAP.md` item 7 status, `CURRENT_STATE.md` (implemented reality, spec status, known issues, carry-overs: headed documents and `relevant_section_ids`, FAQ pairs, semantic chunking, separating size from prefix, per-scope lexical files, Malayalam stemming, the HTTP-route items).

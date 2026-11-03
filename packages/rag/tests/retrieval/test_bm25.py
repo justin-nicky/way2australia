@@ -322,18 +322,18 @@ def test_standalone_path_returns_the_hits_of_the_spec_007_construction(
 ) -> None:
     """Spec 008 R5: the bm25 retriever built from configuration only (standalone
     open, no dense index) equals the Spec 007 one bound to a dense fixture."""
-    from conftest import REPO_ROOT
+    from conftest import HEADING_INGESTION_FIXTURE, REPO_ROOT
     from lexical_support import build_production
     from way2australia_rag.ingestion.config import load_ingestion_config
     from way2australia_rag.retrieval.opening import open_retrieval
     from way2australia_rag.retrieval.strategy import load_retrieval_config
 
-    config = load_ingestion_config(REPO_ROOT / "config/ingestion.yaml")
+    config = load_ingestion_config(HEADING_INGESTION_FIXTURE)
     config = config.model_copy(update={"index_version": VERSION})
     directory = tmp_path / "lex"
     directory.mkdir()
     target = directory / f"{BASE}-{VERSION}.sqlite"
-    build_production(target)
+    build_production(target, config_path=HEADING_INGESTION_FIXTURE)
     monkeypatch.setenv("QDRANT_COLLECTION_BASE", BASE)
     monkeypatch.setenv("W2A_LEXICAL_INDEX_DIR", str(directory))
     from way2australia_rag.ingestion.config import load_runtime_settings
