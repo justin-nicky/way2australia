@@ -1,6 +1,6 @@
 # 009 — Chunking Experiments Tasks
 
-Status: all tasks approved (2026-11-03)
+Status: verified (2026-11-04, merged 5a6deb7)
 
 Implement the tasks in order; each depends on the ones before it. Requirements: `requirements.md` (approved 2026-11-01). Design: `design.md` (approved 2026-11-01).
 
