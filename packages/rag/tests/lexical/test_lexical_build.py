@@ -90,10 +90,10 @@ def test_atomic_replace_keeps_old_file_after_failure(
     target = build(tmp_path)
     before = target.read_bytes()
 
-    def boom(text: str) -> list[str]:
+    def boom(*args: object, **kwargs: object) -> None:
         raise RuntimeError("injected")
 
-    monkeypatch.setattr(build_module, "tokenize", boom)
+    monkeypatch.setattr(build_module, "_insert", boom)
     with pytest.raises(RuntimeError, match="injected"):
         build_lexical_index([("x", payload("doc_x", "text"))], target, identity())
     assert target.read_bytes() == before
@@ -223,8 +223,8 @@ def test_open_refuses_missing_settings_field(tmp_path: Path) -> None:
     [
         ({"schema_version": "9.9"}, "schema_version"),
         ({"kind": "other"}, "kind"),
-        ({"tokenizer_version": "2"}, "tokenizer_version"),
-        ({"tokenizer_name": "lexical-v2"}, "tokenizer_name"),
+        ({"tokenizer_version": "2"}, "not supported"),
+        ({"tokenizer_name": "lexical-v9"}, "not supported"),
         ({"collection": "other-v1"}, "collection"),
         ({"index_version": "v9"}, "index_version"),
     ],
@@ -239,6 +239,23 @@ def test_open_refuses_identity_mismatches(
     assert isinstance(error.value, IndexBindingError)
     assert "make index-lexical" in str(error.value)
     assert str(tmp_path) not in str(error.value)
+
+
+@pytest.mark.parametrize("name", ["lexical-v1", "lexical-v2"])
+def test_build_records_tokenizer_name(tmp_path: Path, name: str) -> None:
+    from way2australia_rag.lexical.tokenizer import TOKENIZERS
+
+    target = tmp_path / f"{name}.sqlite"
+    settings = build_lexical_index(
+        [("p1", payload("doc_a", "coaching"))],
+        target,
+        identity(),
+        tokenizer=TOKENIZERS[name],
+    )
+    assert settings.tokenizer_name == name
+    index = open_lexical(target)
+    assert index.tokenizer.name == name
+    index.close()
 
 
 def test_build_production_helper_runs(tmp_path: Path) -> None:

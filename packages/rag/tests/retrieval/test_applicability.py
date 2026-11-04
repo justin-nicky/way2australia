@@ -113,10 +113,20 @@ def make_payload(document_id: str, text: str, **over: Any) -> PointPayload:
     return PointPayload.model_validate(payload_dict(document_id, text, **over))
 
 
-def build_lexical(tmp_path: Path, entries: list[tuple[str, dict[str, Any]]]) -> Path:
+def build_lexical(
+    tmp_path: Path,
+    entries: list[tuple[str, dict[str, Any]]],
+    *,
+    tokenizer_name: str = "lexical-v1",
+) -> Path:
+    from way2australia_rag.lexical.tokenizer import TOKENIZERS
+
     target = tmp_path / "lex.sqlite"
     build_lexical_index(
-        entries, target, identity(collection=COLLECTION_NAME, index_version=VER)
+        entries,
+        target,
+        identity(collection=COLLECTION_NAME, index_version=VER),
+        tokenizer=TOKENIZERS[tokenizer_name],
     )
     return target
 
@@ -352,6 +362,10 @@ class DroppedLoteClauseLexical:
         self.label = inner.label
         self.has_lote_column = inner.has_lote_column
 
+    @property
+    def tokenizer(self):
+        return self.inner.tokenizer
+
     def search(
         self, match: str, where: str, params: tuple[Any, ...], limit: int
     ) -> list[Any]:
@@ -361,10 +375,12 @@ class DroppedLoteClauseLexical:
 
 def _dropped_lote_setup(
     tmp_path: Path,
+    *,
+    tokenizer_name: str = "lexical-v1",
 ) -> tuple[DenseIndex, BM25Retriever, HybridRetriever, LexicalIndex]:
     entries = [("na", payload_dict("doc_na", "needle", lote_languages=["zz"]))]
     index = _qdrant_index(entries)
-    lex_path = build_lexical(tmp_path, entries)
+    lex_path = build_lexical(tmp_path, entries, tokenizer_name=tokenizer_name)
     lexical = LexicalIndex.open(lex_path, COLLECTION_NAME, VER)
     dropped = DroppedLoteClauseLexical(lexical)
     identity = IndexIdentity.from_dense(index)
@@ -393,10 +409,13 @@ def test_dropped_filter_raises_language_applicability(tmp_path: Path) -> None:
     "factory",
     ["bm25", "hybrid", "fallback_open", "fallback_query"],
 )
+@pytest.mark.parametrize("tokenizer_name", ["lexical-v1", "lexical-v2"])
 def test_dropped_lote_clause_raises_language_applicability(
-    tmp_path: Path, factory: str
+    tmp_path: Path, factory: str, tokenizer_name: str
 ) -> None:
-    index, bm25, hybrid, lexical = _dropped_lote_setup(tmp_path)
+    index, bm25, hybrid, lexical = _dropped_lote_setup(
+        tmp_path, tokenizer_name=tokenizer_name
+    )
     root = temp_registry(tmp_path, {"a": "ml"})
     lote = resolve_lote("ml", active_lote_codes(root))
     dense = DenseRetriever(index, EMBEDDER)

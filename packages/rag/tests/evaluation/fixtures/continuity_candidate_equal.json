@@ -1,0 +1,94 @@
+{
+  "schema_version": "2.4",
+  "kind": "retrieval_evaluation",
+  "git_commit": "bbb",
+  "evaluation_suite_id": "public-eval-v3",
+  "evaluation_suite_version": 3,
+  "collection": "c1",
+  "index_version": "idx-v1",
+  "index_settings": {
+    "embedder_model_id": "m",
+    "embedder_revision": "r1"
+  },
+  "top_k": 5,
+  "device": "cpu",
+  "embedder_is_fake": false,
+  "document_count": 13,
+  "latency_ms": {
+    "p50": 3.0,
+    "p95": 4.0,
+    "by_served_path": {
+      "hybrid": {
+        "p50": 3.0,
+        "p95": 4.0,
+        "n": 1
+      }
+    }
+  },
+  "cases": [
+    {
+      "case_id": "g001",
+      "case_version": 1,
+      "query_language": "en",
+      "category": "business",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "b001"
+      ],
+      "relevant_document_ids": [
+        "b001"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 1.0,
+      "served_strategy": "hybrid",
+      "fallback_reason": null,
+      "query_terms_truncated": false,
+      "leg_ranks": null,
+      "script_mix": "latin"
+    }
+  ],
+  "requested_strategy": "hybrid",
+  "served_strategies": [
+    "hybrid"
+  ],
+  "retrieval_strategy": "hybrid",
+  "fallback_counts": {},
+  "dense_identity": {
+    "collection": "c1",
+    "index_version": "idx-v1",
+    "embedder_model_id": "m",
+    "embedder_revision": "r1",
+    "embedder_is_fake": false,
+    "source": "qdrant"
+  },
+  "lexical_index": {
+    "label": "c1.sqlite",
+    "tokenizer_name": "lexical-v1",
+    "tokenizer_version": "1",
+    "source_chunk_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "chunk_count": 13
+  },
+  "metric_unit": "distinct_documents",
+  "retrieval_depth": 50,
+  "chunk_stats": {
+    "chunk_count": 13,
+    "document_count": 13,
+    "max_chunks_per_document": 1,
+    "required_depth": 5
+  },
+  "chunker": {
+    "name": "heading",
+    "version": "1",
+    "params": {
+      "max_chunk_chars": 2000
+    },
+    "tokenizer": null
+  },
+  "ingestion_config": {
+    "path": "config/ingestion.yaml",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "lote": null
+}

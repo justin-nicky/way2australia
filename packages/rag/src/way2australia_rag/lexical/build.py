@@ -31,9 +31,8 @@ from way2australia_rag.lexical.store import (
     source_chunk_digest,
 )
 from way2australia_rag.lexical.tokenizer import (
-    TOKENIZER_NAME,
-    TOKENIZER_VERSION,
-    tokenize,
+    TOKENIZERS,
+    LexicalTokenizer,
 )
 from way2australia_rag.repositories import (
     GUEST_PUBLIC_POLICY,
@@ -98,18 +97,22 @@ def chunk_identity(point: str, payload: Mapping[str, Any]) -> tuple[str, str, in
 
 
 def build_lexical_index(
-    entries: Iterable[Entry], target: Path, identity: LexicalIdentityInput
+    entries: Iterable[Entry],
+    target: Path,
+    identity: LexicalIdentityInput,
+    tokenizer: LexicalTokenizer | None = None,
 ) -> LexicalSettings:
     """Write the lexical file for `entries` atomically and return its settings."""
     materialized = list(entries)
     identities = [chunk_identity(p, payload) for p, payload in materialized]
+    chosen = tokenizer or TOKENIZERS["lexical-v1"]
     settings = LexicalSettings(
         schema_version=SETTINGS_SCHEMA_VERSION,
         collection=identity.collection,
         index_version=identity.index_version,
         dense_identity=identity.dense_identity,
-        tokenizer_name=TOKENIZER_NAME,
-        tokenizer_version=TOKENIZER_VERSION,
+        tokenizer_name=chosen.name,
+        tokenizer_version=chosen.version,
         fts5_tokenizer=FTS5_TOKENIZER,
         bm25=dict(BM25_PARAMETERS),
         chunker_name=identity.chunker.name,
@@ -136,7 +139,7 @@ def build_lexical_index(
                     (SETTINGS_KEY, settings.model_dump_json()),
                 )
                 for point, payload in materialized:
-                    _insert(connection, point, payload)
+                    _insert(connection, point, payload, chosen)
         finally:
             connection.close()
         os.replace(temp, target)
@@ -151,7 +154,10 @@ def build_lexical_index(
 
 
 def _insert(
-    connection: sqlite3.Connection, point: str, payload: Mapping[str, Any]
+    connection: sqlite3.Connection,
+    point: str,
+    payload: Mapping[str, Any],
+    tokenizer: LexicalTokenizer,
 ) -> None:
     _, document_id, version, content_hash = chunk_identity(point, payload)
     raw_lote = payload.get("lote_languages")
@@ -183,7 +189,7 @@ def _insert(
             json.dumps(payload, ensure_ascii=False, sort_keys=True),
         ),
     )
-    terms = " ".join(tokenize(str(payload.get("chunk_text", ""))))
+    terms = " ".join(tokenizer.tokenize(str(payload.get("chunk_text", ""))))
     connection.execute(
         "INSERT INTO chunk_terms (rowid, terms) VALUES (?, ?)",
         (cursor.lastrowid, terms),

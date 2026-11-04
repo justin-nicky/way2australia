@@ -13,7 +13,7 @@ from urllib.parse import quote
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from way2australia_rag.ingestion.chunking import ChunkerIdentity
-from way2australia_rag.lexical.tokenizer import TOKENIZER_NAME, TOKENIZER_VERSION
+from way2australia_rag.lexical.tokenizer import LexicalTokenizer, tokenizer_named
 from way2australia_rag.retrieval.errors import IndexBindingError, RetrievalError
 from way2australia_rag.retrieval.identity import IndexIdentity
 from way2australia_rag.retrieval.index import DenseIndex
@@ -254,10 +254,12 @@ class LexicalIndex:
     def _check(
         settings: LexicalSettings, label: str, collection: str, index_version: str
     ) -> None:
+        try:
+            tokenizer_named(settings.tokenizer_name, settings.tokenizer_version)
+        except LexicalIndexBindingError as error:
+            raise LexicalIndexBindingError(f"lexical index '{label}' {error}") from None
         differences = _differences(
             (
-                ("tokenizer_name", settings.tokenizer_name, TOKENIZER_NAME),
-                ("tokenizer_version", settings.tokenizer_version, TOKENIZER_VERSION),
                 ("collection", settings.collection, collection),
                 ("index_version", settings.index_version, index_version),
             )
@@ -267,6 +269,12 @@ class LexicalIndex:
                 f"lexical index '{label}' does not match ({differences}). "
                 f"{REBUILD_ADVICE}"
             )
+
+    @property
+    def tokenizer(self) -> LexicalTokenizer:
+        return tokenizer_named(
+            self.settings.tokenizer_name, self.settings.tokenizer_version
+        )
 
     def bind_to(self, dense: DenseIndex) -> None:
         s = self.settings

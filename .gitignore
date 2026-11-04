@@ -106,12 +106,9 @@ graphify-out/cache/hook_sessions/
 graphify-out/cache/last_query_stamp
 
 # =============================================================================
-# Derived lexical (BM25) index files (Spec 007)
+# Machine-local state (lexical indexes, pytest HF cache, workflow reviews, …)
 # =============================================================================
-/.local/lexical/
-/.local/pytest-hf-empty/
-# workflow-reviewer reports (personal, not tracked)
-/.local/workflow-reviews/
+/.local/
 
 # graphify transient files
 /graphify-out/20??-??-??/

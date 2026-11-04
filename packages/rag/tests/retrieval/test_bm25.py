@@ -17,7 +17,7 @@ from way2australia_core import AccessContext, Role
 from way2australia_rag.ingestion.embedding import FakeEmbedder
 from way2australia_rag.lexical.build import build_lexical_index
 from way2australia_rag.lexical.store import LexicalIndex, LexicalRow
-from way2australia_rag.lexical.tokenizer import MAX_QUERY_TERMS
+from way2australia_rag.lexical.tokenizer import MAX_QUERY_TERMS, TOKENIZERS, query_terms
 from way2australia_rag.retrieval.access import ResolvedAccess, resolve_access
 from way2australia_rag.retrieval.base import Strategy
 from way2australia_rag.retrieval.bm25 import BM25Retriever, match_expression
@@ -59,9 +59,19 @@ def dense() -> DenseIndex:
     return ingest_dense()[1]
 
 
-def build(tmp_path: Path, entries: list[tuple[str, dict[str, Any]]]) -> LexicalIndex:
+def build(
+    tmp_path: Path,
+    entries: list[tuple[str, dict[str, Any]]],
+    *,
+    tokenizer_name: str = "lexical-v1",
+) -> LexicalIndex:
     target = tmp_path / "lex.sqlite"
-    build_lexical_index(entries, target, identity())
+    build_lexical_index(
+        entries,
+        target,
+        identity(),
+        tokenizer=TOKENIZERS[tokenizer_name],
+    )
     return open_lexical(target)
 
 
@@ -77,6 +87,10 @@ class SpyIndex:
         self.calls: list[tuple[str, str, tuple[Any, ...], int]] = []
         self.settings = inner.settings
         self.label = inner.label
+
+    @property
+    def tokenizer(self):
+        return self.inner.tokenizer
 
     def search(
         self, match: str, where: str, params: tuple[Any, ...], limit: int
@@ -132,27 +146,61 @@ FORBIDDEN = [
 ]
 
 
+@pytest.mark.parametrize("tokenizer_name", ["lexical-v1", "lexical-v2"])
 @pytest.mark.parametrize("name,over", FORBIDDEN, ids=[f[0] for f in FORBIDDEN])
 def test_forbidden_rows_are_never_returned(
-    tmp_path: Path, dense: DenseIndex, name: str, over: dict[str, Any]
+    tmp_path: Path,
+    dense: DenseIndex,
+    name: str,
+    over: dict[str, Any],
+    tokenizer_name: str,
 ) -> None:
     forbidden = pub("doc_x", "secret secret secret secret", **over)
     lexical = build(
-        tmp_path, [("px", forbidden), ("pa", pub("doc_a", "secret allowed"))]
+        tmp_path,
+        [("px", forbidden), ("pa", pub("doc_a", "secret allowed"))],
+        tokenizer_name=tokenizer_name,
     )
     result = retriever(dense, lexical).retrieve("secret", guest(), 5)
     assert [h.document_id for h in result.hits] == ["doc_a"]
 
 
+@pytest.mark.parametrize("tokenizer_name", ["lexical-v1", "lexical-v2"])
 def test_missing_owner_key_row_is_never_returned(
-    tmp_path: Path, dense: DenseIndex
+    tmp_path: Path, dense: DenseIndex, tokenizer_name: str
 ) -> None:
     missing = pub("doc_x", "secret secret secret")
     del missing["owner_user_id"]
-    lexical = build(tmp_path, [("px", missing), ("pa", pub("doc_a", "secret allowed"))])
+    lexical = build(
+        tmp_path,
+        [("px", missing), ("pa", pub("doc_a", "secret allowed"))],
+        tokenizer_name=tokenizer_name,
+    )
     spy = SpyIndex(lexical)
     result = retriever(dense, spy).retrieve("secret", guest(), 5)
     assert [h.document_id for h in result.hits] == ["doc_a"]
+
+
+LEGACY_CHILLU_NNA = "\u0d28\u0d4d\u200d"
+
+
+def test_v2_lexical_file_is_queried_with_its_tokenizer(
+    tmp_path: Path, dense: DenseIndex
+) -> None:
+    """Would miss if BM25 used the module-level lexical-v1 query_terms alias."""
+    body = f"uniquefind {LEGACY_CHILLU_NNA} tail"
+    lexical = build(
+        tmp_path,
+        [("p1", pub("doc_ml", body))],
+        tokenizer_name="lexical-v2",
+    )
+    spy = SpyIndex(lexical)
+    result = retriever(dense, spy).retrieve(LEGACY_CHILLU_NNA, guest(), 5)
+    assert [h.document_id for h in result.hits] == ["doc_ml"]
+    ((match, *_),) = spy.calls
+    index_terms = lexical.tokenizer.query_terms(LEGACY_CHILLU_NNA).terms
+    assert match == match_expression(index_terms)
+    assert index_terms != query_terms(LEGACY_CHILLU_NNA).terms
 
 
 class DroppedClauseIndex(SpyIndex):
@@ -172,6 +220,7 @@ CLAUSE_DROP_VARIANTS = [
 ]
 
 
+@pytest.mark.parametrize("tokenizer_name", ["lexical-v1", "lexical-v2"])
 @pytest.mark.parametrize(
     "name,over,field,drop_owner",
     CLAUSE_DROP_VARIANTS,
@@ -184,11 +233,16 @@ def test_a_store_without_the_clause_trips_check_hit(
     over: dict[str, Any],
     field: str,
     drop_owner: bool,
+    tokenizer_name: str,
 ) -> None:
     forbidden = pub("doc_x", "secret", **over)
     if drop_owner:
         del forbidden["owner_user_id"]
-    lexical = build(tmp_path, [("px", forbidden), ("pa", pub("doc_a", "secret"))])
+    lexical = build(
+        tmp_path,
+        [("px", forbidden), ("pa", pub("doc_a", "secret"))],
+        tokenizer_name=tokenizer_name,
+    )
     with pytest.raises(RetrievalAuthorizationError) as caught:
         retriever(dense, DroppedClauseIndex(lexical)).retrieve("secret", guest(), 5)
     assert caught.value.document_id == "doc_x"
@@ -227,8 +281,6 @@ def test_hostile_queries_stay_inert(
     assert all(h.document_id == "doc_a" for h in result.hits)
     for match, where, params, limit in spy.calls:
         # the MATCH argument is exactly the quoted lexical-v1 terms
-        from way2australia_rag.lexical.tokenizer import query_terms
-
         assert match == match_expression(query_terms(query).terms)
         assert where.startswith("c.access_scope IN (?)")
         assert params == ("public", TENANT)

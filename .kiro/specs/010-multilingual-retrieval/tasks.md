@@ -109,33 +109,33 @@ Allowed protected-path changes: none.
 
 ## T3 — `lexical-v2`, tokenizer selection, script mix, `--cross-tokenizer`, continuity command
 
-**State:** not started
+**State:** approved (2026-11-04)
 **Requirements:** R5, R6, R7, R8, R10 (continuity command), R11
 
-- [ ] New `lexical/equivalents.py`: `SEQUENCE_EQUIVALENTS` (code points only), with a header citing the Unicode Standard Malayalam chillu section and the Unicode version checked. Check each of the six design rows against the cited text, and record the check (section and version) in the implementation notes. Add U+0D54–U+0D56 only if the standard defines a legacy sequence for them.
-- [ ] `lexical/tokenizer.py`:
+- [x] New `lexical/equivalents.py`: `SEQUENCE_EQUIVALENTS` (code points only), with a header citing the Unicode Standard Malayalam chillu section and the Unicode version checked. Check each of the six design rows against the cited text, and record the check (section and version) in the implementation notes. Add U+0D54–U+0D56 only if the standard defines a legacy sequence for them.
+- [x] `lexical/tokenizer.py`:
   - `LexicalTokenizer` Protocol and the `TOKENIZERS` registry (`lexical-v1`, `lexical-v2`), plus `tokenizer_named`;
   - `lexical-v2` is NFC, then generic `replace_sequences`, then the `lexical-v1` steps, with no script-named branch;
   - module-level `tokenize` and `query_terms` stay `lexical-v1` aliases.
-- [ ] Lexical store:
+- [x] Lexical store:
   - `LexicalIndex._check` accepts any registered tokenizer and refuses an unknown one with rebuild advice;
   - `LexicalIndex.tokenizer`;
   - `BM25Retriever` uses `self._lexical.tokenizer.query_terms`;
   - `build_lexical_index(..., tokenizer)` records the tokenizer's name and version.
-- [ ] `config/retrieval.yaml` schema 1.2 with `lexical: {tokenizer: lexical-v1}`. `RetrievalConfig` validates the name, and a 1.1 file reads as `lexical-v1`.
+- [x] `config/retrieval.yaml` schema 1.2 with `lexical: {tokenizer: lexical-v1}`. `RetrievalConfig` validates the name, and a 1.1 file reads as `lexical-v1`.
   
   `make index-lexical`: `--tokenizer` (`LEXICAL_ARGS`), whose default is the config value. It prints the tokenizer and the lexical settings version.
   
   Document, and test, that a second file sits beside the first through `W2A_LEXICAL_INDEX_DIR`.
-- [ ] `.gitignore`: replace the three lines `/.local/lexical/`, `/.local/pytest-hf-empty/` and `/.local/workflow-reviews/` with a single `/.local/` (all machine-local state, under one comment).
+- [x] `.gitignore`: replace the three lines `/.local/lexical/`, `/.local/pytest-hf-empty/` and `/.local/workflow-reviews/` with a single `/.local/` (all machine-local state, under one comment).
   - Today `.local/lexical-v2/` is not ignored, and `git_state` ignores untracked files only under `experiments/results/`, so the T5 arm runs would record `git_dirty: true`.
   - Update `tests/lexical/test_lexical_cli.py` (the assertion that `.gitignore` contains `/.local/lexical/`) so it checks that the default lexical directory and `.local/lexical-v2/` are both ignored (for example with `git check-ignore`), not the exact line.
   - The temporary-repository tests that refuse an un-ignored `.local/other/` keep their own `.gitignore` and are unchanged.
-- [ ] New `evaluation/script_mix.py` with `script_mix(text)`: letters only, first word of the `unicodedata` name, lowercased, sorted, joined by `+`, `none` when the text has no letters.
+- [x] New `evaluation/script_mix.py` with `script_mix(text)`: letters only, first word of the `unicodedata` name, lowercased, sorted, joined by `+`, `none` when the text has no letters.
   
   Result 2.4 gains `metrics.by_script_mix` and a per-case `script_mix`. `make eval-retrieval` prints the slice with the other slices.
-- [ ] `eval-compare`: `COMPARE_ARGS=--cross-tokenizer` relaxes only the tokenizer name and version. The digest and chunk count must still match, and the option can be combined with `--cross-index`. Without the option, a tokenizer difference gets the advice line.
-- [ ] New `evaluation/continuity.py` and a `make eval-continuity BASE=... CANDIDATE=...` target (`CONTINUITY_ARGS`):
+- [x] `eval-compare`: `COMPARE_ARGS=--cross-tokenizer` relaxes only the tokenizer name and version. The digest and chunk count must still match, and the option can be combined with `--cross-index`. Without the option, a tokenizer difference gets the advice line.
+- [x] New `evaluation/continuity.py` and a `make eval-continuity BASE=... CANDIDATE=...` target (`CONTINUITY_ARGS`):
   - reads 2.3 and 2.4 files;
   - refuses with exit 2 when collection, `index_version`, chunker, embedder pair, lexical identity, served strategy or `top_k` differ;
   - prints suite, `lote`, case-set and `git_commit` differences as lines;
@@ -143,7 +143,7 @@ Allowed protected-path changes: none.
   - exits 0 when nothing differs, 1 when something does, 2 when a file is unreadable.
   
   Add it to `COMMANDS.md` in T6.
-- [ ] Tests:
+- [x] Tests:
   - tokenizers: every table pair inside a word and at word end; `lexical-v2` equals `lexical-v1` on every seed chunk and every v3 query without a listed sequence; the D051 pin still holds; unknown tokenizer refused; a file is queried with its own tokenizer; files built with each tokenizer; `--tokenizer` and the config default; `RetrievalConfig` 1.1 and 1.2;
   - the BM25 authorization and applicability tests parametrized over both tokenizers;
   - `script_mix`: digits, punctuation, `₹`, whitespace, ZWJ/ZWNJ, virama and vowel signs add no script; `₹1,300 mock-ൽ` gives `latin+malayalam`; `g062` gives `latin`; representative `en`, `ml` and `mixed` v3 queries; for every letter in every v3 query, the name prefix equals the script in a small committed fixture of the letters' known Unicode `Script` values;
@@ -209,7 +209,7 @@ Run by the user (real model, `w2a-realcheck-idx-v2`). The agent prepares the com
 - [ ] **Pre-run check.** After both `make index-lexical` builds, `git status --porcelain` is empty. If it isn't, stop before any `make eval-retrieval` run; a non-empty tree would record `git_dirty: true`.
 - [ ] **Four arms.** `make setup-bge-m3`. Then, with `QDRANT_COLLECTION_BASE=w2a-realcheck`, run `make eval-retrieval` with `EVAL_ARGS="--lote ml --strategy hybrid"` and `"--lote ml --strategy bm25"`, once with the default lexical directory and once with `W2A_LEXICAL_INDEX_DIR=.local/lexical-v2`.
 - [ ] **Continuity check** (copied word for word from R10): Continuity check first: on the 69 goldens carried from v2, the hybrid `lexical-v1` v3 run with `lote: ml` has the same hit, reciprocal rank and ranked document IDs per case as the Spec 009 reference `…idx-v2-20261103T104934Z.json`. A difference stops the gate until explained. Because `eval-compare` refuses the differing case set and `lote`, the check is a committed, tested command (a script or `make` target, with unit tests on fixture result files, delivered by a code task before T5); its full output is recorded in T5, not produced by an ad-hoc scratch script.
-  - Command: `make eval-continuity BASE=experiments/results/retrieval-evaluation-idx-v2-20261103T104934Z.json CANDIDATE=<hybrid lexical-v1 v3 result>`. Record the full output in `task-reviews.md`.
+  - Command: `uv run python -m way2australia_rag.evaluation.continuity experiments/results/retrieval-evaluation-idx-v2-20261103T104934Z.json <hybrid lexical-v1 v3 result>` (not through `make eval-continuity`: GNU make maps recipe exit 1 to 2). Record full stdout/stderr and the **module exit code** in `task-reviews.md`. T6 documents `make eval-continuity` vs the module in `COMMANDS.md`.
 - [ ] **Compares.** `make eval-compare COMPARE_ARGS=--cross-tokenizer`, with base `lexical-v1` and candidate `lexical-v2`, for hybrid and for BM25-only. Record both outputs.
 - [ ] **Promotion rule** (copied word for word from R10): **Promotion rule (fixed here, before any run).** `lexical-v2` becomes the default tokenizer only if all hold: the `eval-compare` gate passes for both hybrid and BM25-only; no case goes from hit to miss in any language, in either strategy; overall MRR is not lower in either strategy. A tie promotes it. Otherwise the default stays `lexical-v1`.
 - [ ] **If promoted:** set `config/retrieval.yaml` to `lexical.tokenizer: lexical-v2`. Rebuild with `make index-lexical`, for the realcheck base and, by the operator, for the default `way2australia-idx-v2`. Check that `make retrieve QUERY="..." RETRIEVE_ARGS="--lote ml"` reports the `lexical-v2` file. No Qdrant change and no new `index_version`. Then `make setup`.

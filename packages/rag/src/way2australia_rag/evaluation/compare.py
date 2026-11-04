@@ -29,6 +29,10 @@ CROSS_INDEX_STEP = (
     "use COMPARE_ARGS=--cross-index only when both files are result 2.3 and indexes "
     "may differ."
 )
+CROSS_TOKENIZER_STEP = (
+    "use COMPARE_ARGS=--cross-tokenizer only when both files share the same lexical "
+    "source_chunk_digest and chunk_count but differ in tokenizer name or version."
+)
 FORMAT_RULE_ADVICE = "re-run both with result 2.3"
 FAKE_STEP = (
     "run `make eval-retrieval` with a real embedder (BGE-M3) to produce a "
@@ -136,8 +140,19 @@ def _lexical_text(identity: tuple[object, object, object] | None) -> str:
     return f"{name} v{version} digest {digest}"
 
 
+def _lexical_chunk_count(run: ComparableRun) -> object:
+    lexical = run.info.get("lexical")
+    if isinstance(lexical, dict):
+        return lexical.get("chunk_count")
+    return None
+
+
 def _identity_problems(
-    base: ComparableRun, cand: ComparableRun, *, cross_index: bool
+    base: ComparableRun,
+    cand: ComparableRun,
+    *,
+    cross_index: bool,
+    cross_tokenizer: bool,
 ) -> list[str]:
     """Spec 007 R10: unlike systems are refused, unlike strategies are not."""
     problems: list[str] = []
@@ -165,23 +180,29 @@ def _identity_problems(
         problems.append(f"embedder changed {_embedder(base)} -> {_embedder(cand)}")
     old_l, new_l = _lexical_identity(base), _lexical_identity(cand)
     if old_l is not None and new_l is not None:
-        if cross_index:
-            old_t, new_t = _lexical_tokenizer(base), _lexical_tokenizer(cand)
-            if old_t is not None and new_t is not None and old_t != new_t:
+        old_t, new_t = (old_l[0], old_l[1]), (new_l[0], new_l[1])
+        old_cc, new_cc = _lexical_chunk_count(base), _lexical_chunk_count(cand)
+        if not cross_index:
+            if old_l[2] != new_l[2]:
                 problems.append(
-                    f"lexical tokenizer changed {old_t[0]} v{old_t[1]} -> "
-                    f"{new_t[0]} v{new_t[1]}"
+                    f"lexical source_chunk_digest changed {old_l[2]!r} -> {new_l[2]!r}"
                 )
-        elif old_l != new_l:
+            if old_cc != new_cc:
+                problems.append(f"lexical chunk_count changed {old_cc} -> {new_cc}")
+        if old_t != new_t and not cross_tokenizer:
             problems.append(
-                "lexical index changed "
-                f"{_lexical_text(old_l)} -> {_lexical_text(new_l)}"
+                f"lexical tokenizer changed {old_t[0]} v{old_t[1]} -> "
+                f"{new_t[0]} v{new_t[1]}"
             )
     return problems
 
 
 def _refusals(
-    base: ComparableRun, cand: ComparableRun, *, cross_index: bool
+    base: ComparableRun,
+    cand: ComparableRun,
+    *,
+    cross_index: bool,
+    cross_tokenizer: bool,
 ) -> list[str]:
     problems: list[str] = []
     steps: list[str] = []
@@ -249,9 +270,13 @@ def _refusals(
     if metric := _metric_unit_problem(base, cand):
         problems.append(metric)
         steps.append(NEW_BASELINE)
-    identity = _identity_problems(base, cand, cross_index=cross_index)
+    identity = _identity_problems(
+        base, cand, cross_index=cross_index, cross_tokenizer=cross_tokenizer
+    )
     if identity:
         problems.extend(identity)
+        if any("lexical tokenizer changed" in p for p in identity):
+            steps.append(CROSS_TOKENIZER_STEP)
         steps.append(IDENTITY_STEP if not cross_index else CROSS_INDEX_STEP)
     if not problems:
         return []
@@ -350,10 +375,16 @@ def _cross_index_lines(base: ComparableRun, candidate: ComparableRun) -> list[st
 
 
 def compare(
-    base: ComparableRun, candidate: ComparableRun, *, cross_index: bool = False
+    base: ComparableRun,
+    candidate: ComparableRun,
+    *,
+    cross_index: bool = False,
+    cross_tokenizer: bool = False,
 ) -> Comparison:
     """Raise `NotComparableError` for unlike runs; otherwise apply the gate."""
-    refusals = _refusals(base, candidate, cross_index=cross_index)
+    refusals = _refusals(
+        base, candidate, cross_index=cross_index, cross_tokenizer=cross_tokenizer
+    )
     if refusals:
         raise NotComparableError(refusals[0])
     keys = sorted(base.cases)
@@ -443,14 +474,26 @@ def compare(
             lines.append(f"identity differs, {diff}")
     old_l, new_l = _lexical_identity(base), _lexical_identity(candidate)
     if old_l != new_l:
-        if cross_index:
-            old_t, new_t = _lexical_tokenizer(base), _lexical_tokenizer(candidate)
-            if old_t is not None and new_t is not None and old_t != new_t:
-                lines.append(
-                    "identity differs, lexical tokenizer: "
-                    f"{old_t[0]} v{old_t[1]} -> {new_t[0]} v{new_t[1]}"
-                )
-        else:
+        old_t, new_t = _lexical_tokenizer(base), _lexical_tokenizer(candidate)
+        if (
+            cross_tokenizer
+            and old_l is not None
+            and new_l is not None
+            and old_l[2] == new_l[2]
+            and old_t is not None
+            and new_t is not None
+            and old_t != new_t
+        ):
+            lines.append(
+                "cross-tokenizer: lexical tokenizer: "
+                f"{old_t[0]} v{old_t[1]} -> {new_t[0]} v{new_t[1]}"
+            )
+        elif (
+            not cross_tokenizer
+            or old_l is None
+            or new_l is None
+            or old_l[2] != new_l[2]
+        ):
             lines.append(
                 "identity differs, lexical_index: "
                 f"{_lexical_text(old_l)} -> {_lexical_text(new_l)}"

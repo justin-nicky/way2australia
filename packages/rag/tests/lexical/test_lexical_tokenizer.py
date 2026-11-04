@@ -8,12 +8,15 @@ from pathlib import Path
 import pytest
 from conftest import REPO_ROOT, live_suite_rows
 from way2australia_rag.lexical import tokenizer
+from way2australia_rag.lexical.equivalents import SEQUENCE_EQUIVALENTS
 from way2australia_rag.lexical.tokenizer import (
     MAX_QUERY_TERMS,
     TOKENIZER_NAME,
     TOKENIZER_VERSION,
+    TOKENIZERS,
     query_terms,
     tokenize,
+    tokenizer_named,
 )
 
 BUSINESS_008 = REPO_ROOT / "knowledge/public/business/business_008_public_samples.md"
@@ -130,3 +133,33 @@ def test_golden_file_is_the_source_of_the_pins() -> None:
     path = REPO_ROOT / "evaluation/datasets/v2/golden_public.jsonl"
     ids = {json.loads(x)["id"] for x in path.read_text("utf-8").splitlines() if x}
     assert set(GOLDEN_TOKENS) <= ids
+
+
+@pytest.mark.parametrize("legacy, atomic", SEQUENCE_EQUIVALENTS)
+def test_chillu_pairs_tokenize_the_same_inside_and_at_end(
+    legacy: str, atomic: str
+) -> None:
+    v2 = TOKENIZERS["lexical-v2"].tokenize
+    for word in (f"word{legacy}tail", f"prefix{legacy}"):
+        assert v2(word) == v2(word.replace(legacy, atomic))
+    assert v2(legacy) == v2(atomic)
+
+
+def test_v2_matches_v1_without_listed_sequences() -> None:
+    v1 = TOKENIZERS["lexical-v1"].tokenize
+    v2 = TOKENIZERS["lexical-v2"].tokenize
+    text = BUSINESS_008.read_text(encoding="utf-8")
+    assert v2(text) == v1(text)
+    for row in live_suite_rows("golden_answerable"):
+        assert v2(row["query"]) == v1(row["query"])
+
+
+def test_unknown_tokenizer_is_refused() -> None:
+    from way2australia_rag.lexical.store import LexicalIndexBindingError
+
+    with pytest.raises(LexicalIndexBindingError, match="not supported"):
+        tokenizer_named("lexical-v9", "1")
+
+
+def test_registry_lists_v1_and_v2() -> None:
+    assert set(TOKENIZERS) == {"lexical-v1", "lexical-v2"}

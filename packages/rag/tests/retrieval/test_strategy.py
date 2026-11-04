@@ -54,6 +54,8 @@ def variant(**changes: Any) -> dict[str, Any]:
 def test_committed_config_loads() -> None:
     config = load_retrieval_config(REPO_ROOT / DEFAULT_CONFIG_PATH)
     raw = yaml.safe_load((REPO_ROOT / DEFAULT_CONFIG_PATH).read_text(encoding="utf-8"))
+    assert raw["schema_version"] == "1.2"
+    assert config.lexical.tokenizer == "lexical-v1"
     assert config.default_strategy is Strategy(raw["default_strategy"])
     assert config.fusion.k == 60
     assert config.fusion.weights == {"dense": 1.0, "bm25": 1.0}
@@ -65,6 +67,17 @@ def test_committed_config_loads() -> None:
 
 def test_good_config_loads(tmp_path: Path) -> None:
     assert isinstance(load_retrieval_config(write(tmp_path, GOOD)), RetrievalConfig)
+
+
+def test_schema_11_reads_default_lexical_tokenizer(tmp_path: Path) -> None:
+    config = load_retrieval_config(write(tmp_path, GOOD))
+    assert config.lexical.tokenizer == "lexical-v1"
+
+
+def test_schema_12_loads_explicit_lexical(tmp_path: Path) -> None:
+    data = {**GOOD, "schema_version": "1.2", "lexical": {"tokenizer": "lexical-v2"}}
+    config = load_retrieval_config(write(tmp_path, data))
+    assert config.lexical.tokenizer == "lexical-v2"
 
 
 BAD = [
@@ -93,6 +106,16 @@ BAD = [
     ("method not rrf", variant(fusion__method="linear"), "fusion.method"),
     ("schema version", variant(schema_version="2.0"), "schema_version"),
     ("schema version 1.0", variant(schema_version="1.0"), "schema_version"),
+    (
+        "unknown tokenizer",
+        variant(lexical={"tokenizer": "lexical-v9"}),
+        "lexical",
+    ),
+    (
+        "lexical extra key",
+        variant(lexical={"tokenizer": "lexical-v1", "extra": 1}),
+        "lexical.extra",
+    ),
     ("qdrant missing", {k: v for k, v in GOOD.items() if k != "qdrant"}, "qdrant"),
     ("qdrant not a mapping", variant(qdrant=3), "qdrant"),
     ("qdrant extra key", variant(qdrant__extra=1), "qdrant.extra"),

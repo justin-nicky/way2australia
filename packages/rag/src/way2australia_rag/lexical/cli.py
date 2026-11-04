@@ -31,7 +31,12 @@ from way2australia_rag.lexical.build import (
     lexical_index_path,
     production_entries,
 )
-from way2australia_rag.lexical.store import DenseIdentity, LexicalIdentityInput
+from way2australia_rag.lexical.store import (
+    SETTINGS_SCHEMA_VERSION,
+    DenseIdentity,
+    LexicalIdentityInput,
+)
+from way2australia_rag.lexical.tokenizer import TOKENIZERS
 from way2australia_rag.repositories import (
     DocumentRepositoryError,
     LocalDocumentRepository,
@@ -39,6 +44,12 @@ from way2australia_rag.repositories import (
 )
 from way2australia_rag.repositories.hashing import HASH_CONTRACT
 from way2australia_rag.retrieval.errors import RetrievalError
+from way2australia_rag.retrieval.strategy import (
+    DEFAULT_CONFIG_PATH as RETRIEVAL_CONFIG_PATH,
+)
+from way2australia_rag.retrieval.strategy import (
+    load_retrieval_config,
+)
 from way2australia_rag.retrieval.text import safe_text
 
 EXIT_OK = 0
@@ -137,6 +148,21 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output", type=Path, default=None, help="lexical index file to write"
     )
+    parser.add_argument(
+        "--retrieval-config",
+        type=Path,
+        default=None,
+        help=(
+            "retrieval config for the default tokenizer "
+            "(default: config/retrieval.yaml)"
+        ),
+    )
+    parser.add_argument(
+        "--tokenizer",
+        choices=tuple(TOKENIZERS),
+        default=None,
+        help="lexical tokenizer (default: lexical.tokenizer from the retrieval config)",
+    )
     return parser
 
 
@@ -162,6 +188,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         entries = asyncio.run(
             production_entries(repository, chunker, tokenizer, chunk_token_cap(config))
         )
+        retrieval_path = args.retrieval_config or repo_root / RETRIEVAL_CONFIG_PATH
+        retrieval = load_retrieval_config(retrieval_path)
+        tokenizer_name = args.tokenizer or retrieval.lexical.tokenizer
+        lexical_tokenizer = TOKENIZERS[tokenizer_name]
         identity = LexicalIdentityInput(
             collection=collection,
             index_version=config.index_version,
@@ -174,7 +204,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             chunker=chunker.identity,
             hash_contract=HASH_CONTRACT,
         )
-        built = build_lexical_index(entries, target, identity)
+        built = build_lexical_index(
+            entries, target, identity, tokenizer=lexical_tokenizer
+        )
     except (
         IngestionError,
         DocumentRepositoryError,
@@ -188,8 +220,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return EXIT_REFUSED
     print(
         f"lexical index: {shown_path(target, repo_root)} (collection {collection}, "
-        f"index_version {config.index_version}; {built.tokenizer_name}; "
-        f"chunks {built.chunk_count}; digest {built.source_chunk_digest[:12]})"
+        f"index_version {config.index_version}; lexical settings "
+        f"{SETTINGS_SCHEMA_VERSION}; tokenizer {built.tokenizer_name} "
+        f"v{built.tokenizer_version}; chunks {built.chunk_count}; digest "
+        f"{built.source_chunk_digest[:12]})"
     )
     return EXIT_OK
 

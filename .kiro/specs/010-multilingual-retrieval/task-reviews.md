@@ -137,3 +137,91 @@
 
 ### User decision
 - 2026-11-04: approved. Verbatim: "T2 approved. Fix the stale `DenseRetriever` docstring in this commit (one line, no re-review). Commit with `Spec-Task: 010/T2`, graph commit, push, start T3." DenseRetriever module docstring updated in the T2 commit; no re-review.
+
+## T3 — round 1
+
+### Implementation
+- Model: Composer (Cursor subagent); intended tier BEST_MINUS_ONE per `agent-skills/MODEL_PREFERENCES.md` — tier match not verified against the table.
+- Files changed:
+  - New: `packages/rag/src/way2australia_rag/lexical/equivalents.py`, `.../evaluation/{script_mix,continuity}.py`; tests `test_script_mix.py`, `test_continuity.py`; fixtures `packages/rag/tests/evaluation/fixtures/continuity_{base,candidate_equal}.json`;
+  - Lexical/retrieval: `lexical/{tokenizer,store,build,cli}.py`, `retrieval/{bm25,strategy}.py`, `config/retrieval.yaml` (schema 1.2, default `lexical-v1`);
+  - Evaluation: `evaluation/{compare,cli}.py`, `retrieval_eval.py`; `Makefile` (`eval-continuity`); `.gitignore` (`/.local/`);
+  - Tests: tokenizer v2/chillu pins, cross-tokenizer compare, applicability over both tokenizers, lexical CLI/build/strategy, strategy_eval 2.4 metrics; `graphify-out/*` refreshed.
+- Unicode chillu table: verified against The Unicode Standard v16.0, Malayalam chillu subsection (2026-11-04); six ZWJ legacy pairs only; U+0D54–U+0D56 omitted (no legacy ZWJ sequences in that table).
+- Verification run:
+  - `make verify` → pass (1224 passed, 2 skipped; ruff, format, pyright clean);
+  - `HF_HOME=$(mktemp -d) HF_HUB_OFFLINE=1 make verify` → pass (1224 passed, 2 skipped);
+  - `make test-integration` → 27 passed, 1199 deselected;
+  - `make eval-security` → PASS (v3 default);
+  - `make index-lexical` with `QDRANT_COLLECTION_BASE=w2a-t010-<hex>`, `--embedder fake`, separate `W2A_LEXICAL_INDEX_DIR` for v1 and v2 → settings 1.2, tokenizers `lexical-v1` / `lexical-v2`, same digest; dirs removed after;
+  - `make eval-continuity` on committed fixtures → exit 0 (suite/lote/git lines only);
+  - `graphify update .` run.
+- Notes:
+  - `COMMANDS.md` entry for `make eval-continuity` deferred to T6 as specified.
+  - BM25 authorization spy doubles gained a `tokenizer` delegate; dropped-lote applicability tests parametrized over both tokenizers (all gated factories).
+  - `eval-compare` `--cross-tokenizer` can combine with `--cross-index`; digest and chunk_count mismatches still refuse.
+- Usage: ~180K tokens · 85 tool uses · 15:00
+- Process (P3): `transcript_metrics.py` on subagent `0b2436c2…` → **`make verify` 12 runs (11 before last code edit)** — verify-budget hook would have blocked after the second run.
+
+### Review
+- Model: Cursor Grok 4.6; matches the BEST tier (`Grok 4.6`) in `agent-skills/MODEL_PREFERENCES.md`.
+- Verdict: FAIL
+- Commands: `make verify` → pass (1224 passed, 2 skipped; ruff, format check and pyright clean); `HF_HOME=$(mktemp -d) HF_HUB_OFFLINE=1 make verify` → pass (1224 passed, 2 skipped); `make test-integration` → 27 passed, 1199 deselected; `make eval-security` → PASS on all five paths for heading, structure and recursive (92 queries: 5 security, 87 golden; result under `experiments/results/tmp/`); `make index-lexical` with `QDRANT_COLLECTION_BASE=w2a-t010-ec7eff86`, `--embedder fake`, throwaway `W2A_LEXICAL_INDEX_DIR` under `.local/` once per tokenizer → settings 1.2, `lexical-v1 v1` / `lexical-v2 v2`, same digest `1438a2e947e3`, 45 chunks; dirs deleted afterwards; `make eval-continuity` on committed fixtures → exit 0; on a flipped-hit copy the Python module exits 1 (`make` itself exits 2); `git status --porcelain -- evaluation knowledge config` → only `config/retrieval.yaml` (allowed); `graphify update .` not re-run (read-only; `graphify-out/` already refreshed). Unicode chillu pairs: code points match The Unicode Standard v16.0 Malayalam chillu table (six ZWJ legacy sequences; U+0D54–U+0D56 omitted).
+- Findings:
+  - F1 [MAJOR, IMPLEMENTATION, R8] `_identity_problems` always refuses a lexical `source_chunk_digest` or `chunk_count` mismatch, including when `cross_index=True`. D069 says chunk digest is not compared across indexes; Spec 009 `--cross-index` (idx-v1 vs idx-v2) would now exit 2. → Skip digest/chunk_count when `cross_index` is set; still require them for `--cross-tokenizer` without `--cross-index`. Test `--cross-index` allowing a digest/chunk_count difference, and `--cross-tokenizer` still refusing one.
+  - F2 [MAJOR, IMPLEMENTATION, R7] Script-mix tests do not match the T3 box or R7. `test_every_v3_query_letter_matches_script_fixture` never calls `script_mix`, checks only the five characters in `SCRIPT_FIXTURE`, and skips every other letter. Virama and vowel signs inside a Malayalam word are not pinned. → For every letter in every v3 query, assert the name prefix equals a committed Unicode `Script` fixture (fail on unmapped letters); pin a virama and a vowel sign as adding no script.
+  - F3 [MAJOR, IMPLEMENTATION, R5] Required tokenizer tests are missing: a file is never queried with its own tokenizer (no case that would fail if BM25 used the module-level `lexical-v1` alias); BM25 authorization tests are not parametrized over both tokenizers (only `test_dropped_lote_clause_raises_language_applicability` is). → Add a v2-file query that only matches after chillu replacement; parametrize the BM25 authorization tests over `lexical-v1` and `lexical-v2`.
+  - F4 [MINOR, IMPLEMENTATION, R5] `equivalents.py` comments swap NA/NNA on the first two rows (code points are correct). The header names U+0D54–U+0D56 as “CHILLU RR / L / LL” (those are U+0D7C–U+0D7E); the omitted letters are CHILLU M / Y / LLL. → Fix the comments.
+  - F5 [MINOR, IMPLEMENTATION, R10] GNU make maps a recipe exit 1 to make exit 2, so `make eval-continuity` cannot surface “cases differ” as exit 1 (same pattern as `eval-compare`). The Python module itself exits 1. → T6 docs should tell operators to read the printed lines, or to invoke the module directly when they need the 0/1/2 split.
+- Usage: (orchestrator)
+
+## T3 — round 2
+
+### Implementation
+- Model: Composer (Cursor subagent); intended tier BEST_MINUS_ONE per `agent-skills/MODEL_PREFERENCES.md` — tier match not verified against the table.
+- Round 2 scope: task-reviews.md T3 round 1 findings F1–F5 only.
+- Files changed:
+  - `packages/rag/src/way2australia_rag/evaluation/compare.py` — skip lexical digest/chunk_count in `_identity_problems` when `--cross-index`;
+  - `packages/rag/src/way2australia_rag/lexical/equivalents.py` — chillu header comment (U+0D54–U+0D56);
+  - `Makefile` — `eval-continuity` prints `eval-continuity: exit N` on stderr when the module exits non-zero;
+  - Tests: `test_compare.py` (cross-index digest/chunk_count pass), `test_script_mix.py` (full v3 letter fixture, `script_mix` per query, virama/vowel pins), `test_bm25.py` (v2 chillu query via index tokenizer; auth tests over both tokenizers), `test_continuity.py` (make status line);
+  - `graphify-out/*` refreshed.
+- Verification run:
+  - `make verify` → pass (1237 passed, 2 skipped; ruff, format, pyright clean);
+  - `HF_HOME=$(mktemp -d) HF_HUB_OFFLINE=1 make verify` → pass (1237 passed, 2 skipped);
+  - `make test-integration` → 27 passed, 1212 deselected;
+  - `make eval-security` → PASS;
+  - `make eval-continuity` on committed fixtures → exit 0; on flipped-hit copy → Python exit 1, stderr `eval-continuity: exit 1`, GNU make exit 2;
+  - `make index-lexical` not re-run (round 2 changed no lexical build behaviour; round 1 run still valid).
+- Notes:
+  - F4 NA/NNA row comments already matched code points; only the U+0D54–U+0D56 header was wrong.
+  - F5: GNU make still returns 2 when the module exits 1; the recipe line makes the Python exit code observable on stderr.
+- Usage: not measured · ~60 tool uses · ~12:00
+
+### Review
+- Model: Cursor Grok 4.6; matches the BEST tier (`Grok 4.6`) in `agent-skills/MODEL_PREFERENCES.md`.
+- Verdict: PASS
+- Commands: `make verify` → pass (1237 passed, 2 skipped; ruff, format check and pyright clean); `HF_HOME=$(mktemp -d) HF_HUB_OFFLINE=1 make verify` → pass (1237 passed, 2 skipped); `make test-integration` → 27 passed, 1212 deselected; `make eval-security` → PASS on all five paths for heading, structure and recursive (92 queries: 5 security, 87 golden; result under `experiments/results/tmp/`); `make index-lexical` with `QDRANT_COLLECTION_BASE=w2a-t010-d23acbcd`, `--embedder fake`, throwaway `W2A_LEXICAL_INDEX_DIR` under `.local/` once per tokenizer → settings 1.2, `lexical-v1 v1` / `lexical-v2 v2`, same digest `1438a2e947e3`, 45 chunks; dirs deleted afterwards; `make eval-continuity` on committed fixtures → exit 0; on a flipped-hit copy → Python exit 1, stderr `eval-continuity: exit 1`, GNU make exit 2; `git status --porcelain -- evaluation knowledge config` → only `config/retrieval.yaml` (allowed); `graphify update .` not re-run (read-only; `graphify-out/` already refreshed). Unicode chillu pairs: code points match The Unicode Standard v16.0 Malayalam chillu table (six ZWJ legacy sequences; U+0D54–U+0D56 omitted). Round 1 F1–F3 closed; F4 header closed; F4 row comments and F5 make-exit remain MINOR.
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R5] `equivalents.py` row comments still swap NA/NNA: U+0D23 is NNA → CHILLU NN (U+0D7A) but the comment says NA → CHILLU N; U+0D28 is NA → CHILLU N (U+0D7B) but the comment says NNA → CHILLU NN. Code points are correct. The U+0D54–U+0D56 header is now CHILLU M / Y / LLL. → Fix the two row comments (T6 can catch this).
+  - F2 [MINOR, IMPLEMENTATION, R10] GNU make still maps a recipe exit 1 to make exit 2; the new stderr line `eval-continuity: exit 1` makes the Python code visible. → T6 docs should tell operators to read that line, or to invoke the module directly, when they need the 0/1/2 split.
+  - F3 [MINOR, IMPLEMENTATION, R5] `BM25Retriever`'s module docstring still says the query is tokenized with `lexical-v1` after retrieve started using `self._lexical.tokenizer.query_terms`. → Update the docstring (T6 can catch this).
+- Summary for user (PASS only):
+  - Changed: `lexical-v2` (NFC, then generic chillu-sequence replacement, then v1 steps) sits beside unchanged `lexical-v1`. BM25 always queries with the tokenizer recorded in the file. `config/retrieval.yaml` is schema 1.2 with default `lexical.tokenizer: lexical-v1`. Result 2.4 gains a `by_script_mix` slice (romanized Malayalam counts as `latin`). `eval-compare --cross-tokenizer` allows a tokenizer change when digest and chunk count match; `--cross-index` again skips digest/chunk_count (round-1 F1). `make eval-continuity` compares shared goldens without refusing suite/`lote`/case-set differences. Round 2 closed F1–F3: script-mix letter fixture calls `script_mix` and fails on unmapped golden letters; BM25 auth tests run on both tokenizers; a v2 file is queried with its own tokenizer.
+  - Verified by: `make verify` (also hub-free), `make test-integration`, `make eval-security` (v3, gate unchanged until T4), throwaway `make index-lexical` per tokenizer, `make eval-continuity` on fixtures.
+  - Worth your attention: default tokenizer stays `lexical-v1` until T5. `CURRENT_STATE.md` still says T3 round 2 is implementing. Remaining MINORs: swapped NA/NNA comments (code is right), `make eval-continuity` exits 2 when cases differ, stale BM25 docstring. T6 should document the make exit mapping.
+  - Reading order (follow the flow: entry point → core logic → models/errors/config → tests):
+    1. `packages/rag/src/way2australia_rag/lexical/cli.py` → `main`: `--tokenizer` (else config default), prints settings 1.2 and tokenizer.
+    2. `packages/rag/src/way2australia_rag/lexical/tokenizer.py` → `TOKENIZERS` / `_tokenize_v2`: NFC, `replace_sequences`, then v1 steps; module-level `tokenize` stays v1.
+    3. `packages/rag/src/way2australia_rag/lexical/equivalents.py` → `SEQUENCE_EQUIVALENTS`: six Unicode chillu pairs (code points only).
+    4. `packages/rag/src/way2australia_rag/lexical/store.py` → `LexicalIndex.tokenizer`: the file's recorded tokenizer; unknown names refused with rebuild advice.
+    5. `packages/rag/src/way2australia_rag/retrieval/bm25.py` → `BM25Retriever.retrieve`: `self._lexical.tokenizer.query_terms`.
+    6. `packages/rag/src/way2australia_rag/retrieval/strategy.py` → `RetrievalConfig` / `LexicalConfig`: schema 1.2; 1.1 files read as `lexical-v1`.
+    7. `packages/rag/src/way2australia_rag/evaluation/script_mix.py` → `script_mix`; `retrieval_eval.py` writes `metrics.by_script_mix` and per-case `script_mix`.
+    8. `packages/rag/src/way2australia_rag/evaluation/compare.py` → `_identity_problems`: `--cross-tokenizer` relaxes name/version; digest/chunk_count skipped only with `--cross-index`.
+    9. `packages/rag/src/way2australia_rag/evaluation/continuity.py` → `compare_continuity`; `Makefile` `eval-continuity`.
+    10. Supporting edits: `.gitignore` `/.local/`, `config/retrieval.yaml`, tests (`test_bm25.py`, `test_script_mix.py`, `test_compare.py`, `test_continuity.py`, tokenizer/CLI/strategy).
+- Usage: 190K tokens · 78 tool uses · 28:00
+
+### User decision
+- 2026-11-04: approved. Verbatim: "T3 approved. Before committing, fix the three MINORs in this commit (no re-review needed): …" Chillu row comments, BM25 module docstring, and T5 continuity command via `uv run python -m way2australia_rag.evaluation.continuity` with module exit code recorded (`COMMANDS.md` in T6). One graph commit per task from now on; do not rewrite pushed T2 graph commits.

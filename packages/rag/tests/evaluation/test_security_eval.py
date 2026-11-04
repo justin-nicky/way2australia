@@ -623,6 +623,10 @@ class DroppedClauseLexical:
         self.settings = inner.settings
         self.label = inner.label
 
+    @property
+    def tokenizer(self):
+        return self.inner.tokenizer
+
     def search(
         self, match: str, where: str, params: tuple[Any, ...], limit: int
     ) -> list[LexicalRow]:

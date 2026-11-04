@@ -2,7 +2,7 @@
 
 Authorization is part of the SQL `WHERE` clause (`build_sql_access_clause`) and
 every returned payload is re-checked by `check_hit` (fail closed). The raw query
-never reaches SQLite: it is tokenized with `lexical-v1`, every token is quoted
+never reaches SQLite: it is tokenized with the lexical file's own tokenizer, every token is quoted
 and the quoted tokens, joined with `OR`, are the only `MATCH` argument. The
 query is never embedded.
 """
@@ -11,7 +11,6 @@ import json
 from time import perf_counter
 
 from way2australia_rag.lexical.store import LexicalIndex, LexicalIndexBindingError
-from way2australia_rag.lexical.tokenizer import query_terms
 from way2australia_rag.retrieval.access import ResolvedAccess, check_hit
 from way2australia_rag.retrieval.applicability import (
     ResolvedLote,
@@ -57,7 +56,7 @@ class BM25Retriever:
                 "and index_version."
             )
         started = perf_counter()
-        terms = query_terms(query_text)
+        terms = self._lexical.tokenizer.query_terms(query_text)
         hits: list[RetrievedChunk] = []
         if terms.terms:
             where, params = sql_access_with_lote(access, lote)

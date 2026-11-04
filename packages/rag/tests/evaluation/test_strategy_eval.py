@@ -87,6 +87,7 @@ def test_dense_2_2_equals_the_pre_change_2_0_result() -> None:
         "leg_ranks",
         "served_strategy",
         "fallback_reason",
+        "script_mix",
     }
     assert len(after["cases"]) == len(before["cases"]) > 0
     for old, new in zip(before["cases"], after["cases"], strict=True):
@@ -110,7 +111,12 @@ def test_dense_2_2_equals_the_pre_change_2_0_result() -> None:
     }
     for key, value in before.items():
         if key not in skipped:
-            assert after[key] == value, key
+            if key == "metrics":
+                for mk, mv in value.items():
+                    assert after["metrics"][mk] == mv, mk
+                assert "by_script_mix" in after["metrics"]
+            else:
+                assert after[key] == value, key
     for key, value in before["latency_ms"].items():
         assert after["latency_ms"][key] == value, key
     assert after["latency_ms"]["legs"] is None

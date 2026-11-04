@@ -1,6 +1,8 @@
 # Retrieval strategy and fusion (Spec 007). Reviewed like other config.
-schema_version: "1.1"
+schema_version: "1.2"
 default_strategy: hybrid         # dense | bm25 | hybrid
+lexical:
+  tokenizer: lexical-v1          # lexical-v1 | lexical-v2 (R10 may promote v2)
 fusion:
   method: rrf
   k: 60

@@ -6,7 +6,7 @@ UV_ENV = UV_CACHE_DIR=$(UV_CACHE_DIR) UV_PYTHON_INSTALL_DIR=$(UV_PYTHON_INSTALL_
 PYTHON_TARGETS ?= apps packages tests scripts
 UV_HTTP_TIMEOUT ?= 300
 
-.PHONY: setup setup-bge-m3 format lint typecheck test test-unit test-integration verify skills-sync skills-check validate-knowledge validate-evaluation ingest index-lexical retrieve retrieval-baseline eval-retrieval eval-security eval-compare
+.PHONY: setup setup-bge-m3 format lint typecheck test test-unit test-integration verify skills-sync skills-check validate-knowledge validate-evaluation ingest index-lexical retrieve retrieval-baseline eval-retrieval eval-security eval-compare eval-continuity
 
 setup:
 	$(UV_ENV) $(UV) sync --all-packages --group dev
@@ -87,3 +87,12 @@ eval-compare:
 	@if [ -z "$(BASE)" ] || [ -z "$(CANDIDATE)" ]; then \
 		echo "usage: make eval-compare BASE=<result.json> CANDIDATE=<result.json> [COMPARE_ARGS=--cross-index]" >&2; exit 2; fi
 	@$(UV_ENV) $(UV) run python -m way2australia_rag.evaluation.cli compare --base "$(BASE)" --candidate "$(CANDIDATE)" $(COMPARE_ARGS)
+
+# Golden continuity on shared cases (exit 0 equal, 1 differs, 2 not comparable):
+# make eval-continuity BASE=<file> CANDIDATE=<file>
+eval-continuity:
+	@if [ -z "$(BASE)" ] || [ -z "$(CANDIDATE)" ]; then \
+		echo "usage: make eval-continuity BASE=<result.json> CANDIDATE=<result.json>" >&2; exit 2; fi
+	@code=0; $(UV_ENV) $(UV) run python -m way2australia_rag.evaluation.continuity "$(BASE)" "$(CANDIDATE)" $(CONTINUITY_ARGS) || code=$$?; \
+	if [ $$code -ne 0 ]; then echo "eval-continuity: exit $$code" >&2; fi; \
+	exit $$code

@@ -23,6 +23,7 @@ from way2australia_rag.evaluation.models import (
     UnanswerableCase,
 )
 from way2australia_rag.evaluation.results import RESULT_KIND, SCHEMA_VERSION
+from way2australia_rag.evaluation.script_mix import script_mix
 from way2australia_rag.evaluation.sections import (
     dedupe_sections,
     section_report,
@@ -447,6 +448,7 @@ def run_retrieval_evaluation(
                 "case_id": case.case_id,
                 "case_version": case.case_version,
                 "query_language": case.query_language,
+                "script_mix": script_mix(case.query),
                 "category": case.category,
                 "source_authority": source_authority_key(
                     case.relevant_document_ids, authorities
@@ -558,6 +560,7 @@ def run_retrieval_evaluation(
         "metrics": {
             "overall": aggregate(rows, top_k),
             "by_query_language": slice_by(rows, "query_language", top_k),
+            "by_script_mix": slice_by(rows, "script_mix", top_k),
             "by_category": slice_by(rows, "category", top_k),
             "by_source_authority": slice_by(rows, "source_authority", top_k),
         },

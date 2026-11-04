@@ -200,7 +200,12 @@ def format_summary(document: dict[str, Any], output: Path, repo_root: Path) -> s
         f"Recall@{k}: {overall[f'recall_at_{k}']:.4f}",
         f"MRR: {overall['mrr']:.4f}",
     ]
-    for name in ("by_query_language", "by_category", "by_source_authority"):
+    for name in (
+        "by_query_language",
+        "by_script_mix",
+        "by_category",
+        "by_source_authority",
+    ):
         for key, value in document["metrics"][name].items():
             flag = " (small sample)" if value["small_sample"] else ""
             lines.append(
@@ -483,7 +488,12 @@ def _compare(args: argparse.Namespace) -> int:
     try:
         base = read_result(args.base, "BASE")
         candidate = read_result(args.candidate, "CANDIDATE")
-        comparison = compare(base, candidate, cross_index=args.cross_index)
+        comparison = compare(
+            base,
+            candidate,
+            cross_index=args.cross_index,
+            cross_tokenizer=args.cross_tokenizer,
+        )
     except EvaluationError as error:
         print(safe_text(error), file=sys.stderr)
         return EXIT_ERROR
@@ -577,6 +587,14 @@ def main(
         action="store_true",
         help=(
             "allow collection, index_version and chunker differences (result 2.3 only)"
+        ),
+    )
+    compare_cmd.add_argument(
+        "--cross-tokenizer",
+        action="store_true",
+        help=(
+            "allow lexical tokenizer name and version to differ when digest and "
+            "chunk_count match"
         ),
     )
     args = parser.parse_args(argv)

@@ -451,8 +451,55 @@ def test_lexical_identity_difference_is_refused(
     other = doc21("bm25")
     other["lexical_index"] = {**LEXICAL, key: value}
     message = refusal(tmp_path, doc21("hybrid"), other)
-    assert "lexical index changed lexical-v1 v1 digest" in message
-    assert value in message
+    if key == "tokenizer_name":
+        assert "lexical tokenizer changed" in message
+    else:
+        assert "lexical" in message and value in message
+
+
+def test_tokenizer_change_refused_without_cross_tokenizer(tmp_path: Path) -> None:
+    other = doc21("bm25")
+    other["lexical_index"] = {
+        **LEXICAL,
+        "tokenizer_name": "lexical-v2",
+        "tokenizer_version": "2",
+    }
+    message = refusal(tmp_path, doc21("hybrid"), other)
+    assert "lexical tokenizer changed" in message
+    assert "--cross-tokenizer" in message
+
+
+def test_tokenizer_change_accepted_with_cross_tokenizer(tmp_path: Path) -> None:
+    other = doc21("bm25")
+    other["lexical_index"] = {
+        **LEXICAL,
+        "tokenizer_name": "lexical-v2",
+        "tokenizer_version": "2",
+    }
+    result = compare(
+        read_result(write(tmp_path, "base.json", doc21("hybrid")), "BASE"),
+        read_result(write(tmp_path, "cand.json", other), "CANDIDATE"),
+        cross_tokenizer=True,
+    )
+    assert result.passed
+    assert any("cross-tokenizer:" in line for line in result.lines)
+
+
+def test_cross_tokenizer_still_refuses_digest_mismatch(tmp_path: Path) -> None:
+    other = doc21("bm25")
+    other["lexical_index"] = {
+        **LEXICAL,
+        "tokenizer_name": "lexical-v2",
+        "tokenizer_version": "2",
+        "source_chunk_digest": "e" * 64,
+    }
+    with pytest.raises(NotComparableError) as info:
+        compare(
+            read_result(write(tmp_path, "base.json", doc21("hybrid")), "BASE"),
+            read_result(write(tmp_path, "cand.json", other), "CANDIDATE"),
+            cross_tokenizer=True,
+        )
+    assert "source_chunk_digest" in str(info.value)
 
 
 def test_lexical_label_difference_alone_is_not_refused(tmp_path: Path) -> None:
@@ -737,6 +784,18 @@ def test_2_3_multi_chunk_against_2_2_is_refused(tmp_path: Path) -> None:
     )
     message = refusal(tmp_path, legacy, modern)
     assert FORMAT_RULE_ADVICE in message
+
+
+def test_cross_index_allows_lexical_digest_and_chunk_count(tmp_path: Path) -> None:
+    base = doc23()
+    cand = doc23()
+    cand["lexical_index"] = {
+        **LEXICAL,
+        "source_chunk_digest": "e" * 64,
+        "chunk_count": 99,
+    }
+    result = run_cross(tmp_path, base, cand, cross_index=True)
+    assert result.passed
 
 
 @pytest.mark.parametrize(

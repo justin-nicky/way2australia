@@ -42,6 +42,19 @@ def run(args: list[str]) -> int:
     return main(["--repo-root", str(REPO_ROOT), *args])
 
 
+def test_tokenizer_option_builds_v2(
+    lexical_dir: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert run(["--embedder", "fake", "--tokenizer", "lexical-v2"]) == 0
+    out = capsys.readouterr().out
+    assert "tokenizer lexical-v2 v2" in out
+    version = PRODUCTION_INDEX_VERSION
+    path = lexical_dir / f"w2a-t007-abcd1234-{version}.sqlite"
+    index = LexicalIndex.open(path, f"w2a-t007-abcd1234-{version}", version)
+    assert index.settings.tokenizer_name == "lexical-v2"
+    index.close()
+
+
 def test_success_summary_and_digest_stability(
     lexical_dir: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -51,7 +64,8 @@ def test_success_summary_and_digest_stability(
     pattern = (
         rf"^lexical index: w2a-t007-abcd1234-{version}\.sqlite "
         rf"\(collection w2a-t007-abcd1234-{version}, index_version {version}; "
-        r"lexical-v1; chunks \d+; digest [0-9a-f]{12}\)$"
+        r"lexical settings 1\.2; tokenizer lexical-v1 v1; "
+        r"chunks \d+; digest [0-9a-f]{12}\)$"
     )
     assert re.match(pattern, first.out.strip()), first.out
     assert str(tmp_root := lexical_dir.parent) not in first.out + first.err
@@ -153,8 +167,17 @@ def test_runtime_setting_defaults_and_blank(monkeypatch: pytest.MonkeyPatch) -> 
 
 
 def test_lexical_location_is_git_ignored() -> None:
-    lines = (REPO_ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
-    assert "/.local/lexical/" in lines
+    paths = (
+        default_lexical_dir(REPO_ROOT),
+        REPO_ROOT / ".local" / "lexical-v2",
+    )
+    for path in paths:
+        result = subprocess.run(
+            ["git", "-C", str(REPO_ROOT), "check-ignore", "-q", "--", str(path)],
+            capture_output=True,
+            check=False,
+        )
+        assert result.returncode == 0, f"{path} is not git-ignored"
 
 
 def test_default_embedder_identity_equals_the_bge_m3_adapter_identity(

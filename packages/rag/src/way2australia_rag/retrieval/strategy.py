@@ -7,12 +7,20 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, ValidationError
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictInt,
+    ValidationError,
+    model_validator,
+)
 
 from way2australia_rag.ingestion.config import RuntimeSettings
 from way2australia_rag.ingestion.embedding import Embedder
 from way2australia_rag.lexical.build import default_lexical_dir, lexical_index_path
 from way2australia_rag.lexical.store import LexicalIndex
+from way2australia_rag.lexical.tokenizer import TOKENIZERS
 from way2australia_rag.retrieval.base import Retriever, Strategy
 from way2australia_rag.retrieval.bm25 import BM25Retriever
 from way2australia_rag.retrieval.errors import RetrievalConfigurationError
@@ -35,13 +43,34 @@ class QdrantTimeouts(BaseModel):
     query_timeout_s: StrictInt = Field(ge=1, le=30)
 
 
+class LexicalConfig(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    tokenizer: str = "lexical-v1"
+
+    @model_validator(mode="after")
+    def known_tokenizer(self) -> "LexicalConfig":
+        if self.tokenizer not in TOKENIZERS:
+            raise ValueError(f"unknown lexical tokenizer {self.tokenizer!r}")
+        return self
+
+
 class RetrievalConfig(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal["1.1"]
+    schema_version: Literal["1.1", "1.2"]
     default_strategy: Strategy
     fusion: FusionConfig
     qdrant: QdrantTimeouts
+    lexical: LexicalConfig = LexicalConfig()
+
+    @model_validator(mode="before")
+    @classmethod
+    def default_lexical_for_11(cls, data: object) -> object:
+        if isinstance(data, dict) and data.get("schema_version") == "1.1":
+            if "lexical" not in data:
+                return {**data, "lexical": {"tokenizer": "lexical-v1"}}
+        return data
 
 
 def load_retrieval_config(path: Path) -> RetrievalConfig:
