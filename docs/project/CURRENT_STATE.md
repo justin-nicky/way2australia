@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-11-04 (`chore/verify-budget` merged; D073–D074)
+Last updated: 2026-11-04 (Spec 011 planned and approved on `spec/011`; D073–D074)
 
 ## Current phase
 
@@ -12,7 +12,7 @@ Spec 001 project foundation is complete.
 
 ## Current goal
 
-Specs **001–010** are **verified on `main`** (Spec 010 merged 2026-11-04, fast-forward to **`cae06c3`**). Default production index **`idx-v2`** / recursive 128+title (D071): run **`make ingest`**, then **`make index-lexical`** with default **`lexical-v2`** tokenizer (D072; settings 1.2; rebuild once if upgrading from 1.1 for `--lote`). Hybrid default retrieval needs the lexical file. Ignored stale `knowledge_release_id` / `evaluation_suite_id` keys remain on the promoted yaml until the next `index_version` (D071 carry-over). Verify-budget hook in-repo (**D073**); pytest-xdist **not** adopted for default verify (**D074**); follow-up **`pytest --durations=25`** still open. **Next:** **Spec 011** (roadmap item 9, reranking) via **`spec-planner`** in a fresh session (brief from `.kiro/specs/010-multilingual-retrieval/review.md` Notes). **No HTTP-route spec yet:** Spec 008 serving items belong with roadmap **item 10 (grounded generation)**. Repository-based shared context keeps Codex, Claude Code, Cursor and Kiro interchangeable (D063).
+Specs **001–010** are **verified on `main`** (Spec 010 merged 2026-11-04, fast-forward to **`cae06c3`**). Default production index **`idx-v2`** / recursive 128+title (D071): run **`make ingest`**, then **`make index-lexical`** with default **`lexical-v2`** tokenizer (D072; settings 1.2; rebuild once if upgrading from 1.1 for `--lote`). Hybrid default retrieval needs the lexical file. Ignored stale `knowledge_release_id` / `evaluation_suite_id` keys remain on the promoted yaml until the next `index_version` (D071 carry-over). Verify-budget hook in-repo (**D073**); pytest-xdist **not** adopted for default verify (**D074**); follow-up **`pytest --durations=25`** still open. **Spec 011** (roadmap item 9, multilingual reranking; context building deferred to item 10) is **planned and approved** (requirements, design, tasks 2026-11-04) on branch **`spec/011`** (base `3b81508`); no task started. **Next:** `spec-orchestrator` starts T1. **No HTTP-route spec yet:** Spec 008 serving items belong with roadmap **item 10 (grounded generation)**. Repository-based shared context keeps Codex, Claude Code, Cursor and Kiro interchangeable (D063).
 
 ## Finalized high-level decisions
 
@@ -153,12 +153,13 @@ Not yet implemented:
 | 008 — retrieval fallback | **verified (2026-11-01, merged 1107b67)**; required `spec-reviewer` retrospective round 1 `PASS` (five MINOR findings, docs reconciled, no RM tasks), approved by the user 2026-11-01 (branch spec/008, base f25b552); requirements, design and tasks approved 2026-10-29 (8 tasks: T1 failure classification and Qdrant timeouts, T2 standalone lexical open and freshness, T3 `bm25` without Qdrant or the extra, T4 `FallbackRetriever`, T5 result 2.2 and `eval-compare`, T6 security gate over fallback paths, T7 user-owned real runs, T8 docs and hand-off); T1–T6 approved (2026-10-31/11-01); T7 (user-owned real runs) approved 2026-11-01: Qdrant unreachable (`QDRANT_URL=http://127.0.0.1:1`) `experiments/results/retrieval-evaluation-idx-v1-20261101T070658Z.json`, Qdrant up `...20261101T070736Z.json` (see Next step item 6); T8 (docs D056–D062, ROADMAP note, As-built notes, hand-off) approved 2026-11-01; retrospective `.kiro/specs/008-retrieval-fallback/review.md` round 1 |
 | 009 — chunking experiments | **verified (2026-11-04, merged `5a6deb7`)**; branch `spec/009` (base `d21dc41`); required `spec-reviewer` retrospective round 1 `PASS`, approved 2026-11-04; T1–T7 approved 2026-11-03; default **`idx-v2`**: **`make ingest`** then **`make index-lexical`**; D064–D071; deferred carry-overs in Known issues and 009 `review.md` Notes |
 | 010 — multilingual retrieval | **verified (2026-11-04, merged `cae06c3`)**; branch `spec/010` (base `f0e809b`); T1–T6 approved 2026-11-04; required `spec-reviewer` retrospective round 1 `PASS`, approved 2026-11-04; D072; default suite v3 and `lexical-v2` |
+| 011 — multilingual reranking | **approved (2026-11-04)**; branch `spec/011` (base `3b81508`); requirements, design (D-A sticky open-time skip, D-B no inference timeout, D-C `eval-continuity` refuses rerank identity differences) and tasks approved; 6 tasks (T1 reranker contract/adapters/config, T2 reranking stage and skip policy, T3 result 2.5 and compare, T4 security 1.5, T5 user-owned real runs and promotion, T6 docs and hand-off); all `not started`; `rerank.enabled: false` committed until T5 |
 
 ## Next step
 
-**After `chore/verify-budget` (2026-11-04):**
+**After Spec 011 planning (2026-11-04):**
 
-1. **Spec 011 (roadmap item 9, reranking)** — fresh session: **`spec-planner`** with `.kiro/specs/010-multilingual-retrieval/review.md` **Notes for the next spec** (translation/transliteration deferred; `g056`/`g057` fusion inputs; verify-budget hook live per D073).
+1. **Spec 011 T1** — fresh session: **`spec-orchestrator`** on `spec/011` (`.kiro/specs/011-multilingual-reranking/`). T1 reports the pinned `BAAI/bge-reranker-v2-m3` revision SHA and its source URL for the user to check. T5 is user-owned (real runs at rerank depth 20 and 50 vs hybrid reference `…idx-v2-20261104T105300Z.json`).
 2. Optional: **`pytest --durations=25`** to rank slow tests before any future parallel verify work (D074 follow-up).
 3. Remove user-level verify-budget hook copies after merge; committed hook is `.claude/settings.json` + `tools/hooks/verify_budget.py`.
 
