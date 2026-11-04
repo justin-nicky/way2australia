@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-11-04 (Spec 010 retrospective round 1 PASS, pending user approval)
+Last updated: 2026-11-04 (Spec 010 verified on `main`, merged `cae06c3`)
 
 ## Current phase
 
@@ -12,7 +12,7 @@ Spec 001 project foundation is complete.
 
 ## Current goal
 
-Specs **001–009** are **verified on `main`** (Spec 009 merged 2026-11-04, fast-forward to **`5a6deb7`**). Default production index **`idx-v2`** / recursive 128+title (D071): run **`make ingest`**, then **`make index-lexical`** (BGE-M3 tokenizer files must be cached or downloadable for the real lexical build; hybrid default retrieval needs the lexical file). Ignored stale `knowledge_release_id` / `evaluation_suite_id` keys remain on the promoted yaml until the next `index_version` (D071 carry-over). Spec **010 = roadmap item 8 (multilingual retrieval)**: branch `spec/010`; T1–T6 approved 2026-11-04; required **`spec-reviewer` retrospective round 1 `PASS`** (2026-11-04), pending user approval to merge. Implemented: suite `public-eval-v3` (112 cases; v2 `replaced`); optional `--lote` applicability on every retrieval path; lexical settings 1.2; tokenizers `lexical-v1` / `lexical-v2` (default **`lexical-v2`**, D072); result 2.4 with `by_script_mix`; `eval-compare --cross-tokenizer`; `make eval-continuity`; security 1.4 with dual `lote` modes. v3 references: hybrid `experiments/results/retrieval-evaluation-idx-v2-20261104T105300Z.json`, bm25 `…20261104T105321Z.json`. **No HTTP-route spec:** Spec 008 serving items belong with roadmap **item 10 (grounded generation)**. Repository-based shared context keeps Codex, Claude Code, Cursor and Kiro interchangeable (D063).
+Specs **001–010** are **verified on `main`** (Spec 010 merged 2026-11-04, fast-forward to **`cae06c3`**). Default production index **`idx-v2`** / recursive 128+title (D071): run **`make ingest`**, then **`make index-lexical`** with default **`lexical-v2`** tokenizer (D072; settings 1.2; rebuild once if upgrading from 1.1 for `--lote`). Hybrid default retrieval needs the lexical file. Ignored stale `knowledge_release_id` / `evaluation_suite_id` keys remain on the promoted yaml until the next `index_version` (D071 carry-over). **Next:** branch **`chore/verify-budget`** (`.local/workflow-reviews/DRAFT-chore-verify-budget-proposal.md`) before **Spec 011** (roadmap item 9, reranking). **No HTTP-route spec yet:** Spec 008 serving items belong with roadmap **item 10 (grounded generation)**. Repository-based shared context keeps Codex, Claude Code, Cursor and Kiro interchangeable (D063).
 
 ## Finalized high-level decisions
 
@@ -124,13 +124,11 @@ Implemented:
   - Decisions D064–D071 (D063 is Cursor tooling on `main`). T7 documents and closes Spec 004 carry-overs (public `chunk_identity`, settings docstring, wrong-vector-count test).
   - Carry-overs live under **Known issues / deferred** (Spec 009 block) and `.kiro/specs/009-chunking-experiments/review.md` Notes for the next spec.
 
-- Spec 010 (**all tasks approved 2026-11-04**; required `spec-reviewer` retrospective round 1 **`PASS`**, pending user approval; branch `spec/010`):
-  - Suite **`public-eval-v3`** (default for `make eval-retrieval` / `eval-security`); v2 `replaced`, closed dataset hashes in tests.
-  - `languages.py` (package root), `retrieval/applicability.py`: `resolve_lote`, Qdrant/SQL filters, `check_applicable`, `LanguageApplicabilityError`; every path including fallback passes `lote`.
-  - Lexical settings **1.2** (`lote_languages` column); `lexical-v2` tokenizer (Unicode chillu table in `equivalents.py`); default **`lexical-v2`** in `config/retrieval.yaml` (T5 promotion).
-  - Result **2.4** (`lote`, `by_script_mix`, per-case `script_mix`); `eval-compare` refuses `lote` mismatch and accepts `--cross-tokenizer`; `make eval-continuity`; security result **1.4** (dual `lote` modes, non-applicable `zz` rows).
-  - Decision **D072**. Operator setup unchanged: **`make ingest`**, then **`make index-lexical`** (settings 1.2; rebuild once if upgrading from 1.1 for `--lote`).
-  - Retrospective round 1 `PASS` (five MINOR doc findings, reconciled this round, no RM tasks): `.kiro/specs/010-multilingual-retrieval/review.md`.
+- Spec 010 (**verified 2026-11-04, merged `cae06c3`**; branch `spec/010`; T1–T6 approved; required `spec-reviewer` retrospective round 1 `PASS`, approved 2026-11-04):
+  - Suite **`public-eval-v3`** (default for `make eval-retrieval` / `eval-security`); v2 `replaced`; v3 hybrid/bm25 refs `…20261104T105300Z.json` / `…20261104T105321Z.json`.
+  - `languages.py` (package root), `retrieval/applicability.py`: optional `--lote` on every path including fallback; lexical settings **1.2**; default tokenizer **`lexical-v2`** (D072).
+  - Result **2.4**; `eval-compare --cross-tokenizer`; `make eval-continuity`; security **1.4**.
+  - Retrospective: `.kiro/specs/010-multilingual-retrieval/review.md` (Notes for the next spec → Spec 011 / verify-budget).
 
 Not yet implemented:
 - reranking; no HTTP retrieval route; retrieval degradation exists only for `hybrid` (Spec 008); the reranker and model-failure paths of roadmap 13 are not implemented (no reranker or generation yet);
@@ -154,14 +152,15 @@ Not yet implemented:
 | 007 — hybrid retrieval | **verified (2026-10-28, merged 3cf70eb)**; required `spec-reviewer` retrospective round 1 `PASS`, approved by the user 2026-10-28; branch `spec/007` (base `06b1af9`); approved 2026-10-25: requirements, design and tasks approved (10 tasks: T1 suite `public-eval-v2` (91 cases, six approved Malayalam candidates promoted), T2 user-owned real dense baseline on v2, T3–T8 lexical BM25 (SQLite FTS5) index, retriever, RRF hybrid, `--strategy`, result 2.1, `eval-compare` rules, security gate, T9 user-owned bm25/hybrid runs and default-strategy decision, T10 docs and hand-off); T1 approved 2026-10-25 (suite `public-eval-v2`, 91 cases, six Malayalam goldens g064–g069 promoted); T2 (v2 dense baseline) approved 2026-10-25: user-run result `experiments/results/retrieval-evaluation-idx-v1-20261025T134659Z.json` (see Next step); T3 approved 2026-10-26 (`lexical-v1` tokenizer, SQLite FTS5 lexical store, `make index-lexical`, `W2A_LEXICAL_INDEX_DIR`); T4 approved 2026-10-27 (`BM25Retriever`, SQL access clause, `retrieval/base.py`); T5 approved 2026-10-28 (RRF fusion, `HybridRetriever`, `config/retrieval.yaml`, default still `dense`); T6 approved 2026-10-28 (`--strategy`, result 2.1, dense equivalence fixture, per-leg document ranks); T7 approved 2026-10-28 (`eval-compare` identity refusals, R10); T8 approved 2026-10-28 (`eval-security` gate over dense, bm25 and hybrid, result 1.1); T9 approved 2026-10-28 (user-run dense 2.1, BM25 and hybrid results; the R13 rule holds, `default_strategy: hybrid` in `config/retrieval.yaml`, see Next step item 4); T10 approved 2026-10-28 (docs D049–D055, hardening boxes from the T1, T3, T4, T6–T9 reviews). Required `spec-reviewer` retrospective round 1 `PASS` (2026-10-28; three MINOR findings, docs reconciled, no RM tasks), approved by the user and merged 2026-10-28 |
 | 008 — retrieval fallback | **verified (2026-11-01, merged 1107b67)**; required `spec-reviewer` retrospective round 1 `PASS` (five MINOR findings, docs reconciled, no RM tasks), approved by the user 2026-11-01 (branch spec/008, base f25b552); requirements, design and tasks approved 2026-10-29 (8 tasks: T1 failure classification and Qdrant timeouts, T2 standalone lexical open and freshness, T3 `bm25` without Qdrant or the extra, T4 `FallbackRetriever`, T5 result 2.2 and `eval-compare`, T6 security gate over fallback paths, T7 user-owned real runs, T8 docs and hand-off); T1–T6 approved (2026-10-31/11-01); T7 (user-owned real runs) approved 2026-11-01: Qdrant unreachable (`QDRANT_URL=http://127.0.0.1:1`) `experiments/results/retrieval-evaluation-idx-v1-20261101T070658Z.json`, Qdrant up `...20261101T070736Z.json` (see Next step item 6); T8 (docs D056–D062, ROADMAP note, As-built notes, hand-off) approved 2026-11-01; retrospective `.kiro/specs/008-retrieval-fallback/review.md` round 1 |
 | 009 — chunking experiments | **verified (2026-11-04, merged `5a6deb7`)**; branch `spec/009` (base `d21dc41`); required `spec-reviewer` retrospective round 1 `PASS`, approved 2026-11-04; T1–T7 approved 2026-11-03; default **`idx-v2`**: **`make ingest`** then **`make index-lexical`**; D064–D071; deferred carry-overs in Known issues and 009 `review.md` Notes |
-| 010 — multilingual retrieval | **all tasks approved (2026-11-04)**; branch `spec/010`; T1–T6 approved; required `spec-reviewer` retrospective round 1 **`PASS`** (2026-11-04), pending user approval to merge |
+| 010 — multilingual retrieval | **verified (2026-11-04, merged `cae06c3`)**; branch `spec/010` (base `f0e809b`); T1–T6 approved 2026-11-04; required `spec-reviewer` retrospective round 1 `PASS`, approved 2026-11-04; D072; default suite v3 and `lexical-v2` |
 
 ## Next step
 
-**Spec 010 — retrospective round 1 `PASS` (2026-11-04):**
+**After Spec 010 (2026-11-04):**
 
-- Merge `spec/010` only after **your approval** of this retrospective. Docs (`review.md`, T6 F1–F5 nits, `CURRENT_STATE.md`) are uncommitted until that approval.
-- **After Spec 010 merge:** `/graphify . --update` on `main`; consider **`chore/verify-budget`** from `.local/workflow-reviews/DRAFT-chore-verify-budget-proposal.md` before Spec 011 planning. Pass `.kiro/specs/010-multilingual-retrieval/review.md` **Notes for the next spec** to `spec-planner`.
+1. **`chore/verify-budget`** — implement from `.local/workflow-reviews/DRAFT-chore-verify-budget-proposal.md` (verify hook + pytest-xdist evaluation; orchestrator transcript metrics). Plan in a fresh session before code. **Merge before Spec 011 planning.**
+2. **Spec 011 (roadmap item 9, reranking)** — brief `spec-planner` only after verify-budget merges; pass `.kiro/specs/010-multilingual-retrieval/review.md` **Notes for the next spec**.
+3. Optional on `main`: `/graphify . --update` in Claude Code after doc churn (AST-only `graphify update .` may suffice for code-only follow-ups).
 
 1. Done 2026-10-24: the user ran the real `make eval-retrieval` on `w2a-realcheck-idx-v1` (`QDRANT_COLLECTION_BASE=w2a-realcheck`) and `make eval-compare` against the Spec 005 baseline: PASS, hits 60 -> 60, MRR 0.8783 -> 0.8783, no flips. The result `experiments/results/retrieval-evaluation-idx-v1-20261024T193140Z.json` (committed; BAAI/bge-m3 @ `5617a9f`, device `mps:0`, p50 79.7 ms, p95 97.8 ms) is the 2.0 baseline for suite `public-eval-v1` v1.
 2. Done 2026-10-23: the user ran the real BGE-M3 baseline; result committed as `experiments/results/retrieval-baseline-idx-v1-20261023T063534Z.json`. Use its numbers and the three misses (`g004`, `g026`, `g061`) as inputs to the next specs. Keep `make retrieval-baseline` results as new files; never overwrite this one.

@@ -1,6 +1,6 @@
 # 010 — Multilingual Retrieval Tasks
 
-Status: all tasks approved (2026-11-04)
+Status: verified (2026-11-04, merged cae06c3)
 
 Implement the tasks in order; each depends on the ones before it. Requirements: `requirements.md` (approved 2026-11-04). Design: `design.md` (approved 2026-11-04).
 
