@@ -546,9 +546,9 @@
     "semantic_hash": ""
   },
   "packages/rag/tests/evaluation/test_compare.py": {
-    "mtime": 1793779431.1796746,
-    "seen": 1793780027.631891,
-    "ast_hash": "5a3289cbdc7b87c45508e906e9bb100c",
+    "mtime": 1793781470.2599616,
+    "seen": 1793781470.6304672,
+    "ast_hash": "03b91cabf66b1e04a216e586b6b90f91",
     "semantic_hash": ""
   },
   "packages/rag/tests/evaluation/test_retrieval_eval.py": {
@@ -570,9 +570,9 @@
     "semantic_hash": "045028ba2a60b3d52cdaa4ba014ef85c"
   },
   "packages/rag/tests/evaluation/test_security_eval.py": {
-    "mtime": 1793772127.2718234,
-    "seen": 1793772350.635558,
-    "ast_hash": "bfc05c2cb17bfd43e66501f1a4e2f905",
+    "mtime": 1793780513.290934,
+    "seen": 1793781470.630472,
+    "ast_hash": "ad39be062b2be7afbc3b0662a8bf5b8e",
     "semantic_hash": ""
   },
   "packages/rag/tests/evaluation/test_security_integration.py": {
@@ -1332,22 +1332,22 @@
     "semantic_hash": ""
   },
   "packages/rag/tests/lexical/test_lexical_build.py": {
-    "mtime": 1793779304.64274,
-    "seen": 1793780027.631999,
-    "ast_hash": "2afc17dea11c48225a2fb7872ffa8b44",
+    "mtime": 1793780523.8816671,
+    "seen": 1793781470.630501,
+    "ast_hash": "c52c1f1059576ee87211b54dbb3c7649",
     "semantic_hash": ""
   },
   "packages/rag/tests/lexical/test_lexical_cli.py": {
-    "mtime": 1793779304.6427333,
-    "seen": 1793780027.632002,
-    "ast_hash": "10f088d63e88a1b7be393e2c6001cc0c",
+    "mtime": 1793780509.3840268,
+    "seen": 1793781470.630502,
+    "ast_hash": "793af31ebbbab1ac52c571ff74f93af5",
     "semantic_hash": ""
   },
   "packages/rag/tests/lexical/test_lexical_tokenizer.py": {
-    "mtime": 1793200069.115609,
-    "seen": 1793201155.265725,
-    "ast_hash": "948823f2394f8525fefebabbdef7c7d1",
-    "semantic_hash": "948823f2394f8525fefebabbdef7c7d1"
+    "mtime": 1793781465.3975568,
+    "seen": 1793781470.630504,
+    "ast_hash": "4bb6225073472a22a982d77729ec5dcf",
+    "semantic_hash": ""
   },
   "packages/rag/src/way2australia_rag/retrieval/base.py": {
     "mtime": 1793774072.5888615,
@@ -1422,9 +1422,9 @@
     "semantic_hash": ""
   },
   "packages/rag/tests/evaluation/test_strategy_eval.py": {
-    "mtime": 1793775751.2165775,
-    "seen": 1793776043.3227031,
-    "ast_hash": "7eea9a6491828823341e1c3a636d0cd5",
+    "mtime": 1793781360.5310943,
+    "seen": 1793781470.630475,
+    "ast_hash": "7ef6e65fe9e0a9a0e40579b343418e82",
     "semantic_hash": ""
   },
   "packages/rag/tests/lexical_support.py": {
@@ -1797,6 +1797,30 @@
     "mtime": 1793779245.0298257,
     "seen": 1793780027.631722,
     "ast_hash": "79592cf0473176cfb9c99695818ab941",
+    "semantic_hash": ""
+  },
+  "packages/rag/tests/evaluation/fixtures/continuity_base.json": {
+    "mtime": 1793781455.6113865,
+    "seen": 1793781470.630463,
+    "ast_hash": "a53a8d25bde4e34eb467e21204e795c4",
+    "semantic_hash": ""
+  },
+  "packages/rag/tests/evaluation/fixtures/continuity_candidate_equal.json": {
+    "mtime": 1793781454.380509,
+    "seen": 1793781470.630464,
+    "ast_hash": "ad0fac780015886b08dfcaf011c49386",
+    "semantic_hash": ""
+  },
+  "packages/rag/tests/evaluation/test_continuity.py": {
+    "mtime": 1793781458.29841,
+    "seen": 1793781470.6304672,
+    "ast_hash": "0facbd2b82c99764f9364b04928de0f3",
+    "semantic_hash": ""
+  },
+  "packages/rag/tests/evaluation/test_script_mix.py": {
+    "mtime": 1793781470.4014912,
+    "seen": 1793781470.6304698,
+    "ast_hash": "9dc81f5cad531c24dd79360f38e94a7d",
     "semantic_hash": ""
   }
 }
