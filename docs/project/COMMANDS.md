@@ -26,6 +26,12 @@ make verify
 
 `make verify` should run the fast deterministic verification set. It runs `make test`, which includes the `integration`-marked tests: they skip when Qdrant is unreachable, and when a local Qdrant is running they create and remove temporary collections against it.
 
+### Verify budget (agent hooks)
+
+Coding agents should run **`make verify` at most twice per session** (typically once normally and once hub-free). A PreToolUse hook in `.claude/settings.json` runs `python3 "$CLAUDE_PROJECT_DIR/tools/hooks/verify_budget.py" claude || true` on Bash commands (project-root path; **`|| true`** so a missing script never blocks every Bash call). Cursor and Claude Code set **`CLAUDE_PROJECT_DIR`** (Cursor also sets **`CURSOR_PROJECT_DIR`**) to the workspace root regardless of the agent's current directory. The hook also counts **`make test`** toward the same budget. **`make test-unit`**, **`make test-integration`**, and targeted **`pytest …`** are not limited.
+
+While iterating, run focused tests, for example `uv run pytest packages/rag/tests/<area>/test_x.py -q`. Disable the hook: `touch ~/.cache/verify-budget/off`. Reset counters: `rm ~/.cache/verify-budget/counts.json`. Override state dir for tests: `VERIFY_BUDGET_STATE=…`.
+
 ## Tests
 
 ```bash
