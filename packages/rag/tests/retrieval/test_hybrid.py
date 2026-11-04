@@ -115,7 +115,12 @@ def test_legs_run_at_candidate_depth_then_cut_to_top_k() -> None:
             self.strategy = Strategy.DENSE
 
         def retrieve(
-            self, query_text: str, access: ResolvedAccess, top_k: int = 5
+            self,
+            query_text: str,
+            access: ResolvedAccess,
+            top_k: int = 5,
+            *,
+            lote: object = None,
         ) -> RetrievalResult:
             seen.append((self.name, top_k))
             return stub_result(self.ids)
@@ -226,7 +231,12 @@ def test_any_other_leg_error_propagates_without_fallback(failing: str) -> None:
         strategy = Strategy.DENSE
 
         def retrieve(
-            self, query_text: str, access: ResolvedAccess, top_k: int = 5
+            self,
+            query_text: str,
+            access: ResolvedAccess,
+            top_k: int = 5,
+            *,
+            lote: object = None,
         ) -> RetrievalResult:
             raise RuntimeError("leg failed")
 
@@ -234,7 +244,12 @@ def test_any_other_leg_error_propagates_without_fallback(failing: str) -> None:
         strategy = Strategy.DENSE
 
         def retrieve(
-            self, query_text: str, access: ResolvedAccess, top_k: int = 5
+            self,
+            query_text: str,
+            access: ResolvedAccess,
+            top_k: int = 5,
+            *,
+            lote: object = None,
         ) -> RetrievalResult:
             return stub_result(["a", "b"])
 

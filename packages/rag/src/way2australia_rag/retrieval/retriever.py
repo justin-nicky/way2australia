@@ -2,17 +2,20 @@
 
 Authorization comes only from the `ResolvedAccess` argument: the filter is built
 by `build_access_filter` and every hit is re-checked by `check_hit` (fail
-closed). Nothing from the query text reaches either. No score threshold and no
-language filter or language-specific code.
+closed). Nothing from the query text reaches either. No score threshold.
+Optional LOTe applicability uses the `lote` keyword and `check_applicable` only.
 """
 
 from time import perf_counter
+from typing import Any
 
 from way2australia_rag.ingestion.embedding import Embedder
-from way2australia_rag.retrieval.access import (
-    ResolvedAccess,
-    build_access_filter,
-    check_hit,
+from way2australia_rag.ingestion.payload import PointPayload
+from way2australia_rag.retrieval.access import ResolvedAccess, check_hit
+from way2australia_rag.retrieval.applicability import (
+    ResolvedLote,
+    check_applicable,
+    dense_query_filter,
 )
 from way2australia_rag.retrieval.availability import classify_model_error
 from way2australia_rag.retrieval.base import (
@@ -40,6 +43,8 @@ class DenseRetriever:
         query_text: str,
         access: ResolvedAccess,
         top_k: int = DEFAULT_TOP_K,
+        *,
+        lote: ResolvedLote | None = None,
     ) -> RetrievalResult:
         validate_request(query_text, top_k)
         started = perf_counter()
@@ -50,8 +55,13 @@ class DenseRetriever:
             if mapped is not None:
                 raise mapped from error
             raise
-        points = self._index.search(vector, build_access_filter(access), top_k)
-        checked = [(point, check_hit(point.payload or {}, access)) for point in points]
+        points = self._index.search(vector, dense_query_filter(access, lote), top_k)
+        checked: list[tuple[Any, PointPayload]] = []
+        for point in points:
+            payload = check_hit(point.payload or {}, access)
+            if lote is not None:
+                check_applicable(payload, lote)
+            checked.append((point, payload))
         # One span for every strategy (T4 review F2): after the last check_hit.
         latency_ms = (perf_counter() - started) * 1000.0
         checked.sort(key=lambda pair: pair[0].score, reverse=True)
@@ -87,4 +97,5 @@ class DenseRetriever:
             top_k=top_k,
             latency_ms=latency_ms,
             requested_strategy=Strategy.DENSE.value,
+            lote=lote.code if lote is not None else None,
         )

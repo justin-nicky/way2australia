@@ -9,6 +9,7 @@ no single-leg fallback, so a failing leg fails the whole query.
 from time import perf_counter
 
 from way2australia_rag.retrieval.access import ResolvedAccess
+from way2australia_rag.retrieval.applicability import ResolvedLote
 from way2australia_rag.retrieval.base import (
     DEFAULT_TOP_K,
     Retriever,
@@ -33,12 +34,14 @@ class HybridRetriever:
         query_text: str,
         access: ResolvedAccess,
         top_k: int = DEFAULT_TOP_K,
+        *,
+        lote: ResolvedLote | None = None,
     ) -> RetrievalResult:
         validate_request(query_text, top_k)
         started = perf_counter()
         depth = self._fusion.candidate_depth
-        dense = self._dense.retrieve(query_text, access, depth)
-        bm25 = self._bm25.retrieve(query_text, access, depth)
+        dense = self._dense.retrieve(query_text, access, depth, lote=lote)
+        bm25 = self._bm25.retrieve(query_text, access, depth, lote=lote)
         fused = rrf_fuse(
             {"dense": dense.hits, "bm25": bm25.hits},
             self._fusion.k,
@@ -74,4 +77,5 @@ class HybridRetriever:
                 "dense": dedupe_documents(dense.hits),
                 "bm25": dedupe_documents(bm25.hits),
             },
+            lote=lote.code if lote is not None else None,
         )

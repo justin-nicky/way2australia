@@ -10,6 +10,7 @@ from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Protocol
 
 from way2australia_rag.ingestion.chunker_build import chunker_identity_for_run
 from way2australia_rag.ingestion.chunking import ChunkerIdentity
@@ -19,17 +20,18 @@ from way2australia_rag.ingestion.embedding import Embedder
 from way2australia_rag.ingestion.settings import IndexSettings
 from way2australia_rag.lexical.build import default_lexical_dir, lexical_index_path
 from way2australia_rag.lexical.freshness import verify_fresh
-from way2australia_rag.lexical.store import LexicalIndex
+from way2australia_rag.lexical.store import LexicalIndex, LexicalIndexBindingError
 from way2australia_rag.repositories import (
     DocumentRepository,
     LocalDocumentRepository,
     LocalRepositoryConfig,
 )
 from way2australia_rag.repositories.hashing import HASH_CONTRACT
-from way2australia_rag.retrieval.access import (
-    ResolvedAccess,
-    build_access_filter,
-    build_sql_access_clause,
+from way2australia_rag.retrieval.access import ResolvedAccess
+from way2australia_rag.retrieval.applicability import (
+    ResolvedLote,
+    dense_query_filter,
+    sql_access_with_lote,
 )
 from way2australia_rag.retrieval.base import Retriever, Strategy
 from way2australia_rag.retrieval.bm25 import BM25Retriever
@@ -48,6 +50,31 @@ from way2australia_rag.retrieval.strategy import (
 )
 
 EmbedderFactory = Callable[[IngestionConfig, str], Embedder]
+
+_LOTE_COLUMN_ADVICE = (
+    "(lexical settings 1.1); run `make index-lexical` for this collection "
+    "and index_version."
+)
+
+
+def _lexical_document_count(
+    lexical: LexicalIndex,
+    access: ResolvedAccess,
+    lote: ResolvedLote | None,
+) -> int:
+    if lote is not None and not lexical.has_lote_column:
+        raise LexicalIndexBindingError(
+            f"lexical index '{lexical.label}' has no lote_languages column "
+            + _LOTE_COLUMN_ADVICE
+        )
+    where, params = sql_access_with_lote(access, lote)
+    return lexical.document_count(where, params)
+
+
+class DocumentCounter(Protocol):
+    def __call__(
+        self, access: ResolvedAccess, lote: ResolvedLote | None = None
+    ) -> int: ...
 
 
 def open_standalone_lexical(
@@ -95,7 +122,7 @@ def _chunks_per_document(
 class OpenedRetrieval:
     retriever: Retriever
     identity: IndexIdentity
-    document_count: Callable[[ResolvedAccess], int]
+    document_count: DocumentCounter
     chunks_per_document: Callable[[], dict[str, int]]
     embedder: Embedder | None
     index_settings: IndexSettings | None
@@ -135,9 +162,10 @@ def open_retrieval(
             repository,
         )
 
-        def lexical_count(access: ResolvedAccess) -> int:
-            where, params = build_sql_access_clause(access)
-            return lexical.document_count(where, params)
+        def lexical_count(
+            access: ResolvedAccess, lote: ResolvedLote | None = None
+        ) -> int:
+            return _lexical_document_count(lexical, access, lote)
 
         try:
             retriever = build_retriever(
@@ -192,8 +220,8 @@ def open_retrieval(
             configured_chunker=configured_chunker,
         )
 
-    def dense_count(access: ResolvedAccess) -> int:
-        return index.document_count(build_access_filter(access))
+    def dense_count(access: ResolvedAccess, lote: ResolvedLote | None = None) -> int:
+        return index.document_count(dense_query_filter(access, lote))
 
     try:
         retriever = build_retriever(
@@ -247,9 +275,8 @@ def _open_fallback(
         repository,
     )
 
-    def lexical_count(access: ResolvedAccess) -> int:
-        where, params = build_sql_access_clause(access)
-        return lexical.document_count(where, params)
+    def lexical_count(access: ResolvedAccess, lote: ResolvedLote | None = None) -> int:
+        return _lexical_document_count(lexical, access, lote)
 
     retriever = FallbackRetriever(None, BM25Retriever(expected, lexical), reason)
     return OpenedRetrieval(

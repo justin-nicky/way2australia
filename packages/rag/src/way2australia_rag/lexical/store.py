@@ -18,7 +18,8 @@ from way2australia_rag.retrieval.errors import IndexBindingError, RetrievalError
 from way2australia_rag.retrieval.identity import IndexIdentity
 from way2australia_rag.retrieval.index import DenseIndex
 
-SETTINGS_SCHEMA_VERSION = "1.1"
+SETTINGS_SCHEMA_VERSION = "1.2"
+_LEGACY_SETTINGS_SCHEMA_11 = "1.1"
 _LEGACY_SETTINGS_SCHEMA_VERSION = "1.0"
 SETTINGS_KIND = "w2a_lexical_index"
 SETTINGS_KEY = "lexical_settings"
@@ -42,6 +43,7 @@ SCHEMA_SQL = (
       tenant_id TEXT,
       owner_user_id TEXT,
       owner_present INTEGER NOT NULL,
+      lote_languages TEXT NOT NULL,
       payload_json TEXT NOT NULL)""",
     "CREATE VIRTUAL TABLE chunk_terms "
     f"USING fts5(terms, tokenize = '{FTS5_TOKENIZER}')",
@@ -90,7 +92,7 @@ class LexicalIdentityInput(BaseModel):
 class LexicalSettings(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal["1.1"] = SETTINGS_SCHEMA_VERSION
+    schema_version: Literal["1.1", "1.2"] = SETTINGS_SCHEMA_VERSION
     kind: Literal["w2a_lexical_index"] = SETTINGS_KIND
     collection: str
     index_version: str
@@ -402,6 +404,10 @@ class LexicalIndex:
             LexicalRow(point_id=str(p), payload_json=str(j), score=float(s))
             for p, j, s in rows
         ]
+
+    @property
+    def has_lote_column(self) -> bool:
+        return self.settings.schema_version == SETTINGS_SCHEMA_VERSION
 
     def close(self) -> None:
         self._connection.close()

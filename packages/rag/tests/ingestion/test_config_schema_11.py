@@ -62,6 +62,7 @@ from way2australia_rag.repositories import (
 from way2australia_rag.repositories.hashing import HASH_CONTRACT
 from way2australia_rag.retrieval import cli as retrieve_cli
 from way2australia_rag.retrieval.access import ResolvedAccess, resolve_access
+from way2australia_rag.retrieval.applicability import ResolvedLote
 from way2australia_rag.retrieval.base import Strategy
 from way2australia_rag.retrieval.errors import (
     FallbackReason,
@@ -229,7 +230,7 @@ def test_rebuild_lexical_1_1_preserves_digest(tmp_path: Path) -> None:
         .execute("SELECT value FROM settings WHERE key = 'lexical_settings'")
         .fetchone()[0]
     )
-    assert after["schema_version"] == "1.1"
+    assert after["schema_version"] == "1.2"
     assert after["source_chunk_digest"] == before.source_chunk_digest
     assert after["chunk_count"] == before.chunk_count
 
@@ -442,11 +443,13 @@ def test_open_hybrid_paths_without_tokenizer(
                 query_text: str,
                 access: ResolvedAccess,
                 top_k: int = 5,
+                *,
+                lote: ResolvedLote | None = None,
             ) -> RetrievalResult:
                 calls["n"] += 1
                 if calls["n"] == 1:
                     raise RetrievalUnavailableError(FallbackReason.QDRANT_TIMEOUT)
-                return original(self, query_text, access, top_k)
+                return original(self, query_text, access, top_k, lote=lote)
 
             monkeypatch.setattr(DenseRetriever, "retrieve", flaky_dense)
             result = opened.retriever.retrieve("Is coaching compulsory?", access, 5)

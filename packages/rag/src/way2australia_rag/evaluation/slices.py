@@ -12,10 +12,10 @@ from typing import Any
 
 from way2australia_rag.evaluation.errors import EvaluationConfigurationError
 from way2australia_rag.evaluation.suite import inside, read_json
+from way2australia_rag.languages import LANGUAGE_REGISTRY, _active_product_support_codes
 
 SMALL_SAMPLE_THRESHOLD = 10
 BASE_LANGUAGE = "en"
-LANGUAGE_REGISTRY = "config/language_registry.json"
 UNKNOWN_AUTHORITY = "unknown"
 
 
@@ -57,20 +57,11 @@ def slice_by(
 def active_registry_languages(repo_root: Path) -> list[str]:
     """`en` plus every `product_support` language whose status is `active`."""
     raw = read_json(inside(repo_root, LANGUAGE_REGISTRY))
-    support = raw.get("product_support") if isinstance(raw, dict) else None
-    if not isinstance(support, dict):
-        raise EvaluationConfigurationError(
-            "'language_registry.json' has no product_support section."
-        )
-    codes = {BASE_LANGUAGE}
-    for entry in support.values():
-        if (
-            isinstance(entry, dict)
-            and entry.get("status") == "active"
-            and isinstance(entry.get("internal_code"), str)
-        ):
-            codes.add(entry["internal_code"])
-    return sorted(codes)
+    try:
+        codes = _active_product_support_codes(raw)
+    except Exception as error:
+        raise EvaluationConfigurationError(str(error)) from error
+    return sorted({BASE_LANGUAGE, *codes})
 
 
 def absent_query_languages(

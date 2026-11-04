@@ -239,7 +239,12 @@ class _UnavailableDense:
     strategy = Strategy.DENSE
 
     def retrieve(
-        self, query_text: str, access: ResolvedAccess, top_k: int = 5
+        self,
+        query_text: str,
+        access: ResolvedAccess,
+        top_k: int = 5,
+        *,
+        lote: object = None,
     ) -> RetrievalResult:
         raise RetrievalUnavailableError(FallbackReason.QDRANT_UNAVAILABLE)
 

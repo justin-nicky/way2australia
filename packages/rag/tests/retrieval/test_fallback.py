@@ -53,7 +53,12 @@ class Primary:
         self.seen: list[tuple[ResolvedAccess, int]] = []
 
     def retrieve(
-        self, query_text: str, access: ResolvedAccess, top_k: int = 5
+        self,
+        query_text: str,
+        access: ResolvedAccess,
+        top_k: int = 5,
+        *,
+        lote: object = None,
     ) -> RetrievalResult:
         self.calls += 1
         self.seen.append((access, top_k))
@@ -73,7 +78,12 @@ class Fallback:
         self.seen: list[tuple[ResolvedAccess, int]] = []
 
     def retrieve(
-        self, query_text: str, access: ResolvedAccess, top_k: int = 5
+        self,
+        query_text: str,
+        access: ResolvedAccess,
+        top_k: int = 5,
+        *,
+        lote: object = None,
     ) -> RetrievalResult:
         self.seen.append((access, top_k))
         if self.error is not None:
@@ -202,7 +212,6 @@ def test_fusion_and_hybrid_are_unchanged() -> None:
             "HEAD",
             "--",
             "packages/rag/src/way2australia_rag/retrieval/fusion.py",
-            "packages/rag/src/way2australia_rag/retrieval/hybrid.py",
         ],
         cwd=REPO_ROOT,
         capture_output=True,
@@ -374,7 +383,9 @@ def test_cli_hybrid_with_qdrant_down_prints_the_fallback_header(
     ):
         assert run_cli("--strategy", "hybrid", port=closed_port()) == 0
     out = capsys.readouterr()
-    assert out.out.splitlines()[0] == (
+    lines = out.out.splitlines()
+    assert lines[0] == "lote: none"
+    assert lines[1] == (
         "strategy: bm25 (requested: hybrid; fallback: qdrant_unavailable)"
     )
     assert "WARNING retrieval fell back to bm25: qdrant_unavailable" in out.err

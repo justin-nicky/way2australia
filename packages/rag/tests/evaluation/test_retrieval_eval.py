@@ -178,7 +178,7 @@ def test_field_set_is_a_superset_of_the_1_0_keys() -> None:
         "small_sample_threshold",
     ):
         assert key in doc, key
-    assert doc["schema_version"] == "2.3" and doc["kind"] == "retrieval_evaluation"
+    assert doc["schema_version"] == "2.4" and doc["kind"] == "retrieval_evaluation"
     assert doc["case_count"] == 3 and doc["excluded_case_count"] == 1
     assert doc["evaluation_suite"]["excluded_by_status"]["golden_answerable"] == {
         "deprecated": 1
@@ -428,8 +428,8 @@ def test_unanswerable_latency_is_excluded_from_p50_p95() -> None:
     class Slow:
         strategy = Strategy.DENSE
 
-        def retrieve(self, query, access, top_k):  # noqa: ANN001, ANN202
-            result = retriever.retrieve(query, access, top_k)
+        def retrieve(self, query, access, top_k, *, lote=None):  # noqa: ANN001, ANN202, ARG002
+            result = retriever.retrieve(query, access, top_k, lote=lote)
             if SECRET_UNANSWERABLE in query:
                 return result.model_copy(update={"latency_ms": 99999.0})
             return result
@@ -491,7 +491,7 @@ class Scripted:
         self._serve = serve  # call index -> reason or None
         self.calls = 0
 
-    def retrieve(self, query, access, top_k):  # noqa: ANN001, ANN202
+    def retrieve(self, query, access, top_k, *, lote=None):  # noqa: ANN001, ANN202, ARG002
         result = self._inner.retrieve(query, access, top_k)
         reason = self._serve(self.calls)
         self.calls += 1
@@ -547,7 +547,8 @@ def scripted_run(serve, *, standalone: bool = False, **over):  # noqa: ANN001, A
 def test_2_3_keys_on_a_plain_run() -> None:
     index, emb, retriever = build()
     doc = run(index, emb, retriever, suite_with_unanswerable())
-    assert doc["schema_version"] == "2.3"
+    assert doc["schema_version"] == "2.4"
+    assert doc["lote"] is None
     assert doc["metric_unit"] == "distinct_documents"
     assert doc["retrieval_depth"] == RETRIEVAL_CONFIG.fusion.candidate_depth
     assert doc["chunk_stats"]["max_chunks_per_document"] == 1
@@ -561,6 +562,14 @@ def test_2_3_keys_on_a_plain_run() -> None:
     assert doc["index_settings"] is not None
     assert doc["latency_ms"]["by_served_path"]["dense"]["n"] == doc["case_count"]
     assert doc["unanswerable"]["served_strategies"] == ["dense"]
+
+
+def test_result_2_4_records_resolved_lote_code() -> None:
+    from way2australia_rag.retrieval.applicability import ResolvedLote
+
+    index, emb, retriever = build()
+    doc = run(index, emb, retriever, basic_suite(), lote=ResolvedLote(code="ml"))
+    assert doc["lote"] == "ml"
 
 
 def test_fully_fallback_run_has_one_path_and_top_level_values() -> None:
@@ -628,7 +637,7 @@ def test_index_settings_none_is_accepted_for_standalone_bm25_and_open_fallback()
     class Bm25Only:
         strategy = Strategy.BM25
 
-        def retrieve(self, query, access, top_k):  # noqa: ANN001, ANN202
+        def retrieve(self, query, access, top_k, *, lote=None):  # noqa: ANN001, ANN202, ARG002
             return inner.retrieve(query, access, top_k).model_copy(
                 update={
                     "strategy": "bm25",

@@ -15,6 +15,17 @@ class IndexBindingError(RetrievalError):
     """The index cannot be bound to the requested embedder or index version."""
 
 
+class LanguageApplicabilityError(RetrievalError):
+    """A retrieved hit is not applicable to the requested LOTE (fail closed).
+
+    `document_id` is the hit's document ID.
+    """
+
+    def __init__(self, message: str, *, document_id: str) -> None:
+        super().__init__(message)
+        self.document_id = document_id
+
+
 class RetrievalAuthorizationError(RetrievalError):
     """A retrieved hit violates the access policy (fail closed).
 

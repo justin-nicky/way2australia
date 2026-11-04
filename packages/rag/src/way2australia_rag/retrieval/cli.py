@@ -21,7 +21,9 @@ from way2australia_rag.ingestion.config import (
     load_runtime_settings,
 )
 from way2australia_rag.ingestion.errors import IngestionError
+from way2australia_rag.languages import active_lote_codes
 from way2australia_rag.retrieval.access import guest_access, resolve_access
+from way2australia_rag.retrieval.applicability import resolve_lote
 from way2australia_rag.retrieval.base import Strategy
 from way2australia_rag.retrieval.errors import (
     RetrievalConfigurationError,
@@ -115,6 +117,11 @@ def _parser() -> argparse.ArgumentParser:
         default=None,
         help=f"retrieval config (default: <repo-root>/{DEFAULT_RETRIEVAL_CONFIG})",
     )
+    parser.add_argument(
+        "--lote",
+        default=None,
+        help="CCL language code (active product_support code, not en)",
+    )
     return parser
 
 
@@ -136,6 +143,7 @@ def main(
             raise RetrievalConfigurationError(
                 f"top_k must be an integer from {MIN_TOP_K} to {MAX_TOP_K}."
             )
+        lote = resolve_lote(args.lote, active_lote_codes(repo_root))
         config = load_ingestion_config(config_path)
         settings = load_runtime_settings(RetrievalConfigurationError)
         provider = args.embedder or config.embedder.provider
@@ -153,7 +161,7 @@ def main(
             client_factory=client_factory,
         )
         access = resolve_access(guest_access(settings))
-        result = opened.retriever.retrieve(args.query, access, args.top_k)
+        result = opened.retriever.retrieve(args.query, access, args.top_k, lote=lote)
     except (RetrievalError, IngestionError) as error:
         # Both families are path- and secret-free by contract.
         print(f"ERROR {type(error).__name__}: {safe_text(error)}", file=sys.stderr)
@@ -171,6 +179,7 @@ def main(
             f"{safe_text(result.fallback_reason)}",
             file=sys.stderr,
         )
+    print(f"lote: {safe_text(result.lote or 'none')}")
     print(format_result(result))
     return EXIT_OK
 

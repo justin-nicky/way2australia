@@ -24,6 +24,7 @@ from way2australia_rag.lexical.store import (
     FTS5_TOKENIZER,
     SCHEMA_SQL,
     SETTINGS_KEY,
+    SETTINGS_SCHEMA_VERSION,
     LexicalIdentityInput,
     LexicalIndexError,
     LexicalSettings,
@@ -38,6 +39,10 @@ from way2australia_rag.repositories import (
     GUEST_PUBLIC_POLICY,
     DocumentRepository,
     list_eligible_documents,
+)
+from way2australia_rag.retrieval.applicability import (
+    encode_lote_column,
+    valid_lote_languages,
 )
 
 Entry = tuple[str, Mapping[str, Any]]  # (point_id, payload as indexed)
@@ -99,6 +104,7 @@ def build_lexical_index(
     materialized = list(entries)
     identities = [chunk_identity(p, payload) for p, payload in materialized]
     settings = LexicalSettings(
+        schema_version=SETTINGS_SCHEMA_VERSION,
         collection=identity.collection,
         index_version=identity.index_version,
         dense_identity=identity.dense_identity,
@@ -148,11 +154,22 @@ def _insert(
     connection: sqlite3.Connection, point: str, payload: Mapping[str, Any]
 ) -> None:
     _, document_id, version, content_hash = chunk_identity(point, payload)
+    raw_lote = payload.get("lote_languages")
+    if not isinstance(raw_lote, list):
+        raise LexicalIndexError(
+            f"payload for point '{point}' lacks a valid lote_languages list."
+        )
+    if not valid_lote_languages(raw_lote):
+        raise LexicalIndexError(
+            f"payload for point '{point}' has malformed lote_languages."
+        )
+    lote_column = encode_lote_column(list(raw_lote))
     owner_present = 1 if "owner_user_id" in payload else 0
     cursor = connection.execute(
         "INSERT INTO chunks (point_id, document_id, document_version, content_hash, "
-        "access_scope, tenant_id, owner_user_id, owner_present, payload_json) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "access_scope, tenant_id, owner_user_id, owner_present, lote_languages, "
+        "payload_json) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             point,
             document_id,
@@ -162,6 +179,7 @@ def _insert(
             payload.get("tenant_id"),
             payload.get("owner_user_id"),
             owner_present,
+            lote_column,
             json.dumps(payload, ensure_ascii=False, sort_keys=True),
         ),
     )

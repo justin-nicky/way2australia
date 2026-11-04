@@ -59,35 +59,35 @@ Allowed protected-path changes: `evaluation/candidates/010-candidates.jsonl`, `e
 
 ## T2 — `lote` applicability on every retrieval path
 
-**State:** not started
+**State:** approved (2026-11-04)
 **Requirements:** R2, R3, R4, R7 (the `lote` field), R11
 
-- [ ] New `way2australia_rag/languages.py` with `active_lote_codes(repo_root)`: the active `product_support` codes, without `en`. `evaluation/slices.active_registry_languages` reuses its registry parsing and keeps adding `en`.
-- [ ] New `retrieval/applicability.py` with:
+- [x] New `way2australia_rag/languages.py` with `active_lote_codes(repo_root)`: the active `product_support` codes, without `en`. `evaluation/slices.active_registry_languages` reuses its registry parsing and keeps adding `en`.
+- [x] New `retrieval/applicability.py` with:
   - `ResolvedLote` and `resolve_lote(code, active_codes)`, which refuses unknown, inactive, empty, `*` and `en` codes with `RetrievalConfigurationError`. The `en` message explains that `lote` names the non-English side of the CCL pair and lists the active codes;
   - `valid_lote_languages`, `build_lote_condition` (Qdrant `MatchAny(["*", code])`), `build_sql_lote_clause` (`(c.lote_languages = ? OR instr(c.lote_languages, ?) > 0)` with `("|*|", "|<code>|")`) and `check_applicable`.
   
   `retrieval/errors.py`: `LanguageApplicabilityError(RetrievalError)` with `document_id`, a sibling of `RetrievalAuthorizationError`.
-- [ ] Lexical settings 1.2 in `lexical/store.py` and `lexical/build.py`:
+- [x] Lexical settings 1.2 in `lexical/store.py` and `lexical/build.py`:
   - `chunks.lote_languages TEXT NOT NULL`, written as sorted codes between `|` separators;
   - the builder refuses a payload that fails `valid_lote_languages` (for example `["*", "ml"]`) with `LexicalIndexError`, and removes the temporary file;
   - `LexicalSettings.schema_version` accepts `1.1` and `1.2`, and the builder writes `1.2`;
   - `LexicalIndex.has_lote_column`; 1.0 is still refused.
   
   The tokenizer stays `lexical-v1` in this task.
-- [ ] `retrieval/base.py`: `Retriever.retrieve(..., *, lote: ResolvedLote | None = None)`. `RetrievalResult.lote`.
+- [x] `retrieval/base.py`: `Retriever.retrieve(..., *, lote: ResolvedLote | None = None)`. `RetrievalResult.lote`.
   - `DenseRetriever` uses the combined filter `Filter(must=[*access.must, condition])`, then `check_hit`, then `check_applicable`.
   - `BM25Retriever` uses the access clause `AND` the lote clause, then `check_hit`, then `check_applicable`. With a `lote` on a 1.1 file it raises `LexicalIndexBindingError` before SQL, naming `make index-lexical`.
   - `HybridRetriever` and `FallbackRetriever` pass `lote` to every leg and path.
   
   With no `lote`, the generated filter and SQL are byte-identical to today.
-- [ ] `retrieval/opening.py`: `OpenedRetrieval.document_count(access, lote)` on dense, lexical and fallback.
-- [ ] CLIs:
+- [x] `retrieval/opening.py`: `OpenedRetrieval.document_count(access, lote)` on dense, lexical and fallback.
+- [x] CLIs:
   - `make retrieve` takes `--lote` (in `RETRIEVE_ARGS`), validated before opening, and prints `lote: <code|none>`;
   - `make eval-retrieval` takes `--lote` (`EVAL_ARGS`) and writes result 2.4 with a top-level `lote`;
   - `results.read_result` reads 2.4, and older files read `lote` as `None`.
-- [ ] `eval-compare` refuses a `lote` difference (`lote changed <old> -> <new>`, `null` printed as `none`) in every mode.
-- [ ] Tests (`tests/retrieval/test_applicability.py` plus additions to the dense, bm25, hybrid, fallback, opening, store, build, CLI, results and compare tests):
+- [x] `eval-compare` refuses a `lote` difference (`lote changed <old> -> <new>`, `null` printed as `none`) in every mode.
+- [x] Tests (`tests/retrieval/test_applicability.py` plus additions to the dense, bm25, hybrid, fallback, opening, store, build, CLI, results and compare tests):
   - `resolve_lote` cases, using a temporary registry;
   - builder outputs, and access-builder outputs unchanged;
   - **store parity:** the same tagged rows (`["*"]`, `[code]`, `[code, other]`, `[other]`) in an in-memory Qdrant collection and a temporary lexical file, queried with the active code, a second code and no `lote`, return identical document sets. A `["*", code]` row is refused by the lexical builder; on the Qdrant side, written by a raw upsert, it raises `LanguageApplicabilityError` for every `lote`;

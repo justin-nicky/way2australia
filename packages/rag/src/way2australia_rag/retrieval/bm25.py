@@ -10,12 +10,13 @@ query is never embedded.
 import json
 from time import perf_counter
 
-from way2australia_rag.lexical.store import LexicalIndex
+from way2australia_rag.lexical.store import LexicalIndex, LexicalIndexBindingError
 from way2australia_rag.lexical.tokenizer import query_terms
-from way2australia_rag.retrieval.access import (
-    ResolvedAccess,
-    build_sql_access_clause,
-    check_hit,
+from way2australia_rag.retrieval.access import ResolvedAccess, check_hit
+from way2australia_rag.retrieval.applicability import (
+    ResolvedLote,
+    check_applicable,
+    sql_access_with_lote,
 )
 from way2australia_rag.retrieval.base import DEFAULT_TOP_K, Strategy, validate_request
 from way2australia_rag.retrieval.identity import IndexIdentity
@@ -45,13 +46,21 @@ class BM25Retriever:
         query_text: str,
         access: ResolvedAccess,
         top_k: int = DEFAULT_TOP_K,
+        *,
+        lote: ResolvedLote | None = None,
     ) -> RetrievalResult:
         validate_request(query_text, top_k)
+        if lote is not None and not self._lexical.has_lote_column:
+            raise LexicalIndexBindingError(
+                f"lexical index '{self._lexical.label}' has no lote_languages column "
+                "(lexical settings 1.1); run `make index-lexical` for this collection "
+                "and index_version."
+            )
         started = perf_counter()
         terms = query_terms(query_text)
         hits: list[RetrievedChunk] = []
         if terms.terms:
-            where, params = build_sql_access_clause(access)
+            where, params = sql_access_with_lote(access, lote)
             rows = self._lexical.search(
                 match_expression(terms.terms), where, params, top_k
             )
@@ -61,6 +70,8 @@ class BM25Retriever:
                 except ValueError:
                     raw = None
                 payload = check_hit(raw if isinstance(raw, dict) else {}, access)
+                if lote is not None:
+                    check_applicable(payload, lote)
                 hits.append(
                     RetrievedChunk(
                         rank=rank,
@@ -104,4 +115,5 @@ class BM25Retriever:
             ),
             query_terms_truncated=terms.truncated,
             requested_strategy=Strategy.BM25.value,
+            lote=lote.code if lote is not None else None,
         )

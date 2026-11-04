@@ -56,6 +56,10 @@ def _fmt_key(key: tuple[str, int]) -> str:
     return f"{key[0]} v{key[1]}"
 
 
+def _lote_label(value: object) -> str:
+    return "none" if value is None else str(value)
+
+
 def _listed(items: list[str]) -> str:
     shown = ", ".join(items[:MAX_LISTED])
     extra = len(items) - MAX_LISTED
@@ -198,6 +202,12 @@ def _refusals(
         changed += 1
     if base.top_k != cand.top_k:
         problems.append(f"top_k changed {base.top_k} -> {cand.top_k}")
+        changed += 1
+    old_lote, new_lote = base.info.get("lote"), cand.info.get("lote")
+    if old_lote != new_lote:
+        problems.append(
+            f"lote changed {_lote_label(old_lote)} -> {_lote_label(new_lote)}"
+        )
         changed += 1
     if base.document_count != cand.document_count:
         problems.append(

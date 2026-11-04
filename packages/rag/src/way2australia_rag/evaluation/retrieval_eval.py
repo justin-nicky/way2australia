@@ -39,6 +39,7 @@ from way2australia_rag.ingestion.embedding import Embedder
 from way2australia_rag.ingestion.settings import IndexSettings
 from way2australia_rag.lexical.store import LexicalIndex
 from way2australia_rag.retrieval.access import ResolvedAccess
+from way2australia_rag.retrieval.applicability import ResolvedLote
 from way2australia_rag.retrieval.base import Retriever, Strategy
 from way2australia_rag.retrieval.baseline import git_state
 from way2australia_rag.retrieval.fusion import FusionConfig
@@ -386,6 +387,7 @@ def run_retrieval_evaluation(
     repo_root: Path,
     fusion: FusionConfig | None = None,
     qdrant_timeouts: QdrantTimeouts | None = None,
+    lote: ResolvedLote | None = None,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
 ) -> dict[str, Any]:
     """Run the active golden cases, then the active unanswerable cases, and return
@@ -420,7 +422,9 @@ def run_retrieval_evaluation(
             "the hybrid strategy needs its fusion config."
         )
     started = perf_counter()
-    warm_up = retriever.retrieve(cases[0].query, access, retrieval_depth)  # unmeasured
+    warm_up = retriever.retrieve(
+        cases[0].query, access, retrieval_depth, lote=lote
+    )  # unmeasured
     warmup_ms = (perf_counter() - started) * 1000.0
     _require_settings_if_dense_served(index_settings, {warm_up.strategy})
     chunker = chunker_for_result(index_settings, lexical)
@@ -432,7 +436,7 @@ def run_retrieval_evaluation(
     results: list[RetrievalResult] = []
     section_rows: list[dict[str, Any]] = []
     for case in cases:
-        result = retriever.retrieve(case.query, access, retrieval_depth)
+        result = retriever.retrieve(case.query, access, retrieval_depth, lote=lote)
         results.append(result)
         distinct = dedupe_documents(result.hits)
         ranked = distinct[:top_k]
@@ -469,7 +473,7 @@ def run_retrieval_evaluation(
 
     latencies = [r["latency_ms"] for r in rows]
     unanswerable_results = [
-        (case, retriever.retrieve(case.query, access, retrieval_depth))
+        (case, retriever.retrieve(case.query, access, retrieval_depth, lote=lote))
         for case in suite.active(DatasetType.UNANSWERABLE_REFUSAL)
     ]
     measured = [*results, *(r for _c, r in unanswerable_results)]
@@ -547,6 +551,7 @@ def run_retrieval_evaluation(
         "embedder_is_fake": identity.embedder_is_fake,
         "case_count": len(rows),
         "excluded_case_count": len(suite.goldens) - len(rows),
+        "lote": lote.code if lote is not None else None,
         "document_count": document_count,
         "random_hit_rate_at_k": round(random_hit_rate(top_k, document_count), 4),
         "random_hit_rate_formula": f"min(1, {top_k}/{document_count})",

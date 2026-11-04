@@ -8,6 +8,7 @@ from enum import StrEnum
 from typing import Protocol
 
 from way2australia_rag.retrieval.access import ResolvedAccess
+from way2australia_rag.retrieval.applicability import ResolvedLote
 from way2australia_rag.retrieval.errors import RetrievalConfigurationError
 from way2australia_rag.retrieval.models import RetrievalResult
 
@@ -28,6 +29,8 @@ class Retriever(Protocol):
         query_text: str,
         access: ResolvedAccess,
         top_k: int = DEFAULT_TOP_K,
+        *,
+        lote: ResolvedLote | None = None,
     ) -> RetrievalResult: ...
 
 

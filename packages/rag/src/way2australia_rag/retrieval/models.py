@@ -59,3 +59,4 @@ class RetrievalResult(BaseModel):
     leg_document_ranks: dict[str, list[str]] | None = None
     requested_strategy: str | None = None
     fallback_reason: str | None = None
+    lote: str | None = None

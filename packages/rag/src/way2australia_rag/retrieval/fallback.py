@@ -10,6 +10,7 @@ queries, so every query tries the primary again (no circuit breaker).
 from time import perf_counter
 
 from way2australia_rag.retrieval.access import ResolvedAccess
+from way2australia_rag.retrieval.applicability import ResolvedLote
 from way2australia_rag.retrieval.base import (
     DEFAULT_TOP_K,
     Retriever,
@@ -43,13 +44,15 @@ class FallbackRetriever:
         query_text: str,
         access: ResolvedAccess,
         top_k: int = DEFAULT_TOP_K,
+        *,
+        lote: ResolvedLote | None = None,
     ) -> RetrievalResult:
         validate_request(query_text, top_k)
         started = perf_counter()
         reason = self._open_reason
         if self._primary is not None:
             try:
-                result = self._primary.retrieve(query_text, access, top_k)
+                result = self._primary.retrieve(query_text, access, top_k, lote=lote)
             except RetrievalUnavailableError as error:
                 reason = error.reason
             else:
@@ -58,7 +61,7 @@ class FallbackRetriever:
                 )
         assert reason is not None
         attempt_ms = (perf_counter() - started) * 1000.0
-        served = self._fallback.retrieve(query_text, access, top_k)
+        served = self._fallback.retrieve(query_text, access, top_k, lote=lote)
         return served.model_copy(
             update={
                 "requested_strategy": Strategy.HYBRID.value,

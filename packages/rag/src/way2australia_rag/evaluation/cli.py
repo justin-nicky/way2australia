@@ -73,6 +73,7 @@ from way2australia_rag.ingestion.config import (
 )
 from way2australia_rag.ingestion.embedding import Embedder, FakeEmbedder
 from way2australia_rag.ingestion.errors import IngestionError
+from way2australia_rag.languages import active_lote_codes
 from way2australia_rag.repositories import (
     GUEST_PUBLIC_POLICY,
     DocumentRepositoryError,
@@ -81,6 +82,7 @@ from way2australia_rag.repositories import (
     list_eligible_documents,
 )
 from way2australia_rag.retrieval.access import guest_access, resolve_access
+from way2australia_rag.retrieval.applicability import resolve_lote
 from way2australia_rag.retrieval.base import Strategy
 from way2australia_rag.retrieval.errors import RetrievalError
 from way2australia_rag.retrieval.opening import open_retrieval
@@ -251,6 +253,7 @@ def _retrieval(
             raise EvaluationConfigurationError(
                 f"top_k must be an integer from {MIN_TOP_K} to {MAX_TOP_K}."
             )
+        lote = resolve_lote(args.lote, active_lote_codes(repo_root))
         config = load_ingestion_config(config_path)
         settings = load_runtime_settings(EvaluationConfigurationError)
         retrieval_config = load_retrieval_config(
@@ -302,7 +305,7 @@ def _retrieval(
         document = run_retrieval_evaluation(
             retriever=opened.retriever,
             identity=identity,
-            document_count=opened.document_count(access),
+            document_count=opened.document_count(access, lote),
             embedder=opened.embedder,
             index_settings=opened.index_settings,
             lexical=opened.lexical,
@@ -320,6 +323,7 @@ def _retrieval(
             qdrant_timeouts=(
                 None if strategy == Strategy.BM25 else retrieval_config.qdrant
             ),
+            lote=lote,
             clock=lambda: now,
         )
         write_document(output, document)
@@ -537,6 +541,11 @@ def main(
         type=Path,
         default=None,
         help="result file (default: experiments/results/retrieval-evaluation-*.json)",
+    )
+    retrieval.add_argument(
+        "--lote",
+        default=None,
+        help="CCL language code (active product_support code, not en)",
     )
     security = commands.add_parser(
         "security",

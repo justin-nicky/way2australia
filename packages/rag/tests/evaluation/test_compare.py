@@ -96,6 +96,13 @@ def test_constants() -> None:
     assert mrr_tolerance(4) == 0.25
 
 
+def test_lote_difference_is_refused(tmp_path: Path) -> None:
+    base = doc23(n=5, lote=None)
+    cand = doc23(n=5, lote="ml")
+    message = refusal(tmp_path, base, cand)
+    assert "lote changed none -> ml" in message
+
+
 def test_identical_runs_pass_without_warnings(tmp_path: Path) -> None:
     result = run(tmp_path, doc(), doc())
     assert result.passed

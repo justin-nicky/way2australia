@@ -81,7 +81,7 @@ def production_chunker():  # noqa: ANN201
 def test_dense_2_2_equals_the_pre_change_2_0_result() -> None:
     before = json.loads(FIXTURE.read_text(encoding="utf-8"))
     after = run_equivalence()
-    assert before["schema_version"] == "2.0" and after["schema_version"] == "2.3"
+    assert before["schema_version"] == "2.0" and after["schema_version"] == "2.4"
     new_row_keys = {
         "query_terms_truncated",
         "leg_ranks",
@@ -268,7 +268,7 @@ def test_2_3_keys_for_each_strategy(
     tmp_path: Path, strategy: Strategy, score_kind: str
 ) -> None:
     doc = run_strategy(tmp_path, strategy)
-    assert doc["schema_version"] == "2.3"
+    assert doc["schema_version"] == "2.4"
     assert doc["metric_unit"] == "distinct_documents"
     assert COMMON_KEYS <= set(doc)
     assert doc["retrieval_strategy"] == strategy.value
@@ -393,7 +393,9 @@ def test_hybrid_leg_ranks_use_document_rank_and_null_for_absence() -> None:
             self.strategy = strategy
             self._docs = docs
 
-        def retrieve(self, query_text: str, access: Any, top_k: int = 5):  # noqa: ANN201
+        def retrieve(  # noqa: ANN201
+            self, query_text: str, access: Any, top_k: int = 5, *, lote: Any = None
+        ):
             validate_request(query_text, top_k)
             hits = [chunk(d, p, i) for i, (d, p) in enumerate(self._docs, 1)]
             return RetrievalResult(
@@ -500,7 +502,7 @@ def test_eval_cli_writes_a_2_2_result_without_text(
     assert eval_cli(factory, "--strategy", strategy, "--output", str(out)) == 0
     text = out.read_text(encoding="utf-8")
     doc = json.loads(text)
-    assert doc["schema_version"] == "2.3" and doc["retrieval_strategy"] == strategy
+    assert doc["schema_version"] == "2.4" and doc["retrieval_strategy"] == strategy
     queries = [
         r["query"]
         for kind in ("golden_answerable", "unanswerable_refusal")
@@ -629,8 +631,9 @@ def test_retrieve_hybrid_prints_strategy_and_leg_ranks(
 ) -> None:
     assert retrieve(retrieve_world, "--strategy", "hybrid", "--top-k", "3") == 0
     lines = capsys.readouterr().out.strip().splitlines()
-    assert "strategy=hybrid" in lines[1]
-    hits = lines[2:]
+    assert lines[0] == "lote: none"
+    assert "strategy=hybrid" in lines[2]
+    hits = lines[3:]
     assert 1 <= len(hits) <= 3
     for hit in hits:
         assert re.match(
@@ -649,16 +652,20 @@ def test_retrieve_bm25_has_no_leg_suffix_and_never_embeds(
     monkeypatch.setattr(FakeEmbedder, "embed_query", boom)
     assert retrieve(retrieve_world, "--strategy", "bm25") == 0
     lines = capsys.readouterr().out.strip().splitlines()
-    assert "strategy=bm25" in lines[1]
-    assert lines[2:] and not any("dense=" in line for line in lines[2:])
+    assert lines[0] == "lote: none"
+    assert "strategy=bm25" in lines[2]
+    assert lines[3:] and not any("dense=" in line for line in lines[3:])
 
 
 def test_retrieve_default_strategy_is_the_config_default(
     retrieve_world, capsys: pytest.CaptureFixture[str]
 ) -> None:
     assert retrieve(retrieve_world) == 0
-    out = capsys.readouterr().out.splitlines()[1]
-    assert f"strategy={RETRIEVAL_CONFIG.default_strategy.value}" in out
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[0] == "lote: none"
+    assert any(
+        f"strategy={RETRIEVAL_CONFIG.default_strategy.value}" in line for line in lines
+    )
 
 
 def test_retrieve_prints_a_truncation_note(
@@ -721,12 +728,18 @@ def test_committed_1_0_and_2_0_files_read_as_dense(name: str, version: str) -> N
     assert run_.info["lexical"] is None
 
 
+def test_a_2_3_file_reads_lote_as_none() -> None:
+    run_ = read_result(RESULTS / "retrieval-evaluation-idx-v2-20261103T104934Z.json")
+    assert run_.schema_version == "2.3"
+    assert run_.info["lote"] is None
+
+
 def test_a_2_2_file_reads_with_strategy_and_lexical(tmp_path: Path) -> None:
     doc = run_strategy(tmp_path / "w", Strategy.HYBRID)
     path = tmp_path / "r.json"
     path.write_text(json.dumps(doc), encoding="utf-8")
     run_ = read_result(path)
-    assert run_.schema_version == "2.3"
+    assert run_.schema_version == "2.4"
     assert run_.info["retrieval_strategy"] == "hybrid"
     assert run_.info["lexical"]["tokenizer_name"] == "lexical-v1"
     assert len(run_.cases) == len(doc["cases"])
@@ -772,7 +785,7 @@ def test_eval_cli_bm25_needs_neither_qdrant_nor_the_embedder(
     )
     assert code == 0
     doc = json.loads(out.read_text(encoding="utf-8"))
-    assert doc["schema_version"] == "2.3" and doc["retrieval_strategy"] == "bm25"
+    assert doc["schema_version"] == "2.4" and doc["retrieval_strategy"] == "bm25"
     assert doc["index_settings"] is None and doc["device"] is None
     assert doc["document_count"] == manifest_document_count()
     assert doc["embedder_is_fake"] is False

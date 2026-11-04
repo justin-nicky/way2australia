@@ -118,6 +118,16 @@ def test_existing_output_exits_2_before_qdrant(tmp_path: Path) -> None:
     assert out.read_text() == "keep"
 
 
+def test_invalid_lote_exits_2_before_opening(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    factory = index_factory(RealStub())
+    out = tmp_path / "e.json"
+    assert run(factory, "--lote", "en", "--output", str(out)) == 2
+    assert "RetrievalConfigurationError" in capsys.readouterr().err
+    assert factory.calls == 0 and not out.exists()
+
+
 def test_bad_top_k_exits_2(tmp_path: Path) -> None:
     factory = index_factory(RealStub())
     out = tmp_path / "e.json"

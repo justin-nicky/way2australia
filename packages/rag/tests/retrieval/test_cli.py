@@ -72,11 +72,12 @@ def test_success_prints_header_and_hit_lines(
     assert retrieve(indexed, "--strategy", "dense", "--top-k", "3") == 0
     out = capsys.readouterr().out
     lines = out.strip().splitlines()
-    assert lines[0].startswith(
+    assert lines[0] == "lote: none"
+    assert lines[1].startswith(
         f"index: {PRODUCTION_COLLECTION} (index_version {PRODUCTION_INDEX_VERSION};"
     )
-    assert "fake=true" in lines[0] and "device=" in lines[0]
-    hits = lines[2:]
+    assert "fake=true" in lines[1] and "device=" in lines[1]
+    hits = lines[3:]
     assert 1 <= len(hits) <= 3
     assert re.match(r"^1  \S+  \S+  -?\d+\.\d{4}  .+", hits[0])
 
@@ -115,6 +116,7 @@ def test_parser_has_no_role_scope_or_tenant_option() -> None:
         "--embedder",
         "--strategy",
         "--retrieval-config",
+        "--lote",
     }
     for flag in ("--role", "--scope", "--tenant", "--tenant-id", "--access-scope"):
         with pytest.raises(SystemExit):
@@ -134,6 +136,15 @@ def test_bad_args_exit_2_without_client(
 ) -> None:
     factory = Factory(QdrantClient(":memory:"))
     assert retrieve(factory, *extra, query=query) == 2
+    assert "RetrievalConfigurationError" in capsys.readouterr().err
+    assert factory.calls == 0
+
+
+def test_invalid_lote_exits_2_before_opening(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    factory = Factory(QdrantClient(":memory:"))
+    assert retrieve(factory, "--lote", "en") == 2
     assert "RetrievalConfigurationError" in capsys.readouterr().err
     assert factory.calls == 0
 

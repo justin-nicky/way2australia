@@ -142,8 +142,8 @@ def test_bind_refuses_chunk_set_mismatch_with_counts(tmp_path: Path) -> None:
         )
         connection.execute(
             "INSERT INTO chunks (point_id, document_id, document_version, "
-            "content_hash, owner_present, payload_json) VALUES "
-            "('extra', 'doc_extra', 1, 'h', 1, '{}')"
+            "content_hash, owner_present, lote_languages, payload_json) VALUES "
+            "('extra', 'doc_extra', 1, 'h', 1, '|*|', '{}')"
         )
         identities = connection.execute(
             "SELECT point_id, document_id, document_version, content_hash FROM chunks"
