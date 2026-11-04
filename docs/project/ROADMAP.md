@@ -68,13 +68,14 @@ Approximately one focused week.
 
 ### 7. Chunking experiments
 **Status (Spec 009):** **verified (2026-11-04, merged `5a6deb7` on `main`)**. Delivered: `recursive` v1 and `structure` v1 chunkers beside unchanged `heading` v1; BGE-M3-aligned token counting and a pre-embed truncation guard; `ChunkerIdentity` and settings 1.1 (dense and lexical); per-document lexical freshness; distinct-document `eval-retrieval` metrics and result 2.3; `eval-compare --cross-index`; security result 1.3 over three chunkers; default production index **`idx-v2`** (`recursive` 128 / 16 with title prefix — confounded arm, D071). Operator default: `make ingest` then `make index-lexical` for `idx-v2`.
-- Still deferred (same spec carry-overs / later specs): FAQ-aware retrieval/indexing; optional semantic chunking; separating chunk size from title prefix in experiments; headed-document / `relevant_section_ids` evaluation coverage; `g026` en miss after promotion; per-scope lexical files (D050); Malayalam BM25 stemming (roadmap 8); HTTP-route items from Spec 008 (freshness at scale, circuit breaker, client lifecycle, async freshness, Qdrant 5xx, API surface).
+- Still deferred (same spec carry-overs / later specs): FAQ-aware retrieval/indexing; optional semantic chunking; separating chunk size from title prefix in experiments; headed-document / `relevant_section_ids` evaluation coverage; `g026` en miss after promotion; per-scope lexical files (D050); Malayalam BM25 stemming (**Spec 010 / item 8**); Spec 008 serving items (**roadmap item 10** — grounded generation and first HTTP surface, not a retrieval-only route).
 
 ### 8. Multilingual retrieval
+**Next spec (user direction 2026-11-04):** **Spec 010** — not started. See `CURRENT_STATE.md` Next step item 11 for the `spec-planner` brief (max 6–7 tasks).
 - English
 - Malayalam
 - mixed queries
-- language applicability handling
+- language applicability handling (`lote_languages` at retrieval time)
 
 ### 9. Reranking + context building
 - multilingual reranker
