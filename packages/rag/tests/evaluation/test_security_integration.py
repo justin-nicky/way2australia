@@ -1,9 +1,10 @@
-"""Authorization isolation on Docker Qdrant (Spec 006 R9; closes Spec 005 retro F3).
+"""Authorization and applicability isolation on Docker Qdrant (Spec 006 R9; Spec 010 T4).
 
 Builds the throwaway security index on the real Qdrant server under a unique
-`w2a-sectest-*` base, asserts no forbidden point is returned, and removes its own
-collection and `-settings` in `finally`. Skipped when Qdrant is unreachable.
-Never touches other collections.
+`w2a-sectest-*` base, asserts no forbidden point is returned, and with an active
+`lote` that non-applicable (`zz`) points are excluded. Removes its own collection
+and `-settings` in `finally`. Skipped when Qdrant is unreachable. Never touches
+other collections.
 """
 
 import uuid
@@ -16,26 +17,35 @@ from qdrant_client import QdrantClient
 from way2australia_core import AccessContext, Role
 from way2australia_rag.evaluation.security_eval import (
     PATHS,
+    _retrievers,
     run_security_evaluation,
     security_gate_chunkers,
     select_security_queries,
 )
 from way2australia_rag.evaluation.security_index import (
     FAKE_VECTOR_SIZE,
+    NON_APPLICABLE_DOCUMENT_ID,
     build_security_index,
     delete_security_index,
+    is_non_applicable_document,
 )
 from way2australia_rag.evaluation.suite import load_suite
 from way2australia_rag.ingestion.chunking import HeadingChunker
 from way2australia_rag.ingestion.embedding import FakeEmbedder
+from way2australia_rag.languages import active_lote_codes
 from way2australia_rag.repositories import (
     LocalDocumentRepository,
     LocalRepositoryConfig,
 )
 from way2australia_rag.retrieval.access import resolve_access
+from way2australia_rag.retrieval.applicability import ResolvedLote, resolve_lote
 from way2australia_rag.retrieval.strategy import load_retrieval_config
 
 QDRANT_URL = "http://localhost:6333"
+_LOTE_CODES = active_lote_codes(REPO_ROOT)
+_RESOLVED_LOTE = resolve_lote(_LOTE_CODES[0], _LOTE_CODES)
+assert _RESOLVED_LOTE is not None
+_ACTIVE_LOTE: ResolvedLote = _RESOLVED_LOTE
 
 pytestmark = pytest.mark.integration
 
@@ -80,18 +90,35 @@ def test_server_filter_keeps_every_forbidden_point_out(
             security_repository=security_repository,
             tenant_id="way2australia",
             lexical_dir=tmp_path / "lexical",
+            active_lote_code=_ACTIVE_LOTE.code,
         )
         access = resolve_access(
             AccessContext(role=Role.GUEST, tenant_id="way2australia")
         )
         config = load_retrieval_config(REPO_ROOT / "config/retrieval.yaml")
         report = run_security_evaluation(
-            index, access, queries, deferred, config, [path]
+            index,
+            access,
+            queries,
+            deferred,
+            config,
+            [path],
+            active_lote=_ACTIVE_LOTE,
         )
         assert report.paths == (path,)
         assert report.violations == []
         assert report.query_count == len(queries)
         assert index.lexical_rows_per_variant == index.points_per_variant
+        sample = queries[0]
+        retriever = dict(_retrievers(index, config, [path]))[path]
+        with_lote = retriever.retrieve(
+            sample.text, access, top_k=50, lote=_ACTIVE_LOTE
+        ).hits
+        assert all(not is_non_applicable_document(hit.document_id) for hit in with_lote)
+        without_lote = retriever.retrieve(sample.text, access, top_k=50).hits
+        assert any(
+            hit.document_id == NON_APPLICABLE_DOCUMENT_ID for hit in without_lote
+        )
     finally:
         names = [f"{base}-sec-v1", f"{base}-sec-v1-settings"]
         if index is not None:
@@ -123,12 +150,15 @@ def test_recursive_v1_full_gate_on_docker(
             security_repository=security_repository,
             tenant_id="way2australia",
             lexical_dir=tmp_path / "lexical-rec",
+            active_lote_code=_ACTIVE_LOTE.code,
         )
         access = resolve_access(
             AccessContext(role=Role.GUEST, tenant_id="way2australia")
         )
         config = load_retrieval_config(REPO_ROOT / "config/retrieval.yaml")
-        report = run_security_evaluation(index, access, queries, deferred, config)
+        report = run_security_evaluation(
+            index, access, queries, deferred, config, active_lote=_ACTIVE_LOTE
+        )
         assert report.passed
         assert report.violations == []
         assert index.chunker.name == "recursive"

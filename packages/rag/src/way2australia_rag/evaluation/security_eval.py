@@ -20,10 +20,12 @@ from way2australia_rag.evaluation.errors import EvaluationHarnessError
 from way2australia_rag.evaluation.models import DatasetType, LoadedSuite
 from way2australia_rag.evaluation.security_index import (
     FORBIDDEN_VARIANTS,
+    NON_APPLICABLE_VARIANT,
     SECURITY_COLLECTION_PREFIX,
     SecurityIndex,
     forbidden_variant,
     is_forbidden_document,
+    is_non_applicable_document,
 )
 from way2australia_rag.ingestion.chunking import Chunker, HeadingChunker
 from way2australia_rag.ingestion.recursive import RecursiveChunker
@@ -34,12 +36,14 @@ from way2australia_rag.lexical.build import production_entries
 from way2australia_rag.lexical.store import LexicalIndex, LexicalIndexBindingError
 from way2australia_rag.lexical.tokenizer import query_terms
 from way2australia_rag.repositories.hashing import HASH_CONTRACT
-from way2australia_rag.retrieval.access import ResolvedAccess
+from way2australia_rag.retrieval.access import ResolvedAccess, build_sql_access_clause
+from way2australia_rag.retrieval.applicability import ResolvedLote, dense_query_filter
 from way2australia_rag.retrieval.base import Retriever, Strategy
 from way2australia_rag.retrieval.baseline import git_state
 from way2australia_rag.retrieval.bm25 import BM25Retriever, match_expression
 from way2australia_rag.retrieval.errors import (
     FallbackReason,
+    LanguageApplicabilityError,
     RetrievalAuthorizationError,
     RetrievalUnavailableError,
 )
@@ -91,6 +95,12 @@ LEXICAL_SANITY_SQL = (
     "SELECT c.document_id FROM chunk_terms "
     "JOIN chunks c ON c.rowid = chunk_terms.rowid "
     "WHERE chunk_terms MATCH ? ORDER BY bm25(chunk_terms) ASC, c.point_id ASC LIMIT 1"
+)
+LEXICAL_ACCESS_SANITY_SQL = (
+    "SELECT c.document_id FROM chunk_terms "
+    "JOIN chunks c ON c.rowid = chunk_terms.rowid "
+    "WHERE chunk_terms MATCH ? AND ({access_where}) "
+    "ORDER BY bm25(chunk_terms) ASC, c.point_id ASC LIMIT 1"
 )
 
 __all__ = [
@@ -146,7 +156,8 @@ class SecurityReport:
     golden_query_count: int = 0
     bm25_no_term_queries: int = 0
     paths: tuple[str, ...] = PATHS
-    violations: list[dict[str, str]] = field(default_factory=list)
+    authorization_violations: list[dict[str, str]] = field(default_factory=list)
+    applicability_violations: list[dict[str, str]] = field(default_factory=list)
     deferred: list[dict[str, Any]] = field(default_factory=list)
 
     @property
@@ -158,8 +169,12 @@ class SecurityReport:
         return tuple(seen)
 
     @property
+    def violations(self) -> list[dict[str, str]]:
+        return [*self.authorization_violations, *self.applicability_violations]
+
+    @property
     def passed(self) -> bool:
-        return not self.violations
+        return not self.authorization_violations and not self.applicability_violations
 
 
 def select_security_queries(
@@ -196,6 +211,8 @@ def run_security_evaluation(
     deferred: Sequence[dict[str, Any]],
     retrieval_config: RetrievalConfig,
     paths: Sequence[str] = PATHS,
+    *,
+    active_lote: ResolvedLote,
 ) -> SecurityReport:
     """Run the gate. `queries` must be the ones the index was built for, in order.
 
@@ -207,19 +224,30 @@ def run_security_evaluation(
         raise EvaluationHarnessError(
             "the queries do not match the ones the security index was built for."
         )
+    if active_lote.code != index.active_lote_code:
+        raise EvaluationHarnessError(
+            "the active lote code does not match the one the security index was "
+            "built for."
+        )
     retrievers = _retrievers(index, retrieval_config, paths)
     report = SecurityReport(deferred=list(deferred), paths=tuple(paths))
     sanity = _open_lexical_sanity(index)
+    access_where, access_params = build_sql_access_clause(access)
     try:
         for query in queries:
             _sanity_check(index, query)
+            _access_sanity_check(index, query, access)
             terms = query_terms(query.text).terms
             if terms:
                 _lexical_sanity_check(sanity, query, terms)
+                _access_lexical_sanity_check(
+                    sanity, query, terms, access_where, access_params
+                )
             else:
                 report.bm25_no_term_queries += 1
             for path, retriever in retrievers:
-                _gate(report, path, retriever, query, access)
+                _gate(report, path, retriever, query, access, lote=None)
+                _gate(report, path, retriever, query, access, lote=active_lote)
             report.query_count += 1
             if query.kind == "security":
                 report.security_case_count += 1
@@ -346,15 +374,21 @@ def _check_standalone_open(index: SecurityIndex, identity: IndexIdentity) -> Non
         )
 
 
+def _lote_label(lote: ResolvedLote | None) -> str:
+    return lote.code if lote is not None else "none"
+
+
 def _gate(
     report: SecurityReport,
     path: str,
     retriever: Retriever,
     query: SecurityQuery,
     access: ResolvedAccess,
+    *,
+    lote: ResolvedLote | None,
 ) -> None:
     try:
-        result = retriever.retrieve(query.text, access, top_k=MAX_TOP_K)
+        result = retriever.retrieve(query.text, access, top_k=MAX_TOP_K, lote=lote)
         if path in _FALLBACK_PATHS and (
             result.fallback_reason != FallbackReason.QDRANT_UNAVAILABLE.value
             or result.strategy != Strategy.BM25.value
@@ -371,35 +405,77 @@ def _gate(
                 f"'{query.case_id}', so it did not gate the strategy it names."
             )
     except RetrievalAuthorizationError as error:
-        # The store returned a point the policy forbids; the error carries the
-        # hit's document ID.
         document_id = error.document_id
-        report.violations.append(
-            {
-                "case_id": query.case_id,
-                "path": path,
-                "strategy": _path_strategy(path),
-                "document_id": safe_text(document_id),
-                "variant": (
+        report.authorization_violations.append(
+            _violation_row(
+                query,
+                path,
+                document_id,
+                lote,
+                variant=(
                     forbidden_variant(document_id)
                     if is_forbidden_document(document_id)
                     else "check_hit_failed"
                 ),
-                "detail": safe_text(error),
-            }
+                detail=safe_text(error),
+            )
+        )
+        return
+    except LanguageApplicabilityError as error:
+        report.applicability_violations.append(
+            _violation_row(
+                query,
+                path,
+                error.document_id,
+                lote,
+                variant=NON_APPLICABLE_VARIANT,
+                detail=safe_text(error),
+            )
         )
         return
     for hit in result.hits:
         if is_forbidden_document(hit.document_id):
-            report.violations.append(
-                {
-                    "case_id": query.case_id,
-                    "path": path,
-                    "strategy": _path_strategy(path),
-                    "document_id": hit.document_id,
-                    "variant": forbidden_variant(hit.document_id),
-                }
+            report.authorization_violations.append(
+                _violation_row(
+                    query,
+                    path,
+                    hit.document_id,
+                    lote,
+                    variant=forbidden_variant(hit.document_id),
+                )
             )
+        elif lote is not None and is_non_applicable_document(hit.document_id):
+            report.applicability_violations.append(
+                _violation_row(
+                    query,
+                    path,
+                    hit.document_id,
+                    lote,
+                    variant=NON_APPLICABLE_VARIANT,
+                )
+            )
+
+
+def _violation_row(
+    query: SecurityQuery,
+    path: str,
+    document_id: str,
+    lote: ResolvedLote | None,
+    *,
+    variant: str,
+    detail: str | None = None,
+) -> dict[str, str]:
+    row = {
+        "case_id": query.case_id,
+        "path": path,
+        "strategy": _path_strategy(path),
+        "lote": _lote_label(lote),
+        "document_id": safe_text(document_id),
+        "variant": variant,
+    }
+    if detail is not None:
+        row["detail"] = detail
+    return row
 
 
 def _sanity_check(index: SecurityIndex, query: SecurityQuery) -> None:
@@ -413,8 +489,17 @@ def _sanity_check(index: SecurityIndex, query: SecurityQuery) -> None:
         with_payload=True,
         with_vectors=False,
     ).points
-    top = str((points[0].payload or {}).get("document_id")) if points else ""
-    if not is_forbidden_document(top):
+    if not points:
+        raise EvaluationHarnessError(
+            f"sanity check failed for case '{query.case_id}': the nearest "
+            "unfiltered point is not a forbidden fixture, so the gate would be vacuous."
+        )
+    best = points[0].score
+    winners = [p for p in points if p.score is not None and p.score >= best - 1e-9]
+    if not any(
+        is_forbidden_document(str((p.payload or {}).get("document_id")))
+        for p in winners
+    ):
         raise EvaluationHarnessError(
             f"sanity check failed for case '{query.case_id}': the nearest "
             "unfiltered point is not a forbidden fixture, so the gate would be vacuous."
@@ -435,6 +520,48 @@ def _open_lexical_sanity(index: SecurityIndex) -> sqlite3.Connection:
     return connection
 
 
+def _access_sanity_check(
+    index: SecurityIndex, query: SecurityQuery, access: ResolvedAccess
+) -> None:
+    """With the access filter alone, the nearest point must be non-applicable."""
+    vector = index.embedder.embed_query(query.text)
+    points = index.client.query_points(
+        index.collection,
+        query=vector,
+        using=DENSE_VECTOR_NAME,
+        query_filter=dense_query_filter(access, None),
+        limit=1,
+        with_payload=True,
+        with_vectors=False,
+    ).points
+    top = str((points[0].payload or {}).get("document_id")) if points else ""
+    if not is_non_applicable_document(top):
+        raise EvaluationHarnessError(
+            f"access-only sanity check failed for case '{query.case_id}': the "
+            "nearest filtered point is not a non-applicable fixture, so the gate "
+            "would be vacuous."
+        )
+
+
+def _access_lexical_sanity_check(
+    connection: sqlite3.Connection,
+    query: SecurityQuery,
+    terms: list[str],
+    access_where: str,
+    access_params: tuple[Any, ...],
+) -> None:
+    """With the access clause alone, the best BM25 row must be non-applicable."""
+    sql = LEXICAL_ACCESS_SANITY_SQL.format(access_where=access_where)
+    row = connection.execute(sql, (match_expression(terms), *access_params)).fetchone()
+    top = str(row[0]) if row else ""
+    if not is_non_applicable_document(top):
+        raise EvaluationHarnessError(
+            f"lexical access-only sanity check failed for case '{query.case_id}': "
+            "the best filtered row is not a non-applicable fixture, so the gate "
+            "would be vacuous."
+        )
+
+
 def _lexical_sanity_check(
     connection: sqlite3.Connection, query: SecurityQuery, terms: list[str]
 ) -> None:
@@ -450,7 +577,7 @@ def _lexical_sanity_check(
 
 
 SECURITY_RESULT_KIND = "security_evaluation"
-SECURITY_SCHEMA_VERSION = "1.3"
+SECURITY_SCHEMA_VERSION = "1.4"
 
 
 def security_run_record(index: SecurityIndex, report: SecurityReport) -> dict[str, Any]:
@@ -465,6 +592,8 @@ def security_run_record(index: SecurityIndex, report: SecurityReport) -> dict[st
         "strategies": list(report.strategies),
         "bm25_no_term_queries": report.bm25_no_term_queries,
         "violations": report.violations,
+        "authorization_violations": report.authorization_violations,
+        "applicability_violations": report.applicability_violations,
         "index": {
             "collection": index.collection,
             "index_version": index.dense.index_version,
@@ -472,6 +601,9 @@ def security_run_record(index: SecurityIndex, report: SecurityReport) -> dict[st
             "seed_document_count": len(index.seed_document_ids),
             "forbidden_points_per_variant": dict(index.points_per_variant),
             "lexical_rows_per_variant": dict(index.lexical_rows_per_variant),
+            "non_applicable_rows_per_variant": dict(
+                index.non_applicable_rows_per_variant
+            ),
         },
     }
 
@@ -484,6 +616,7 @@ def security_document(
     duration_ms: float,
     created_at: str,
     repo_root: Any,
+    lote_modes: Sequence[str | None],
 ) -> dict[str, Any]:
     """Result document: IDs, counts and verdicts only. No query or chunk text."""
     commit, dirty = git_state(repo_root)
@@ -504,6 +637,7 @@ def security_document(
                 str(s) for s in access.policy.allowed_access_scopes
             ),
         },
+        "lote_modes": list(lote_modes),
         "runs": run_rows,
         "deferred": list(runs[0][1].deferred) if runs else [],
         "excluded_fixtures": EXCLUDED_FIXTURES,

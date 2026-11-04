@@ -59,7 +59,16 @@ SECURITY_COLLECTION_PREFIX = "w2a-sectest-"
 SECURITY_COLLECTION_BASE_RE = re.compile(r"^w2a-sectest-[0-9a-f]{8}$")
 SECURITY_INDEX_VERSION = "sec-v1"
 FAKE_VECTOR_SIZE = DEFAULT_FAKE_VECTOR_SIZE
-FORBIDDEN_VARIANTS = ("staff_scope", "other_tenant", "owned", "missing_owner")
+FORBIDDEN_VARIANTS = (
+    "staff_scope",
+    "staff_scope_lote",
+    "other_tenant",
+    "owned",
+    "missing_owner",
+)
+NON_APPLICABLE_LOTE_CODE = "zz"
+NON_APPLICABLE_VARIANT = NON_APPLICABLE_LOTE_CODE
+NON_APPLICABLE_DOCUMENT_ID = f"non_applicable_{NON_APPLICABLE_LOTE_CODE}"
 CANARY_DOCUMENT_ID = "fixture_staff_canary"
 FORBIDDEN_DOCUMENT_PREFIX = "forbidden_"
 FORBIDDEN_SENTINEL = "forbidden fixture"
@@ -81,8 +90,10 @@ class SecurityIndex:
     seed_document_ids: frozenset[str]
     points_per_variant: dict[str, int]
     lexical_rows_per_variant: dict[str, int]
+    non_applicable_rows_per_variant: dict[str, int]
     chunker: Chunker
     seed_repository: DocumentRepository
+    active_lote_code: str
 
 
 def is_forbidden_document(document_id: str) -> bool:
@@ -97,6 +108,18 @@ def forbidden_variant(document_id: str) -> str:
     return "staff_canary"
 
 
+def is_non_applicable_document(document_id: str) -> bool:
+    return document_id == NON_APPLICABLE_DOCUMENT_ID
+
+
+def require_non_applicable_lote_inactive(active_lote_codes: Sequence[str]) -> None:
+    if NON_APPLICABLE_LOTE_CODE in active_lote_codes:
+        raise EvaluationHarnessError(
+            f"the synthetic non-applicable lote code {NON_APPLICABLE_LOTE_CODE!r} "
+            "is active in the language registry; the security harness cannot run."
+        )
+
+
 def require_security_base(collection_base: str) -> None:
     if not SECURITY_COLLECTION_BASE_RE.fullmatch(collection_base):
         raise EvaluationConfigurationError(
@@ -106,7 +129,11 @@ def require_security_base(collection_base: str) -> None:
 
 
 def _forbidden_payload(
-    variant: str, query_index: int, tenant_id: str
+    variant: str,
+    query_index: int,
+    tenant_id: str,
+    *,
+    active_lote_code: str,
 ) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "tenant_id": tenant_id,
@@ -129,6 +156,9 @@ def _forbidden_payload(
     }
     if variant == "staff_scope":
         payload["access_scope"] = "staff"
+    elif variant == "staff_scope_lote":
+        payload["access_scope"] = "staff"
+        payload["lote_languages"] = [active_lote_code]
     elif variant == "other_tenant":
         payload["tenant_id"] = f"{tenant_id}-other"
     elif variant == "owned":
@@ -138,6 +168,30 @@ def _forbidden_payload(
     else:  # pragma: no cover - guarded by FORBIDDEN_VARIANTS
         raise EvaluationHarnessError(f"unknown forbidden variant '{variant}'")
     return payload
+
+
+def _non_applicable_payload(
+    query_index: int, tenant_id: str, query: str
+) -> dict[str, Any]:
+    return {
+        "tenant_id": tenant_id,
+        "access_scope": "public",
+        "owner_user_id": None,
+        "language_scope": "global",
+        "lote_languages": [NON_APPLICABLE_LOTE_CODE],
+        "content_language": "en",
+        "title": "Non-applicable security fixture",
+        "knowledge_domain": "security_fixture",
+        "source_authority": "synthetic",
+        "source_type": "security_fixture",
+        "source_url": None,
+        "chunk_text": lexical_probe_text(query, repeats=2),
+        "content_hash": "non-applicable-fixture",
+        "document_id": NON_APPLICABLE_DOCUMENT_ID,
+        "document_version": 1,
+        "section_id": "main",
+        "chunk_position": query_index,
+    }
 
 
 def build_security_index(
@@ -151,6 +205,7 @@ def build_security_index(
     security_repository: DocumentRepository,
     tenant_id: str,
     lexical_dir: Path,
+    active_lote_code: str,
 ) -> SecurityIndex:
     """Build a fresh throwaway index: seed corpus, canary and forbidden points,
     plus a lexical file in `lexical_dir` holding the same point IDs.
@@ -160,6 +215,10 @@ def build_security_index(
     (the CLI removes it with its temporary directory).
     """
     require_security_base(collection_base)
+    if not active_lote_code.strip():
+        raise EvaluationConfigurationError(
+            "the security index builder requires the active lote code."
+        )
     if not embedder.info.is_fake:
         raise EvaluationConfigurationError(
             "the security index is built with the fake embedder only."
@@ -209,12 +268,28 @@ def build_security_index(
                 models.PointStruct(
                     id=point_id(f"{FORBIDDEN_DOCUMENT_PREFIX}{variant}", "main", i),
                     vector={DENSE_VECTOR_NAME: vector},
-                    payload=_forbidden_payload(variant, i, tenant_id),
+                    payload=_forbidden_payload(
+                        variant, i, tenant_id, active_lote_code=active_lote_code
+                    ),
                 )
                 for i, vector in enumerate(vectors)
             ],
             wait=True,
         )
+
+    # 3b. public eligible non-applicable rows (one per query, nearest under access)
+    client.upsert(
+        store.collection,
+        points=[
+            models.PointStruct(
+                id=point_id(NON_APPLICABLE_DOCUMENT_ID, "main", i),
+                vector={DENSE_VECTOR_NAME: vector},
+                payload=_non_applicable_payload(i, tenant_id, query),
+            )
+            for i, (query, vector) in enumerate(zip(queries, vectors, strict=True))
+        ],
+        wait=True,
+    )
 
     dense = DenseIndex.open(
         client, collection_base, SECURITY_INDEX_VERSION, embedder.info
@@ -226,7 +301,10 @@ def build_security_index(
     )
     entries = [
         *seed_entries,
-        *_lexical_forbidden_entries(canary_points, queries, tenant_id),
+        *_lexical_forbidden_entries(
+            canary_points, queries, tenant_id, active_lote_code=active_lote_code
+        ),
+        *_lexical_non_applicable_entries(queries, tenant_id),
     ]
     lexical_path = lexical_index_path(lexical_dir, collection)
     build_lexical_index(
@@ -259,6 +337,7 @@ def build_security_index(
 
     counts = {variant: len(vectors) for variant in FORBIDDEN_VARIANTS}
     counts["staff_canary"] = len(canary_points)
+    non_applicable_counts = {NON_APPLICABLE_VARIANT: len(queries)}
     return SecurityIndex(
         client=client,
         collection_base=collection_base,
@@ -271,21 +350,35 @@ def build_security_index(
         seed_document_ids=seed_ids,
         points_per_variant=counts,
         lexical_rows_per_variant=dict(lexical_rows),
+        non_applicable_rows_per_variant=non_applicable_counts,
         chunker=chunker,
         seed_repository=seed_repository,
+        active_lote_code=active_lote_code,
     )
 
 
-def lexical_probe_text(query: str) -> str:
-    """The query's own `lexical-v1` terms, 3 times: a row with this text outranks
-    any seed chunk for that query, so BM25 ranks it first without the filter."""
-    return " ".join(query_terms(query).terms * 3)
+def lexical_probe_text(query: str, *, repeats: int = 3) -> str:
+    """The query's own `lexical-v1` terms repeated: a row with this text outranks
+    any seed chunk for that query when the score is high enough."""
+    return " ".join(query_terms(query).terms * repeats)
+
+
+def _lexical_non_applicable_entries(
+    queries: Sequence[str], tenant_id: str
+) -> list[Entry]:
+    entries: list[Entry] = []
+    for i, query in enumerate(queries):
+        payload = _non_applicable_payload(i, tenant_id, query)
+        entries.append((point_id(NON_APPLICABLE_DOCUMENT_ID, "main", i), payload))
+    return entries
 
 
 def _lexical_forbidden_entries(
     canary_points: Sequence[IndexPoint],
     queries: Sequence[str],
     tenant_id: str,
+    *,
+    active_lote_code: str,
 ) -> list[Entry]:
     """Lexical rows for exactly the forbidden Qdrant points (same point IDs)."""
     entries: list[Entry] = []
@@ -297,7 +390,9 @@ def _lexical_forbidden_entries(
         entries.append((point.point_id, payload))
     for variant in FORBIDDEN_VARIANTS:
         for i, query in enumerate(queries):
-            payload = _forbidden_payload(variant, i, tenant_id)
+            payload = _forbidden_payload(
+                variant, i, tenant_id, active_lote_code=active_lote_code
+            )
             payload["chunk_text"] = lexical_probe_text(query)
             entries.append(
                 (point_id(f"{FORBIDDEN_DOCUMENT_PREFIX}{variant}", "main", i), payload)

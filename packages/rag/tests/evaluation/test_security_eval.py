@@ -47,9 +47,12 @@ from way2australia_rag.evaluation.security_eval import (
 )
 from way2australia_rag.evaluation.security_index import (
     FAKE_VECTOR_SIZE,
+    NON_APPLICABLE_DOCUMENT_ID,
+    NON_APPLICABLE_LOTE_CODE,
     SecurityIndex,
     build_security_index,
     delete_security_index,
+    require_non_applicable_lote_inactive,
 )
 from way2australia_rag.evaluation.suite import load_suite
 from way2australia_rag.ingestion.chunking import HeadingChunker
@@ -57,6 +60,7 @@ from way2australia_rag.ingestion.embedding import FakeEmbedder
 from way2australia_rag.ingestion.payload import PointPayload
 from way2australia_rag.ingestion.recursive import RecursiveChunker
 from way2australia_rag.ingestion.structure import StructureChunker
+from way2australia_rag.languages import active_lote_codes
 from way2australia_rag.lexical.store import LexicalRow
 from way2australia_rag.lexical.tokenizer import query_terms
 from way2australia_rag.repositories import (
@@ -70,6 +74,7 @@ from way2australia_rag.retrieval.access import (
     build_sql_access_clause,
     resolve_access,
 )
+from way2australia_rag.retrieval.applicability import ResolvedLote, resolve_lote
 from way2australia_rag.retrieval.base import Strategy
 from way2australia_rag.retrieval.bm25 import match_expression
 from way2australia_rag.retrieval.index import DenseIndex
@@ -84,6 +89,10 @@ SUITE = LIVE_SUITE
 TENANT = "way2australia"
 RETRIEVAL_CONFIG = load_retrieval_config(REPO_ROOT / "config/retrieval.yaml")
 EVAL_SRC = REPO_ROOT / "packages/rag/src/way2australia_rag/evaluation"
+_REGISTRY_LOTE = active_lote_codes(REPO_ROOT)
+_RESOLVED_LOTE = resolve_lote(_REGISTRY_LOTE[0], _REGISTRY_LOTE)
+assert _RESOLVED_LOTE is not None
+ACTIVE_LOTE: ResolvedLote = _RESOLVED_LOTE
 
 
 _WORK: dict[str, Path] = {}
@@ -125,6 +134,26 @@ def build(
         security_repository=security_repository,
         tenant_id=TENANT,
         lexical_dir=lexical_dir or _WORK["dir"],
+        active_lote_code=ACTIVE_LOTE.code,
+    )
+
+
+def run_gate(
+    index: SecurityIndex,
+    access: ResolvedAccess,
+    queries: list[SecurityQuery],
+    deferred: list[dict[str, Any]],
+    config: Any,
+    paths: tuple[str, ...] | list[str] = PATHS,
+) -> Any:
+    return run_security_evaluation(
+        index,
+        access,
+        queries,
+        deferred,
+        config,
+        paths,
+        active_lote=ACTIVE_LOTE,
     )
 
 
@@ -136,6 +165,7 @@ def security_result(index: SecurityIndex, report: Any) -> dict[str, Any]:
         duration_ms=1.0,
         created_at="2026-01-01T00:00:00+00:00",
         repo_root=REPO_ROOT,
+        lote_modes=[None, ACTIVE_LOTE.code],
     )
 
 
@@ -178,9 +208,7 @@ def test_full_gate_passes_on_the_seed_corpus(
 ) -> None:
     queries, deferred = real_queries()
     index = build([q.text for q in queries], security_repository, chunker=chunker)
-    report = run_security_evaluation(
-        index, guest_access(), queries, deferred, RETRIEVAL_CONFIG
-    )
+    report = run_gate(index, guest_access(), queries, deferred, RETRIEVAL_CONFIG)
     assert report.passed
     assert report.violations == []
     security = live_suite_rows("security", active_only=True)
@@ -214,17 +242,21 @@ def test_sanity_check_holds_for_every_query(
     queries, _ = real_queries()
     index = build([q.text for q in queries], security_repository)
     for query in queries:
-        top = index.client.query_points(
+        points = index.client.query_points(
             index.collection,
             query=index.embedder.embed_query(query.text),
             using="dense",
             limit=5,
             with_payload=True,
-        ).points[0]
-        assert security_eval.is_forbidden_document(
-            str((top.payload or {})["document_id"])
+        ).points
+        assert points
+        best = points[0].score
+        winners = [p for p in points if p.score is not None and p.score >= best - 1e-9]
+        assert any(
+            security_eval.is_forbidden_document(str((p.payload or {})["document_id"]))
+            for p in winners
         )
-        assert top.score == pytest.approx(1.0, abs=1e-6)
+        assert best == pytest.approx(1.0, abs=1e-6)
 
 
 def test_sanity_check_failure_is_a_harness_error(
@@ -250,7 +282,7 @@ def test_sanity_check_failure_is_a_harness_error(
         ),
     )
     with pytest.raises(EvaluationHarnessError, match="sanity check"):
-        run_security_evaluation(index, guest_access(), queries, [], RETRIEVAL_CONFIG)
+        run_gate(index, guest_access(), queries, [], RETRIEVAL_CONFIG)
 
 
 def test_a_filter_dropping_index_fails_the_gate(
@@ -259,9 +291,7 @@ def test_a_filter_dropping_index_fails_the_gate(
     queries, deferred = real_queries()
     index = build([q.text for q in queries], security_repository)
     broken, _ = spied(index, drop_filter=True)
-    report = run_security_evaluation(
-        broken, guest_access(), queries, deferred, RETRIEVAL_CONFIG
-    )
+    report = run_gate(broken, guest_access(), queries, deferred, RETRIEVAL_CONFIG)
     assert not report.passed
     first = report.violations[0]
     assert first["case_id"] == queries[0].case_id
@@ -282,13 +312,21 @@ def test_forbidden_documents_are_caught_even_if_check_hit_is_bypassed(
     queries, deferred = real_queries()
     index = build([q.text for q in queries], security_repository)
     broken, _ = spied(index, drop_filter=True)
-    report = run_security_evaluation(
-        broken, guest_access(), queries, deferred, RETRIEVAL_CONFIG
-    )
+    report = run_gate(broken, guest_access(), queries, deferred, RETRIEVAL_CONFIG)
     assert not report.passed
     variants = {v["variant"] for v in report.violations}
-    assert variants <= {*FORBIDDEN_VARIANTS, "staff_canary"}
-    assert {"staff_scope", "other_tenant", "owned", "missing_owner"} <= variants
+    assert variants <= {
+        *FORBIDDEN_VARIANTS,
+        "staff_canary",
+        NON_APPLICABLE_LOTE_CODE,
+    }
+    assert {
+        "staff_scope",
+        "staff_scope_lote",
+        "other_tenant",
+        "owned",
+        "missing_owner",
+    } <= variants
     assert all(v["document_id"] for v in report.violations)
 
 
@@ -298,17 +336,25 @@ def test_filter_is_identical_for_every_query_including_after_s003(
     queries, deferred = real_queries()
     index = build([q.text for q in queries], security_repository)
     spied_index, spy = spied(index)
-    report = run_security_evaluation(
-        spied_index, guest_access(), queries, deferred, RETRIEVAL_CONFIG
-    )
+    report = run_gate(spied_index, guest_access(), queries, deferred, RETRIEVAL_CONFIG)
     assert report.passed
-    expected = build_access_filter(guest_access())
-    # the dense leg runs twice per query: `dense`, then inside `hybrid`
-    assert len(spy.filters) == 2 * len(queries)
-    assert all(f == expected for f in spy.filters)
+    access = guest_access()
+    expected_none = build_access_filter(access)
+    from way2australia_rag.retrieval.applicability import dense_query_filter
+
+    expected_lote = dense_query_filter(access, ACTIVE_LOTE)
+    # dense leg: `dense` and `hybrid`, each with and without `lote`
+    assert len(spy.filters) == 4 * len(queries)
+    for block in range(len(queries)):
+        base = block * 4
+        assert spy.filters[base : base + 4] == [
+            expected_none,
+            expected_lote,
+            expected_none,
+            expected_lote,
+        ]
     s003 = next(i for i, q in enumerate(queries) if q.case_id == "s003")
     assert "staff" in queries[s003].text  # the injection-style query really is there
-    assert all(f == spy.filters[0] for f in spy.filters[2 * s003 :])
 
 
 def test_case_access_context_never_changes_the_filter(
@@ -352,13 +398,16 @@ def test_case_access_context_never_changes_the_filter(
     assert len(queries) == 4
     index = build([q.text for q in queries], security_repository)
     spied_index, spy = spied(index)
-    report = run_security_evaluation(
-        spied_index, guest_access(), queries, deferred, RETRIEVAL_CONFIG
-    )
+    report = run_gate(spied_index, guest_access(), queries, deferred, RETRIEVAL_CONFIG)
     assert report.passed
-    expected = build_access_filter(guest_access())
-    assert len(spy.filters) == 8  # 4 queries x (dense + the hybrid dense leg)
-    assert all(f == expected for f in spy.filters)
+    access = guest_access()
+    expected_none = build_access_filter(access)
+    from way2australia_rag.retrieval.applicability import dense_query_filter
+
+    expected_lote = dense_query_filter(access, ACTIVE_LOTE)
+    assert len(spy.filters) == 16  # 4 queries x dense+hybrid x both lote modes
+    for i, filt in enumerate(spy.filters):
+        assert filt == (expected_none if i % 2 == 0 else expected_lote)
     for f in spy.filters:
         dumped = json.dumps(f.model_dump(mode="json"))
         assert f'"value": "{TENANT}"' in dumped
@@ -451,6 +500,7 @@ def test_builder_refuses_a_real_embedder_identity(
             security_repository=security_repository,
             tenant_id=TENANT,
             lexical_dir=_WORK["dir"],
+            active_lote_code=ACTIVE_LOTE.code,
         )
 
 
@@ -551,9 +601,7 @@ def test_violation_names_the_document_from_the_error_attribute(
     queries, deferred = real_queries()
     index = build([q.text for q in queries], security_repository)
     broken = dataclasses.replace(index, dense=OddIdStore(index.dense))
-    report = run_security_evaluation(
-        broken, guest_access(), queries, deferred, RETRIEVAL_CONFIG
-    )
+    report = run_gate(broken, guest_access(), queries, deferred, RETRIEVAL_CONFIG)
     assert not report.passed
     expected = safe_text(OddIdStore.odd)
     assert report.violations
@@ -585,9 +633,7 @@ def test_result_document_has_ids_only(
 ) -> None:
     queries, deferred = real_queries()
     index = build([q.text for q in queries], security_repository)
-    report = run_security_evaluation(
-        index, guest_access(), queries, deferred, RETRIEVAL_CONFIG
-    )
+    report = run_gate(index, guest_access(), queries, deferred, RETRIEVAL_CONFIG)
     document = security_result(index, report)
     text = json.dumps(document, ensure_ascii=False)
     assert all(q.text not in text for q in queries)
@@ -604,9 +650,7 @@ def test_the_whole_gate_finishes_under_ten_seconds(
     started = perf_counter()
     queries, deferred = real_queries()
     index = build([q.text for q in queries], security_repository)
-    report = run_security_evaluation(
-        index, guest_access(), queries, deferred, RETRIEVAL_CONFIG
-    )
+    report = run_gate(index, guest_access(), queries, deferred, RETRIEVAL_CONFIG)
     elapsed = perf_counter() - started
     assert report.passed
     assert elapsed < 10.0, f"gate took {elapsed:.1f}s"
@@ -622,6 +666,7 @@ class DroppedClauseLexical:
         self.inner = inner
         self.settings = inner.settings
         self.label = inner.label
+        self.has_lote_column = inner.has_lote_column
 
     @property
     def tokenizer(self):
@@ -656,13 +701,11 @@ def test_the_gate_runs_all_three_strategies_on_v2(
     monkeypatch.setattr(security_eval, "build_retriever", counting)
     queries, deferred = real_queries()
     index = build([q.text for q in queries], security_repository)
-    report = run_security_evaluation(
-        index, guest_access(), queries, deferred, RETRIEVAL_CONFIG
-    )
+    report = run_gate(index, guest_access(), queries, deferred, RETRIEVAL_CONFIG)
     assert report.passed
     assert report.strategies == ("dense", "bm25", "hybrid")
     for strategy in report.strategies:
-        assert calls.count(strategy) == len(queries)
+        assert calls.count(strategy) == 2 * len(queries)
     goldens = live_suite_rows("golden_answerable", active_only=True)
     assert {"g064", "g069"} <= {r["case_id"] for r in goldens}  # v2 queries are in
 
@@ -673,6 +716,9 @@ def test_lexical_rows_mirror_the_forbidden_points(
     queries, _ = real_queries()
     index = build([q.text for q in queries], security_repository)
     assert index.lexical_rows_per_variant == index.points_per_variant
+    assert index.non_applicable_rows_per_variant == {
+        NON_APPLICABLE_LOTE_CODE: len(queries)
+    }
     assert (
         index.lexical.settings.chunk_count == index.client.count(index.collection).count
     )
@@ -719,7 +765,7 @@ def test_a_lexical_sanity_failure_is_a_harness_error(
     # Forbidden rows without the query terms: BM25 would not rank them first.
     strip_forbidden_terms(index.lexical_path)
     with pytest.raises(EvaluationHarnessError, match="lexical sanity check"):
-        run_security_evaluation(index, guest_access(), queries, [], RETRIEVAL_CONFIG)
+        run_gate(index, guest_access(), queries, [], RETRIEVAL_CONFIG)
 
 
 def test_zero_term_queries_skip_the_lexical_sanity_and_are_counted(
@@ -731,9 +777,7 @@ def test_zero_term_queries_skip_the_lexical_sanity_and_are_counted(
     ]
     assert query_terms("???").terms == []
     index = build([q.text for q in queries], security_repository)
-    report = run_security_evaluation(
-        index, guest_access(), queries, [], RETRIEVAL_CONFIG
-    )
+    report = run_gate(index, guest_access(), queries, [], RETRIEVAL_CONFIG)
     assert report.passed
     assert report.bm25_no_term_queries == 1
     assert report.query_count == 2
@@ -745,9 +789,7 @@ def test_a_lexical_store_without_the_clause_fails_bm25_and_hybrid(
     queries, deferred = real_queries()
     index = build([q.text for q in queries], security_repository)
     broken = dataclasses.replace(index, lexical=DroppedClauseLexical(index.lexical))
-    report = run_security_evaluation(
-        broken, guest_access(), queries, deferred, RETRIEVAL_CONFIG
-    )
+    report = run_gate(broken, guest_access(), queries, deferred, RETRIEVAL_CONFIG)
     assert not report.passed
     by_strategy = {v["strategy"] for v in report.violations}
     assert by_strategy == {"bm25", "hybrid"}  # the dense leg is intact
@@ -755,7 +797,9 @@ def test_a_lexical_store_without_the_clause_fails_bm25_and_hybrid(
     assert all(v["case_id"] for v in report.violations)
 
 
-@pytest.mark.parametrize("variant", ["staff_scope", "other_tenant", "owned"])
+@pytest.mark.parametrize(
+    "variant", ["staff_scope", "staff_scope_lote", "other_tenant", "owned"]
+)
 def test_each_forbidden_row_type_is_in_the_lexical_file(
     variant: str, security_repository: LocalDocumentRepository
 ) -> None:
@@ -787,23 +831,39 @@ def test_the_missing_owner_row_is_excluded_by_owner_present_not_check_hit(
 
     assert "forbidden_missing_owner" not in documents(where, params)
     assert "forbidden_missing_owner" in documents(*loose)  # only owner_present stops it
-    report = run_security_evaluation(index, access, queries, deferred, RETRIEVAL_CONFIG)
+    report = run_gate(index, access, queries, deferred, RETRIEVAL_CONFIG)
     assert not [v for v in report.violations if v["variant"] == "check_hit_failed"]
     assert report.passed
 
 
-def test_security_result_1_3_has_runs_paths_and_no_text(
+def test_security_result_1_4_has_runs_paths_and_no_text(
     security_repository: LocalDocumentRepository,
 ) -> None:
     queries, deferred = real_queries()
     index = build([q.text for q in queries], security_repository)
     broken = dataclasses.replace(index, lexical=DroppedClauseLexical(index.lexical))
+    legacy_1_3 = {
+        "kind": "security_evaluation",
+        "schema_version": "1.3",
+        "passed": True,
+        "runs": [
+            {
+                "passed": True,
+                "violations": [],
+                "paths": list(PATHS),
+                "strategies": ["dense", "bm25", "hybrid"],
+            }
+        ],
+    }
+    assert legacy_1_3["schema_version"] == "1.3"
+    assert "lote_modes" not in legacy_1_3
     for candidate, passed in ((index, True), (broken, False)):
-        report = run_security_evaluation(
+        report = run_gate(
             candidate, guest_access(), queries, deferred, RETRIEVAL_CONFIG
         )
         document = security_result(candidate, report)
-        assert document["schema_version"] == "1.3"
+        assert document["schema_version"] == "1.4"
+        assert document["lote_modes"] == [None, ACTIVE_LOTE.code]
         assert document["passed"] is passed
         run = document["runs"][0]
         assert run["paths"] == list(PATHS)
@@ -813,6 +873,11 @@ def test_security_result_1_3_has_runs_paths_and_no_text(
             run["index"]["lexical_rows_per_variant"]
             == run["index"]["forbidden_points_per_variant"]
         )
+        assert run["index"]["non_applicable_rows_per_variant"] == {
+            NON_APPLICABLE_LOTE_CODE: len(queries)
+        }
+        assert run["authorization_violations"] == report.authorization_violations
+        assert run["applicability_violations"] == report.applicability_violations
         assert all(
             v["strategy"] in run["strategies"] and v["path"] in run["paths"]
             for v in run["violations"]
@@ -875,7 +940,7 @@ def test_cli_violation_exits_one_naming_ids_not_text(
     )
     assert code == 1
     out = capsys.readouterr().out
-    assert "VIOLATION path dense case s002" in out
+    assert "AUTH VIOLATION path dense" in out and "case s002" in out
     assert "eval-security: FAIL" in out
     assert "forbidden fixture" not in out
     assert json.loads(output.read_text(encoding="utf-8"))["passed"] is False
@@ -939,7 +1004,8 @@ def test_cli_lexical_file_is_removed_after_a_pass(
     out = capsys.readouterr().out
     assert "strategies: dense, bm25, hybrid" in out
     document = json.loads(output.read_text(encoding="utf-8"))
-    assert document["schema_version"] == "1.3"
+    assert document["schema_version"] == "1.4"
+    assert document["lote_modes"] == [None, ACTIVE_LOTE.code]
     assert len(document["runs"]) == 3
 
 
@@ -1041,9 +1107,7 @@ def test_every_path_is_gated_for_every_query(
     monkeypatch.setattr(security_eval, "_retrievers", counting)
     queries, deferred = real_queries()
     index = build([q.text for q in queries], security_repository)
-    report = run_security_evaluation(
-        index, guest_access(), queries, deferred, RETRIEVAL_CONFIG
-    )
+    report = run_gate(index, guest_access(), queries, deferred, RETRIEVAL_CONFIG)
     assert report.passed
     assert PATHS == (
         "dense",
@@ -1054,7 +1118,7 @@ def test_every_path_is_gated_for_every_query(
     )
     assert report.paths == PATHS
     for path in PATHS:
-        assert seen.count(path) == len(queries)
+        assert seen.count(path) == 2 * len(queries)
 
 
 @pytest.mark.parametrize("path", PATHS)
@@ -1087,9 +1151,7 @@ def test_a_forbidden_hit_injected_into_a_path_fails_the_gate_naming_it(
     monkeypatch.setattr(security_eval, "_retrievers", injecting)
     queries, deferred = real_queries()
     index = build([q.text for q in queries], security_repository)
-    report = run_security_evaluation(
-        index, guest_access(), queries, deferred, RETRIEVAL_CONFIG
-    )
+    report = run_gate(index, guest_access(), queries, deferred, RETRIEVAL_CONFIG)
     assert not report.passed
     assert {v["path"] for v in report.violations} == {path}
     assert all(v["variant"] == "staff_scope" for v in report.violations)
@@ -1104,9 +1166,7 @@ def test_a_dropped_lexical_clause_names_the_four_lexical_paths(
     queries, deferred = real_queries()
     index = build([q.text for q in queries], security_repository)
     broken = dataclasses.replace(index, lexical=DroppedClauseLexical(index.lexical))
-    report = run_security_evaluation(
-        broken, guest_access(), queries, deferred, RETRIEVAL_CONFIG
-    )
+    report = run_gate(broken, guest_access(), queries, deferred, RETRIEVAL_CONFIG)
     assert {v["path"] for v in report.violations} == {
         "bm25",
         "hybrid",
@@ -1128,7 +1188,7 @@ def test_a_fallback_path_that_does_not_fall_back_is_a_harness_error(
     queries, deferred = real_queries()
     index = build([q.text for q in queries], security_repository)
     with pytest.raises(EvaluationHarnessError, match="vacuous"):
-        run_security_evaluation(
+        run_gate(
             index,
             guest_access(),
             queries,
@@ -1153,9 +1213,7 @@ def test_a_plain_hybrid_path_that_falls_back_is_a_harness_error(
     queries, deferred = real_queries()
     index = build([q.text for q in queries], security_repository)
     with pytest.raises(EvaluationHarnessError, match="path 'hybrid' fell back"):
-        run_security_evaluation(
-            index, guest_access(), queries, deferred, RETRIEVAL_CONFIG, ["hybrid"]
-        )
+        run_gate(index, guest_access(), queries, deferred, RETRIEVAL_CONFIG, ["hybrid"])
 
 
 def test_the_bm25_path_is_refused_when_the_standalone_open_fails(
@@ -1165,9 +1223,7 @@ def test_the_bm25_path_is_refused_when_the_standalone_open_fails(
     index = build([q.text for q in queries], security_repository)
     wrong = dataclasses.replace(index, chunker=HeadingChunker(max_chunk_chars=999))
     with pytest.raises(EvaluationHarnessError, match="standalone open"):
-        run_security_evaluation(
-            wrong, guest_access(), queries, deferred, RETRIEVAL_CONFIG, ["bm25"]
-        )
+        run_gate(wrong, guest_access(), queries, deferred, RETRIEVAL_CONFIG, ["bm25"])
 
 
 def test_the_bm25_path_is_built_without_a_dense_index_or_embedder(
@@ -1185,9 +1241,7 @@ def test_the_bm25_path_is_built_without_a_dense_index_or_embedder(
     monkeypatch.setattr(security_eval, "build_retriever", spy)
     queries, deferred = real_queries()
     index = build([q.text for q in queries], security_repository)
-    run_security_evaluation(
-        index, guest_access(), queries, deferred, RETRIEVAL_CONFIG, ["bm25"]
-    )
+    run_gate(index, guest_access(), queries, deferred, RETRIEVAL_CONFIG, ["bm25"])
     assert calls == [("bm25", None, None)]
 
 
@@ -1203,3 +1257,120 @@ def test_unavailable_dense_is_not_importable_from_the_retrieval_package() -> Non
         )
         assert "_UnavailableDense" not in text
         assert "security_eval" not in text
+
+
+class DroppedLoteClauseLexical:
+    """Lexical double that ignores the lote portion of the WHERE clause."""
+
+    def __init__(self, inner: Any) -> None:
+        self.inner = inner
+        self.settings = inner.settings
+        self.label = inner.label
+        self.has_lote_column = inner.has_lote_column
+
+    @property
+    def tokenizer(self):
+        return self.inner.tokenizer
+
+    def search(
+        self, match: str, where: str, params: tuple[Any, ...], limit: int
+    ) -> list[LexicalRow]:
+        access_where, access_params = build_sql_access_clause(guest_access())
+        return self.inner.search(match, access_where, access_params, limit)
+
+
+def test_zz_active_code_refuses_the_harness() -> None:
+    with pytest.raises(EvaluationHarnessError, match="zz"):
+        require_non_applicable_lote_inactive(
+            [ACTIVE_LOTE.code, NON_APPLICABLE_LOTE_CODE]
+        )
+
+
+def test_access_only_sanity_requires_non_applicable_first(
+    security_repository: LocalDocumentRepository,
+) -> None:
+    queries, _ = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    index.client.delete(
+        index.collection,
+        points_selector=models.FilterSelector(
+            filter=models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="document_id",
+                        match=models.MatchValue(value=NON_APPLICABLE_DOCUMENT_ID),
+                    )
+                ]
+            )
+        ),
+    )
+    with pytest.raises(EvaluationHarnessError, match="access-only sanity"):
+        run_gate(index, guest_access(), queries, [], RETRIEVAL_CONFIG)
+
+
+@pytest.mark.parametrize("path", PATHS)
+@pytest.mark.parametrize(
+    "chunker",
+    security_gate_chunkers(),
+    ids=["heading", "structure", "recursive"],
+)
+def test_both_lote_modes_on_every_path_and_chunker(
+    path: str,
+    chunker: HeadingChunker | StructureChunker | RecursiveChunker,
+    security_repository: LocalDocumentRepository,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen_lote: list[str | None] = []
+    real = security_eval._retrievers
+
+    def counting(index: SecurityIndex, config: Any, paths: Any) -> Any:
+        wrapped = []
+        for name, inner in real(index, config, paths):
+
+            class Counting:
+                def __init__(self, path: str = name, inner: Any = inner) -> None:
+                    self.path, self.inner = path, inner
+
+                def retrieve(self, *a: Any, **k: Any) -> Any:
+                    if self.path == path:
+                        lote = k.get("lote")
+                        seen_lote.append(None if lote is None else lote.code)
+                    return self.inner.retrieve(*a, **k)
+
+            wrapped.append((name, Counting()))
+        return wrapped
+
+    monkeypatch.setattr(security_eval, "_retrievers", counting)
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository, chunker=chunker)
+    report = run_gate(
+        index, guest_access(), queries, deferred, RETRIEVAL_CONFIG, [path]
+    )
+    assert report.passed
+    assert seen_lote.count(None) == len(queries)
+    assert seen_lote.count(ACTIVE_LOTE.code) == len(queries)
+
+
+def test_dropped_applicability_filter_reports_applicability_not_authorization(
+    security_repository: LocalDocumentRepository,
+) -> None:
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    broken = dataclasses.replace(index, lexical=DroppedLoteClauseLexical(index.lexical))
+    report = run_gate(broken, guest_access(), queries, deferred, RETRIEVAL_CONFIG)
+    assert not report.passed
+    assert report.applicability_violations
+    assert not report.authorization_violations
+    assert all(v["lote"] == ACTIVE_LOTE.code for v in report.applicability_violations)
+
+
+def test_dropped_access_filter_still_reports_authorization(
+    security_repository: LocalDocumentRepository,
+) -> None:
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    broken = dataclasses.replace(index, lexical=DroppedClauseLexical(index.lexical))
+    report = run_gate(broken, guest_access(), queries, deferred, RETRIEVAL_CONFIG)
+    assert not report.passed
+    assert report.authorization_violations
+    assert not report.applicability_violations

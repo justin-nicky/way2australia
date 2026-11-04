@@ -162,23 +162,23 @@ Allowed protected-path changes: `config/retrieval.yaml` (schema 1.2, `lexical.to
 
 ## T4 — Security gate with applicability, result 1.4
 
-**State:** not started
+**State:** approved (2026-11-04)
 **Requirements:** R9, R11
 
-- [ ] `evaluation/security_index.py`:
+- [x] `evaluation/security_index.py`:
   - public, eligible, non-applicable rows (`lote_languages: ["zz"]`), one per gated query, carrying the query's own tokens so they are nearest in both legs;
   - a new access-forbidden variant `staff_scope_lote` with `lote_languages: [<active code>]`;
   - a harness guard: exit 2 if `zz` is an active code;
   - the rows exist only in the throwaway collection and lexical file.
-- [ ] `evaluation/security_eval.py`:
+- [x] `evaluation/security_eval.py`:
   - for each chunker (D070) and each of the five paths, run the gate in two modes: `lote: null` and `lote: <active code>`;
   - sanity check per leg: with the access filter alone, a non-applicable row ranks first, otherwise it's a harness error (exit 2). The existing unfiltered checks are kept;
   - with `lote: null`, an access-forbidden row or a `RetrievalAuthorizationError` is an authorization violation;
   - with a `lote`, the same is an authorization violation, and a non-applicable row or a `LanguageApplicabilityError` is an applicability violation;
   - `check_hit` runs first, so a row failing both counts as authorization.
-- [ ] Write security result 1.4: the 1.3 keys plus `lote_modes`, per-run `authorization_violations` and `applicability_violations`, and `non_applicable_rows_per_variant`. `passed` requires zero of both. Older 1.x readers are unchanged.
-- [ ] Docker isolation test `tests/evaluation/test_security_integration.py`: add non-applicable points, and assert that with a `lote` they are excluded on the real Qdrant server, alongside the existing forbidden points. Collections are cleaned up on failure, and the test skips without Qdrant.
-- [ ] Tests:
+- [x] Write security result 1.4: the 1.3 keys plus `lote_modes`, per-run `authorization_violations` and `applicability_violations`, and `non_applicable_rows_per_variant`. `passed` requires zero of both. Older 1.x readers are unchanged.
+- [x] Docker isolation test `tests/evaluation/test_security_integration.py`: add non-applicable points, and assert that with a `lote` they are excluded on the real Qdrant server, alongside the existing forbidden points. Collections are cleaned up on failure, and the test skips without Qdrant.
+- [x] Tests:
   - both modes, on every path and chunker;
   - a dropped applicability filter (injection) makes the gate fail with an applicability violation, not an authorization violation;
   - a dropped access filter still fails as authorization;

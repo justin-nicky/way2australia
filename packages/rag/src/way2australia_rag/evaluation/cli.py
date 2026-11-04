@@ -60,6 +60,7 @@ from way2australia_rag.evaluation.security_index import (
     SECURITY_COLLECTION_PREFIX,
     build_security_index,
     delete_security_index,
+    require_non_applicable_lote_inactive,
 )
 from way2australia_rag.evaluation.slices import active_registry_languages
 from way2australia_rag.evaluation.suite import declared_release_id, load_suite
@@ -377,6 +378,14 @@ def _security(args: argparse.Namespace) -> int:
         check_output_free(output)
         queries, deferred = select_security_queries(suite)
         access = resolve_access(guest_access(settings))
+        lote_codes = active_lote_codes(repo_root)
+        require_non_applicable_lote_inactive(lote_codes)
+        if len(lote_codes) != 1:
+            raise EvaluationConfigurationError(
+                "the security gate requires exactly one active lote code."
+            )
+        active_lote = resolve_lote(lote_codes[0], lote_codes)
+        assert active_lote is not None
         started = perf_counter()
         client = QdrantClient(location=":memory:")
         seed_repository = LocalDocumentRepository(LocalRepositoryConfig(repo_root))
@@ -399,6 +408,7 @@ def _security(args: argparse.Namespace) -> int:
                     security_repository=security_repository,
                     tenant_id=settings.tenant_id,
                     lexical_dir=work_path / "lexical",
+                    active_lote_code=active_lote.code,
                 )
                 log.info(
                     "security index %s built (%s v%s); %d queries, %d deferred case(s)",
@@ -410,7 +420,12 @@ def _security(args: argparse.Namespace) -> int:
                 )
                 try:
                     report = run_security_evaluation(
-                        index, access, queries, deferred, retrieval_config
+                        index,
+                        access,
+                        queries,
+                        deferred,
+                        retrieval_config,
+                        active_lote=active_lote,
                     )
                     completed_runs.append((index, report))
                 finally:
@@ -424,6 +439,7 @@ def _security(args: argparse.Namespace) -> int:
             duration_ms=duration_ms,
             created_at=now.isoformat(),
             repo_root=repo_root,
+            lote_modes=[None, active_lote.code],
         )
         write_document(output, document)
     except (
@@ -449,12 +465,19 @@ def _security(args: argparse.Namespace) -> int:
 
 
 def format_security_summary(document: dict[str, Any], shown: Path) -> str:
+    lote_modes = document.get("lote_modes")
+    lote_line = ""
+    if isinstance(lote_modes, list):
+        shown_modes = ["none" if mode is None else str(mode) for mode in lote_modes]
+        lote_line = f"lote modes: {', '.join(shown_modes)}"
     lines = [
         f"suite: {document['evaluation_suite_id']} "
         f"v{document['evaluation_suite_version']}",
         f"chunker runs: {len(document['runs'])}; "
         f"deferred security cases: {len(document['deferred'])}",
     ]
+    if lote_line:
+        lines.append(lote_line)
     for run in document["runs"]:
         chunker = run["chunker"]
         lines.append(
@@ -466,11 +489,20 @@ def format_security_summary(document: dict[str, Any], shown: Path) -> str:
         )
         lines.append(f"  paths: {', '.join(run['paths'])}")
         lines.append(f"  strategies: {', '.join(run['strategies'])}")
-        for v in run["violations"]:
-            lines.append(
-                f"  VIOLATION path {v['path']} case {v['case_id']} "
-                f"document {v['document_id'] or '-'} variant {v['variant']}"
-            )
+        for key, label in (
+            ("authorization_violations", "AUTH"),
+            ("applicability_violations", "APPLIC"),
+        ):
+            rows = run.get(key)
+            if not isinstance(rows, list):
+                rows = run["violations"] if key == "authorization_violations" else []
+            for v in rows:
+                lote = v.get("lote", "none")
+                lines.append(
+                    f"  {label} VIOLATION path {v['path']} lote {lote} "
+                    f"case {v['case_id']} document {v['document_id'] or '-'} "
+                    f"variant {v['variant']}"
+                )
     for item in document["deferred"]:
         lines.append(
             f"deferred {item['case_id']} ({item['attack_type']}): {item['owner']}"

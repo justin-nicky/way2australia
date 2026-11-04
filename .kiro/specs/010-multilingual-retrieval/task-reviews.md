@@ -225,3 +225,50 @@
 
 ### User decision
 - 2026-11-04: approved. Verbatim: "T3 approved. Before committing, fix the three MINORs in this commit (no re-review needed): …" Chillu row comments, BM25 module docstring, and T5 continuity command via `uv run python -m way2australia_rag.evaluation.continuity` with module exit code recorded (`COMMANDS.md` in T6). One graph commit per task from now on; do not rewrite pushed T2 graph commits.
+
+## T4 — round 1
+
+### Implementation
+- Model: Composer (Cursor subagent); intended tier BEST_MINUS_ONE per `agent-skills/MODEL_PREFERENCES.md` — tier match not verified against the table.
+- Files changed:
+  - `packages/rag/src/way2australia_rag/evaluation/security_index.py` (non-applicable `zz` rows, `staff_scope_lote`, `require_non_applicable_lote_inactive`, `active_lote_code` on build);
+  - `packages/rag/src/way2australia_rag/evaluation/security_eval.py` (dual `lote` modes, access-only sanity checks, split auth/applicability violations, result 1.4);
+  - `packages/rag/src/way2australia_rag/evaluation/cli.py` (`eval-security` resolves active `lote`, summary lines);
+  - `packages/rag/tests/evaluation/test_security_eval.py`, `test_security_integration.py` (1.4 coverage, both modes, Docker non-applicable exclusion);
+  - `packages/rag/src/way2australia_rag/retrieval/bm25.py` (module docstring line wrap only — unblocks ruff on this branch);
+  - `.kiro/specs/010-multilingual-retrieval/tasks.md`, this file; `graphify-out/*` refreshed.
+- Verification run:
+  - `make verify` → pass (1256 passed, 2 skipped; ruff, format, pyright clean);
+  - `HF_HOME=$(mktemp -d) HF_HUB_OFFLINE=1 make verify` → pass (1256 passed, 2 skipped);
+  - `make test-integration` → 27 passed, 1231 deselected;
+  - `make eval-security` → PASS; `lote modes: none, ml`; three chunkers × five paths × both modes; 92 queries (5 security, 87 golden); result under `experiments/results/tmp/security-evaluation-20261104T094431Z.json`;
+  - `graphify update .` run.
+- Notes:
+  - Non-applicable rows share the query dense vector with forbidden probes but use weaker lexical probe text (`repeats=2`) so unfiltered sanity still finds a forbidden winner among tied scores; access-only sanity requires non-applicable first under the access filter alone.
+  - `check_hit` still runs before applicability; dual violations count as authorization.
+  - Legacy 1.3 result shape remains readable in tests via an inline fixture; new writes use schema 1.4.
+- Usage: not measured · 48 tool uses · 7:00
+- Process (P3): `transcript_metrics.py` on subagent `7855b276…` → **`make verify` 8 runs (7 before last code edit)**.
+
+### Review
+- Model: Cursor Grok 4.6; matches the BEST tier (`Grok 4.6`) in `agent-skills/MODEL_PREFERENCES.md`.
+- Verdict: PASS
+- Commands: `make verify` → pass (1256 passed, 2 skipped; ruff, format check and pyright clean); `HF_HOME=$(mktemp -d) HF_HUB_OFFLINE=1 make verify` → pass (1256 passed, 2 skipped); `make test-integration` → 27 passed, 1231 deselected; `make eval-security` → PASS on all five paths for heading, structure and recursive, both lote modes (`lote modes: none, ml`; 92 queries: 5 security, 87 golden; result `experiments/results/tmp/security-evaluation-20261104T095357Z.json`); `git status --porcelain -- evaluation knowledge config` → empty; `graphify update .` not re-run (read-only; `graphify-out/` already refreshed).
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R9] `test_each_forbidden_row_type_is_in_the_lexical_file` still parametrizes only `staff_scope`, `other_tenant` and `owned`; the new `staff_scope_lote` variant is covered by `points_per_variant` equality and the bypassed-`check_hit` variants set, not this lexical-id list. → Add `staff_scope_lote` to the parametrize (T6 can catch this).
+  - F2 [MINOR, IMPLEMENTATION, R9] `test_security_integration.py` module docstring still describes only forbidden-point isolation; the Docker test now also asserts non-applicable exclusion with a `lote`. → Update the docstring (T6 can catch this).
+- Summary for user (PASS only):
+  - Changed: `make eval-security` now gates two lote modes (`none` and the active registry code, `ml`) on all five paths and three chunkers. The throwaway corpus adds public eligible `lote_languages: ["zz"]` rows (nearest under the access filter) and a `staff_scope_lote` forbidden variant (`lote_languages: [ml]`). Result schema is 1.4 with `lote_modes`, split authorization/applicability violation lists, and `non_applicable_rows_per_variant`. `zz` as an active code is a harness error (exit 2). Authorization still runs first; a dual failure counts as authorization.
+  - Verified by: `make verify` (also hub-free), `make test-integration`, `make eval-security` (v3, both modes, five paths, three chunkers).
+  - Worth your attention: non-applicable lexical probes use 2 term repeats vs forbidden 3, so the unfiltered BM25 sanity still finds a forbidden winner; access-only sanity requires the `zz` row first. Protected paths (`evaluation/`, `knowledge/`, `config/`) were not touched. Default tokenizer stays `lexical-v1` until T5. Two MINORs for T6 (parametrize `staff_scope_lote`; Docker test docstring).
+  - Reading order (follow the flow: entry point → core logic → models/errors/config → tests):
+    1. `packages/rag/src/way2australia_rag/evaluation/cli.py` → `_security`: registry `lote`, `zz` guard, `lote_modes` on the 1.4 document, AUTH/APPLIC summary lines.
+    2. `packages/rag/src/way2australia_rag/evaluation/security_index.py` → `build_security_index`: `zz` rows, `staff_scope_lote`, `require_non_applicable_lote_inactive`.
+    3. `packages/rag/src/way2australia_rag/evaluation/security_eval.py` → `run_security_evaluation`: per query, unfiltered sanity then access-only sanity, then `_gate` twice (`lote=None` and active code).
+    4. `packages/rag/src/way2australia_rag/evaluation/security_eval.py` → `_gate`: `RetrievalAuthorizationError` vs `LanguageApplicabilityError`; returned forbidden vs non-applicable hits; `passed` needs zero of both.
+    5. `packages/rag/src/way2australia_rag/evaluation/security_eval.py` → `security_document` / `security_run_record`: schema 1.4 keys; `violations` remains the concatenated 1.3 list.
+    6. Supporting edits: `bm25.py` docstring wrap (ruff); `test_security_eval.py` and `test_security_integration.py`.
+- Usage: not measured · 78 tool uses · (reviewer)
+
+### User decision
+- 2026-11-04: approved. Verbatim: "T4 approved. Fix both MINORs in this commit …" Parametrize `staff_scope_lote` in `test_each_forbidden_row_type_is_in_the_lexical_file`; update Docker integration module docstring. No re-review. User stops this orchestrator session; T5 in a fresh session.

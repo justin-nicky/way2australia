@@ -2,7 +2,8 @@
 
 Authorization is part of the SQL `WHERE` clause (`build_sql_access_clause`) and
 every returned payload is re-checked by `check_hit` (fail closed). The raw query
-never reaches SQLite: it is tokenized with the lexical file's own tokenizer, every token is quoted
+never reaches SQLite: it is tokenized with the lexical file's own tokenizer; every
+token is quoted
 and the quoted tokens, joined with `OR`, are the only `MATCH` argument. The
 query is never embedded.
 """
