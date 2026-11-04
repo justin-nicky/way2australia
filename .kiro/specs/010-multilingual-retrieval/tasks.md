@@ -20,25 +20,26 @@ Rules for every task:
 
 ## T1 — Suite `public-eval-v3` (user-owned approval)
 
-**State:** not started
+**State:** approved (2026-11-04)
 **Requirements:** R1, R11
 
-- [ ] Draft `evaluation/candidates/010-candidates.jsonl`, using the Spec 006 candidate row shape with `status: suggested`, `target_suite_id: public-eval-v3` and a `proposed_case`.
+- [x] Draft `evaluation/candidates/010-candidates.jsonl`, using the Spec 006 candidate row shape with `status: suggested`, `target_suite_id: public-eval-v3` and a `proposed_case`.
   - Draft enough new `ml` and `mixed` goldens that v3 reaches at least 12 of each in total. Today there are 6 `ml` and 9 `mixed`, so that means at least 6 new `ml` and 3 new `mixed`; aim for a few extra, since some may be rejected.
   - Draft 3 unanswerable cases with `query_language: ml`.
   - Spread the goldens over the eligible documents. Each names only eligible public documents in `relevant_document_ids`, and each has `expected_facts` taken from the document text.
   - Include at least two romanized-Malayalam `mixed` queries (like `g062`).
   - Note any query that uses a legacy chillu spelling; this is optional, and the user decides.
   - Mark every candidate `requires_review: ["fluent_speaker_review", "owner_review"]`.
-- [ ] Stop for the user: present every candidate (query, relevant documents, facts). The user corrects and approves them. Record the decision and every correction verbatim in `task-reviews.md`. Only approved candidates go further. Mark rejected ones in the candidate file (`review.decision: rejected`); they keep `status: suggested`.
-- [ ] Create `evaluation/suites/public-eval-v3.json` and `evaluation/datasets/v3/` (`golden_public.jsonl`, `unanswerable_public.jsonl`, `security_public.jsonl`).
+- [x] Stop for the user: present every candidate (query, relevant documents, facts). The user corrects and approves them. Record the decision and every correction verbatim in `task-reviews.md`. Only approved candidates go further. Mark rejected ones in the candidate file (`review.decision: rejected`); they keep `status: suggested`.
+- [x] Create `evaluation/suites/public-eval-v3.json` and `evaluation/datasets/v3/` (`golden_public.jsonl`, `unanswerable_public.jsonl`, `security_public.jsonl`).
   - Copy every v2 row, changing only `evaluation_suite_id`.
   - Append the promoted cases: goldens from `g070`, unanswerable from the next free `u` ID; `case_version: 1`, `status: active`, `introduced_in_release: seed-v1`, `category` as approved.
   - Set a correct `case_count`, `replaces: public-eval-v2` v2, and notes.
-- [ ] Give each promoted candidate `review.promoted_as`. Set the v2 manifest to `status: replaced`; no other v2 change.
-- [ ] `evaluation/validate.py`: extend the promotion check to v3 (each promoted case equals its candidate's `proposed_case` after the recorded corrections, which are applied to `proposed_case` in the candidate file). `make validate-evaluation` passes on every suite.
-- [ ] Switch the defaults of `make eval-retrieval` and `make eval-security` (`DEFAULT_SUITE`) to v3. A v2 run is refused (exit 2). The legacy baseline keeps v1.
-- [ ] Tests in `tests/evaluation/test_suite_v3.py`:
+- [x] Give each promoted candidate `review.promoted_as`. Set the v2 manifest to `status: replaced`; no other v2 change.
+- [x] `evaluation/schemas/evaluation_case_types.schema.json`: `candidate_row.proposed_case` becomes a `oneOf` over `golden_answerable` and `unanswerable_refusal`, the latter with `query_language` required for candidates. The 006 candidate rows still validate. Tests cover one valid and one invalid row of each shape, and a row matching neither.
+- [x] `evaluation/validate.py`: extend the promotion check to v3 (each promoted case equals its candidate's `proposed_case` after the recorded corrections, which are applied to `proposed_case` in the candidate file; goldens compare `query`, `relevant_document_ids`, `expected_facts` and `query_language`, and unanswerable cases compare `query`, `expected_behavior` and `query_language`). `make validate-evaluation` passes on every suite.
+- [x] Switch the defaults of `make eval-retrieval` and `make eval-security` (`DEFAULT_SUITE`) to v3. A v2 run is refused (exit 2). The legacy baseline keeps v1.
+- [x] Tests in `tests/evaluation/test_suite_v3.py`:
   - each v2 row equals its v3 copy except `evaluation_suite_id`;
   - v2 dataset files match their committed hashes;
   - the v2 manifest differs only in `status`;
@@ -47,7 +48,7 @@ Rules for every task:
   
   Update tests that follow the default suite to use consistency checks.
 
-Allowed protected-path changes: `evaluation/candidates/010-candidates.jsonl`, `evaluation/suites/public-eval-v2.json` (`status` only), `evaluation/suites/public-eval-v3.json`, `evaluation/datasets/v3/*`.
+Allowed protected-path changes: `evaluation/candidates/010-candidates.jsonl`, `evaluation/schemas/evaluation_case_types.schema.json` (`candidate_row` only), `evaluation/suites/public-eval-v2.json` (`status` only), `evaluation/suites/public-eval-v3.json`, `evaluation/datasets/v3/*`.
 
 ### Verification
 

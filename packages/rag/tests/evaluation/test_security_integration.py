@@ -11,7 +11,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from conftest import REPO_ROOT
+from conftest import LIVE_SUITE, REPO_ROOT
 from qdrant_client import QdrantClient
 from way2australia_core import AccessContext, Role
 from way2australia_rag.evaluation.security_eval import (
@@ -65,7 +65,7 @@ def test_server_filter_keeps_every_forbidden_point_out(
     """Spec 007 R12 and Spec 008 R10: every gated path on the real server, one
     path per run (`hybrid_fallback_query` included: a live Qdrant with an
     unavailable dense leg); the lexical file lives in `tmp_path`."""
-    suite = load_suite(REPO_ROOT, "evaluation/suites/public-eval-v2.json")
+    suite = load_suite(REPO_ROOT, LIVE_SUITE)
     queries, deferred = select_security_queries(suite)
     base = f"w2a-sectest-{uuid.uuid4().hex[:8]}"
     index = None
@@ -107,7 +107,7 @@ def test_recursive_v1_full_gate_on_docker(
     tmp_path: Path,
 ) -> None:
     """Spec 009 R9: the recursive chunker gate on the real Qdrant server."""
-    suite = load_suite(REPO_ROOT, "evaluation/suites/public-eval-v2.json")
+    suite = load_suite(REPO_ROOT, LIVE_SUITE)
     queries, deferred = select_security_queries(suite)
     base = f"w2a-sectest-{uuid.uuid4().hex[:8]}"
     chunker = next(c for c in security_gate_chunkers() if c.name == "recursive")

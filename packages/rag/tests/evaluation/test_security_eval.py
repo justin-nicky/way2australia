@@ -16,7 +16,7 @@ from time import perf_counter
 from typing import Any
 
 import pytest
-from conftest import REPO_ROOT, live_suite_rows
+from conftest import LIVE_SUITE, REPO_ROOT, live_suite_rows
 from qdrant_client import QdrantClient, models
 from way2australia_core import AccessContext, Role
 from way2australia_rag.evaluation import cli, security_eval
@@ -80,7 +80,7 @@ pytestmark = pytest.mark.filterwarnings(
     "ignore:Payload indexes have no effect:UserWarning"
 )
 
-SUITE = "evaluation/suites/public-eval-v2.json"
+SUITE = LIVE_SUITE
 TENANT = "way2australia"
 RETRIEVAL_CONFIG = load_retrieval_config(REPO_ROOT / "config/retrieval.yaml")
 EVAL_SRC = REPO_ROOT / "packages/rag/src/way2australia_rag/evaluation"

@@ -157,7 +157,29 @@
         "proposed_case": {
           "allOf": [
             {
-              "$ref": "#/$defs/golden_answerable"
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/golden_answerable"
+                },
+                {
+                  "allOf": [
+                    {
+                      "$ref": "#/$defs/unanswerable_refusal"
+                    },
+                    {
+                      "required": [
+                        "query_language"
+                      ],
+                      "properties": {
+                        "query_language": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
             },
             {
               "properties": {

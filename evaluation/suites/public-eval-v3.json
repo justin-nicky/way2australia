@@ -1,0 +1,26 @@
+{
+  "evaluation_suite_id": "public-eval-v3",
+  "version": 3,
+  "status": "active",
+  "introduced_in_release": "seed-v1",
+  "datasets": [
+    {
+      "type": "golden_answerable",
+      "path": "evaluation/datasets/v3/golden_public.jsonl"
+    },
+    {
+      "type": "unanswerable_refusal",
+      "path": "evaluation/datasets/v3/unanswerable_public.jsonl"
+    },
+    {
+      "type": "security",
+      "path": "evaluation/datasets/v3/security_public.jsonl"
+    }
+  ],
+  "case_count": 112,
+  "replaces": {
+    "evaluation_suite_id": "public-eval-v2",
+    "version": 2
+  },
+  "notes": "Spec 010 suite. Every public-eval-v2 case is carried over unchanged except evaluation_suite_id, plus 18 owner-approved goldens (g070-g079 pure Malayalam, g080-g087 mixed) and 3 Malayalam unanswerable cases (u013-u015) promoted from cand010_* in evaluation/candidates/010-candidates.jsonl. g004 and u001 stay as in v1 (owner decision keep_both). Cases are versioned and human-governed."
+}

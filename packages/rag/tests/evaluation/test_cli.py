@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from conftest import (
+    LIVE_SUITE,
     PRODUCTION_COLLECTION,
     PRODUCTION_INDEX_VERSION,
     REPO_ROOT,
@@ -158,7 +159,7 @@ def test_non_active_suite_exits_2_before_qdrant(tmp_path: Path) -> None:
     root = tmp_path / "repo"
     for name in ("evaluation", "knowledge", "config"):
         shutil.copytree(REPO_ROOT / name, root / name)
-    suite = root / "evaluation/suites/public-eval-v2.json"
+    suite = root / LIVE_SUITE
     raw = json.loads(suite.read_text())
     raw["status"] = "draft"
     suite.write_text(json.dumps(raw))

@@ -41,6 +41,7 @@ DEFAULT_LANGUAGE = "en"
 OWNER_REVIEW = "owner_review"
 GOLDEN_TYPE = "golden_answerable"
 PROMOTED_FIELDS = ("query", "relevant_document_ids", "expected_facts", "query_language")
+PROMOTED_UNANSWERABLE_FIELDS = ("query", "expected_behavior", "query_language")
 
 
 @dataclass(frozen=True)
@@ -458,7 +459,12 @@ def _promotion_problems(
     if case is None:
         yield problem(field, "does not name a case in that suite")
         return
-    for name in PROMOTED_FIELDS:
+    fields = (
+        PROMOTED_UNANSWERABLE_FIELDS
+        if proposed.get("answerable") is False
+        else PROMOTED_FIELDS
+    )
+    for name in fields:
         if case.get(name) != proposed.get(name):
             yield problem(f"{field}.{name}", "differs from the promoted case")
 

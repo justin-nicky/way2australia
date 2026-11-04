@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 
 import pytest
+from way2australia_rag.evaluation.cli import DEFAULT_SUITE
 from way2australia_rag.evaluation.security_corpus import build_security_repository
 from way2australia_rag.ingestion.config import load_ingestion_config
 from way2australia_rag.repositories import LocalDocumentRepository
@@ -38,7 +39,7 @@ FIXTURE_IDS = {
 }
 
 
-LIVE_SUITE = "evaluation/suites/public-eval-v2.json"
+LIVE_SUITE = DEFAULT_SUITE  # the live suite is whatever the CLI defaults to
 
 
 LEGACY_SUITE = "evaluation/suites/public-eval-v1.json"

@@ -67,7 +67,7 @@ def test_v2_case_count_equals_dataset_rows() -> None:
     v2 = manifest(V2_SUITE)
     rows = sum(len(read_lines(d["path"])) for d in v2["datasets"])
     assert v2["case_count"] == rows
-    assert v2["status"] == "active"
+    assert v2["status"] == "replaced"  # Spec 010 T1: replaced by public-eval-v3
     assert v2["version"] == 2
     assert v2["replaces"]["evaluation_suite_id"] == "public-eval-v1"
 
@@ -226,8 +226,25 @@ def test_unknown_suite_is_a_problem(root: Path) -> None:
 # --- defaults and refusals -----------------------------------------------------
 
 
-def test_cli_default_suite_is_v2() -> None:
-    assert cli.DEFAULT_SUITE == V2_SUITE
+@pytest.mark.parametrize("command", ["retrieval", "security"])
+def test_commands_refuse_the_replaced_v2_suite(
+    command: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:  # noqa: ANN001
+    monkeypatch.setenv("W2A_TENANT_ID", "way2australia")
+    code = cli.main(
+        [
+            command,
+            "--repo-root",
+            str(REPO_ROOT),
+            "--suite",
+            V2_SUITE,
+            "--output",
+            str(tmp_path / "out.json"),
+        ]
+    )
+    assert code == 2
+    assert "replaced" in capsys.readouterr().err
+    assert not (tmp_path / "out.json").exists()
 
 
 def test_retrieval_refuses_the_replaced_v1_suite(
