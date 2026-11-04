@@ -54,6 +54,12 @@ Invoking this skill is the user's request to run the loop; do not ask permission
 
 After a role returns, trust only the repository (State lines, `task-reviews.md`), not its message. If the State did not change as expected, treat the role as interrupted.
 
+After **`spec-implementer`** returns, when a subagent transcript path is available (Cursor subagent id / `.jsonl` under the project agent-transcripts or session exports), run:
+
+`python3 -I agent-skills/workflow-reviewer/scripts/transcript_metrics.py <transcript.jsonl>`
+
+If the summary shows **`make verify` attempts > 2**, append one line to that round's **Implementation** block in `task-reviews.md` (`Verify budget: N make verify attempts in transcript; budget is 2 per session.`) and mention it once in the orchestrator chat. If no transcript path exists, skip silently.
+
 Record usage: the subagent result ends with `<usage>subagent_tokens: N, tool_uses: M, duration_ms: D</usage>`. Add `- Usage: <N rounded> tokens · M tool uses · <D as m:ss>`, where tokens are rounded to K or M (`52K`, `1.2M`; whole K below 1M, one decimal M above) to the block that role just wrote (Implementation or Review) for this round. If the role ran in a separate session or by hand, write `- Usage: not measured`. Your own orchestration tokens are not measurable from inside this session; do not estimate them.
 
 ## User interaction
