@@ -272,3 +272,111 @@
 
 ### User decision
 - 2026-11-04: approved. Verbatim: "T4 approved. Fix both MINORs in this commit …" Parametrize `staff_scope_lote` in `test_each_forbidden_row_type_is_in_the_lexical_file`; update Docker integration module docstring. No re-review. User stops this orchestrator session; T5 in a fresh session.
+
+## T5 — round 1
+
+### Implementation (user-owned runs + agent wrap-up)
+- Model: orchestrator session (Composer); user ran real evals; agent recorded and applied promotion config.
+- Lexical rebuilds (2026-11-04, `QDRANT_COLLECTION_BASE=w2a-realcheck`, settings **1.2**):
+  - `.local/lexical`: `lexical-v1` v1, **34** chunks, digest `89b30b429b43e689ec41dc4525762f0e217d35b65188d470d3da28e0a677518c`.
+  - `.local/lexical-v2`: `lexical-v2` v2, **34** chunks, same digest.
+- Pre-run: `git status --porcelain` empty after both lexical builds (before eval arms).
+- Four arms (`public-eval-v3`, `lote: ml`, `w2a-realcheck-idx-v2`, `idx-v2`, BGE-M3 @ `5617a9f`, `mps:0`, `top_k` 5, 13 documents, `git_dirty: false`, empty `fallback_counts` on all files):
+
+| Arm | Strategy | Lexical | Result file |
+|-----|----------|---------|-------------|
+| A | hybrid | lexical-v1 | `experiments/results/retrieval-evaluation-idx-v2-20261104T105123Z.json` |
+| B | bm25 | lexical-v1 | `experiments/results/retrieval-evaluation-idx-v2-20261104T105259Z.json` |
+| C | hybrid | lexical-v2 | `experiments/results/retrieval-evaluation-idx-v2-20261104T105300Z.json` |
+| D | bm25 | lexical-v2 | `experiments/results/retrieval-evaluation-idx-v2-20261104T105321Z.json` |
+
+**Arm A — hybrid lexical-v1**
+- Overall (n=87): HitRate@5 **0.9885**, MRR **0.9228** (miss: `g026`).
+- `en` (n=54): HitRate@5 0.9815, MRR 0.9321.
+- `ml` (n=16): HitRate@5 1.0000, MRR 0.9531.
+- `mixed` (n=17): HitRate@5 1.0000, MRR 0.8647.
+- `by_script_mix`: `latin` (n=58) 0.9828 / 0.9282; `latin+malayalam` (n=19) 1.0000 / 0.8658; `malayalam` (n=10) 1.0000 / 1.0000.
+- Cross-tokenizer flips vs Arm C: **none**.
+- Watch ranks (first relevant doc rank): g056 **2** (rr 0.5); g057 **2** (0.5); g061 **5** (0.2); g067 **1** (1.0); g068 **1** (1.0); g069 **1** (1.0).
+
+**Arm B — bm25 lexical-v1**
+- Overall: HitRate@5 **0.8391**, MRR **0.7423** (14 misses: `g026`, `g029`, `g061`, `g067`–`g075`, `g076`, `g078`).
+- `en` (n=54): 0.9630 / 0.8472.
+- `ml` (n=16): **0.3125 / 0.2396** (carry-over for T6 / retrospective: fallback path serves Malayalam users poorly until transliteration exists).
+- `mixed` (n=17): 0.9412 / 0.8824.
+- `by_script_mix`: `latin` 0.9655 / 0.8578; `latin+malayalam` 0.8947 / 0.7807; **`malayalam` 0.0000 / 0.0000** (n=10).
+- Flips vs Arm D: **none**.
+- Watch ranks: g056 **2**; g057 **2**; g061 **miss**; g067–g069 **miss**.
+
+**Arm C — hybrid lexical-v2** (promoted v3 hybrid reference)
+- Same numbers as Arm A on every slice and watch case (identical case-by-case).
+
+**Arm D — bm25 lexical-v2** (promoted v3 bm25 reference)
+- Same numbers as Arm B on every slice and watch case.
+
+**Honest interpretation (for T6 `DECISIONS.md` D072+):** `eval-compare --cross-tokenizer` is a perfect tie (hybrid hits 86→86, MRR 0.9228→0.9228; bm25 hits 73→73, MRR 0.7423→0.7423; zero hit flips). Metrics match case-by-case because **no indexed document or evaluation query contains a legacy Malayalam chillu ZWJ sequence**; `lexical-v2` differs only on those sequences. Promotion under the pre-registered R10 rule (tie promotes) is a **correctness default** exercised by unit tests on chillu pairs, **not** a measured retrieval gain on this corpus.
+
+**Continuity** (Spec 009 hybrid ref `experiments/results/retrieval-evaluation-idx-v2-20261103T104934Z.json` → Arm A):
+
+```
+suite: public-eval-v2 -> public-eval-v3
+suite version: 2 -> 3
+lote: none -> ml
+git_commit: '9d1c12c37daa9cfc672b539acbff567189c56577' -> 'f2d2e20f7f2deeeebba001233f90d88f926d5fe8'
+shared goldens: 69
+only in CANDIDATE: g070 v1, g071 v1, g072 v1, g073 v1, g074 v1, g075 v1, g076 v1, g077 v1, g078 v1, g079 v1, g080 v1, g081 v1, g082 v1, g083 v1, g084 v1, g085 v1, g086 v1, g087 v1
+continuity: no shared-case differences
+```
+
+Module exit code: **0** (`python3 -m uv run python -m way2australia_rag.evaluation.continuity …`; not `make eval-continuity`).
+
+**Compare hybrid** (A vs C): `eval-compare: PASS (hits 86 -> 86, MRR 0.9228 -> 0.9228)`; `cross-tokenizer: lexical-v1 v1 -> lexical-v2 v2`.
+
+**Compare bm25** (B vs D): `eval-compare: PASS (hits 73 -> 73, MRR 0.7423 -> 0.7423)`; same cross-tokenizer line.
+
+**Promotion (2026-11-04):** User decision — promote `lexical-v2` (pre-registered rule; tie promotes). Agent set `config/retrieval.yaml` → `lexical.tokenizer: lexical-v2`. Operator rebuilds and smoke test before task commit (commands in orchestrator handoff). No Qdrant change; no new `index_version`.
+
+**File checks (all four arms):** suite `public-eval-v3` v3; `embedder_is_fake: false`; `git_dirty: false`; collection `w2a-realcheck-idx-v2`; `index_version` idx-v2; recursive chunker; embedder pair BGE-M3 @ `5617a9f`; `top_k` 5; document/chunk counts 13 / 34; `lote: ml`; served strategy matches requested; `fallback_counts` {}; tokenizer matches arm.
+
+**Files pending commit:** four result JSONs; `config/retrieval.yaml`; spec task/review docs; `CURRENT_STATE.md`; test promotion pins (`test_strategy.py`, `test_lexical_cli.py`, `test_strategy_eval.py`); ruff fix on `test_security_integration.py` module docstring. Separate graph commit after task commit.
+
+**Post-review fixes (same round, after FAIL F1/F2):** Committed-config and CLI summary pins → `lexical-v2`; eval lexical builders use `TOKENIZERS[RETRIEVAL_CONFIG.lexical.tokenizer]`; E501 docstring wrap. `make verify` → pass (1257 passed, 2 skipped; ruff, format, pyright clean) with `QDRANT_COLLECTION_BASE` unset.
+
+**Operator rebuild/smoke (2026-11-04, post-approval):** Realcheck and production `make index-lexical` both printed settings 1.2, `lexical-v2 v2`, 34 chunks, digest `89b30b429b43`. `make retrieve QUERY="NAATI CCL coaching" RETRIEVE_ARGS="--lote ml"` served hybrid from `way2australia-idx-v2` (5 hits). `make setup` OK.
+
+**Recorded deviation (user-accepted 2026-11-04):** `make retrieve` does not print the lexical tokenizer name, so the smoke test only shows that the hybrid path served from the rebuilt `way2australia-idx-v2` file. Evidence that the promotion is live: the `make index-lexical` output for both files (settings 1.2, `lexical-v2 v2`, 34 chunks, digest `89b30b429b43`).
+
+**Carry-over for T6 and the retrospective (roadmap item 10 — grounded generation / HTTP route spec):** `open_retrieval` does not compare the lexical file's recorded tokenizer with `config/retrieval.yaml` `lexical.tokenizer`, so a stale `lexical-v1` file would keep serving silently. Group with the existing startup policy item for a missing or stale lexical file (Spec 008 hand-off / `CURRENT_STATE.md` Known issues).
+
+- Usage: not measured (user-owned eval runs)
+
+### Review
+- Model: Cursor Grok 4.6; matches the BEST tier (`Grok 4.6`) in `agent-skills/MODEL_PREFERENCES.md`.
+- Verdict: FAIL (superseded — F1/F2 fixed; re-review pending)
+- Commands: `python3 -m uv run python -m way2australia_rag.evaluation.continuity experiments/results/retrieval-evaluation-idx-v2-20261103T104934Z.json experiments/results/retrieval-evaluation-idx-v2-20261104T105123Z.json` → exit 0 (shared goldens 69, no shared-case differences); `make eval-compare BASE=…105123Z.json CANDIDATE=…105300Z.json COMPARE_ARGS=--cross-tokenizer` → PASS (hits 86 → 86, MRR 0.9228 → 0.9228); `make eval-compare BASE=…105259Z.json CANDIDATE=…105321Z.json COMPARE_ARGS=--cross-tokenizer` → PASS (hits 73 → 73, MRR 0.7423 → 0.7423); `git diff --name-status main...HEAD -- evaluation knowledge config` → T1 evaluation files + T3 `config/retrieval.yaml` (working tree adds only the T5 tokenizer promotion; `knowledge/` empty); `make verify` → fail (ruff E501, pytest not reached); targeted pytest of the committed-default pins → 2 failed, 1 passed; `make test-integration` not run (not in T5 verification).
+- Findings:
+  - F1 [MAJOR, IMPLEMENTATION, R10] Promotion set `config/retrieval.yaml` to `lexical.tokenizer: lexical-v2`, but tests still pin the committed default as `lexical-v1`: `test_committed_config_loads` (`packages/rag/tests/retrieval/test_strategy.py:58`) and `test_success_summary_and_digest_stability` (`packages/rag/tests/lexical/test_lexical_cli.py:67`, implicit `make index-lexical` with no `--tokenizer`). Confirmed: assert `'lexical-v2' == 'lexical-v1'`; CLI summary now prints `tokenizer lexical-v2 v2`. → Update those two pins to v2 so T5's required `make verify` after promotion can pass.
+  - F2 [MAJOR, IMPLEMENTATION, R11] `make verify` fails at lint: ruff E501 on `packages/rag/tests/evaluation/test_security_integration.py:1` (89 > 88). Introduced by the T4 commit's post-review MINOR docstring fix (no re-review); T5 did not touch the file. → Wrap the module docstring. The promotion gate cannot go green until lint is clean.
+  - F3 [MINOR, IMPLEMENTATION, R10] Operator rebuild/smoke (`make index-lexical` for realcheck and default `way2australia-idx-v2`, `make retrieve QUERY="..." RETRIEVE_ARGS="--lote ml"` must report `lexical-v2`, then `make setup`) is still pending, while the "If promoted" checkbox is marked `[x]`. Local `.local/` work, not a git artifact; do it before relying on retrieve, not before fixing F1/F2.
+- Usage: (orchestrator)
+
+### Review
+- Model: Cursor Grok 4.6; matches the BEST tier (`Grok 4.6`) in `agent-skills/MODEL_PREFERENCES.md`.
+- Verdict: PASS
+- Commands: `python3 -m uv run python -m way2australia_rag.evaluation.continuity experiments/results/retrieval-evaluation-idx-v2-20261103T104934Z.json experiments/results/retrieval-evaluation-idx-v2-20261104T105123Z.json` → exit 0 (shared goldens 69, no shared-case differences); `make eval-compare BASE=experiments/results/retrieval-evaluation-idx-v2-20261104T105123Z.json CANDIDATE=experiments/results/retrieval-evaluation-idx-v2-20261104T105300Z.json COMPARE_ARGS=--cross-tokenizer` → PASS (hits 86 → 86, MRR 0.9228 → 0.9228); `make eval-compare BASE=experiments/results/retrieval-evaluation-idx-v2-20261104T105259Z.json CANDIDATE=experiments/results/retrieval-evaluation-idx-v2-20261104T105321Z.json COMPARE_ARGS=--cross-tokenizer` → PASS (hits 73 → 73, MRR 0.7423 → 0.7423); `git diff --name-status main...HEAD -- evaluation knowledge config` → T1 evaluation files + T3 `config/retrieval.yaml` (working tree adds only the T5 tokenizer promotion; `knowledge/` empty); `make verify` → pass (1257 passed, 2 skipped; ruff, format check and pyright clean) with `QDRANT_COLLECTION_BASE` unset; `make test-integration` not run (not in T5 verification); `graphify update .` not re-run (read-only; graph commit after user approval).
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R10] Operator rebuild/smoke (`make index-lexical` for realcheck and default `way2australia-idx-v2`, `make retrieve QUERY="..." RETRIEVE_ARGS="--lote ml"` must report `lexical-v2`, then `make setup`) is still pending, while the "If promoted" checkbox is marked `[x]`. Local `.local/` work, not a git artifact; do it before relying on retrieve (prior round-1 F3, still open).
+- Summary for user:
+  - Changed: Four v3 `lote: ml` result files on `w2a-realcheck-idx-v2` (hybrid/bm25 × lexical-v1/v2). Continuity vs Spec 009 hybrid ref passed (69 shared goldens identical). Both `--cross-tokenizer` compares tied, so R10 promoted `config/retrieval.yaml` to `lexical.tokenizer: lexical-v2`. Prior FAIL F1/F2 fixed: committed-config and CLI pins, eval builders use the config tokenizer, ruff E501 wrap.
+  - Verified by: continuity exit 0; hybrid compare PASS 86→86 / MRR 0.9228; bm25 compare PASS 73→73 / MRR 0.7423; `make verify` 1257 passed, 2 skipped, `QDRANT_COLLECTION_BASE` unset. Protected paths: only allowed `config/retrieval.yaml` tokenizer change plus T1 evaluation files already on the branch.
+  - Worth your attention: Promotion is a correctness default, not a measured gain (seed corpus has no legacy chillu sequences; case-by-case identity). BM25-only `ml` MRR 0.2396 (n=16) is a T6 carry-over. Operator lexical rebuild/smoke is still pending before you rely on `make retrieve`. Approve, then one commit of the four JSONs + config + tests + spec docs (`Spec-Task: 010/T5`), then a graph commit.
+  - Reading order (follow the flow: entry point → core logic → models/errors/config → tests):
+    1. `config/retrieval.yaml` → `lexical.tokenizer`: promoted default `lexical-v2`.
+    2. `experiments/results/retrieval-evaluation-idx-v2-20261104T105123Z.json` → Arm A hybrid lexical-v1 (continuity candidate).
+    3. `experiments/results/retrieval-evaluation-idx-v2-20261104T105300Z.json` → Arm C hybrid lexical-v2 (promoted v3 hybrid reference).
+    4. `experiments/results/retrieval-evaluation-idx-v2-20261104T105259Z.json` and `...T105321Z.json` → BM25 lexical-v1/v2 arms (identical; `ml` MRR 0.2396).
+    5. Supporting edits: `test_strategy.py` `test_committed_config_loads`, `test_lexical_cli.py` success summary, `test_strategy_eval.py` config tokenizer, `test_security_integration.py` E501 wrap; `CURRENT_STATE.md` Next step.
+- Usage: (orchestrator)
+
+### User decision
+- 2026-11-04: approved. Verbatim: "approved for T5, with two record fixes in the same commit (no re-review needed): …" (tasks.md "If not promoted" → `[ ] N/A (promoted)`; T5 deviation on retrieve smoke vs index-lexical output; carry-over for roadmap 10 on tokenizer vs config mismatch). Operator rebuild/smoke completed before commit. Record fixes applied in the T5 commit; no re-review.

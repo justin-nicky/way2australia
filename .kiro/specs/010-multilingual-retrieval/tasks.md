@@ -196,25 +196,25 @@ Allowed protected-path changes: none.
 
 ## T5 — User-owned real runs on v3 and the `lexical-v2` decision
 
-**State:** not started
+**State:** approved (2026-11-04)
 **Requirements:** R10
 
 Run by the user (real model, `w2a-realcheck-idx-v2`). The agent prepares the commands, then checks and records the files. Before the runs, the tree (including `graphify-out/`) is clean and earlier result files are committed.
 
-- [ ] **Two lexical files (local only, no Qdrant writes).** With `QDRANT_COLLECTION_BASE=w2a-realcheck`:
+- [x] **Two lexical files (local only, no Qdrant writes).** With `QDRANT_COLLECTION_BASE=w2a-realcheck`:
   - `make index-lexical`, which builds `lexical-v1` into `.local/lexical`;
   - `W2A_LEXICAL_INDEX_DIR=.local/lexical-v2 make index-lexical LEXICAL_ARGS="--tokenizer lexical-v2"`.
   
   Both must be settings 1.2 with the same `source_chunk_digest` and chunk count. Record both.
-- [ ] **Pre-run check.** After both `make index-lexical` builds, `git status --porcelain` is empty. If it isn't, stop before any `make eval-retrieval` run; a non-empty tree would record `git_dirty: true`.
-- [ ] **Four arms.** `make setup-bge-m3`. Then, with `QDRANT_COLLECTION_BASE=w2a-realcheck`, run `make eval-retrieval` with `EVAL_ARGS="--lote ml --strategy hybrid"` and `"--lote ml --strategy bm25"`, once with the default lexical directory and once with `W2A_LEXICAL_INDEX_DIR=.local/lexical-v2`.
-- [ ] **Continuity check** (copied word for word from R10): Continuity check first: on the 69 goldens carried from v2, the hybrid `lexical-v1` v3 run with `lote: ml` has the same hit, reciprocal rank and ranked document IDs per case as the Spec 009 reference `…idx-v2-20261103T104934Z.json`. A difference stops the gate until explained. Because `eval-compare` refuses the differing case set and `lote`, the check is a committed, tested command (a script or `make` target, with unit tests on fixture result files, delivered by a code task before T5); its full output is recorded in T5, not produced by an ad-hoc scratch script.
+- [x] **Pre-run check.** After both `make index-lexical` builds, `git status --porcelain` is empty. If it isn't, stop before any `make eval-retrieval` run; a non-empty tree would record `git_dirty: true`.
+- [x] **Four arms.** `make setup-bge-m3`. Then, with `QDRANT_COLLECTION_BASE=w2a-realcheck`, run `make eval-retrieval` with `EVAL_ARGS="--lote ml --strategy hybrid"` and `"--lote ml --strategy bm25"`, once with the default lexical directory and once with `W2A_LEXICAL_INDEX_DIR=.local/lexical-v2`.
+- [x] **Continuity check** (copied word for word from R10): Continuity check first: on the 69 goldens carried from v2, the hybrid `lexical-v1` v3 run with `lote: ml` has the same hit, reciprocal rank and ranked document IDs per case as the Spec 009 reference `…idx-v2-20261103T104934Z.json`. A difference stops the gate until explained. Because `eval-compare` refuses the differing case set and `lote`, the check is a committed, tested command (a script or `make` target, with unit tests on fixture result files, delivered by a code task before T5); its full output is recorded in T5, not produced by an ad-hoc scratch script.
   - Command: `uv run python -m way2australia_rag.evaluation.continuity experiments/results/retrieval-evaluation-idx-v2-20261103T104934Z.json <hybrid lexical-v1 v3 result>` (not through `make eval-continuity`: GNU make maps recipe exit 1 to 2). Record full stdout/stderr and the **module exit code** in `task-reviews.md`. T6 documents `make eval-continuity` vs the module in `COMMANDS.md`.
-- [ ] **Compares.** `make eval-compare COMPARE_ARGS=--cross-tokenizer`, with base `lexical-v1` and candidate `lexical-v2`, for hybrid and for BM25-only. Record both outputs.
-- [ ] **Promotion rule** (copied word for word from R10): **Promotion rule (fixed here, before any run).** `lexical-v2` becomes the default tokenizer only if all hold: the `eval-compare` gate passes for both hybrid and BM25-only; no case goes from hit to miss in any language, in either strategy; overall MRR is not lower in either strategy. A tie promotes it. Otherwise the default stays `lexical-v1`.
-- [ ] **If promoted:** set `config/retrieval.yaml` to `lexical.tokenizer: lexical-v2`. Rebuild with `make index-lexical`, for the realcheck base and, by the operator, for the default `way2australia-idx-v2`. Check that `make retrieve QUERY="..." RETRIEVE_ARGS="--lote ml"` reports the `lexical-v2` file. No Qdrant change and no new `index_version`. Then `make setup`.
-- [ ] **If not promoted:** `config/retrieval.yaml` stays unchanged. Rebuild the default lexical file with `lexical-v1` (settings 1.2), so `--lote` works on the default index. Then `make setup`.
-- [ ] The agent checks each result file: suite v3, not fake, `git_dirty` false, same collection, `index_version`, chunker, embedder pair, `top_k`, document count, `lote: ml`, served strategies, empty `fallback_counts`, and the expected tokenizer. It records for each of the four arms: overall, `en`, `ml` and `mixed` slices, the `by_script_mix` slice, every flipped case, and the `g056`/`g057`/`g061`/`g067`–`g069` ranks. Any deviation is recorded for the user to accept. Result files are committed.
+- [x] **Compares.** `make eval-compare COMPARE_ARGS=--cross-tokenizer`, with base `lexical-v1` and candidate `lexical-v2`, for hybrid and for BM25-only. Record both outputs.
+- [x] **Promotion rule** (copied word for word from R10): **Promotion rule (fixed here, before any run).** `lexical-v2` becomes the default tokenizer only if all hold: the `eval-compare` gate passes for both hybrid and BM25-only; no case goes from hit to miss in any language, in either strategy; overall MRR is not lower in either strategy. A tie promotes it. Otherwise the default stays `lexical-v1`.
+- [x] **If promoted:** set `config/retrieval.yaml` to `lexical.tokenizer: lexical-v2`. Rebuild with `make index-lexical`, for the realcheck base and, by the operator, for the default `way2australia-idx-v2`. Check that `make retrieve QUERY="..." RETRIEVE_ARGS="--lote ml"` reports the `lexical-v2` file. No Qdrant change and no new `index_version`. Then `make setup`.
+- [ ] **If not promoted:** N/A (promoted) `config/retrieval.yaml` stays unchanged. Rebuild the default lexical file with `lexical-v1` (settings 1.2), so `--lote` works on the default index. Then `make setup`.
+- [x] The agent checks each result file: suite v3, not fake, `git_dirty` false, same collection, `index_version`, chunker, embedder pair, `top_k`, document count, `lote: ml`, served strategies, empty `fallback_counts`, and the expected tokenizer. It records for each of the four arms: overall, `en`, `ml` and `mixed` slices, the `by_script_mix` slice, every flipped case, and the `g056`/`g057`/`g061`/`g067`–`g069` ranks. Any deviation is recorded for the user to accept. Result files are committed.
 
 Allowed protected-path changes: `config/retrieval.yaml` (`lexical.tokenizer`), only if promoted.
 

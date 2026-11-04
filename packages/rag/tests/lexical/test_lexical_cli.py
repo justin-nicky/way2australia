@@ -64,7 +64,7 @@ def test_success_summary_and_digest_stability(
     pattern = (
         rf"^lexical index: w2a-t007-abcd1234-{version}\.sqlite "
         rf"\(collection w2a-t007-abcd1234-{version}, index_version {version}; "
-        r"lexical settings 1\.2; tokenizer lexical-v1 v1; "
+        r"lexical settings 1\.2; tokenizer lexical-v2 v2; "
         r"chunks \d+; digest [0-9a-f]{12}\)$"
     )
     assert re.match(pattern, first.out.strip()), first.out

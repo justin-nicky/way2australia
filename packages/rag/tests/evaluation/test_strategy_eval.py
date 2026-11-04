@@ -35,6 +35,7 @@ from way2australia_rag.lexical.store import (
     LexicalIdentityInput,
     LexicalIndex,
 )
+from way2australia_rag.lexical.tokenizer import TOKENIZERS
 from way2australia_rag.repositories import (
     LocalDocumentRepository,
     LocalRepositoryConfig,
@@ -216,6 +217,7 @@ def build_lexical(client: QdrantClient, target: Path, drop: int = 0) -> LexicalI
             chunker=chunker.identity,
             hash_contract=HASH_CONTRACT,
         ),
+        tokenizer=TOKENIZERS[RETRIEVAL_CONFIG.lexical.tokenizer],
     )
     return LexicalIndex.open(target, COLLECTION, VERSION)
 
@@ -469,6 +471,7 @@ def configured_lexical(lexical_dir: Path) -> None:
     repository = LocalDocumentRepository(LocalRepositoryConfig(repo_root=REPO_ROOT))
 
     entries = asyncio.run(production_entries(repository, chunker, tokenizer, None))
+    retrieval = load_retrieval_config(REPO_ROOT / "config/retrieval.yaml")
     build_lexical_index(
         entries,
         lexical_index_path(lexical_dir, COLLECTION),
@@ -484,6 +487,7 @@ def configured_lexical(lexical_dir: Path) -> None:
             chunker=chunker_identity(config),
             hash_contract=HASH_CONTRACT,
         ),
+        tokenizer=TOKENIZERS[retrieval.lexical.tokenizer],
     )
 
 
@@ -747,7 +751,7 @@ def test_a_2_2_file_reads_with_strategy_and_lexical(tmp_path: Path) -> None:
     run_ = read_result(path)
     assert run_.schema_version == "2.4"
     assert run_.info["retrieval_strategy"] == "hybrid"
-    assert run_.info["lexical"]["tokenizer_name"] == "lexical-v1"
+    assert run_.info["lexical"]["tokenizer_name"] == "lexical-v2"
     assert len(run_.cases) == len(doc["cases"])
     assert all(row.source_authority is not None for row in run_.cases.values())
 

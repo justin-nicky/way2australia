@@ -55,7 +55,7 @@ def test_committed_config_loads() -> None:
     config = load_retrieval_config(REPO_ROOT / DEFAULT_CONFIG_PATH)
     raw = yaml.safe_load((REPO_ROOT / DEFAULT_CONFIG_PATH).read_text(encoding="utf-8"))
     assert raw["schema_version"] == "1.2"
-    assert config.lexical.tokenizer == "lexical-v1"
+    assert config.lexical.tokenizer == "lexical-v2"
     assert config.default_strategy is Strategy(raw["default_strategy"])
     assert config.fusion.k == 60
     assert config.fusion.weights == {"dense": 1.0, "bm25": 1.0}

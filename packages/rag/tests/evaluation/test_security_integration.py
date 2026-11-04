@@ -1,4 +1,4 @@
-"""Authorization and applicability isolation on Docker Qdrant (Spec 006 R9; Spec 010 T4).
+"""Authorization and applicability isolation on Docker Qdrant (Spec 006 R9; 010 T4).
 
 Builds the throwaway security index on the real Qdrant server under a unique
 `w2a-sectest-*` base, asserts no forbidden point is returned, and with an active

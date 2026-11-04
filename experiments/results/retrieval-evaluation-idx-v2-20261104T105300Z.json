@@ -1,0 +1,3442 @@
+{
+  "schema_version": "2.4",
+  "kind": "retrieval_evaluation",
+  "created_at": "2026-11-04T10:53:00.311084+00:00",
+  "git_commit": "f2d2e20f7f2deeeebba001233f90d88f926d5fe8",
+  "git_dirty": false,
+  "evaluation_suite_id": "public-eval-v3",
+  "evaluation_suite_version": 3,
+  "evaluation_suite": {
+    "status": "active",
+    "cases_by_type": {
+      "golden_answerable": 87,
+      "unanswerable_refusal": 15,
+      "security": 10
+    },
+    "excluded_by_status": {
+      "golden_answerable": {},
+      "unanswerable_refusal": {},
+      "security": {}
+    }
+  },
+  "declared_knowledge_release_id": "seed-v1",
+  "release_snapshot_verified": false,
+  "collection": "w2a-realcheck-idx-v2",
+  "index_version": "idx-v2",
+  "index_settings": {
+    "schema_version": "1.1",
+    "index_version": "idx-v2",
+    "embedder_model_id": "BAAI/bge-m3",
+    "embedder_revision": "5617a9f61b028005a4858fdac845db406aefb181",
+    "embedder_vector_size": 1024,
+    "embedder_normalize": true,
+    "embedder_is_fake": false,
+    "chunker_name": "recursive",
+    "chunker_version": "1",
+    "chunker_params": {
+      "context_prefix": "title",
+      "overlap_tokens": 16,
+      "target_tokens": 128
+    },
+    "chunker_tokenizer": "BAAI/bge-m3@5617a9f61b028005a4858fdac845db406aefb181",
+    "hash_contract": "content-hash-v1"
+  },
+  "requested_strategy": "hybrid",
+  "served_strategies": [
+    "hybrid"
+  ],
+  "retrieval_strategy": "hybrid",
+  "score_kind": "rrf",
+  "fallback_counts": {},
+  "warmup_fallback_reason": null,
+  "qdrant_timeouts": {
+    "connect_timeout_s": 2,
+    "query_timeout_s": 3
+  },
+  "dense_identity": {
+    "collection": "w2a-realcheck-idx-v2",
+    "index_version": "idx-v2",
+    "embedder_model_id": "BAAI/bge-m3",
+    "embedder_revision": "5617a9f61b028005a4858fdac845db406aefb181",
+    "embedder_is_fake": false,
+    "source": "qdrant"
+  },
+  "fusion": {
+    "method": "rrf",
+    "k": 60,
+    "weights": {
+      "dense": 1.0,
+      "bm25": 1.0
+    },
+    "candidate_depth": 50
+  },
+  "lexical_index": {
+    "label": "w2a-realcheck-idx-v2.sqlite",
+    "tokenizer_name": "lexical-v2",
+    "tokenizer_version": "2",
+    "source_chunk_digest": "89b30b429b43e689ec41dc4525762f0e217d35b65188d470d3da28e0a677518c",
+    "chunk_count": 34
+  },
+  "truncated_query_count": 0,
+  "top_k": 5,
+  "metric_unit": "distinct_documents",
+  "retrieval_depth": 50,
+  "chunk_stats": {
+    "chunk_count": 34,
+    "document_count": 13,
+    "max_chunks_per_document": 4,
+    "required_depth": 17
+  },
+  "chunker": {
+    "name": "recursive",
+    "version": "1",
+    "params": {
+      "context_prefix": "title",
+      "overlap_tokens": 16,
+      "target_tokens": 128
+    },
+    "tokenizer": "BAAI/bge-m3@5617a9f61b028005a4858fdac845db406aefb181"
+  },
+  "ingestion_config": {
+    "path": "config/ingestion.yaml",
+    "sha256": "ed863021ad8215df01ff3d91c581a93dc6b2ed234b7a326a3f86978f452c7feb"
+  },
+  "device": "mps:0",
+  "embedder_is_fake": false,
+  "case_count": 87,
+  "excluded_case_count": 0,
+  "lote": "ml",
+  "document_count": 13,
+  "random_hit_rate_at_k": 0.3846,
+  "random_hit_rate_formula": "min(1, 5/13)",
+  "metrics": {
+    "overall": {
+      "hit_rate_at_5": 0.9885,
+      "recall_at_5": 0.9828,
+      "mrr": 0.9228,
+      "n": 87,
+      "small_sample": false
+    },
+    "by_query_language": {
+      "en": {
+        "hit_rate_at_5": 0.9815,
+        "recall_at_5": 0.9815,
+        "mrr": 0.9321,
+        "n": 54,
+        "small_sample": false
+      },
+      "mixed": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 0.9706,
+        "mrr": 0.8647,
+        "n": 17,
+        "small_sample": false
+      },
+      "ml": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 0.9531,
+        "n": 16,
+        "small_sample": false
+      }
+    },
+    "by_script_mix": {
+      "latin": {
+        "hit_rate_at_5": 0.9828,
+        "recall_at_5": 0.9828,
+        "mrr": 0.9282,
+        "n": 58,
+        "small_sample": false
+      },
+      "latin+malayalam": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 0.9737,
+        "mrr": 0.8658,
+        "n": 19,
+        "small_sample": false
+      },
+      "malayalam": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 1.0,
+        "n": 10,
+        "small_sample": false
+      }
+    },
+    "by_category": {
+      "authorization": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 1.0,
+        "n": 1,
+        "small_sample": true
+      },
+      "business": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 1.0,
+        "n": 3,
+        "small_sample": true
+      },
+      "coaching": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 1.0,
+        "n": 5,
+        "small_sample": true
+      },
+      "contact": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 1.0,
+        "n": 1,
+        "small_sample": true
+      },
+      "free_access": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 1.0,
+        "n": 1,
+        "small_sample": true
+      },
+      "malayalam": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 1.0,
+        "n": 3,
+        "small_sample": true
+      },
+      "materials": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 0.9,
+        "n": 5,
+        "small_sample": true
+      },
+      "migration": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 1.0,
+        "n": 1,
+        "small_sample": true
+      },
+      "mock": {
+        "hit_rate_at_5": 0.875,
+        "recall_at_5": 0.875,
+        "mrr": 0.7917,
+        "n": 8,
+        "small_sample": true
+      },
+      "multilingual": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 0.9848,
+        "mrr": 0.9076,
+        "n": 33,
+        "small_sample": false
+      },
+      "official": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 0.9286,
+        "n": 14,
+        "small_sample": false
+      },
+      "payment": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 1.0,
+        "n": 2,
+        "small_sample": true
+      },
+      "pricing": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 0.875,
+        "n": 4,
+        "small_sample": true
+      },
+      "privacy": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 1.0,
+        "n": 1,
+        "small_sample": true
+      },
+      "safety": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 1.0,
+        "n": 2,
+        "small_sample": true
+      },
+      "vocabulary": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 1.0,
+        "n": 3,
+        "small_sample": true
+      }
+    },
+    "by_source_authority": {
+      "home_affairs": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 0.625,
+        "n": 2,
+        "small_sample": true
+      },
+      "home_affairs+owner_approved": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 1.0,
+        "n": 2,
+        "small_sample": true
+      },
+      "naati": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 0.9233,
+        "n": 30,
+        "small_sample": false
+      },
+      "naati+owner_approved": {
+        "hit_rate_at_5": 1.0,
+        "recall_at_5": 0.5,
+        "mrr": 1.0,
+        "n": 1,
+        "small_sample": true
+      },
+      "owner_approved": {
+        "hit_rate_at_5": 0.9808,
+        "recall_at_5": 0.9808,
+        "mrr": 0.9295,
+        "n": 52,
+        "small_sample": false
+      }
+    }
+  },
+  "absent_query_languages": [],
+  "small_sample_threshold": 10,
+  "section_level": {
+    "measurable_cases": 0,
+    "note": "no active golden case has relevant_section_ids"
+  },
+  "unanswerable": {
+    "status": "not_evaluable_before_generation",
+    "owner": "roadmap-10",
+    "n": 15,
+    "served_strategies": [
+      "hybrid"
+    ],
+    "score_kind": "rrf",
+    "top1_score": {
+      "min": 0.0164,
+      "p50": 0.0323,
+      "p95": 0.0328,
+      "max": 0.0328
+    },
+    "golden_top1_score": {
+      "min": 0.0164,
+      "p50": 0.0328,
+      "p95": 0.0328,
+      "max": 0.0328
+    },
+    "cases": [
+      {
+        "case_id": "u001",
+        "case_version": 1,
+        "top1_score": 0.0315
+      },
+      {
+        "case_id": "u002",
+        "case_version": 1,
+        "top1_score": 0.0318
+      },
+      {
+        "case_id": "u003",
+        "case_version": 1,
+        "top1_score": 0.0328
+      },
+      {
+        "case_id": "u004",
+        "case_version": 1,
+        "top1_score": 0.032
+      },
+      {
+        "case_id": "u005",
+        "case_version": 1,
+        "top1_score": 0.0328
+      },
+      {
+        "case_id": "u006",
+        "case_version": 1,
+        "top1_score": 0.0328
+      },
+      {
+        "case_id": "u007",
+        "case_version": 1,
+        "top1_score": 0.0328
+      },
+      {
+        "case_id": "u008",
+        "case_version": 1,
+        "top1_score": 0.0325
+      },
+      {
+        "case_id": "u009",
+        "case_version": 1,
+        "top1_score": 0.0323
+      },
+      {
+        "case_id": "u010",
+        "case_version": 1,
+        "top1_score": 0.0328
+      },
+      {
+        "case_id": "u011",
+        "case_version": 1,
+        "top1_score": 0.0328
+      },
+      {
+        "case_id": "u012",
+        "case_version": 1,
+        "top1_score": 0.0315
+      },
+      {
+        "case_id": "u013",
+        "case_version": 1,
+        "top1_score": 0.0164
+      },
+      {
+        "case_id": "u014",
+        "case_version": 1,
+        "top1_score": 0.0164
+      },
+      {
+        "case_id": "u015",
+        "case_version": 1,
+        "top1_score": 0.0317
+      }
+    ]
+  },
+  "latency_ms": {
+    "p50": 73.399,
+    "p95": 108.183,
+    "by_served_path": {
+      "hybrid": {
+        "p50": 73.399,
+        "p95": 108.183,
+        "n": 87
+      }
+    },
+    "warmup_ms": 10836.164,
+    "measured_cases": 87,
+    "legs": {
+      "bm25": {
+        "p50": 0.687,
+        "p95": 1.224
+      },
+      "dense": {
+        "p50": 72.462,
+        "p95": 107.37
+      }
+    }
+  },
+  "cases": [
+    {
+      "case_id": "g001",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "business",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_001_overview_scope",
+        "business_007_payments_account_support",
+        "business_005_coaching",
+        "business_004_vocabulary_and_free_access",
+        "official_004_migration_points"
+      ],
+      "relevant_document_ids": [
+        "business_001_overview_scope"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 67.844,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_001_overview_scope": 1
+        },
+        "bm25": {
+          "business_001_overview_scope": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g002",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "business",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_001_overview_scope",
+        "language_ml_001_naati_policy",
+        "official_001_ccl_format_scoring_results",
+        "business_008_public_samples",
+        "business_006_mock_assessments"
+      ],
+      "relevant_document_ids": [
+        "business_001_overview_scope"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0325,
+      "latency_ms": 74.623,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_001_overview_scope": 1
+        },
+        "bm25": {
+          "business_001_overview_scope": 2
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g003",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "business",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_005_coaching",
+        "business_002_packages_pricing_validity",
+        "business_001_overview_scope",
+        "business_003_materials_and_dialogue_practice",
+        "official_002_candidate_rules_setup"
+      ],
+      "relevant_document_ids": [
+        "business_001_overview_scope",
+        "business_005_coaching"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 108.086,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_001_overview_scope": 2,
+          "business_005_coaching": 1
+        },
+        "bm25": {
+          "business_001_overview_scope": 3,
+          "business_005_coaching": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g004",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "safety",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_001_overview_scope",
+        "official_001_ccl_format_scoring_results",
+        "business_006_mock_assessments",
+        "official_004_migration_points",
+        "business_002_packages_pricing_validity"
+      ],
+      "relevant_document_ids": [
+        "business_001_overview_scope"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.032,
+      "latency_ms": 68.41,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_001_overview_scope": 3
+        },
+        "bm25": {
+          "business_001_overview_scope": 2
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g005",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "pricing",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_002_packages_pricing_validity",
+        "business_003_materials_and_dialogue_practice",
+        "official_003_booking_fees_validity",
+        "business_005_coaching",
+        "business_004_vocabulary_and_free_access"
+      ],
+      "relevant_document_ids": [
+        "business_002_packages_pricing_validity"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0323,
+      "latency_ms": 101.256,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_002_packages_pricing_validity": 1
+        },
+        "bm25": {
+          "business_002_packages_pricing_validity": 2
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g006",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "pricing",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "official_003_booking_fees_validity",
+        "business_002_packages_pricing_validity",
+        "business_003_materials_and_dialogue_practice",
+        "business_006_mock_assessments",
+        "business_004_vocabulary_and_free_access"
+      ],
+      "relevant_document_ids": [
+        "business_002_packages_pricing_validity"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.5,
+      "top1_score": 0.0325,
+      "latency_ms": 87.752,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_002_packages_pricing_validity": 1
+        },
+        "bm25": {
+          "business_002_packages_pricing_validity": 3
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g007",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "pricing",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_002_packages_pricing_validity",
+        "business_005_coaching",
+        "official_003_booking_fees_validity",
+        "business_007_payments_account_support",
+        "business_006_mock_assessments"
+      ],
+      "relevant_document_ids": [
+        "business_002_packages_pricing_validity"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 70.163,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_002_packages_pricing_validity": 1
+        },
+        "bm25": {
+          "business_002_packages_pricing_validity": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g008",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "pricing",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_002_packages_pricing_validity",
+        "business_005_coaching",
+        "business_006_mock_assessments",
+        "business_001_overview_scope",
+        "official_004_migration_points"
+      ],
+      "relevant_document_ids": [
+        "business_002_packages_pricing_validity",
+        "business_005_coaching"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 72.252,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_002_packages_pricing_validity": 1,
+          "business_005_coaching": 2
+        },
+        "bm25": {
+          "business_002_packages_pricing_validity": 1,
+          "business_005_coaching": 2
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g009",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "coaching",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_005_coaching",
+        "business_002_packages_pricing_validity",
+        "business_006_mock_assessments",
+        "official_002_candidate_rules_setup",
+        "official_001_ccl_format_scoring_results"
+      ],
+      "relevant_document_ids": [
+        "business_005_coaching"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 68.293,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_005_coaching": 1
+        },
+        "bm25": {
+          "business_005_coaching": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g010",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "materials",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_003_materials_and_dialogue_practice",
+        "business_002_packages_pricing_validity",
+        "business_006_mock_assessments",
+        "official_001_ccl_format_scoring_results",
+        "business_004_vocabulary_and_free_access"
+      ],
+      "relevant_document_ids": [
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 69.371,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_003_materials_and_dialogue_practice": 1
+        },
+        "bm25": {
+          "business_003_materials_and_dialogue_practice": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g011",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "materials",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_003_materials_and_dialogue_practice",
+        "business_006_mock_assessments",
+        "business_002_packages_pricing_validity",
+        "official_001_ccl_format_scoring_results",
+        "business_001_overview_scope"
+      ],
+      "relevant_document_ids": [
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 77.042,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_003_materials_and_dialogue_practice": 1
+        },
+        "bm25": {
+          "business_003_materials_and_dialogue_practice": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g012",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "materials",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_002_packages_pricing_validity",
+        "business_003_materials_and_dialogue_practice",
+        "business_008_public_samples",
+        "official_001_ccl_format_scoring_results",
+        "business_001_overview_scope"
+      ],
+      "relevant_document_ids": [
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.5,
+      "top1_score": 0.0318,
+      "latency_ms": 109.391,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_003_materials_and_dialogue_practice": 2
+        },
+        "bm25": {
+          "business_003_materials_and_dialogue_practice": 3
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g013",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "privacy",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_003_materials_and_dialogue_practice",
+        "business_005_coaching",
+        "business_007_payments_account_support",
+        "business_002_packages_pricing_validity",
+        "business_006_mock_assessments"
+      ],
+      "relevant_document_ids": [
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 66.042,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_003_materials_and_dialogue_practice": 1
+        },
+        "bm25": {
+          "business_003_materials_and_dialogue_practice": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g014",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "materials",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_003_materials_and_dialogue_practice",
+        "business_006_mock_assessments",
+        "official_001_ccl_format_scoring_results",
+        "business_001_overview_scope",
+        "business_004_vocabulary_and_free_access"
+      ],
+      "relevant_document_ids": [
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 63.545,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_003_materials_and_dialogue_practice": 1
+        },
+        "bm25": {
+          "business_003_materials_and_dialogue_practice": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g015",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "materials",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_003_materials_and_dialogue_practice",
+        "business_006_mock_assessments",
+        "business_001_overview_scope",
+        "business_002_packages_pricing_validity",
+        "business_004_vocabulary_and_free_access"
+      ],
+      "relevant_document_ids": [
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 94.872,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_003_materials_and_dialogue_practice": 1
+        },
+        "bm25": {
+          "business_003_materials_and_dialogue_practice": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g016",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "vocabulary",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_004_vocabulary_and_free_access",
+        "business_008_public_samples",
+        "business_003_materials_and_dialogue_practice",
+        "business_005_coaching",
+        "business_001_overview_scope"
+      ],
+      "relevant_document_ids": [
+        "business_004_vocabulary_and_free_access"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 58.606,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_004_vocabulary_and_free_access": 1
+        },
+        "bm25": {
+          "business_004_vocabulary_and_free_access": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g017",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "vocabulary",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_004_vocabulary_and_free_access",
+        "business_003_materials_and_dialogue_practice",
+        "official_003_booking_fees_validity",
+        "business_006_mock_assessments",
+        "business_001_overview_scope"
+      ],
+      "relevant_document_ids": [
+        "business_004_vocabulary_and_free_access"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 95.503,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_004_vocabulary_and_free_access": 1
+        },
+        "bm25": {
+          "business_004_vocabulary_and_free_access": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g018",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "free_access",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_004_vocabulary_and_free_access",
+        "business_008_public_samples",
+        "business_002_packages_pricing_validity",
+        "business_007_payments_account_support",
+        "business_006_mock_assessments"
+      ],
+      "relevant_document_ids": [
+        "business_004_vocabulary_and_free_access"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 96.132,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_004_vocabulary_and_free_access": 1
+        },
+        "bm25": {
+          "business_004_vocabulary_and_free_access": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g019",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "vocabulary",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_004_vocabulary_and_free_access",
+        "business_007_payments_account_support",
+        "business_006_mock_assessments",
+        "business_008_public_samples",
+        "language_ml_001_naati_policy"
+      ],
+      "relevant_document_ids": [
+        "business_004_vocabulary_and_free_access"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 66.446,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_004_vocabulary_and_free_access": 1
+        },
+        "bm25": {
+          "business_004_vocabulary_and_free_access": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g020",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "coaching",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_005_coaching",
+        "business_002_packages_pricing_validity",
+        "business_006_mock_assessments",
+        "business_001_overview_scope",
+        "business_007_payments_account_support"
+      ],
+      "relevant_document_ids": [
+        "business_005_coaching"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 70.108,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_005_coaching": 1
+        },
+        "bm25": {
+          "business_005_coaching": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g021",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "coaching",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_005_coaching",
+        "business_002_packages_pricing_validity",
+        "business_001_overview_scope",
+        "business_003_materials_and_dialogue_practice",
+        "business_004_vocabulary_and_free_access"
+      ],
+      "relevant_document_ids": [
+        "business_005_coaching"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0325,
+      "latency_ms": 95.282,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_005_coaching": 1
+        },
+        "bm25": {
+          "business_005_coaching": 2
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g022",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "coaching",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_005_coaching",
+        "business_002_packages_pricing_validity",
+        "official_002_candidate_rules_setup",
+        "business_001_overview_scope",
+        "official_003_booking_fees_validity"
+      ],
+      "relevant_document_ids": [
+        "business_005_coaching"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 69.342,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_005_coaching": 1
+        },
+        "bm25": {
+          "business_005_coaching": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g023",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "coaching",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_005_coaching",
+        "business_006_mock_assessments",
+        "business_007_payments_account_support",
+        "business_003_materials_and_dialogue_practice",
+        "business_002_packages_pricing_validity"
+      ],
+      "relevant_document_ids": [
+        "business_005_coaching"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 71.966,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_005_coaching": 1
+        },
+        "bm25": {
+          "business_005_coaching": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g024",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "mock",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_006_mock_assessments",
+        "business_002_packages_pricing_validity",
+        "business_003_materials_and_dialogue_practice",
+        "business_005_coaching",
+        "official_002_candidate_rules_setup"
+      ],
+      "relevant_document_ids": [
+        "business_006_mock_assessments"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 75.016,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_006_mock_assessments": 1
+        },
+        "bm25": {
+          "business_006_mock_assessments": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g025",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "mock",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_006_mock_assessments",
+        "business_002_packages_pricing_validity",
+        "business_005_coaching",
+        "official_003_booking_fees_validity",
+        "official_002_candidate_rules_setup"
+      ],
+      "relevant_document_ids": [
+        "business_006_mock_assessments"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 73.891,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_006_mock_assessments": 1
+        },
+        "bm25": {
+          "business_006_mock_assessments": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g026",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "mock",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_001_overview_scope",
+        "business_007_payments_account_support",
+        "official_003_booking_fees_validity",
+        "business_002_packages_pricing_validity",
+        "business_005_coaching"
+      ],
+      "relevant_document_ids": [
+        "business_006_mock_assessments"
+      ],
+      "hit": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "top1_score": 0.0325,
+      "latency_ms": 73.399,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_006_mock_assessments": 6
+        },
+        "bm25": {
+          "business_006_mock_assessments": 6
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g027",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "mock",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_006_mock_assessments",
+        "business_008_public_samples",
+        "business_002_packages_pricing_validity",
+        "business_003_materials_and_dialogue_practice",
+        "official_003_booking_fees_validity"
+      ],
+      "relevant_document_ids": [
+        "business_006_mock_assessments"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 71.063,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_006_mock_assessments": 1
+        },
+        "bm25": {
+          "business_006_mock_assessments": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g028",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "mock",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_006_mock_assessments",
+        "official_003_booking_fees_validity",
+        "official_001_ccl_format_scoring_results",
+        "business_007_payments_account_support",
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "relevant_document_ids": [
+        "business_006_mock_assessments"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0323,
+      "latency_ms": 70.239,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_006_mock_assessments": 1
+        },
+        "bm25": {
+          "business_006_mock_assessments": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g029",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "mock",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_008_public_samples",
+        "official_002_candidate_rules_setup",
+        "business_006_mock_assessments",
+        "business_003_materials_and_dialogue_practice",
+        "business_005_coaching"
+      ],
+      "relevant_document_ids": [
+        "business_006_mock_assessments"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.3333333333333333,
+      "top1_score": 0.0313,
+      "latency_ms": 70.239,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_006_mock_assessments": 1
+        },
+        "bm25": {
+          "business_006_mock_assessments": 10
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g030",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "mock",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_006_mock_assessments",
+        "business_003_materials_and_dialogue_practice",
+        "business_002_packages_pricing_validity",
+        "business_004_vocabulary_and_free_access",
+        "official_002_candidate_rules_setup"
+      ],
+      "relevant_document_ids": [
+        "business_006_mock_assessments"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 78.032,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_006_mock_assessments": 1
+        },
+        "bm25": {
+          "business_006_mock_assessments": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g031",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "mock",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_006_mock_assessments",
+        "business_003_materials_and_dialogue_practice",
+        "official_002_candidate_rules_setup",
+        "official_001_ccl_format_scoring_results",
+        "business_005_coaching"
+      ],
+      "relevant_document_ids": [
+        "business_006_mock_assessments"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 80.175,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_006_mock_assessments": 1
+        },
+        "bm25": {
+          "business_006_mock_assessments": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g032",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "payment",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_007_payments_account_support",
+        "business_001_overview_scope",
+        "official_003_booking_fees_validity",
+        "business_002_packages_pricing_validity",
+        "business_005_coaching"
+      ],
+      "relevant_document_ids": [
+        "business_007_payments_account_support"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 69.705,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_007_payments_account_support": 1
+        },
+        "bm25": {
+          "business_007_payments_account_support": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g033",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "payment",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_007_payments_account_support",
+        "business_004_vocabulary_and_free_access",
+        "business_002_packages_pricing_validity",
+        "business_005_coaching",
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "relevant_document_ids": [
+        "business_007_payments_account_support"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0325,
+      "latency_ms": 70.873,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_007_payments_account_support": 2
+        },
+        "bm25": {
+          "business_007_payments_account_support": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g034",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "authorization",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_007_payments_account_support",
+        "business_001_overview_scope",
+        "business_002_packages_pricing_validity",
+        "business_006_mock_assessments",
+        "business_008_public_samples"
+      ],
+      "relevant_document_ids": [
+        "business_007_payments_account_support"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 65.091,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_007_payments_account_support": 1
+        },
+        "bm25": {
+          "business_007_payments_account_support": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g035",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "contact",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_007_payments_account_support",
+        "business_001_overview_scope",
+        "business_005_coaching",
+        "official_003_booking_fees_validity",
+        "business_008_public_samples"
+      ],
+      "relevant_document_ids": [
+        "business_007_payments_account_support"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0323,
+      "latency_ms": 68.574,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_007_payments_account_support": 1
+        },
+        "bm25": {
+          "business_007_payments_account_support": 2
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g036",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "official",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "official_001_ccl_format_scoring_results",
+        "business_003_materials_and_dialogue_practice",
+        "business_006_mock_assessments",
+        "official_003_booking_fees_validity",
+        "official_002_candidate_rules_setup"
+      ],
+      "relevant_document_ids": [
+        "official_001_ccl_format_scoring_results"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 62.148,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_001_ccl_format_scoring_results": 1
+        },
+        "bm25": {
+          "official_001_ccl_format_scoring_results": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g037",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "official",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "official_001_ccl_format_scoring_results",
+        "official_004_migration_points",
+        "official_003_booking_fees_validity",
+        "business_006_mock_assessments",
+        "official_002_candidate_rules_setup"
+      ],
+      "relevant_document_ids": [
+        "official_001_ccl_format_scoring_results"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 64.221,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_001_ccl_format_scoring_results": 1
+        },
+        "bm25": {
+          "official_001_ccl_format_scoring_results": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g038",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "official",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "official_001_ccl_format_scoring_results",
+        "business_006_mock_assessments",
+        "business_004_vocabulary_and_free_access",
+        "official_002_candidate_rules_setup",
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "relevant_document_ids": [
+        "official_001_ccl_format_scoring_results"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 69.535,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_001_ccl_format_scoring_results": 1
+        },
+        "bm25": {
+          "official_001_ccl_format_scoring_results": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g039",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "official",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "official_003_booking_fees_validity",
+        "official_001_ccl_format_scoring_results",
+        "official_002_candidate_rules_setup",
+        "business_006_mock_assessments",
+        "language_ml_001_naati_policy"
+      ],
+      "relevant_document_ids": [
+        "official_001_ccl_format_scoring_results"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.5,
+      "top1_score": 0.0325,
+      "latency_ms": 59.195,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_001_ccl_format_scoring_results": 2
+        },
+        "bm25": {
+          "official_001_ccl_format_scoring_results": 2
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g040",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "official",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "official_001_ccl_format_scoring_results",
+        "official_003_booking_fees_validity",
+        "business_001_overview_scope",
+        "business_008_public_samples",
+        "official_002_candidate_rules_setup"
+      ],
+      "relevant_document_ids": [
+        "official_001_ccl_format_scoring_results"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0317,
+      "latency_ms": 68.833,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_001_ccl_format_scoring_results": 1
+        },
+        "bm25": {
+          "official_001_ccl_format_scoring_results": 3
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g041",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "official",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "official_002_candidate_rules_setup",
+        "official_001_ccl_format_scoring_results",
+        "business_006_mock_assessments",
+        "business_008_public_samples",
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "relevant_document_ids": [
+        "official_001_ccl_format_scoring_results",
+        "official_002_candidate_rules_setup"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 75.69,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_001_ccl_format_scoring_results": 2,
+          "official_002_candidate_rules_setup": 1
+        },
+        "bm25": {
+          "official_001_ccl_format_scoring_results": 2,
+          "official_002_candidate_rules_setup": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g042",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "official",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "business_003_materials_and_dialogue_practice",
+        "official_002_candidate_rules_setup",
+        "business_006_mock_assessments",
+        "business_008_public_samples",
+        "official_001_ccl_format_scoring_results"
+      ],
+      "relevant_document_ids": [
+        "official_002_candidate_rules_setup"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.5,
+      "top1_score": 0.0325,
+      "latency_ms": 82.283,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_002_candidate_rules_setup": 1
+        },
+        "bm25": {
+          "official_002_candidate_rules_setup": 4
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g043",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "official",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "official_002_candidate_rules_setup",
+        "official_001_ccl_format_scoring_results",
+        "business_008_public_samples",
+        "official_003_booking_fees_validity",
+        "business_001_overview_scope"
+      ],
+      "relevant_document_ids": [
+        "official_002_candidate_rules_setup"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0325,
+      "latency_ms": 64.124,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_002_candidate_rules_setup": 1
+        },
+        "bm25": {
+          "official_002_candidate_rules_setup": 2
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g044",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "official",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "official_002_candidate_rules_setup",
+        "official_001_ccl_format_scoring_results",
+        "business_003_materials_and_dialogue_practice",
+        "business_008_public_samples",
+        "business_001_overview_scope"
+      ],
+      "relevant_document_ids": [
+        "official_002_candidate_rules_setup"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 66.91,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_002_candidate_rules_setup": 1
+        },
+        "bm25": {
+          "official_002_candidate_rules_setup": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g045",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "official",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "official_002_candidate_rules_setup",
+        "official_003_booking_fees_validity",
+        "business_006_mock_assessments",
+        "language_ml_001_naati_policy",
+        "official_001_ccl_format_scoring_results"
+      ],
+      "relevant_document_ids": [
+        "official_002_candidate_rules_setup"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 64.956,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_002_candidate_rules_setup": 1
+        },
+        "bm25": {
+          "official_002_candidate_rules_setup": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g046",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "official",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "official_003_booking_fees_validity",
+        "official_001_ccl_format_scoring_results",
+        "official_002_candidate_rules_setup",
+        "official_004_migration_points",
+        "business_006_mock_assessments"
+      ],
+      "relevant_document_ids": [
+        "official_003_booking_fees_validity"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 62.532,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_003_booking_fees_validity": 1
+        },
+        "bm25": {
+          "official_003_booking_fees_validity": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g047",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "official",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "official_003_booking_fees_validity",
+        "business_006_mock_assessments",
+        "official_001_ccl_format_scoring_results",
+        "business_001_overview_scope",
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "relevant_document_ids": [
+        "official_003_booking_fees_validity"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 72.199,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_003_booking_fees_validity": 1
+        },
+        "bm25": {
+          "official_003_booking_fees_validity": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g048",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "official",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "official_003_booking_fees_validity",
+        "official_001_ccl_format_scoring_results",
+        "official_002_candidate_rules_setup",
+        "official_004_migration_points",
+        "language_ml_001_naati_policy"
+      ],
+      "relevant_document_ids": [
+        "official_003_booking_fees_validity"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 63.563,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_003_booking_fees_validity": 1
+        },
+        "bm25": {
+          "official_003_booking_fees_validity": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g049",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "official",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "official_003_booking_fees_validity",
+        "official_001_ccl_format_scoring_results",
+        "official_002_candidate_rules_setup",
+        "language_ml_001_naati_policy",
+        "business_001_overview_scope"
+      ],
+      "relevant_document_ids": [
+        "official_003_booking_fees_validity"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 65.306,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_003_booking_fees_validity": 1
+        },
+        "bm25": {
+          "official_003_booking_fees_validity": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g050",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "migration",
+      "source_authority": "home_affairs",
+      "ranked_document_ids": [
+        "official_004_migration_points",
+        "official_001_ccl_format_scoring_results",
+        "language_ml_001_naati_policy",
+        "business_001_overview_scope",
+        "business_004_vocabulary_and_free_access"
+      ],
+      "relevant_document_ids": [
+        "official_004_migration_points"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 83.786,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_004_migration_points": 1
+        },
+        "bm25": {
+          "official_004_migration_points": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g051",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "safety",
+      "source_authority": "home_affairs+owner_approved",
+      "ranked_document_ids": [
+        "official_004_migration_points",
+        "official_003_booking_fees_validity",
+        "official_001_ccl_format_scoring_results",
+        "business_001_overview_scope",
+        "official_002_candidate_rules_setup"
+      ],
+      "relevant_document_ids": [
+        "business_001_overview_scope",
+        "official_004_migration_points"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0325,
+      "latency_ms": 63.093,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_001_overview_scope": 5,
+          "official_004_migration_points": 1
+        },
+        "bm25": {
+          "business_001_overview_scope": 1,
+          "official_004_migration_points": 2
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g052",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "malayalam",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "language_ml_001_naati_policy",
+        "business_001_overview_scope",
+        "business_008_public_samples",
+        "official_004_migration_points",
+        "official_002_candidate_rules_setup"
+      ],
+      "relevant_document_ids": [
+        "language_ml_001_naati_policy"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 73.072,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "language_ml_001_naati_policy": 1
+        },
+        "bm25": {
+          "language_ml_001_naati_policy": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g053",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "malayalam",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "language_ml_001_naati_policy",
+        "business_008_public_samples",
+        "business_001_overview_scope",
+        "official_002_candidate_rules_setup",
+        "official_001_ccl_format_scoring_results"
+      ],
+      "relevant_document_ids": [
+        "language_ml_001_naati_policy"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 70.573,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "language_ml_001_naati_policy": 1
+        },
+        "bm25": {
+          "language_ml_001_naati_policy": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g054",
+      "case_version": 1,
+      "query_language": "en",
+      "script_mix": "latin",
+      "category": "malayalam",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "language_ml_001_naati_policy",
+        "business_008_public_samples",
+        "official_001_ccl_format_scoring_results",
+        "business_001_overview_scope",
+        "official_002_candidate_rules_setup"
+      ],
+      "relevant_document_ids": [
+        "language_ml_001_naati_policy"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 63.153,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "language_ml_001_naati_policy": 1
+        },
+        "bm25": {
+          "language_ml_001_naati_policy": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g055",
+      "case_version": 1,
+      "query_language": "mixed",
+      "script_mix": "latin+malayalam",
+      "category": "multilingual",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_002_packages_pricing_validity",
+        "business_006_mock_assessments",
+        "business_003_materials_and_dialogue_practice",
+        "business_005_coaching",
+        "business_004_vocabulary_and_free_access"
+      ],
+      "relevant_document_ids": [
+        "business_002_packages_pricing_validity"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.032,
+      "latency_ms": 64.185,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_002_packages_pricing_validity": 1
+        },
+        "bm25": {
+          "business_002_packages_pricing_validity": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g056",
+      "case_version": 1,
+      "query_language": "mixed",
+      "script_mix": "latin+malayalam",
+      "category": "multilingual",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_002_packages_pricing_validity",
+        "business_005_coaching",
+        "business_001_overview_scope",
+        "business_003_materials_and_dialogue_practice",
+        "business_006_mock_assessments"
+      ],
+      "relevant_document_ids": [
+        "business_005_coaching"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.5,
+      "top1_score": 0.0323,
+      "latency_ms": 62.842,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_005_coaching": 1
+        },
+        "bm25": {
+          "business_005_coaching": 2
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g057",
+      "case_version": 1,
+      "query_language": "mixed",
+      "script_mix": "latin+malayalam",
+      "category": "multilingual",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_002_packages_pricing_validity",
+        "business_006_mock_assessments",
+        "business_003_materials_and_dialogue_practice",
+        "business_005_coaching",
+        "official_001_ccl_format_scoring_results"
+      ],
+      "relevant_document_ids": [
+        "business_006_mock_assessments"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.5,
+      "top1_score": 0.0325,
+      "latency_ms": 65.325,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_006_mock_assessments": 1
+        },
+        "bm25": {
+          "business_006_mock_assessments": 2
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g058",
+      "case_version": 1,
+      "query_language": "mixed",
+      "script_mix": "latin+malayalam",
+      "category": "multilingual",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_006_mock_assessments",
+        "business_002_packages_pricing_validity",
+        "business_003_materials_and_dialogue_practice",
+        "official_003_booking_fees_validity",
+        "business_005_coaching"
+      ],
+      "relevant_document_ids": [
+        "business_006_mock_assessments"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0325,
+      "latency_ms": 72.984,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_006_mock_assessments": 1
+        },
+        "bm25": {
+          "business_006_mock_assessments": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g059",
+      "case_version": 1,
+      "query_language": "mixed",
+      "script_mix": "latin+malayalam",
+      "category": "multilingual",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "official_001_ccl_format_scoring_results",
+        "business_003_materials_and_dialogue_practice",
+        "business_006_mock_assessments",
+        "official_004_migration_points",
+        "business_008_public_samples"
+      ],
+      "relevant_document_ids": [
+        "official_001_ccl_format_scoring_results"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 64.4,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_001_ccl_format_scoring_results": 1
+        },
+        "bm25": {
+          "official_001_ccl_format_scoring_results": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g060",
+      "case_version": 1,
+      "query_language": "mixed",
+      "script_mix": "latin+malayalam",
+      "category": "multilingual",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "language_ml_001_naati_policy",
+        "business_008_public_samples",
+        "business_001_overview_scope",
+        "business_004_vocabulary_and_free_access",
+        "official_001_ccl_format_scoring_results"
+      ],
+      "relevant_document_ids": [
+        "language_ml_001_naati_policy"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 65.614,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "language_ml_001_naati_policy": 1
+        },
+        "bm25": {
+          "language_ml_001_naati_policy": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g061",
+      "case_version": 1,
+      "query_language": "mixed",
+      "script_mix": "latin+malayalam",
+      "category": "multilingual",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "business_003_materials_and_dialogue_practice",
+        "business_006_mock_assessments",
+        "official_001_ccl_format_scoring_results",
+        "business_008_public_samples",
+        "official_002_candidate_rules_setup"
+      ],
+      "relevant_document_ids": [
+        "official_002_candidate_rules_setup"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.2,
+      "top1_score": 0.0325,
+      "latency_ms": 115.768,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_002_candidate_rules_setup": 3
+        },
+        "bm25": {
+          "official_002_candidate_rules_setup": 8
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g062",
+      "case_version": 1,
+      "query_language": "mixed",
+      "script_mix": "latin",
+      "category": "multilingual",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_003_materials_and_dialogue_practice",
+        "business_002_packages_pricing_validity",
+        "business_006_mock_assessments",
+        "official_002_candidate_rules_setup",
+        "business_001_overview_scope"
+      ],
+      "relevant_document_ids": [
+        "business_003_materials_and_dialogue_practice",
+        "business_006_mock_assessments"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0318,
+      "latency_ms": 79.234,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_003_materials_and_dialogue_practice": 4,
+          "business_006_mock_assessments": 1
+        },
+        "bm25": {
+          "business_003_materials_and_dialogue_practice": 1,
+          "business_006_mock_assessments": 6
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g063",
+      "case_version": 1,
+      "query_language": "mixed",
+      "script_mix": "latin+malayalam",
+      "category": "multilingual",
+      "source_authority": "naati+owner_approved",
+      "ranked_document_ids": [
+        "official_003_booking_fees_validity",
+        "official_001_ccl_format_scoring_results",
+        "business_001_overview_scope",
+        "business_006_mock_assessments",
+        "business_004_vocabulary_and_free_access"
+      ],
+      "relevant_document_ids": [
+        "business_002_packages_pricing_validity",
+        "official_003_booking_fees_validity"
+      ],
+      "hit": true,
+      "recall": 0.5,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 87.043,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_002_packages_pricing_validity": 5,
+          "official_003_booking_fees_validity": 1
+        },
+        "bm25": {
+          "business_002_packages_pricing_validity": 5,
+          "official_003_booking_fees_validity": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g064",
+      "case_version": 1,
+      "query_language": "ml",
+      "script_mix": "latin+malayalam",
+      "category": "multilingual",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "official_001_ccl_format_scoring_results",
+        "official_003_booking_fees_validity",
+        "official_002_candidate_rules_setup",
+        "language_ml_001_naati_policy",
+        "business_001_overview_scope"
+      ],
+      "relevant_document_ids": [
+        "official_001_ccl_format_scoring_results"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.032,
+      "latency_ms": 83.991,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_001_ccl_format_scoring_results": 1
+        },
+        "bm25": {
+          "official_001_ccl_format_scoring_results": 2
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g065",
+      "case_version": 1,
+      "query_language": "ml",
+      "script_mix": "latin+malayalam",
+      "category": "multilingual",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "official_002_candidate_rules_setup",
+        "official_003_booking_fees_validity",
+        "official_001_ccl_format_scoring_results",
+        "business_006_mock_assessments",
+        "business_001_overview_scope"
+      ],
+      "relevant_document_ids": [
+        "official_002_candidate_rules_setup"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0318,
+      "latency_ms": 89.286,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_002_candidate_rules_setup": 1
+        },
+        "bm25": {
+          "official_002_candidate_rules_setup": 3
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g066",
+      "case_version": 1,
+      "query_language": "ml",
+      "script_mix": "latin+malayalam",
+      "category": "multilingual",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "official_003_booking_fees_validity",
+        "official_001_ccl_format_scoring_results",
+        "official_002_candidate_rules_setup",
+        "language_ml_001_naati_policy",
+        "business_006_mock_assessments"
+      ],
+      "relevant_document_ids": [
+        "official_003_booking_fees_validity"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0325,
+      "latency_ms": 79.987,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_003_booking_fees_validity": 1
+        },
+        "bm25": {
+          "official_003_booking_fees_validity": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g067",
+      "case_version": 1,
+      "query_language": "ml",
+      "script_mix": "malayalam",
+      "category": "multilingual",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_002_packages_pricing_validity",
+        "business_006_mock_assessments",
+        "official_003_booking_fees_validity",
+        "business_005_coaching",
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "relevant_document_ids": [
+        "business_002_packages_pricing_validity"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0164,
+      "latency_ms": 82.199,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_002_packages_pricing_validity": 1
+        },
+        "bm25": {
+          "business_002_packages_pricing_validity": null
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g068",
+      "case_version": 1,
+      "query_language": "ml",
+      "script_mix": "malayalam",
+      "category": "multilingual",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_005_coaching",
+        "business_003_materials_and_dialogue_practice",
+        "business_002_packages_pricing_validity",
+        "business_006_mock_assessments",
+        "official_002_candidate_rules_setup"
+      ],
+      "relevant_document_ids": [
+        "business_005_coaching"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0164,
+      "latency_ms": 84.215,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_005_coaching": 1
+        },
+        "bm25": {
+          "business_005_coaching": null
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g069",
+      "case_version": 1,
+      "query_language": "ml",
+      "script_mix": "malayalam",
+      "category": "multilingual",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "language_ml_001_naati_policy",
+        "official_001_ccl_format_scoring_results",
+        "business_008_public_samples",
+        "business_006_mock_assessments",
+        "official_002_candidate_rules_setup"
+      ],
+      "relevant_document_ids": [
+        "language_ml_001_naati_policy"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0164,
+      "latency_ms": 92.16,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "language_ml_001_naati_policy": 1
+        },
+        "bm25": {
+          "language_ml_001_naati_policy": null
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g070",
+      "case_version": 1,
+      "query_language": "ml",
+      "script_mix": "malayalam",
+      "category": "multilingual",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_007_payments_account_support",
+        "business_004_vocabulary_and_free_access",
+        "business_002_packages_pricing_validity",
+        "business_005_coaching",
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "relevant_document_ids": [
+        "business_007_payments_account_support"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0164,
+      "latency_ms": 82.767,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_007_payments_account_support": 1
+        },
+        "bm25": {
+          "business_007_payments_account_support": null
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g071",
+      "case_version": 1,
+      "query_language": "ml",
+      "script_mix": "malayalam",
+      "category": "multilingual",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_005_coaching",
+        "business_002_packages_pricing_validity",
+        "business_006_mock_assessments",
+        "official_003_booking_fees_validity",
+        "official_002_candidate_rules_setup"
+      ],
+      "relevant_document_ids": [
+        "business_002_packages_pricing_validity",
+        "business_005_coaching"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0164,
+      "latency_ms": 77.858,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_002_packages_pricing_validity": 2,
+          "business_005_coaching": 1
+        },
+        "bm25": {
+          "business_002_packages_pricing_validity": null,
+          "business_005_coaching": null
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g072",
+      "case_version": 1,
+      "query_language": "ml",
+      "script_mix": "malayalam",
+      "category": "multilingual",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_002_packages_pricing_validity",
+        "business_006_mock_assessments",
+        "business_004_vocabulary_and_free_access",
+        "business_003_materials_and_dialogue_practice",
+        "business_007_payments_account_support"
+      ],
+      "relevant_document_ids": [
+        "business_002_packages_pricing_validity"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0164,
+      "latency_ms": 96.678,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_002_packages_pricing_validity": 1
+        },
+        "bm25": {
+          "business_002_packages_pricing_validity": null
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g073",
+      "case_version": 1,
+      "query_language": "ml",
+      "script_mix": "malayalam",
+      "category": "multilingual",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_004_vocabulary_and_free_access",
+        "business_002_packages_pricing_validity",
+        "business_008_public_samples",
+        "business_006_mock_assessments",
+        "business_007_payments_account_support"
+      ],
+      "relevant_document_ids": [
+        "business_004_vocabulary_and_free_access"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0164,
+      "latency_ms": 77.207,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_004_vocabulary_and_free_access": 1
+        },
+        "bm25": {
+          "business_004_vocabulary_and_free_access": null
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g074",
+      "case_version": 1,
+      "query_language": "ml",
+      "script_mix": "malayalam",
+      "category": "multilingual",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_003_materials_and_dialogue_practice",
+        "business_005_coaching",
+        "business_007_payments_account_support",
+        "official_002_candidate_rules_setup",
+        "business_002_packages_pricing_validity"
+      ],
+      "relevant_document_ids": [
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0164,
+      "latency_ms": 76.186,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_003_materials_and_dialogue_practice": 1
+        },
+        "bm25": {
+          "business_003_materials_and_dialogue_practice": null
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g075",
+      "case_version": 1,
+      "query_language": "ml",
+      "script_mix": "malayalam",
+      "category": "multilingual",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_006_mock_assessments",
+        "official_002_candidate_rules_setup",
+        "business_003_materials_and_dialogue_practice",
+        "business_002_packages_pricing_validity",
+        "official_001_ccl_format_scoring_results"
+      ],
+      "relevant_document_ids": [
+        "business_006_mock_assessments"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0164,
+      "latency_ms": 75.842,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_006_mock_assessments": 1
+        },
+        "bm25": {
+          "business_006_mock_assessments": null
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g076",
+      "case_version": 1,
+      "query_language": "ml",
+      "script_mix": "latin+malayalam",
+      "category": "multilingual",
+      "source_authority": "home_affairs",
+      "ranked_document_ids": [
+        "official_003_booking_fees_validity",
+        "official_001_ccl_format_scoring_results",
+        "business_001_overview_scope",
+        "official_004_migration_points",
+        "business_006_mock_assessments"
+      ],
+      "relevant_document_ids": [
+        "official_004_migration_points"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.25,
+      "top1_score": 0.0318,
+      "latency_ms": 82.706,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_004_migration_points": 1
+        },
+        "bm25": {
+          "official_004_migration_points": 7
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g077",
+      "case_version": 1,
+      "query_language": "ml",
+      "script_mix": "latin+malayalam",
+      "category": "multilingual",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "official_002_candidate_rules_setup",
+        "official_003_booking_fees_validity",
+        "official_001_ccl_format_scoring_results",
+        "language_ml_001_naati_policy",
+        "business_001_overview_scope"
+      ],
+      "relevant_document_ids": [
+        "official_002_candidate_rules_setup"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 97.336,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_002_candidate_rules_setup": 1
+        },
+        "bm25": {
+          "official_002_candidate_rules_setup": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g078",
+      "case_version": 1,
+      "query_language": "ml",
+      "script_mix": "malayalam",
+      "category": "multilingual",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "language_ml_001_naati_policy",
+        "business_006_mock_assessments",
+        "business_003_materials_and_dialogue_practice",
+        "official_001_ccl_format_scoring_results",
+        "official_004_migration_points"
+      ],
+      "relevant_document_ids": [
+        "language_ml_001_naati_policy"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0164,
+      "latency_ms": 142.258,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "language_ml_001_naati_policy": 1
+        },
+        "bm25": {
+          "language_ml_001_naati_policy": null
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g079",
+      "case_version": 1,
+      "query_language": "ml",
+      "script_mix": "latin+malayalam",
+      "category": "multilingual",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "official_003_booking_fees_validity",
+        "official_001_ccl_format_scoring_results",
+        "official_002_candidate_rules_setup",
+        "business_001_overview_scope",
+        "official_004_migration_points"
+      ],
+      "relevant_document_ids": [
+        "official_003_booking_fees_validity"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0325,
+      "latency_ms": 104.124,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_003_booking_fees_validity": 1
+        },
+        "bm25": {
+          "official_003_booking_fees_validity": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g080",
+      "case_version": 1,
+      "query_language": "mixed",
+      "script_mix": "latin",
+      "category": "multilingual",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "business_008_public_samples",
+        "official_002_candidate_rules_setup",
+        "official_001_ccl_format_scoring_results",
+        "official_003_booking_fees_validity",
+        "language_ml_001_naati_policy"
+      ],
+      "relevant_document_ids": [
+        "official_002_candidate_rules_setup"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.5,
+      "top1_score": 0.0323,
+      "latency_ms": 108.183,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_002_candidate_rules_setup": 1
+        },
+        "bm25": {
+          "official_002_candidate_rules_setup": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g081",
+      "case_version": 1,
+      "query_language": "mixed",
+      "script_mix": "latin",
+      "category": "multilingual",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_005_coaching",
+        "business_002_packages_pricing_validity",
+        "business_001_overview_scope",
+        "official_003_booking_fees_validity",
+        "business_006_mock_assessments"
+      ],
+      "relevant_document_ids": [
+        "business_005_coaching"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 110.241,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_005_coaching": 1
+        },
+        "bm25": {
+          "business_005_coaching": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g082",
+      "case_version": 1,
+      "query_language": "mixed",
+      "script_mix": "latin",
+      "category": "multilingual",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "official_001_ccl_format_scoring_results",
+        "official_003_booking_fees_validity",
+        "business_001_overview_scope",
+        "official_002_candidate_rules_setup",
+        "language_ml_001_naati_policy"
+      ],
+      "relevant_document_ids": [
+        "official_001_ccl_format_scoring_results",
+        "official_003_booking_fees_validity"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 75.378,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_001_ccl_format_scoring_results": 1,
+          "official_003_booking_fees_validity": 2
+        },
+        "bm25": {
+          "official_001_ccl_format_scoring_results": 1,
+          "official_003_booking_fees_validity": 2
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g083",
+      "case_version": 1,
+      "query_language": "mixed",
+      "script_mix": "latin+malayalam",
+      "category": "multilingual",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_004_vocabulary_and_free_access",
+        "business_002_packages_pricing_validity",
+        "business_006_mock_assessments",
+        "business_005_coaching",
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "relevant_document_ids": [
+        "business_004_vocabulary_and_free_access"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 100.486,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_004_vocabulary_and_free_access": 1
+        },
+        "bm25": {
+          "business_004_vocabulary_and_free_access": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g084",
+      "case_version": 1,
+      "query_language": "mixed",
+      "script_mix": "latin+malayalam",
+      "category": "multilingual",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_008_public_samples",
+        "business_003_materials_and_dialogue_practice",
+        "language_ml_001_naati_policy",
+        "business_006_mock_assessments",
+        "official_001_ccl_format_scoring_results"
+      ],
+      "relevant_document_ids": [
+        "business_008_public_samples"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 92.966,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_008_public_samples": 1
+        },
+        "bm25": {
+          "business_008_public_samples": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g085",
+      "case_version": 1,
+      "query_language": "mixed",
+      "script_mix": "latin+malayalam",
+      "category": "multilingual",
+      "source_authority": "naati",
+      "ranked_document_ids": [
+        "official_003_booking_fees_validity",
+        "business_006_mock_assessments",
+        "business_001_overview_scope",
+        "official_001_ccl_format_scoring_results",
+        "business_002_packages_pricing_validity"
+      ],
+      "relevant_document_ids": [
+        "official_003_booking_fees_validity"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 77.66,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "official_003_booking_fees_validity": 1
+        },
+        "bm25": {
+          "official_003_booking_fees_validity": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g086",
+      "case_version": 1,
+      "query_language": "mixed",
+      "script_mix": "latin+malayalam",
+      "category": "multilingual",
+      "source_authority": "home_affairs+owner_approved",
+      "ranked_document_ids": [
+        "official_004_migration_points",
+        "business_001_overview_scope",
+        "official_001_ccl_format_scoring_results",
+        "business_006_mock_assessments",
+        "business_002_packages_pricing_validity"
+      ],
+      "relevant_document_ids": [
+        "business_001_overview_scope",
+        "official_004_migration_points"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 73.399,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_001_overview_scope": 3,
+          "official_004_migration_points": 1
+        },
+        "bm25": {
+          "business_001_overview_scope": 2,
+          "official_004_migration_points": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    },
+    {
+      "case_id": "g087",
+      "case_version": 1,
+      "query_language": "mixed",
+      "script_mix": "latin+malayalam",
+      "category": "multilingual",
+      "source_authority": "owner_approved",
+      "ranked_document_ids": [
+        "business_003_materials_and_dialogue_practice",
+        "business_006_mock_assessments",
+        "business_002_packages_pricing_validity",
+        "business_004_vocabulary_and_free_access",
+        "official_001_ccl_format_scoring_results"
+      ],
+      "relevant_document_ids": [
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "hit": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "top1_score": 0.0328,
+      "latency_ms": 78.847,
+      "query_terms_truncated": false,
+      "leg_ranks": {
+        "dense": {
+          "business_003_materials_and_dialogue_practice": 1
+        },
+        "bm25": {
+          "business_003_materials_and_dialogue_practice": 1
+        }
+      },
+      "served_strategy": "hybrid",
+      "fallback_reason": null
+    }
+  ],
+  "notes": [
+    "Top-5 over 13 indexed documents is optimistic; compare HitRate@5 with the random expectation min(1, 5/13).",
+    "min(1, 5/13) understates the random rate for cases with several relevant documents.",
+    "One case equals 1/87 of HitRate (0.011).",
+    "Metrics use the first 5 distinct documents after retrieval to candidate depth (MRR@5).",
+    "Chunker max_chunks_per_document=4.",
+    "The index was not verified against the declared release's document snapshot.",
+    "Model load and the warm-up query are excluded from p50/p95.",
+    "g004 overlaps unanswerable u001; both are active cases."
+  ]
+}
