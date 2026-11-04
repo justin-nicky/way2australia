@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-11-04 (Spec 010 verified on `main`, merged `cae06c3`)
+Last updated: 2026-11-04 (`chore/verify-budget` merged; D073–D074)
 
 ## Current phase
 
@@ -12,7 +12,7 @@ Spec 001 project foundation is complete.
 
 ## Current goal
 
-Specs **001–010** are **verified on `main`** (Spec 010 merged 2026-11-04, fast-forward to **`cae06c3`**). Default production index **`idx-v2`** / recursive 128+title (D071): run **`make ingest`**, then **`make index-lexical`** with default **`lexical-v2`** tokenizer (D072; settings 1.2; rebuild once if upgrading from 1.1 for `--lote`). Hybrid default retrieval needs the lexical file. Ignored stale `knowledge_release_id` / `evaluation_suite_id` keys remain on the promoted yaml until the next `index_version` (D071 carry-over). **Next:** branch **`chore/verify-budget`** (`.local/workflow-reviews/DRAFT-chore-verify-budget-proposal.md`) before **Spec 011** (roadmap item 9, reranking). **No HTTP-route spec yet:** Spec 008 serving items belong with roadmap **item 10 (grounded generation)**. Repository-based shared context keeps Codex, Claude Code, Cursor and Kiro interchangeable (D063).
+Specs **001–010** are **verified on `main`** (Spec 010 merged 2026-11-04, fast-forward to **`cae06c3`**). Default production index **`idx-v2`** / recursive 128+title (D071): run **`make ingest`**, then **`make index-lexical`** with default **`lexical-v2`** tokenizer (D072; settings 1.2; rebuild once if upgrading from 1.1 for `--lote`). Hybrid default retrieval needs the lexical file. Ignored stale `knowledge_release_id` / `evaluation_suite_id` keys remain on the promoted yaml until the next `index_version` (D071 carry-over). Verify-budget hook in-repo (**D073**); pytest-xdist **not** adopted for default verify (**D074**); follow-up **`pytest --durations=25`** still open. **Next:** **Spec 011** (roadmap item 9, reranking) via **`spec-planner`** in a fresh session (brief from `.kiro/specs/010-multilingual-retrieval/review.md` Notes). **No HTTP-route spec yet:** Spec 008 serving items belong with roadmap **item 10 (grounded generation)**. Repository-based shared context keeps Codex, Claude Code, Cursor and Kiro interchangeable (D063).
 
 ## Finalized high-level decisions
 
@@ -156,11 +156,11 @@ Not yet implemented:
 
 ## Next step
 
-**After Spec 010 (2026-11-04):**
+**After `chore/verify-budget` (2026-11-04):**
 
-1. **`chore/verify-budget`** — implement from `.local/workflow-reviews/DRAFT-chore-verify-budget-proposal.md` (verify hook + pytest-xdist evaluation; orchestrator transcript metrics). Plan in a fresh session before code. **Merge before Spec 011 planning.**
-2. **Spec 011 (roadmap item 9, reranking)** — brief `spec-planner` only after verify-budget merges; pass `.kiro/specs/010-multilingual-retrieval/review.md` **Notes for the next spec**.
-3. Optional on `main`: `/graphify . --update` in Claude Code after doc churn (AST-only `graphify update .` may suffice for code-only follow-ups).
+1. **Spec 011 (roadmap item 9, reranking)** — fresh session: **`spec-planner`** with `.kiro/specs/010-multilingual-retrieval/review.md` **Notes for the next spec** (translation/transliteration deferred; `g056`/`g057` fusion inputs; verify-budget hook live per D073).
+2. Optional: **`pytest --durations=25`** to rank slow tests before any future parallel verify work (D074 follow-up).
+3. Remove user-level verify-budget hook copies after merge; committed hook is `.claude/settings.json` + `tools/hooks/verify_budget.py`.
 
 1. Done 2026-10-24: the user ran the real `make eval-retrieval` on `w2a-realcheck-idx-v1` (`QDRANT_COLLECTION_BASE=w2a-realcheck`) and `make eval-compare` against the Spec 005 baseline: PASS, hits 60 -> 60, MRR 0.8783 -> 0.8783, no flips. The result `experiments/results/retrieval-evaluation-idx-v1-20261024T193140Z.json` (committed; BAAI/bge-m3 @ `5617a9f`, device `mps:0`, p50 79.7 ms, p95 97.8 ms) is the 2.0 baseline for suite `public-eval-v1` v1.
 2. Done 2026-10-23: the user ran the real BGE-M3 baseline; result committed as `experiments/results/retrieval-baseline-idx-v1-20261023T063534Z.json`. Use its numbers and the three misses (`g004`, `g026`, `g061`) as inputs to the next specs. Keep `make retrieval-baseline` results as new files; never overwrite this one.
