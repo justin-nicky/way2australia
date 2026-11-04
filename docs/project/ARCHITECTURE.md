@@ -190,11 +190,12 @@ Library code in `packages/rag/src/way2australia_rag/retrieval/` plus the shared 
 | Module | Role |
 |---|---|
 | `core/access.py` | `Role`, frozen `AccessContext(role, tenant_id)` (blank tenant refused) |
-| `access.py` | `guest_access`, `resolve_access` (the only role-to-policy mapping; guest returns `GUEST_PUBLIC_POLICY`), `ResolvedAccess`, `build_access_filter` (the only filter builder), `check_hit` (fail-closed re-check) |
+| `access.py` | `guest_access`, `resolve_access` (the only role-to-policy mapping; guest returns `GUEST_PUBLIC_POLICY`), `ResolvedAccess`, `build_access_filter` (the only authorization filter builder), `check_hit` (fail-closed re-check) |
+| `languages.py`, `applicability.py` | `active_lote_codes`; `ResolvedLote`, `resolve_lote`, Qdrant/SQL applicability builders, `check_applicable` (`LanguageApplicabilityError`; orthogonal to access, D072) |
 | `index.py` | `DenseIndex`: read-only binding to the collection and its `-settings` record; `search`, `document_count` |
-| `retriever.py` | `DenseRetriever.retrieve(query, access, top_k)` → `RetrievalResult` |
+| `retriever.py` | `DenseRetriever.retrieve(query, access, top_k, *, lote=None)` → `RetrievalResult` |
 | `models.py`, `errors.py`, `text.py` | `RetrievedChunk`/`RetrievalResult`, error hierarchy, `safe_text` for printing payload text |
-| `base.py`, `strategy.py` | `Strategy` (`dense`, `bm25`, `hybrid`), the `Retriever` Protocol, `RetrievalConfig` 1.1 (from `config/retrieval.yaml`, with `QdrantTimeouts`) and `build_retriever`, the only place a strategy name becomes a retriever (`hybrid` is returned wrapped in `FallbackRetriever`) |
+| `base.py`, `strategy.py` | `Strategy` (`dense`, `bm25`, `hybrid`), the `Retriever` Protocol (optional `lote` keyword), `RetrievalConfig` 1.2 (from `config/retrieval.yaml`, with `QdrantTimeouts` and `lexical.tokenizer`) and `build_retriever`, the only place a strategy name becomes a retriever (`hybrid` is returned wrapped in `FallbackRetriever`) |
 | `bm25.py` | `BM25Retriever(identity, lexical)` over the lexical index; `build_sql_access_clause` (in `access.py`) is its authorization builder |
 | `fusion.py`, `hybrid.py` | pure `rrf_fuse` and `HybridRetriever` (dense leg, then BM25 leg, at candidate depth); still fail closed |
 | `errors.py`, `availability.py` | `RetrievalUnavailableError(reason)` and `FallbackReason`; `classify_qdrant_error` and `classify_model_error`, the one mapping per source (D057) |
@@ -205,7 +206,7 @@ Library code in `packages/rag/src/way2australia_rag/retrieval/` plus the shared 
 | `cli.py` | `make retrieve` (`--strategy`) |
 | `metrics.py`, `goldens.py`, `baseline.py`, `baseline_cli.py` | document-level metrics, read-only golden/suite/release loading, baseline runner and writer, `make retrieval-baseline` |
 
-The lexical side lives in `packages/rag/src/way2australia_rag/lexical/` (Spec 007; settings 1.1 and freshness Spec 009): `tokenizer.py` (`lexical-v1`, unchanged), `store.py` (SQLite FTS5 file: `chunks` table with access columns and the full payload, `chunk_terms` FTS5 table, settings 1.1 with `ChunkerIdentity` fields; read-only `LexicalIndex.open` refuses 1.0 with rebuild advice, `bind_to(dense)`, `document_versions()`, `chunks_per_document()`, `search`), `build.py` (`production_entries` with the same truncation guard as ingestion, public `chunk_identity`, atomic `build_lexical_index`) and `cli.py` (`make index-lexical`, `--config`, writes only a git-ignored file), and `freshness.py` (`verify_fresh`: per-document `(document_id, document_version, content_hash)` set plus chunker identity; no tokenizer at open). The file is a derived artifact, one per collection, bound by identity and chunk set either to the dense index in Qdrant (`bind_to`, `hybrid` with Qdrant reachable) or to configuration and the repository (`check_identity` plus `verify_fresh`, the standalone path).
+The lexical side lives in `packages/rag/src/way2australia_rag/lexical/` (Spec 007; settings 1.2 and freshness Spec 009): `tokenizer.py` (`TOKENIZERS`: `lexical-v1` unchanged output; `lexical-v2` adds Unicode-cited chillu sequence replacement before v1 steps; module-level `tokenize`/`query_terms` stay v1 aliases), `equivalents.py` (sequence table), `store.py` (SQLite FTS5 file: `chunks` with access columns, `lote_languages`, full payload, `chunk_terms` FTS5, settings 1.2 with `ChunkerIdentity`; 1.1 accepted without `--lote`; 1.0 refused), `build.py` (`production_entries`, atomic `build_lexical_index(..., tokenizer)`), `cli.py` (`make index-lexical`, `--tokenizer`, `--config`), and `freshness.py` (`verify_fresh` per D067). BM25 always queries with the tokenizer recorded in the file. Default tokenizer in `config/retrieval.yaml` is `lexical-v2` (D072). The file is a derived artifact, one per collection (or a second directory via `W2A_LEXICAL_INDEX_DIR`), bound to dense or to configuration plus the repository.
 
 Query flow as built (dense strategy; `bm25` and `hybrid` described below):
 
@@ -219,27 +220,28 @@ build_embedder                   (missing bge-m3 extra exits 2 before any Qdrant
 Qdrant client → DenseIndex.open  (read-only; refuses a mismatched or missing index)
   ↓
 resolve_access(guest_access(settings))  → ResolvedAccess(policy, tenant_id)
+optional resolve_lote(CLI flag)         → ResolvedLote | None
   ↓
-embed_query → build_access_filter(access) → query_points(dense, filter, limit=top_k)
+embed_query → Filter(must=[access, optional lote]) → query_points(dense, filter, limit=top_k)
   ↓
-check_hit on every returned payload (RetrievalAuthorizationError if it violates the policy)
+check_hit, then check_applicable when lote is set (authorization before applicability)
   ↓
 RetrievalResult (hits sorted by score, document/section identity, header facts)
 ```
 
 - Authorization: the filter is built from the server-resolved `ResolvedAccess` only (allowed `access_scope` values, server tenant, null `owner_user_id`) and is part of the Qdrant query, so unauthorized points never leave the store. The query text, the embedder and evaluation cases cannot change it. `check_hit` is a second line of defense. Future fallbacks must take the same `ResolvedAccess` and call `check_hit` (D035).
 - Binding: the query embedder's model ID, revision, vector size, normalization and fake flag, plus `index_version`, must equal the recorded `IndexSettings`; chunker fields are not compared (D036).
-- Language fields (`content_language`, `lote_languages`) are returned with hits but there is no language filter, score threshold or reranking yet.
+- **Four language concepts (C4):** query language (evaluation slices only today), document `content_language`, CCL applicability (`lote_languages` / optional request `lote`), and authorization (`access_scope`, tenant, owner). Applicability filters run inside each leg when `lote` is set; omitted `lote` leaves behaviour unchanged. No query-language detection drives retrieval; script mix in results is reporting only.
 - The baseline runner refuses a fake index without `--allow-fake`, uses one `ResolvedAccess` for every golden case (the case's `access_context` is ignored), computes document-level HitRate@k, Recall@k and MRR (overall, per `query_language`, per `category`), p50/p95 latency after an unmeasured warm-up, and the `min(1, k/N)` random expectation (D037).
-- Decisions: D033–D041.
+- Decisions: D033–D041, D072 (applicability and tokenizers).
 
 Hybrid retrieval (Spec 007, default strategy `hybrid` since D055):
 
 ```text
-query → validate_request → ResolvedAccess (one, server-resolved)
-  dense leg:  embed_query → Qdrant filter → check_hit          (candidate_depth 50)
-  BM25 leg:   lexical-v1 terms → FTS5 MATCH with the SQL access clause
-              (WHERE before ORDER BY / LIMIT) → check_hit       (candidate_depth 50)
+query → validate_request → ResolvedAccess (one, server-resolved); optional ResolvedLote
+  dense leg:  embed_query → Qdrant filter (access + optional lote) → check_hit → check_applicable
+  BM25 leg:   file tokenizer terms → FTS5 MATCH with SQL access AND lote clauses
+              (WHERE before ORDER BY / LIMIT) → check_hit → check_applicable   (candidate_depth 50)
   → rrf_fuse (k 60, weights 1.0 / 1.0) → cut to top_k → RetrievalResult (score_kind rrf, leg ranks)
 ```
 
@@ -261,13 +263,14 @@ validation / limits
   ↓
 AccessContext(role=guest, server tenant) → resolve_access → ResolvedAccess
   ↓
-LanguageContext
+optional CCL lote (registry-validated; separate from access)
   ↓
 optional query transform
   ↓
 dense retrieval                       sparse/BM25 retrieval
-  (authorization filter inside          (same ResolvedAccess filter inside
-   the Qdrant query; check_hit)          its query; check_hit)
+  (access + applicability filters       (same ResolvedAccess and optional lote
+   inside the Qdrant query;              inside SQL; check_hit; check_applicable)
+   check_hit; check_applicable)
   ↓                                      ↓
 RRF fusion (only already-authorized hits)
   ↓
@@ -286,7 +289,7 @@ citation validation
 response
 ```
 
-Authorization is applied inside each retriever (dense, BM25 and the SQLite FTS5 fallback), as part of that retriever's own query, before fusion: every leg takes the same server-resolved `ResolvedAccess`, filters with it in the query and re-checks each hit with `check_hit` (D035, D040). It is never applied after RRF, after reranking or after generation, so unauthorized content never reaches fusion, the reranker, the context builder or the LLM.
+Authorization and optional language applicability are applied inside each retriever (dense, BM25 and the SQLite FTS5 fallback), as part of that retriever's own query, before fusion: every leg takes the same server-resolved `ResolvedAccess` and the same optional `ResolvedLote`, filters with them in the query, then re-checks each hit with `check_hit` and, when `lote` is set, `check_applicable` (D035, D040, D072). Neither filter is applied after RRF, after reranking or after generation.
 
 ## Retrieval fallback
 
@@ -301,7 +304,7 @@ open_retrieval(hybrid)
       ok                      → FallbackRetriever(HybridRetriever, BM25Retriever(identity from dense), no open reason)
       RetrievalUnavailableError → open_standalone_lexical (check_identity + verify_fresh, no Qdrant, no embedder)
                                   → FallbackRetriever(no primary, BM25Retriever(expected identity), reason)
-  per query: primary.retrieve → on RetrievalUnavailableError only → BM25Retriever.retrieve(same query, same ResolvedAccess, same top_k)
+  per query: primary.retrieve(..., lote) → on RetrievalUnavailableError only → BM25Retriever.retrieve(same query, same access, same top_k, same lote)
   → RetrievalResult(strategy = served, requested_strategy = hybrid, fallback_reason, leg_latency_ms.dense_attempt)
 ```
 
@@ -365,8 +368,8 @@ Library code in `packages/rag/src/way2australia_rag/evaluation/`, one CLI (`eval
 | `models.py`, `suite.py` | tolerant typed cases and suite; `load_suite` reads manifest and datasets read-only, ignores `access_context`, refuses unknown dataset types and escaping paths |
 | `schemas.py`, `validate.py` | local `referencing` registry for the three schemas; all checks behind `validate-evaluation` (schemas, cross-checks, relevant documents through the repository, candidates) |
 | `retrieval_eval.py`, `slices.py`, `sections.py` | run active goldens (and unanswerable cases, top-1 score only) through the chosen retriever; retrieve to candidate depth, dedupe by document for MRR@k (Spec 009); slices by query language, category and source authority; section-level metrics |
-| `results.py`, `compare.py` | read result files 1.0 through 2.3; the quality gate and identity refusals; optional `--cross-index` for chunker or index_version differences (D069) |
-| `security_corpus.py`, `security_index.py`, `security_eval.py` | isolated security repository, throwaway dense index and lexical file; authorization gate over five paths and three chunkers (security result 1.3, D070) |
+| `results.py`, `compare.py`, `continuity.py`, `script_mix.py` | read results 1.0–2.4; quality gate; `--cross-index` (D069) and `--cross-tokenizer` (D072); per-case continuity without refusing suite/lote/case-set |
+| `security_corpus.py`, `security_index.py`, `security_eval.py` | throwaway corpus with forbidden and non-applicable rows; gate over five paths, three chunkers, two `lote` modes (security 1.4, D072) |
 
 Isolation and gates:
 - Access: every query, quality or security, goes through `DenseRetriever` with the one `resolve_access(guest_access(settings))`; evaluation code builds no filter and reads no role, scope or tenant from a case (D033 to D035, D040).
@@ -376,7 +379,7 @@ Isolation and gates:
 - Ingestion eligibility is the only guard against synthetic or unapproved documents. Retrieval does not re-check it because the payload does not carry those fields, so `poisoned_public_document` (public scope, synthetic) is not an authorization case.
 - Section-level keys are `"<document_id>#<section_id>"`. No active golden case has `relevant_section_ids` yet, so the section block reports zero measurable cases.
 - The security result's `access.role` is hard-coded `guest`, correct in Phase 1; it must become the resolved role when other roles are added.
-- Spec 007: `eval-retrieval` takes `--strategy` and writes result 2.1; `eval-security` gates all three strategies on a throwaway lexical file as well (security result 1.1). Spec 008: result 2.2 and five fallback paths (security 1.2). Spec 009: distinct-document metrics and result 2.3; `eval-compare --cross-index`; security 1.3 over three chunkers. Decisions: D042 to D047, D053, D054, D061, D068 to D070.
+- Spec 007: `--strategy`, result 2.1; security 1.1. Spec 008: result 2.2; security 1.2. Spec 009: result 2.3; `--cross-index`; security 1.3. Spec 010: default suite `public-eval-v3`; `--lote`; result 2.4 with `by_script_mix`; `--cross-tokenizer`; `make eval-continuity`; security 1.4 with applicability. Decisions: D042–D047, D053–D054, D061–D072, D068–D070.
 
 ## Knowledge Release
 

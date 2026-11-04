@@ -1,6 +1,6 @@
 # 010 — Multilingual Retrieval Tasks
 
-Status: approved (2026-11-04)
+Status: all tasks approved (2026-11-04)
 
 Implement the tasks in order; each depends on the ones before it. Requirements: `requirements.md` (approved 2026-11-04). Design: `design.md` (approved 2026-11-04).
 
@@ -226,10 +226,10 @@ Allowed protected-path changes: `config/retrieval.yaml` (`lexical.tokenizer`), o
 
 ## T6 — Documentation, decisions and hand-off
 
-**State:** not started
+**State:** approved (2026-11-04)
 **Requirements:** R12, R11, Definition of Done
 
-- [ ] `DECISIONS.md` from D072:
+- [x] `DECISIONS.md` from D072:
   - suite v3 and the closed v2 references;
   - `lote` as a request value apart from access, registry validation, the `null` default and the `en` refusal;
   - the applicability filter (builders, in-query placement, every path, the shape rule that keeps Qdrant and SQL equal) and `LanguageApplicabilityError`;
@@ -241,13 +241,13 @@ Allowed protected-path changes: `config/retrieval.yaml` (`lexical.tokenizer`), o
   - `make eval-continuity`;
   - security result 1.4 (extends D070);
   - the T5 outcome with numbers.
-- [ ] Docs:
+- [x] Docs:
   - `ARCHITECTURE.md`: query flow with the access and applicability filters inside each leg; the four language concepts (C4); lexical settings 1.2; tokenizers;
   - `COMMANDS.md`: `--lote`, `--tokenizer` and `W2A_LEXICAL_INDEX_DIR` for a second file, `--cross-tokenizer`, `make eval-continuity`, the new refusals, the script-mix slice and romanized Malayalam as `latin`, the one-time lexical rebuild for `--lote`;
   - `docs/knowledge/SCHEMA_AND_METADATA.md`: `lote_languages` is now used at retrieval time;
   - `ROADMAP.md`: item 8 status;
   - `CURRENT_STATE.md`: implemented reality, spec status, known issues.
-- [ ] Carry-overs in `CURRENT_STATE.md` Known issues and the hand-off:
+- [x] Carry-overs in `CURRENT_STATE.md` Known issues and the hand-off:
   - query translation or transliteration as the fix for `g067`–`g069` on the BM25 fallback;
   - `g056`/`g057` (fusion demotes dense rank 1) as roadmap item 9 inputs;
   - no Malayalam knowledge content;
@@ -255,8 +255,8 @@ Allowed protected-path changes: `config/retrieval.yaml` (`lexical.tokenizer`), o
   - per-script fusion weighting declined;
   - the script-mix name-prefix approximation;
   - the remaining Spec 009 carry-overs, unchanged.
-- [ ] Design `## As-built notes` for every difference from the approved design.
-- [ ] Spec-wide checks and the protected-path diff.
+- [x] Design `## As-built notes` for every difference from the approved design.
+- [x] Spec-wide checks and the protected-path diff.
 
 Allowed protected-path changes: none.
 

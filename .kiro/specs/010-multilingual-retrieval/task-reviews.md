@@ -380,3 +380,52 @@ Module exit code: **0** (`python3 -m uv run python -m way2australia_rag.evaluati
 
 ### User decision
 - 2026-11-04: approved. Verbatim: "approved for T5, with two record fixes in the same commit (no re-review needed): …" (tasks.md "If not promoted" → `[ ] N/A (promoted)`; T5 deviation on retrieve smoke vs index-lexical output; carry-over for roadmap 10 on tokenizer vs config mismatch). Operator rebuild/smoke completed before commit. Record fixes applied in the T5 commit; no re-review.
+
+## T6 — round 1
+
+### Implementation
+- Model: Composer 2.5 Fast (Cursor subagent); matches intended tier BEST_MINUS_ONE (`Composer 2.5` in `agent-skills/MODEL_PREFERENCES.md`).
+- Files changed:
+  - `docs/project/DECISIONS.md` (D072);
+  - `docs/project/ARCHITECTURE.md`, `COMMANDS.md`, `ROADMAP.md`, `CURRENT_STATE.md`;
+  - `docs/knowledge/SCHEMA_AND_METADATA.md`;
+  - `.kiro/specs/010-multilingual-retrieval/design.md` (`## As-built notes`);
+  - `.kiro/specs/010-multilingual-retrieval/tasks.md` (checkboxes, State), this file.
+- Verification run:
+  - `make verify` → pass (1257 passed, 2 skipped; ruff, format, pyright clean);
+  - `HF_HOME=$(mktemp -d) HF_HUB_OFFLINE=1 make verify` → pass (1257 passed, 2 skipped);
+  - `make test-integration` → 27 passed, 1232 deselected;
+  - `make eval-security` → PASS (92 queries: 5 security, 87 golden v3; result under `experiments/results/tmp/security-evaluation-20261104T130339Z.json`);
+  - `git diff --name-status main...HEAD -- evaluation knowledge config` → T1 evaluation files + `config/retrieval.yaml` only (no `knowledge/`);
+  - `graphify update .` run (T6 verification item; docs-only code diff).
+- Notes:
+  - T6 is documentation and hand-off only; no product code edits.
+  - D072 consolidates suite v3, `lote`, applicability, lexical 1.2 / tokenizers, result 2.4, compare/continuity, security 1.4, and T5 promotion numbers from T5 `task-reviews.md`.
+  - First sandbox `make verify` hit 7 failures on temp-repo `git init` tests; re-run with full permissions passed.
+- Usage: (orchestrator)
+
+### Review
+- Model: Cursor Grok 4.6; matches the BEST tier (`Grok 4.6`) in `agent-skills/MODEL_PREFERENCES.md`.
+- Verdict: PASS
+- Commands: `make verify` → pass (1257 passed, 2 skipped; ruff, format check and pyright clean); `HF_HOME=$(mktemp -d) HF_HUB_OFFLINE=1 make verify` → pass (1257 passed, 2 skipped); `make test-integration` → 27 passed, 1232 deselected; `make eval-security` → skipped (docs-only task diff; no product code; authorized by the review request); `git diff --name-status main...HEAD -- evaluation knowledge config` → T1 evaluation files + `config/retrieval.yaml` only (no `knowledge/`); `graphify update .` not re-run (read-only; implementer already refreshed `graphify-out/`).
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R12] `ARCHITECTURE.md` retrieval module table lists `languages.py` with `applicability.py` under the `packages/rag/src/way2australia_rag/retrieval/` intro; the file is `packages/rag/src/way2australia_rag/languages.py` (package root, not `retrieval/`). → Qualify the path (`languages.py` at package root).
+  - F2 [MINOR, IMPLEMENTATION, R12] `COMMANDS.md` `make eval-security` still says a query with no `lexical-v1` terms skips the lexical check. After T5 the file tokenizer may be `lexical-v2`. → Say “no lexical terms” (or “the file’s tokenizer”).
+  - F3 [MINOR, IMPLEMENTATION, R12] `COMMANDS.md` `make eval-continuity` says lexical identity is refused “unless you use cross-mode compares elsewhere”. `evaluation/continuity.py:_identity_refusals` always compares `lexical_index` and has no `--cross-tokenizer` / `--cross-index`. → Drop the parenthetical.
+- Summary for user (PASS only):
+  - Changed: docs-only hand-off. `DECISIONS.md` **D072** records suite `public-eval-v3`, `lote` apart from access, applicability + `LanguageApplicabilityError`, lexical settings 1.2 / `lexical-v2` (amends D051), result 2.4, `--cross-tokenizer`, `make eval-continuity`, security 1.4, and the T5 promotion numbers. `ARCHITECTURE.md` query flow and C4; `COMMANDS.md` `--lote` / `--tokenizer` / `--cross-tokenizer` / continuity; `SCHEMA_AND_METADATA.md` uses `lote_languages` at retrieval time; `ROADMAP.md` item 8 in progress; `CURRENT_STATE.md` Spec 010 status and carry-overs; design **As-built notes**.
+  - Verified by: `make verify` and hub-free `make verify` (1257 passed, 2 skipped); `make test-integration` 27 passed; protected-path diff vs `main` is only T1 `evaluation/` plus `config/retrieval.yaml`. D072 claims checked against `applicability.py`, `equivalents.py`, `config/retrieval.yaml`, result files `…T105300Z.json` / `…T105321Z.json` (hybrid hits 86 / MRR 0.9228; BM25 hits 73 / MRR 0.7423; BM25 `ml` MRR 0.2396, n=16).
+  - Worth your attention: D072 states `lexical-v2` is a **correctness default** (T5 tie; seed has no legacy chillu), not a measured gain. Carry-overs: query translation for `g067`–`g069` on BM25 fallback; `g056`/`g057` fusion demotion (roadmap 9); `open_retrieval` does not check file tokenizer vs config (roadmap 10). Three MINOR wording nits (F1–F3) can wait for the retrospective. After approval: one `Spec-Task: 010/T6` commit, graph commit, then `spec-reviewer`.
+  - Reading order (follow the flow: entry point → core logic → models/errors/config → tests):
+    1. `docs/project/COMMANDS.md` → `make retrieve --lote`, `make index-lexical --tokenizer`, `make eval-continuity`: operator surface.
+    2. `docs/project/ARCHITECTURE.md` → query flow: access + optional `lote` inside each leg; four language concepts (C4).
+    3. `docs/project/DECISIONS.md` → **D072**: suite v3, applicability, `lexical-v2`, result 2.4, T5 numbers.
+    4. `docs/knowledge/SCHEMA_AND_METADATA.md` → `lote_languages`: retrieval-time applicability, not authorization.
+    5. `docs/project/CURRENT_STATE.md` → Spec 010 implemented reality and known-issue carry-overs.
+    6. `docs/project/ROADMAP.md` → item 8 status and deferred list.
+    7. `.kiro/specs/010-multilingual-retrieval/design.md` → `## As-built notes` (GNU make exit mapping, retrieve tokenizer print, `open_retrieval` tokenizer mismatch).
+    8. Supporting edits: `tasks.md` T6 boxes.
+- Usage: (orchestrator)
+
+### User decision
+- 2026-11-04: approved. Verbatim: "approved for T6." Commit plan: (1) `Spec-Task: 010/T6` with `docs/` and `.kiro/specs/010-multilingual-retrieval/` only; (2) separate graphify commit; push `spec/010`; start `spec-reviewer` with T6 MINOR F1–F3 as doc reconciliation in that round; `make verify` with full permissions; skip `make eval-security` unless retrospective changes code; leave `review.md` and retrospective doc edits uncommitted until separate merge approval.

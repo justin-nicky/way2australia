@@ -265,3 +265,21 @@ With no `lote`, step 1 yields `None`, no condition is added and no re-check runs
 - **Character n-grams or Malayalam stemming:** declined (expected to show nothing on an English corpus). **Per-script fusion weighting:** declined; roadmap 9.
 - **Query translation or transliteration:** the fix for `g067`–`g069` on the BM25 fallback; carry-over.
 - **Default `lote` from config (always on):** declined at the Decision Brief (Q1). No value means no filter.
+
+## As-built notes
+
+- **T5 tokenizer promotion.** Default `config/retrieval.yaml` → `lexical.tokenizer: lexical-v2` (tie on cross-tokenizer compares; zero measured gain on seed because no legacy chillu ZWJ sequences in corpus or v3 queries). v3 hybrid reference: `experiments/results/retrieval-evaluation-idx-v2-20261104T105300Z.json`; bm25: `…20261104T105321Z.json`. BM25-only `ml` MRR 0.2396 (n=16) on realcheck.
+
+- **R10 continuity.** Spec 009 hybrid reference `…idx-v2-20261103T104934Z.json` vs hybrid lexical-v1 v3 arm: module exit 0, 69 shared goldens identical; suite/lote/git lines printed only. Invoked as `uv run python -m way2australia_rag.evaluation.continuity` (not `make eval-continuity`) so exit 1 means case differences.
+
+- **`make eval-continuity` and GNU make.** Recipe exit 1 (shared cases differ) becomes make exit 2; stderr prints `eval-continuity: exit 1` (T3 round 2). Operators read that line or call the module directly for 0/1/2 semantics (documented in `COMMANDS.md`).
+
+- **`eval-compare --cross-index`.** T3 round 2: lexical `source_chunk_digest` and `chunk_count` are skipped when `--cross-index` is set (D069 behaviour restored vs round-1 regression); still enforced for `--cross-tokenizer` without `--cross-index`.
+
+- **`make retrieve` smoke.** Does not print lexical tokenizer name; promotion evidence is `make index-lexical` output (settings 1.2, tokenizer name/version) — user-accepted T5 deviation.
+
+- **`open_retrieval`.** Does not verify that the opened lexical file's recorded tokenizer matches `config/retrieval.yaml`; a stale `lexical-v1` file would serve silently after v2 promotion. Carry-over to roadmap item 10 startup policy (`CURRENT_STATE.md`).
+
+- **Script mix.** Uses the first word of each letter's Unicode name (not Scripts.txt); romanized Malayalam queries (for example `g062`) report `latin`. Tests pin name prefixes against a small fixture; unmapped letters in v3 queries fail tests.
+
+- **Candidate schema (T1 amendment).** `candidate_row.proposed_case` is a `oneOf` golden or unanswerable shape; unanswerable candidates require `query_language`.
