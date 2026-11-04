@@ -185,13 +185,13 @@ run summary
 
 ## Retrieval (Phase 1 dense baseline, Spec 005; hybrid added by Spec 007; fallback by Spec 008)
 
-Library code in `packages/rag/src/way2australia_rag/retrieval/` plus the shared access types in `packages/core`. No HTTP route yet. Developer CLIs run it: `make retrieve` (all strategies), `make index-lexical` and the legacy dense-only `make retrieval-baseline`.
+Library code in `packages/rag/src/way2australia_rag/retrieval/` plus `languages.py` at the package root and the shared access types in `packages/core`. No HTTP route yet. Developer CLIs run it: `make retrieve` (all strategies), `make index-lexical` and the legacy dense-only `make retrieval-baseline`.
 
 | Module | Role |
 |---|---|
 | `core/access.py` | `Role`, frozen `AccessContext(role, tenant_id)` (blank tenant refused) |
 | `access.py` | `guest_access`, `resolve_access` (the only role-to-policy mapping; guest returns `GUEST_PUBLIC_POLICY`), `ResolvedAccess`, `build_access_filter` (the only authorization filter builder), `check_hit` (fail-closed re-check) |
-| `languages.py`, `applicability.py` | `active_lote_codes`; `ResolvedLote`, `resolve_lote`, Qdrant/SQL applicability builders, `check_applicable` (`LanguageApplicabilityError`; orthogonal to access, D072) |
+| `languages.py` (package root, not under `retrieval/`), `applicability.py` | `active_lote_codes`; `ResolvedLote`, `resolve_lote`, Qdrant/SQL applicability builders, `check_applicable` (`LanguageApplicabilityError`; orthogonal to access, D072) |
 | `index.py` | `DenseIndex`: read-only binding to the collection and its `-settings` record; `search`, `document_count` |
 | `retriever.py` | `DenseRetriever.retrieve(query, access, top_k, *, lote=None)` → `RetrievalResult` |
 | `models.py`, `errors.py`, `text.py` | `RetrievedChunk`/`RetrievalResult`, error hierarchy, `safe_text` for printing payload text |

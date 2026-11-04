@@ -42,7 +42,7 @@ Reason:
 - low re-indexing cost during comparisons.
 
 ### Sparse retrieval
-- BM25 through FTS5 `bm25()` over `lexical-v1` tokens (D051); implemented; also the retrieval fallback (Spec 008): `hybrid` degrades to BM25 on a Qdrant or model outage, no new dependency
+- BM25 through FTS5 `bm25()` over the lexical file's recorded tokenizer (`lexical-v1` or `lexical-v2`; default **`lexical-v2`**, D072 amending D051); implemented; also the retrieval fallback (Spec 008): `hybrid` degrades to BM25 on a Qdrant or model outage, no new dependency
 
 ### Fusion
 - Reciprocal Rank Fusion (RRF), implemented (D052); parameters in `config/retrieval.yaml`
@@ -63,7 +63,7 @@ Exact Bedrock model should be selected based on current:
 ## Evaluation
 
 - pytest for deterministic tests
-- custom retrieval metrics (plain Python, no dependency: document-level HitRate@k, Recall@k and MRR in `packages/rag/.../retrieval/metrics.py`, Spec 005)
+- custom retrieval metrics (plain Python, no dependency: document-level HitRate@k, Recall@k and MRR in `packages/rag/.../retrieval/metrics.py`, Spec 005; script-mix slice uses stdlib `unicodedata`, D072)
 - DeepEval where useful (not yet a dependency)
 
 Primary retrieval metrics:

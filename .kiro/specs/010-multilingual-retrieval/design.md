@@ -283,3 +283,5 @@ With no `lote`, step 1 yields `None`, no condition is added and no re-check runs
 - **Script mix.** Uses the first word of each letter's Unicode name (not Scripts.txt); romanized Malayalam queries (for example `g062`) report `latin`. Tests pin name prefixes against a small fixture; unmapped letters in v3 queries fail tests.
 
 - **Candidate schema (T1 amendment).** `candidate_row.proposed_case` is a `oneOf` golden or unanswerable shape; unanswerable candidates require `query_language`.
+
+- **Registry parsing.** `languages.py` (package root) owns `_active_product_support_codes`; `evaluation/slices.active_registry_languages` reuses it and adds `en`. Approved design already placed `languages.py` at the package root; T6 `ARCHITECTURE.md` had listed it under `retrieval/` (retrospective F1).
