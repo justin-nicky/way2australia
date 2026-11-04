@@ -1,9 +1,9 @@
 {
   ".claude/settings.json": {
-    "mtime": 1793199932.9005558,
-    "seen": 1793201155.265501,
-    "ast_hash": "203647bf25a358a1298bc09e28ff9649",
-    "semantic_hash": "203647bf25a358a1298bc09e28ff9649"
+    "mtime": 1793808968.0500956,
+    "seen": 1793809690.78897,
+    "ast_hash": "36b1d58bd575ef080fa717f1920de582",
+    "semantic_hash": ""
   },
   ".kiro/specs/001-project-foundation/tasks.meta.json": {
     "mtime": 1791822836.9728713,
@@ -996,9 +996,9 @@
     "semantic_hash": "09a6a74a8766647a99690e79fd58bdc9"
   },
   "agent-skills/spec-orchestrator/SKILL.md": {
-    "mtime": 1793762819.8172011,
-    "seen": 1793762859.869289,
-    "ast_hash": "95c1ca80a6e4e0a29eb6fc51d7ae1f5e",
+    "mtime": 1793809232.8773084,
+    "seen": 1793809690.789213,
+    "ast_hash": "ee47c86eb7ebfa42564e961ee963e2e5",
     "semantic_hash": ""
   },
   "agent-skills/spec-orchestrator/references/state-machine.md": {
@@ -1128,9 +1128,9 @@
     "semantic_hash": "1a2d2a5428a3063578aeec1099a709f2"
   },
   "docs/project/CURRENT_STATE.md": {
-    "mtime": 1793802706.3296797,
-    "seen": 1793802715.301468,
-    "ast_hash": "22f0e4dc36c2f6a23775f8b23be366b6",
+    "mtime": 1793809684.6499827,
+    "seen": 1793809690.789237,
+    "ast_hash": "b41b9f0ee82daa9b09dcfd7ea778287d",
     "semantic_hash": ""
   },
   "docs/project/MISSION.md": {
@@ -1278,15 +1278,15 @@
     "semantic_hash": "f0a0161d00472c07b7e548cb0ea1c9d3"
   },
   "docs/project/COMMANDS.md": {
-    "mtime": 1793802688.761541,
-    "seen": 1793802715.301465,
-    "ast_hash": "1c37cb3c6909c69e3525dd48ee17f442",
+    "mtime": 1793808976.3508646,
+    "seen": 1793809690.789234,
+    "ast_hash": "fefb3c68270f920ca645d9a4d26e4218",
     "semantic_hash": ""
   },
   "docs/project/DECISIONS.md": {
-    "mtime": 1793802688.7623904,
-    "seen": 1793802715.301468,
-    "ast_hash": "ce17524c6c36432e1051b914c7c43c69",
+    "mtime": 1793809680.6634736,
+    "seen": 1793809690.789238,
+    "ast_hash": "30e6737df59c2d8789dd3536bb464ae7",
     "semantic_hash": ""
   },
   "docs/project/TECH_STACK.md": {
@@ -1827,6 +1827,18 @@
     "mtime": 1793802688.7590208,
     "seen": 1793802715.301435,
     "ast_hash": "c727c04f72300ed08a33b4cd8dc3afe6",
+    "semantic_hash": ""
+  },
+  "tests/test_verify_budget_hook.py": {
+    "mtime": 1793808993.27297,
+    "seen": 1793809690.789162,
+    "ast_hash": "28c9313f89fb5eabe1682dd87888ef34",
+    "semantic_hash": ""
+  },
+  "tools/hooks/verify_budget.py": {
+    "mtime": 1793808993.2493875,
+    "seen": 1793809690.789163,
+    "ast_hash": "3a603ab5f092a1bd59331e866a0e5a0c",
     "semantic_hash": ""
   }
 }
