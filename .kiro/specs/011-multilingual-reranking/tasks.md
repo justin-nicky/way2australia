@@ -23,23 +23,23 @@ Rules for every task:
 
 ## T1 — Reranker contract, adapters, errors and config
 
-**State:** not started
+**State:** approved (2026-11-05)
 **Requirements:** R1, R2, R3 (config part), R9
 
-- [ ] `rerank/base.py`: `RerankerInfo`, `RerankScores`, `Reranker` Protocol (`info`, `device`, `load()`, `score(query, texts)`), per design "Interfaces / models".
-- [ ] `rerank/fake.py`: `FakeReranker`, deterministic from a stable hash of `(query, text)` (not Python's `hash`); hooks `prefer`, `fail_on_load`, `fail_on_call`, `malformed` (`count`, `nan`), truncation rule by whitespace tokens against `max_length`; `is_fake: true`; device `"fake"` after load, `None` before.
-- [ ] `rerank/errors.py`: `RerankSkipReason` (`model_unavailable`, `model_timeout`), `RerankerUnavailableError(reason)` (not a subclass of `RetrievalUnavailableError`), `RerankerOutputError`, `classify_reranker_error`.
+- [x] `rerank/base.py`: `RerankerInfo`, `RerankScores`, `Reranker` Protocol (`info`, `device`, `load()`, `score(query, texts)`), per design "Interfaces / models".
+- [x] `rerank/fake.py`: `FakeReranker`, deterministic from a stable hash of `(query, text)` (not Python's `hash`); hooks `prefer`, `fail_on_load`, `fail_on_call`, `malformed` (`count`, `nan`), truncation rule by whitespace tokens against `max_length`; `is_fake: true`; device `"fake"` after load, `None` before.
+- [x] `rerank/errors.py`: `RerankSkipReason` (`model_unavailable`, `model_timeout`), `RerankerUnavailableError(reason)` (not a subclass of `RetrievalUnavailableError`), `RerankerOutputError`, `classify_reranker_error`.
   - Same chain rules as `classify_model_error` (explicit `__cause__` only, `MAX_CAUSE_LINKS`, `__context__` never followed, hub HTTP 5xx not eligible); a timeout type gives `model_timeout`, another network type `model_unavailable`.
   - Offline with weights not cached (hub `LocalEntryNotFoundError` / offline-mode error) is excluded even when a network error appears deeper in the chain: it is a configuration error (exit 2) with advice naming `make setup-bge-m3` and caching the pinned revision.
   - `retrieval/availability.py`: extract the chain walk into a private helper used by both; no change to `classify_model_error` results.
-- [ ] `rerank/bge.py`: `BgeRerankerV2M3`, mirroring `BgeM3Embedder`: refuses empty, `main`, `latest` revisions; missing extra → `OptionalDependencyError` naming `make setup-bge-m3`; `CrossEncoder` imported only in `load()`; `predict(pairs, batch_size=...)` raw scores; truncation counted with the model tokenizer against `max_length`; `load()` wraps hub/transformers errors with `raise ... from` so `classify_reranker_error` sees the cause chain; device after load.
-- [ ] `rerank/build.py`: `build_reranker(config, provider)` (`bge` | `fake`).
-- [ ] Pin the reranker revision: read the current commit SHA of `BAAI/bge-reranker-v2-m3` on the Hugging Face hub (read-only page or API; no download) and record it in `config/retrieval.yaml`. The T1 hand-off reports the full 40-hex SHA and the exact URL it was read from, so the user can check it on the model page. If the agent cannot reach the hub, stop and ask the user for the SHA.
-- [ ] `packages/rag/pyproject.toml`: optional extra `reranker = ["sentence-transformers>=3.0.0"]`; `uv.lock` updated; `Makefile` `setup-bge-m3` installs both `bge-m3` and `reranker` extras; `make setup` still removes optional extras.
-- [ ] `retrieval/strategy.py`: `RetrievalConfig` schema `1.3` with `RerankConfig` (`enabled`, `provider`, `model_id`, `revision`, `depth` 1..`fusion.candidate_depth`, `max_length` 32..8192, `batch_size` 1..256); `1.1` and `1.2` files load with reranking off; errors name the key.
-- [ ] `config/retrieval.yaml`: schema `1.3`, the `rerank` block per design, `enabled: false`, `depth: 20`, `max_length: 512`, `batch_size: 16`, the pinned revision.
-- [ ] Tests (`tests/rerank/`, `tests/retrieval/test_strategy*.py`): fake determinism and hooks; revision refusals; missing-extra refusal; lazy import (importing `rerank.bge` leaves `sentence_transformers` out of `sys.modules`); `classify_reranker_error` table (network, timeout, `__context__` ignored, hub 5xx, offline-not-cached with and without a network error deeper in the chain, unrelated `OSError`); `RerankerUnavailableError` not a `RetrievalUnavailableError`; config 1.3 validation, 1.1/1.2 defaults, `depth > candidate_depth` refused; the committed file has `enabled: false` (read from the file).
-- [ ] Opt-in smoke test `W2A_RUN_RERANKER_SMOKE=1` (skipped by default; never run by agents): loads the pinned model, scores an obvious relevant/irrelevant pair, checks the order.
+- [x] `rerank/bge.py`: `BgeRerankerV2M3`, mirroring `BgeM3Embedder`: refuses empty, `main`, `latest` revisions; missing extra → `OptionalDependencyError` naming `make setup-bge-m3`; `CrossEncoder` imported only in `load()`; `predict(pairs, batch_size=...)` raw scores; truncation counted with the model tokenizer against `max_length`; `load()` wraps hub/transformers errors with `raise ... from` so `classify_reranker_error` sees the cause chain; device after load.
+- [x] `rerank/build.py`: `build_reranker(config, provider)` (`bge` | `fake`).
+- [x] Pin the reranker revision: read the current commit SHA of `BAAI/bge-reranker-v2-m3` on the Hugging Face hub (read-only page or API; no download) and record it in `config/retrieval.yaml`. The T1 hand-off reports the full 40-hex SHA and the exact URL it was read from, so the user can check it on the model page. If the agent cannot reach the hub, stop and ask the user for the SHA.
+- [x] `packages/rag/pyproject.toml`: optional extra `reranker = ["sentence-transformers>=3.0.0"]`; `uv.lock` updated; `Makefile` `setup-bge-m3` installs both `bge-m3` and `reranker` extras; `make setup` still removes optional extras.
+- [x] `retrieval/strategy.py`: `RetrievalConfig` schema `1.3` with `RerankConfig` (`enabled`, `provider`, `model_id`, `revision`, `depth` 1..`fusion.candidate_depth`, `max_length` 32..8192, `batch_size` 1..256); `1.1` and `1.2` files load with reranking off; errors name the key.
+- [x] `config/retrieval.yaml`: schema `1.3`, the `rerank` block per design, `enabled: false`, `depth: 20`, `max_length: 512`, `batch_size: 16`, the pinned revision.
+- [x] Tests (`tests/rerank/`, `tests/retrieval/test_strategy*.py`): fake determinism and hooks; revision refusals; missing-extra refusal; lazy import (importing `rerank.bge` leaves `sentence_transformers` out of `sys.modules`); `classify_reranker_error` table (network, timeout, `__context__` ignored, hub 5xx, offline-not-cached with and without a network error deeper in the chain, unrelated `OSError`); `RerankerUnavailableError` not a `RetrievalUnavailableError`; config 1.3 validation, 1.1/1.2 defaults, `depth > candidate_depth` refused; the committed file has `enabled: false` (read from the file).
+- [x] Opt-in smoke test `W2A_RUN_RERANKER_SMOKE=1` (skipped by default; never run by agents): loads the pinned model, scores an obvious relevant/irrelevant pair, checks the order.
 
 Allowed protected-path changes: `config/retrieval.yaml` (schema and `rerank` block).
 

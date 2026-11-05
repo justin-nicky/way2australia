@@ -2720,6 +2720,9 @@ dependencies = [
 bge-m3 = [
     { name = "sentence-transformers" },
 ]
+reranker = [
+    { name = "sentence-transformers" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -2731,10 +2734,11 @@ requires-dist = [
     { name = "qdrant-client", specifier = ">=1.19.0,<2.0" },
     { name = "referencing", specifier = ">=0.35.0" },
     { name = "sentence-transformers", marker = "extra == 'bge-m3'", specifier = ">=3.0.0" },
+    { name = "sentence-transformers", marker = "extra == 'reranker'", specifier = ">=3.0.0" },
     { name = "tokenizers", specifier = ">=0.20.0" },
     { name = "way2australia-core", editable = "packages/core" },
 ]
-provides-extras = ["bge-m3"]
+provides-extras = ["bge-m3", "reranker"]
 
 [[package]]
 name = "websockets"

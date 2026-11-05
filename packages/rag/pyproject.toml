@@ -24,6 +24,11 @@ bge-m3 = [
   "sentence-transformers>=3.0.0",
 ]
 
+# Real cross-encoder reranker (Spec 011); same dependency as bge-m3.
+reranker = [
+  "sentence-transformers>=3.0.0",
+]
+
 [tool.uv]
 package = true
 
