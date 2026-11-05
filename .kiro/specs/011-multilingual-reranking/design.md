@@ -1,6 +1,6 @@
 # 011 — Multilingual Reranking Design
 
-Status: approved (2026-11-04)
+Status: approved (2026-11-05)
 
 Approved by the user 2026-11-04 with D-A option 1 (sticky open-time skip), D-B option 1 (no inference timeout, recorded), D-C option 1 (`eval-continuity` refuses a rerank identity difference), plus two stated rules: reranking off never constructs or loads a reranker; offline with weights not cached is a configuration error (exit 2), never a skip.
 
@@ -12,7 +12,7 @@ A new `RerankingRetriever` wraps `HybridRetriever` and sits inside `FallbackRetr
 FallbackRetriever( RerankingRetriever( HybridRetriever(dense, bm25) ), bm25 )
 ```
 
-With reranking on, the stage asks the hybrid retriever for the top `rerank.depth` fused chunks, scores them with a `Reranker` (a cross-encoder), orders them by score, cuts to `top_k`, and re-runs `check_hit` and `check_applicable` on every returned hit. A reranker outage raises `RerankerUnavailableError`, which the stage alone catches; it then serves the un-reranked hybrid result, marked as skipped. `FallbackRetriever` never sees a reranker error, so a reranker outage can never become a BM25 fallback. A dense outage still reaches `FallbackRetriever` unchanged, and BM25 serves without reranking (Spec 008 behaviour).
+With reranking on, the stage asks the hybrid retriever for the top `rerank.depth` fused chunks, scores them with a `Reranker` (a cross-encoder), orders them by score, cuts to `top_k`, and re-checks every returned hit: it must equal exactly one fused candidate that the legs already passed through `check_hit` (ignoring only rank/score fields), with no duplicates, then `check_applicable` runs when `lote` is set. A reranker outage raises `RerankerUnavailableError`, which the stage alone catches; it then serves the un-reranked hybrid result, marked as skipped. `FallbackRetriever` never sees a reranker error, so a reranker outage can never become a BM25 fallback. A dense outage still reaches `FallbackRetriever` unchanged, and BM25 serves without reranking (Spec 008 behaviour).
 
 The real reranker is `BAAI/bge-reranker-v2-m3` through `sentence-transformers` `CrossEncoder`, pinned to a commit SHA, loaded once at open time. `rerank.enabled: false` stays committed until T5. `rrf_fuse`, `HybridRetriever`, `FallbackRetriever`, the access and applicability builders, and `DenseRetriever` do not change.
 
@@ -70,7 +70,7 @@ Per query, reranking on, dense side up:
    - `RerankerUnavailableError` → return hybrid result cut to `top_k`, marked `stage: "query"`.
    - Output check: exactly `len(candidates)` finite floats, else `RerankerOutputError` (propagates; not a skip).
 6. Order candidates by `(-score, fused_rank)`; take `top_k`; new `rank`, `score` = cross-encoder score, `fused_rank` = rank in the fused list, `leg_ranks` kept.
-7. Re-check every returned hit: `check_hit(hit, access)`, then `check_applicable(hit, lote)` when `lote` is set. Failures raise the existing errors (never caught here or in `FallbackRetriever`).
+7. Membership re-check of every returned hit: it equals exactly one fused candidate that the hybrid legs already passed through `check_hit` (equality ignores only `rank`, `score`, `fused_rank` and `leg_ranks`), with no duplicates (an unknown, duplicated or altered hit raises `RetrievalAuthorizationError`); then `check_applicable(hit, lote)` when `lote` is set. Failures raise the existing errors (never caught here or in `FallbackRetriever`).
 8. Return `RetrievalResult` copied from the hybrid result with `hits`, `score_kind: "cross_encoder"`, `leg_latency_ms` + `rerank`, total `latency_ms`, and `rerank: RerankRecord`.
 
 The reranker input is `chunk_text` as stored in the payload. For `recursive` + title prefix (D071) it already starts with the document title, so the reranker sees the same text the embedder saw. The text is passed as data: no template, no instruction.

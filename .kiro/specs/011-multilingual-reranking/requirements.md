@@ -1,6 +1,6 @@
 # 011 — Multilingual Reranking Requirements
 
-Status: approved (2026-11-04)
+Status: approved (2026-11-05)
 
 ## Goal
 
@@ -93,7 +93,7 @@ The reranker reorders the fused candidates; authorization and applicability are 
 - With reranking on, `hybrid` fuses as today (`rrf_fuse` and `HybridRetriever` unchanged), takes the top `depth` fused chunks (fewer if fewer exist), scores them with the reranker, orders them by cross-encoder score descending (ties broken by fused rank), and returns the first `top_k`. Scores are not blended with RRF.
 - Each returned hit carries the cross-encoder score as its score, `score_kind: cross_encoder`, and keeps its fused rank and leg ranks for diagnosis.
 - The stage may only reorder the candidates it received: a reranker output with the wrong count, a non-finite score, or anything else malformed fails the query with a reranker error that is not a skip and not a fallback (fail closed).
-- After reranking, every returned hit passes `check_hit` and then, with a `lote`, `check_applicable` again before it is returned; a failure raises the existing `RetrievalAuthorizationError` or `LanguageApplicabilityError` (never caught by the stage or by `FallbackRetriever`).
+- After reranking and on both skip paths, a membership re-check runs before any hit is returned: every returned hit equals exactly one fused candidate that the hybrid legs already passed through `check_hit` (equality ignores only `rank`, `score`, `fused_rank` and `leg_ranks`), with no duplicates; then, with a `lote`, `check_applicable` runs again; a failure raises the existing `RetrievalAuthorizationError` or `LanguageApplicabilityError` (never caught by the stage or by `FallbackRetriever`).
 - The same `ResolvedAccess` object, `ResolvedLote` and `top_k` reach the hybrid legs and the stage; nothing in the reranker or its output can change access or applicability.
 - The reranking stage sits inside `FallbackRetriever`: when the dense side is unavailable (open time or per query), BM25 serves exactly as in Spec 008 and no reranking runs. A test pins this order.
 - The result records the rerank identity, the rerank depth used, the number of truncated pairs, and a `rerank` latency leg next to the existing `dense` and `bm25` legs.
@@ -241,3 +241,5 @@ The user records real reranked results on v3; a rule fixed here decides the defa
 <!-- Approved amendments only, one dated line each:
 - YYYY-MM-DD — <R#/T#>: <what changed and why>. Re-opened <T#>. -->
 - 2026-11-05 — R3/T2: `build_reranker` refuses a `rerank.model_id` that differs from the adapter's model when the provider is `bge` (T1 review F1; user decision of 2026-11-05 recorded in `task-reviews.md`, T1 "User decision"). Added a T2 task box.
+- 2026-11-05 — R4/T2/T4, design summary, data flow step 7: the post-rerank re-check is a membership re-check (every returned hit equals exactly one fused candidate that the hybrid legs already passed through `check_hit` (equality ignores only `rank`, `score`, `fused_rank` and `leg_ranks`), with no duplicates, then `check_applicable` with a `lote`, on the reranked path and both skip paths), replacing "`check_hit` on every returned hit", because `RetrievedChunk` carries no tenant, scope or owner fields (T2 review F1; user decision of 2026-11-05 recorded in `task-reviews.md`, T2 "User decision"). T4's defective-stage harness uses the same wording. No task re-opened (T2 code already does this).
+- 2026-11-05 — T3/T6: added a T3 task box (unit test that fails if `check_applicable` reads any `PointPayload` field besides `document_id` and `lote_languages`) and a T6 note that the As-built notes record T1 F2 and T2 F2 (T2 review F2; same user decision).
