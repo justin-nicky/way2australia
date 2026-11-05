@@ -10,6 +10,7 @@ from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from time import perf_counter
 from typing import Protocol
 
 from way2australia_rag.ingestion.chunker_build import chunker_identity_for_run
@@ -134,6 +135,8 @@ class OpenedRetrieval:
     index_settings: IndexSettings | None
     lexical: LexicalIndex | None
     reranker: Reranker | None = None
+    # Wall time of the reranker load at open (Spec 011 R6); None when not loaded.
+    rerank_load_ms: float | None = None
 
     def close(self) -> None:
         if self.lexical is not None:
@@ -246,7 +249,11 @@ def open_retrieval(
         return index.document_count(dense_query_filter(access, lote))
 
     try:
+        load_started = perf_counter()
         open_skip = _load_reranker(reranker)
+        load_ms = (
+            (perf_counter() - load_started) * 1000.0 if reranker is not None else None
+        )
         retriever = build_retriever(
             strategy,
             identity,
@@ -270,6 +277,7 @@ def open_retrieval(
         index.settings,
         lexical,
         reranker,
+        load_ms,
     )
 
 

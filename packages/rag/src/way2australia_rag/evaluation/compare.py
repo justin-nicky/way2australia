@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from way2australia_rag.evaluation.errors import NotComparableError
 from way2australia_rag.evaluation.results import (
     AUTHORITY_VERSIONS,
-    SCHEMA_VERSION,
+    DISTINCT_VERSIONS,
     CaseRow,
     ComparableRun,
 )
@@ -32,6 +32,10 @@ CROSS_INDEX_STEP = (
 CROSS_TOKENIZER_STEP = (
     "use COMPARE_ARGS=--cross-tokenizer only when both files share the same lexical "
     "source_chunk_digest and chunk_count but differ in tokenizer name or version."
+)
+CROSS_RERANK_STEP = (
+    "use COMPARE_ARGS=--cross-rerank only to compare a reranked run with an "
+    "un-reranked one (or two reranker settings) on the same index."
 )
 FORMAT_RULE_ADVICE = "re-run both with result 2.3"
 FAKE_STEP = (
@@ -111,10 +115,11 @@ def _legacy_one_chunk_per_document(run: ComparableRun) -> bool:
 
 
 def _format_rule_problem(base: ComparableRun, cand: ComparableRun) -> str | None:
-    versions = {base.schema_version, cand.schema_version}
-    if SCHEMA_VERSION not in versions or versions == {SCHEMA_VERSION}:
+    base_new = base.schema_version in DISTINCT_VERSIONS
+    cand_new = cand.schema_version in DISTINCT_VERSIONS
+    if base_new == cand_new:
         return None
-    newer = base if base.schema_version == SCHEMA_VERSION else cand
+    newer = base if base_new else cand
     stats = newer.info.get("chunk_stats")
     if not isinstance(stats, dict) or stats.get("max_chunks_per_document") != 1:
         return FORMAT_RULE_ADVICE
@@ -125,12 +130,51 @@ def _format_rule_problem(base: ComparableRun, cand: ComparableRun) -> str | None
 
 
 def _metric_unit_problem(base: ComparableRun, cand: ComparableRun) -> str | None:
-    if {base.schema_version, cand.schema_version} != {SCHEMA_VERSION}:
+    if not (
+        base.schema_version in DISTINCT_VERSIONS
+        and cand.schema_version in DISTINCT_VERSIONS
+    ):
         return None
     left, right = base.info.get("metric_unit"), cand.info.get("metric_unit")
     if left != right:
         return f"metric_unit changed {left} -> {right}"
     return None
+
+
+def rerank_identity(run: ComparableRun) -> tuple[object, object, object, object] | None:
+    """(model_id, revision, depth, max_length), or None when the run is not
+    reranked (older files read as off)."""
+    rerank = run.info.get("rerank")
+    if not isinstance(rerank, dict):
+        return None
+    return (
+        rerank.get("model_id"),
+        rerank.get("revision"),
+        rerank.get("depth"),
+        rerank.get("max_length"),
+    )
+
+
+def rerank_text(identity: tuple[object, object, object, object] | None) -> str:
+    if identity is None:
+        return "off"
+    model_id, revision, depth, max_length = identity
+    short = str(revision)[:7]
+    return f"{model_id}@{short} depth {depth} max_length {max_length}"
+
+
+def skipped_rerank_problems(base: ComparableRun, cand: ComparableRun) -> list[str]:
+    """A reranked file with any skipped query is not a reranked result (R7)."""
+    problems: list[str] = []
+    for label, run in (("BASE", base), ("CANDIDATE", cand)):
+        skips = run.info.get("rerank_skips", 0)
+        if skips and rerank_identity(run) is not None:
+            problems.append(
+                f"{label} file '{run.name}' has {skips} reranking-skipped "
+                "query(ies) and is not a reranked result; re-run when the "
+                "reranker is available"
+            )
+    return problems
 
 
 def _lexical_text(identity: tuple[object, object, object] | None) -> str:
@@ -164,8 +208,8 @@ def _identity_problems(
         if old_i != new_i:
             problems.append(f"index_version changed {old_i} -> {new_i}")
         if (
-            base.schema_version == SCHEMA_VERSION
-            and cand.schema_version == SCHEMA_VERSION
+            base.schema_version in DISTINCT_VERSIONS
+            and cand.schema_version in DISTINCT_VERSIONS
         ):
             old_chunker, new_chunker = (
                 base.info.get("chunker"),
@@ -203,6 +247,7 @@ def _refusals(
     *,
     cross_index: bool,
     cross_tokenizer: bool,
+    cross_rerank: bool = False,
 ) -> list[str]:
     problems: list[str] = []
     steps: list[str] = []
@@ -260,7 +305,8 @@ def _refusals(
     if changed:
         steps.append(NEW_BASELINE)
     if cross_index and (
-        base.schema_version != SCHEMA_VERSION or cand.schema_version != SCHEMA_VERSION
+        base.schema_version not in DISTINCT_VERSIONS
+        or cand.schema_version not in DISTINCT_VERSIONS
     ):
         problems.append("cross-index comparison requires result 2.3 on both sides")
         steps.append(CROSS_INDEX_STEP)
@@ -278,6 +324,12 @@ def _refusals(
         if any("lexical tokenizer changed" in p for p in identity):
             steps.append(CROSS_TOKENIZER_STEP)
         steps.append(IDENTITY_STEP if not cross_index else CROSS_INDEX_STEP)
+    if skipped := skipped_rerank_problems(base, cand):
+        problems.extend(skipped)
+    old_r, new_r = rerank_identity(base), rerank_identity(cand)
+    if old_r != new_r and not cross_rerank:
+        problems.append(f"rerank changed {rerank_text(old_r)} -> {rerank_text(new_r)}")
+        steps.append(CROSS_RERANK_STEP)
     if not problems:
         return []
     unique_steps = list(dict.fromkeys(steps))
@@ -380,10 +432,15 @@ def compare(
     *,
     cross_index: bool = False,
     cross_tokenizer: bool = False,
+    cross_rerank: bool = False,
 ) -> Comparison:
     """Raise `NotComparableError` for unlike runs; otherwise apply the gate."""
     refusals = _refusals(
-        base, candidate, cross_index=cross_index, cross_tokenizer=cross_tokenizer
+        base,
+        candidate,
+        cross_index=cross_index,
+        cross_tokenizer=cross_tokenizer,
+        cross_rerank=cross_rerank,
     )
     if refusals:
         raise NotComparableError(refusals[0])
@@ -422,6 +479,11 @@ def compare(
     ]
     if cross_index:
         lines.extend(_cross_index_lines(base, candidate))
+    old_r, new_r = rerank_identity(base), rerank_identity(candidate)
+    if cross_rerank and old_r != new_r:
+        lines.append(
+            f"cross-rerank: rerank: {rerank_text(old_r)} -> {rerank_text(new_r)}"
+        )
     sliced: list[tuple[str, Callable[[CaseRow], str]]] = [
         ("query_language", lambda r: r.query_language),
         ("category", lambda r: r.category),

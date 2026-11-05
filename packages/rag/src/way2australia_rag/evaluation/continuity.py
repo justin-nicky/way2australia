@@ -12,8 +12,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from way2australia_rag.evaluation.compare import _chunker_text
-from way2australia_rag.evaluation.results import read_result
+from way2australia_rag.evaluation.compare import (
+    _chunker_text,
+    rerank_identity,
+    rerank_text,
+    skipped_rerank_problems,
+)
+from way2australia_rag.evaluation.results import ComparableRun, read_result
 
 EXIT_OK = 0
 EXIT_DIFF = 1
@@ -32,7 +37,12 @@ def _load_raw(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _identity_refusals(base: dict[str, Any], cand: dict[str, Any]) -> list[str]:
+def _identity_refusals(
+    base: dict[str, Any],
+    cand: dict[str, Any],
+    base_run: ComparableRun,
+    cand_run: ComparableRun,
+) -> list[str]:
     problems: list[str] = []
     for field in ("collection", "index_version", "top_k"):
         old, new = base.get(field), cand.get(field)
@@ -52,6 +62,11 @@ def _identity_refusals(base: dict[str, Any], cand: dict[str, Any]) -> list[str]:
             f"served strategy changed {base.get('retrieval_strategy')!r} -> "
             f"{cand.get('retrieval_strategy')!r}"
         )
+    old_r, new_r = rerank_identity(base_run), rerank_identity(cand_run)
+    if old_r != new_r:
+        # D-C: a reranker changes ranking, so a difference is not continuity.
+        problems.append(f"rerank changed {rerank_text(old_r)} -> {rerank_text(new_r)}")
+    problems.extend(skipped_rerank_problems(base_run, cand_run))
     return problems
 
 
@@ -107,12 +122,12 @@ def compare_continuity(base_path: Path, candidate_path: Path) -> tuple[int, list
 
     base = _load_raw(base_path)
     cand = _load_raw(candidate_path)
-    refusals = _identity_refusals(base, cand)
+    refusals = _identity_refusals(base, cand, base_run, cand_run)
     if refusals:
         return EXIT_REFUSED, [
             "not comparable: " + "; ".join(refusals),
             "compare runs on the same collection, index_version, embedder, "
-            "lexical index, served strategy and top_k.",
+            "lexical index, served strategy, rerank setting and top_k.",
         ]
 
     lines.extend(_info_lines(base, cand))

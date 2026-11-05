@@ -178,7 +178,7 @@ def test_field_set_is_a_superset_of_the_1_0_keys() -> None:
         "small_sample_threshold",
     ):
         assert key in doc, key
-    assert doc["schema_version"] == "2.4" and doc["kind"] == "retrieval_evaluation"
+    assert doc["schema_version"] == "2.5" and doc["kind"] == "retrieval_evaluation"
     assert doc["case_count"] == 3 and doc["excluded_case_count"] == 1
     assert doc["evaluation_suite"]["excluded_by_status"]["golden_answerable"] == {
         "deprecated": 1
@@ -547,7 +547,7 @@ def scripted_run(serve, *, standalone: bool = False, **over):  # noqa: ANN001, A
 def test_2_3_keys_on_a_plain_run() -> None:
     index, emb, retriever = build()
     doc = run(index, emb, retriever, suite_with_unanswerable())
-    assert doc["schema_version"] == "2.4"
+    assert doc["schema_version"] == "2.5"
     assert doc["lote"] is None
     assert doc["metric_unit"] == "distinct_documents"
     assert doc["retrieval_depth"] == RETRIEVAL_CONFIG.fusion.candidate_depth

@@ -723,6 +723,9 @@ def doc23(**over: Any) -> dict[str, Any]:
     document.update(
         {
             "schema_version": SCHEMA_VERSION,
+            "rerank_requested": False,
+            "rerank": None,
+            "rerank_skip_counts": {},
             "metric_unit": "distinct_documents",
             "retrieval_depth": 50,
             "chunk_stats": {

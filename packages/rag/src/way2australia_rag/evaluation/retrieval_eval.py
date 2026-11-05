@@ -39,6 +39,7 @@ from way2australia_rag.ingestion.chunking import ChunkerIdentity
 from way2australia_rag.ingestion.embedding import Embedder
 from way2australia_rag.ingestion.settings import IndexSettings
 from way2australia_rag.lexical.store import LexicalIndex
+from way2australia_rag.rerank.base import Reranker
 from way2australia_rag.retrieval.access import ResolvedAccess
 from way2australia_rag.retrieval.applicability import ResolvedLote
 from way2australia_rag.retrieval.base import Retriever, Strategy
@@ -155,6 +156,14 @@ def require_real_embedder(embedder: Embedder) -> None:
         )
 
 
+def require_real_reranker(reranker: Reranker) -> None:
+    if reranker.info.is_fake:
+        raise EvaluationConfigurationError(
+            "the configured reranker is fake; eval-retrieval measures quality and "
+            "never runs on a fake reranker."
+        )
+
+
 def require_real_index(identity: IndexIdentity) -> None:
     if identity.embedder_is_fake:
         raise EvaluationConfigurationError(
@@ -193,11 +202,40 @@ def score_distribution(scores: Sequence[float | None]) -> dict[str, float | None
     }
 
 
+def rerank_distribution(scores: Sequence[float | None]) -> dict[str, float | None]:
+    """min, p25, median, p75, max of the cross-encoder top-1 scores (nearest
+    rank); None values when empty. Informational only (Spec 011 R6)."""
+    values = [s for s in scores if s is not None]
+    if not values:
+        return {"min": None, "p25": None, "median": None, "p75": None, "max": None}
+    return {
+        "min": round(min(values), 4),
+        "p25": round(percentile(values, 25), 4),
+        "median": round(percentile(values, 50), 4),
+        "p75": round(percentile(values, 75), 4),
+        "max": round(max(values), 4),
+    }
+
+
+def reranked(result: RetrievalResult) -> bool:
+    """True when the reranking stage ordered this result (not skipped)."""
+    return result.rerank is not None and result.rerank.skipped_reason is None
+
+
+def rerank_top1(result: RetrievalResult) -> float | None:
+    if not reranked(result) or not result.hits:
+        return None
+    return round(result.hits[0].score, 4)
+
+
 def unanswerable_report(
     suite: LoadedSuite,
     results: Sequence[tuple[UnanswerableCase, RetrievalResult]],
     golden_top1: Sequence[float | None],
     score_kind: str | None,
+    *,
+    rerank_requested: bool = False,
+    golden_rerank_top1: Sequence[float | None] = (),
 ) -> dict[str, Any]:
     """Top-1 score per active unanswerable case. Latency is not recorded, so
     p50/p95 of the golden run stay comparable with 1.0. No pass or fail.
@@ -207,15 +245,16 @@ def unanswerable_report(
     rows: list[dict[str, Any]] = []
     for case, result in results:
         score = round(result.hits[0].score, 4) if result.hits else None
-        rows.append(
-            {
-                "case_id": case.case_id,
-                "case_version": case.case_version,
-                "top1_score": score,
-            }
-        )
+        row: dict[str, Any] = {
+            "case_id": case.case_id,
+            "case_version": case.case_version,
+            "top1_score": score,
+        }
+        if rerank_requested:
+            row["rerank_top1_score"] = rerank_top1(result)
+        rows.append(row)
     mixed = score_kind is None
-    return {
+    report = {
         "status": UNANSWERABLE_STATUS,
         "owner": UNANSWERABLE_OWNER,
         "n": len(rows),
@@ -227,6 +266,15 @@ def unanswerable_report(
         "golden_top1_score": None if mixed else score_distribution(golden_top1),
         "cases": rows,
     }
+    if rerank_requested:  # Spec 011 R6: informational, an input for roadmap item 10
+        report["informational"] = True
+        report["rerank_top1_distribution"] = rerank_distribution(
+            [r["rerank_top1_score"] for r in rows]
+        )
+        report["golden_rerank_top1_distribution"] = rerank_distribution(
+            golden_rerank_top1
+        )
+    return report
 
 
 def document_leg_ranks(result: RetrievalResult) -> dict[str, dict[str, int]]:
@@ -297,10 +345,67 @@ def _leg_latency(results: Sequence[RetrievalResult]) -> dict[str, Any] | None:
 
 
 def _path_label(result: RetrievalResult) -> str:
-    """The served path of one result: `<served>` or `<served>+fallback:<reason>`."""
-    if result.fallback_reason is None:
-        return result.strategy
-    return f"{result.strategy}+fallback:{result.fallback_reason}"
+    """The served path of one result: `<served>` or `<served>+fallback:<reason>`,
+    then `+rerank` or `+rerank_skipped:<reason>` when the stage ran (Spec 011)."""
+    label = (
+        result.strategy
+        if result.fallback_reason is None
+        else f"{result.strategy}+fallback:{result.fallback_reason}"
+    )
+    record = result.rerank
+    if record is None:
+        return label
+    if record.skipped_reason is not None:
+        return f"{label}+rerank_skipped:{record.skipped_reason}"
+    return f"{label}+rerank"
+
+
+def relevant_fused_ranks(
+    result: RetrievalResult, relevant: set[str]
+) -> dict[str, int | None] | None:
+    """Document rank of each relevant document before reranking (by the fused
+    chunk rank each reranked hit carries); None when the stage did not run."""
+    if not reranked(result):
+        return None
+    by_fused = sorted(
+        (hit for hit in result.hits if hit.fused_rank is not None),
+        key=lambda hit: hit.fused_rank or 0,
+    )
+    order = dedupe_documents(by_fused)
+    positions = {doc: position for position, doc in enumerate(order, 1)}
+    return {doc: positions.get(doc) for doc in sorted(relevant)}
+
+
+def _rerank_identity(
+    reranker: Reranker | None, depth: int | None
+) -> dict[str, Any] | None:
+    if reranker is None:
+        return None
+    info = reranker.info
+    return {
+        "model_id": info.model_id,
+        "revision": info.revision,
+        "max_length": info.max_length,
+        "is_fake": info.is_fake,
+        "device": reranker.device,
+        "depth": depth,
+    }
+
+
+def _rerank_counts(
+    measured: Sequence[RetrievalResult],
+) -> tuple[dict[str, int], dict[str, int]]:
+    skips: Counter[str] = Counter()
+    pairs = cases = 0
+    for result in measured:
+        record = result.rerank
+        if record is None:
+            continue
+        if record.skipped_reason is not None:
+            skips[f"{record.skipped_reason}:{record.stage}"] += 1
+        pairs += record.truncated_pairs
+        cases += 1 if record.truncated_pairs else 0
+    return dict(sorted(skips.items())), {"pairs": pairs, "cases": cases}
 
 
 def _latency_by_path(
@@ -389,16 +494,29 @@ def run_retrieval_evaluation(
     fusion: FusionConfig | None = None,
     qdrant_timeouts: QdrantTimeouts | None = None,
     lote: ResolvedLote | None = None,
+    rerank_requested: bool = False,
+    reranker: Reranker | None = None,
+    rerank_depth: int | None = None,
+    rerank_load_ms: float | None = None,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
 ) -> dict[str, Any]:
     """Run the active golden cases, then the active unanswerable cases, and return
-    the 2.3 result document. `fusion` is required when `hybrid` is requested and
+    the 2.5 result document. `fusion` is required when `hybrid` is requested and
     recorded when any case was served by `hybrid`. `qdrant_timeouts` is recorded
     as given (`None` for `bm25`).
 
     Unanswerable cases contribute their top-1 score only; their latency is
     excluded from the p50/p95 figures.
+
+    With reranking, `retrieval_depth` is the rerank depth (the stage returns at
+    most that many chunks), `reranker` is the loaded stage reranker (None when a
+    dense outage at open meant it was never loaded) and `rerank_load_ms` is the
+    open-time load, which joins `warmup_ms` and never p50/p95.
     """
+    if reranker is not None and not rerank_requested:
+        raise EvaluationConfigurationError("a reranker was given without rerank.")
+    if rerank_requested and rerank_depth is None:
+        raise EvaluationConfigurationError("reranking needs its rerank depth.")
     require_retrieval_depth(
         k=top_k,
         retrieval_depth=retrieval_depth,
@@ -426,7 +544,7 @@ def run_retrieval_evaluation(
     warm_up = retriever.retrieve(
         cases[0].query, access, retrieval_depth, lote=lote
     )  # unmeasured
-    warmup_ms = (perf_counter() - started) * 1000.0
+    warmup_ms = (perf_counter() - started) * 1000.0 + (rerank_load_ms or 0.0)
     _require_settings_if_dense_served(index_settings, {warm_up.strategy})
     chunker = chunker_for_result(index_settings, lexical)
     # A real BgeM3Embedder reports no device until the model has loaded.
@@ -464,6 +582,12 @@ def run_retrieval_evaluation(
                 "leg_ranks": _leg_ranks_for(result, relevant),
                 "served_strategy": result.strategy,
                 "fallback_reason": result.fallback_reason,
+                "served_path": _path_label(result),
+                "rerank_top1_score": rerank_top1(result),
+                "rerank_truncated_pairs": (
+                    result.rerank.truncated_pairs if result.rerank else None
+                ),
+                "relevant_fused_ranks": relevant_fused_ranks(result, relevant),
             }
         )
         section_rows.append(
@@ -488,12 +612,15 @@ def run_retrieval_evaluation(
         unanswerable_results,
         [r["top1_score"] for r in rows],
         score_kind,
+        rerank_requested=rerank_requested,
+        golden_rerank_top1=[r["rerank_top1_score"] for r in rows],
     )
     for result in measured:
         if result.lexical is not None:
             lexical_identity = lexical_identity or result.lexical
     reasons = Counter(r.fallback_reason for r in measured if r.fallback_reason)
     fallback_counts = dict(sorted(reasons.items()))
+    rerank_skip_counts, rerank_truncation = _rerank_counts(measured)
     by_path = _latency_by_path(results, latencies)
     single_path = len(by_path) == 1
     truncated = (
@@ -539,6 +666,18 @@ def run_retrieval_evaluation(
         "qdrant_timeouts": (
             qdrant_timeouts.model_dump(mode="json") if qdrant_timeouts else None
         ),
+        "rerank_requested": rerank_requested,
+        "rerank": _rerank_identity(reranker, rerank_depth),
+        "rerank_skip_counts": rerank_skip_counts,
+        "rerank_truncation": rerank_truncation,
+        "warmup_rerank_skip": (
+            {
+                "reason": warm_up.rerank.skipped_reason,
+                "stage": warm_up.rerank.stage,
+            }
+            if warm_up.rerank is not None and warm_up.rerank.skipped_reason
+            else None
+        ),
         "dense_identity": identity.model_dump(mode="json"),
         "fusion": (_fusion_report(fusion) if Strategy.HYBRID.value in served else None),
         "lexical_index": _lexical_report(lexical_identity),
@@ -575,6 +714,10 @@ def run_retrieval_evaluation(
             "p95": round(percentile(latencies, 95), 3) if single_path else None,
             "by_served_path": by_path,
             "warmup_ms": round(warmup_ms, 3),
+            "warmup_rerank_load_ms": (
+                round(rerank_load_ms, 3) if rerank_load_ms is not None else None
+            ),
+            "rerank_device": reranker.device if reranker is not None else None,
             "measured_cases": len(rows),
             "legs": _leg_latency(results),
         },

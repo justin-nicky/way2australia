@@ -97,25 +97,25 @@ Allowed protected-path changes: none.
 
 ## T3 — Result 2.5, `eval-retrieval`, `eval-compare` and `eval-continuity`
 
-**State:** not started
+**State:** approved (2026-11-05)
 **Requirements:** R6, R7, R9
 
-- [ ] `evaluation/cli.py`: `--rerank` / `--no-rerank` for `eval-retrieval`. `eval-retrieval` has no fake allowance (it refuses a fake embedder), so a fake reranker (`rerank.provider: fake`) is refused there too (exit 2, before any Qdrant contact); the runner itself accepts an injected `FakeReranker` in unit tests. The reranker load at open is timed and reported as `warmup_rerank_load_ms`, included in `warmup_ms` and excluded from p50/p95 (R6 amendment).
-- [ ] `evaluation/retrieval_eval.py`, `results.py`, `models.py`: result schema 2.5 per design:
+- [x] `evaluation/cli.py`: `--rerank` / `--no-rerank` for `eval-retrieval`. `eval-retrieval` has no fake allowance (it refuses a fake embedder), so a fake reranker (`rerank.provider: fake`) is refused there too (exit 2, before any Qdrant contact); the runner itself accepts an injected `FakeReranker` in unit tests. The reranker load at open is timed and reported as `warmup_rerank_load_ms`, included in `warmup_ms` and excluded from p50/p95 (R6 amendment).
+- [x] `evaluation/retrieval_eval.py`, `results.py`, `models.py`: result schema 2.5 per design:
   - top level `rerank_requested`, `rerank` identity or `null`, `rerank_skip_counts` (`<reason>:<stage>`), `rerank_truncation` (`pairs`, `cases`), `warmup_rerank_skip`;
   - per case `served_path`, `rerank_top1_score`, `rerank_truncated_pairs`, `relevant_fused_ranks`;
   - latency `by_served_path` keyed by `served_path`, `legs.rerank` p50/p95, `rerank_device`;
   - unanswerable `rerank_top1_score` per case, `rerank_top1_distribution` and `golden_rerank_top1_distribution`, `informational: true`;
   - 2.0–2.4 files read with `rerank_requested: false`, `rerank: null`.
-- [ ] `evaluation/compare.py`:
+- [x] `evaluation/compare.py`:
   - refuse a rerank identity difference (enabled vs off, model, revision, depth, `max_length`) unless `COMPARE_ARGS=--cross-rerank`; with it, print the rerank lines and run the existing gate;
   - refuse (exit 2) a file with any skipped query as a reranked base or candidate, naming the skip count;
   - `--cross-rerank` combines with `--cross-index` and `--cross-tokenizer`; each relaxes only its own fields.
-- [ ] `evaluation/continuity.py` (D-C option 1): rerank identity joins the fields that refuse (exit 2); pre-2.5 files read as off; a file with any skip is refused as reranked.
-- [ ] Tests (`test_retrieval_eval.py`, `test_results*.py`, `test_compare.py`, `test_continuity.py`): result 2.5 keys with fake reranker; skip counts by reason and stage; truncation counts; unanswerable distributions; warm-up load excluded from p50/p95; older files load; compare refusals, `--cross-rerank`, flag combinations, skipped-run refusal; continuity refusal and pass for off vs a 2.4 fixture.
-- [ ] `experiments/configs/rerank/retrieval-depth50.yaml`: a copy of `config/retrieval.yaml` with only `rerank.depth: 50` changed (for T5's second arm); a test checks that it differs from the committed config only in `rerank.depth` (and `rerank.enabled`, which T5 may flip in the committed config).
-- [ ] Unit test that fails if `check_applicable` reads any `PointPayload` field besides `document_id` and `lote_languages` (the stage builds a partial payload with `PointPayload.model_construct`) (added 2026-11-05, T2 review F2).
-- [ ] `COMMANDS.md` lines for the new flags are left to T6 (no doc edits here beyond docstrings).
+- [x] `evaluation/continuity.py` (D-C option 1): rerank identity joins the fields that refuse (exit 2); pre-2.5 files read as off; a file with any skip is refused as reranked.
+- [x] Tests (`test_retrieval_eval.py`, `test_results*.py`, `test_compare.py`, `test_continuity.py`): result 2.5 keys with fake reranker; skip counts by reason and stage; truncation counts; unanswerable distributions; warm-up load excluded from p50/p95; older files load; compare refusals, `--cross-rerank`, flag combinations, skipped-run refusal; continuity refusal and pass for off vs a 2.4 fixture.
+- [x] `experiments/configs/rerank/retrieval-depth50.yaml`: a copy of `config/retrieval.yaml` with only `rerank.depth: 50` changed (for T5's second arm); a test checks that it differs from the committed config only in `rerank.depth` (and `rerank.enabled`, which T5 may flip in the committed config).
+- [x] Unit test that fails if `check_applicable` reads any `PointPayload` field besides `document_id` and `lote_languages` (the stage builds a partial payload with `PointPayload.model_construct`) (added 2026-11-05, T2 review F2).
+- [x] `COMMANDS.md` lines for the new flags are left to T6 (no doc edits here beyond docstrings).
 
 Allowed protected-path changes: none.
 

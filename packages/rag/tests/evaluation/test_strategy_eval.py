@@ -82,13 +82,17 @@ def production_chunker():  # noqa: ANN201
 def test_dense_2_2_equals_the_pre_change_2_0_result() -> None:
     before = json.loads(FIXTURE.read_text(encoding="utf-8"))
     after = run_equivalence()
-    assert before["schema_version"] == "2.0" and after["schema_version"] == "2.4"
+    assert before["schema_version"] == "2.0" and after["schema_version"] == "2.5"
     new_row_keys = {
         "query_terms_truncated",
         "leg_ranks",
         "served_strategy",
         "fallback_reason",
         "script_mix",
+        "served_path",
+        "rerank_top1_score",
+        "rerank_truncated_pairs",
+        "relevant_fused_ranks",
     }
     assert len(after["cases"]) == len(before["cases"]) > 0
     for old, new in zip(before["cases"], after["cases"], strict=True):
@@ -276,7 +280,7 @@ def test_2_3_keys_for_each_strategy(
     tmp_path: Path, strategy: Strategy, score_kind: str
 ) -> None:
     doc = run_strategy(tmp_path, strategy)
-    assert doc["schema_version"] == "2.4"
+    assert doc["schema_version"] == "2.5"
     assert doc["metric_unit"] == "distinct_documents"
     assert COMMON_KEYS <= set(doc)
     assert doc["retrieval_strategy"] == strategy.value
@@ -512,7 +516,7 @@ def test_eval_cli_writes_a_2_2_result_without_text(
     assert eval_cli(factory, "--strategy", strategy, "--output", str(out)) == 0
     text = out.read_text(encoding="utf-8")
     doc = json.loads(text)
-    assert doc["schema_version"] == "2.4" and doc["retrieval_strategy"] == strategy
+    assert doc["schema_version"] == "2.5" and doc["retrieval_strategy"] == strategy
     queries = [
         r["query"]
         for kind in ("golden_answerable", "unanswerable_refusal")
@@ -750,7 +754,7 @@ def test_a_2_2_file_reads_with_strategy_and_lexical(tmp_path: Path) -> None:
     path = tmp_path / "r.json"
     path.write_text(json.dumps(doc), encoding="utf-8")
     run_ = read_result(path)
-    assert run_.schema_version == "2.4"
+    assert run_.schema_version == "2.5"
     assert run_.info["retrieval_strategy"] == "hybrid"
     assert run_.info["lexical"]["tokenizer_name"] == "lexical-v2"
     assert len(run_.cases) == len(doc["cases"])
@@ -796,7 +800,7 @@ def test_eval_cli_bm25_needs_neither_qdrant_nor_the_embedder(
     )
     assert code == 0
     doc = json.loads(out.read_text(encoding="utf-8"))
-    assert doc["schema_version"] == "2.4" and doc["retrieval_strategy"] == "bm25"
+    assert doc["schema_version"] == "2.5" and doc["retrieval_strategy"] == "bm25"
     assert doc["index_settings"] is None and doc["device"] is None
     assert doc["document_count"] == manifest_document_count()
     assert doc["embedder_is_fake"] is False

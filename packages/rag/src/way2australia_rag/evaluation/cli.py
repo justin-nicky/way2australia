@@ -45,6 +45,7 @@ from way2australia_rag.evaluation.retrieval_eval import (
     ingestion_config_report,
     require_active_suite,
     require_real_embedder,
+    require_real_reranker,
     run_retrieval_evaluation,
 )
 from way2australia_rag.evaluation.security_corpus import SCHEMA as SECURITY_SCHEMA
@@ -82,6 +83,8 @@ from way2australia_rag.repositories import (
     LocalRepositoryConfig,
     list_eligible_documents,
 )
+from way2australia_rag.rerank.base import Reranker
+from way2australia_rag.rerank.build import build_reranker
 from way2australia_rag.retrieval.access import guest_access, resolve_access
 from way2australia_rag.retrieval.applicability import resolve_lote
 from way2australia_rag.retrieval.base import Strategy
@@ -92,7 +95,7 @@ from way2australia_rag.retrieval.retriever import (
     MAX_TOP_K,
     MIN_TOP_K,
 )
-from way2australia_rag.retrieval.strategy import load_retrieval_config
+from way2australia_rag.retrieval.strategy import RerankConfig, load_retrieval_config
 from way2australia_rag.retrieval.text import safe_text
 
 EXIT_OK = 0
@@ -105,6 +108,7 @@ DEFAULT_RETRIEVAL_CONFIG = "config/retrieval.yaml"
 log = logging.getLogger(__name__)
 
 EmbedderFactory = Callable[[IngestionConfig, str], Embedder]
+RerankerFactory = Callable[[RerankConfig, str | None], Reranker]
 
 
 def _validate(repo_root: Path) -> int:
@@ -155,6 +159,40 @@ def _unanswerable_line(report: dict[str, Any]) -> str:
         f"n={report['n']}, top-1 score min/p50/p95/max "
         f"{fmt(report['top1_score'])} vs golden {fmt(report['golden_top1_score'])}"
     )
+
+
+def _rerank_lines(document: dict[str, Any]) -> list[str]:
+    identity = document["rerank"]
+    if not document["rerank_requested"]:
+        return ["rerank: off"]
+    if identity is None:
+        return ["rerank: requested but not loaded (served without the reranker)"]
+    latency = document["latency_ms"]
+    lines = [
+        f"rerank: {identity['model_id']}@{str(identity['revision'])[:7]} "
+        f"depth {identity['depth']} max_length {identity['max_length']} "
+        f"(fake={str(identity['is_fake']).lower()}, "
+        f"device={identity['device'] or 'unknown'})"
+    ]
+    if latency.get("warmup_rerank_load_ms") is not None:
+        lines.append(
+            f"rerank load {latency['warmup_rerank_load_ms']:.1f} ms "
+            "(in warm-up, excluded from p50/p95)"
+        )
+    leg = (latency.get("legs") or {}).get("rerank")
+    if leg:
+        lines.append(f"rerank leg p50 {leg['p50']:.1f} ms, p95 {leg['p95']:.1f} ms")
+    skips = document["rerank_skip_counts"]
+    if skips:
+        counts = ", ".join(f"{k}: {v}" for k, v in sorted(skips.items()))
+        lines.append(f"rerank skipped (measured queries): {counts}")
+    truncation = document["rerank_truncation"]
+    if truncation["pairs"]:
+        lines.append(
+            f"rerank truncated pairs: {truncation['pairs']} in "
+            f"{truncation['cases']} query(ies)"
+        )
+    return lines
 
 
 def format_summary(document: dict[str, Any], output: Path, repo_root: Path) -> str:
@@ -235,6 +273,7 @@ def format_summary(document: dict[str, Any], output: Path, repo_root: Path) -> s
                 f"latency {path}: p50 {value['p50']:.1f} ms, p95 "
                 f"{value['p95']:.1f} ms, n={value['n']}{note}"
             )
+    lines.extend(_rerank_lines(document))
     lines += [
         _unanswerable_line(document["unanswerable"]),
         f"result: {shown}",
@@ -247,6 +286,7 @@ def _retrieval(
     args: argparse.Namespace,
     client_factory: ClientFactory | None,
     embedder_factory: EmbedderFactory,
+    reranker_factory: RerankerFactory = build_reranker,
 ) -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stderr)
     logging.getLogger("httpx").setLevel(logging.WARNING)  # request lines carry URLs
@@ -266,6 +306,13 @@ def _retrieval(
             args.retrieval_config or repo_root / DEFAULT_RETRIEVAL_CONFIG
         )
         strategy = Strategy(args.strategy or retrieval_config.default_strategy)
+        rerank = retrieval_config.rerank.enabled if args.rerank is None else args.rerank
+        if rerank and retrieval_config.rerank.provider == "fake":
+            # Before any Qdrant contact: a quality run never uses a fake reranker.
+            raise EvaluationConfigurationError(
+                "rerank.provider is 'fake'; eval-retrieval measures quality and "
+                "never runs on a fake reranker."
+            )
         # 2. suite; only an active suite is evaluated
         suite = load_suite(repo_root, args.suite)
         require_active_suite(suite)
@@ -288,6 +335,11 @@ def _retrieval(
             require_real_embedder(built)
             return built
 
+        def real_reranker_factory(cfg: RerankConfig, name: str | None) -> Reranker:
+            built = reranker_factory(cfg, name)
+            require_real_reranker(built)
+            return built
+
         opened = open_retrieval(
             strategy,
             settings=settings,
@@ -297,6 +349,8 @@ def _retrieval(
             repo_root=repo_root,
             client_factory=client_factory,
             embedder_factory=real_embedder_factory,
+            rerank=rerank,
+            reranker_factory=real_reranker_factory,
         )
         identity = opened.identity
         # 6. the one server-resolved access
@@ -319,7 +373,12 @@ def _retrieval(
             suite=suite,
             release_id=release_id,
             top_k=args.top_k,
-            retrieval_depth=retrieval_config.fusion.candidate_depth,
+            # The stage returns at most `rerank.depth` chunks.
+            retrieval_depth=(
+                retrieval_config.rerank.depth
+                if rerank
+                else retrieval_config.fusion.candidate_depth
+            ),
             chunks_per_document=opened.chunks_per_document(),
             ingestion_config=ingestion_config_report(config_path, repo_root),
             authorities=authorities,
@@ -330,6 +389,10 @@ def _retrieval(
                 None if strategy == Strategy.BM25 else retrieval_config.qdrant
             ),
             lote=lote,
+            rerank_requested=rerank,
+            reranker=opened.reranker,
+            rerank_depth=retrieval_config.rerank.depth if rerank else None,
+            rerank_load_ms=opened.rerank_load_ms,
             clock=lambda: now,
         )
         write_document(output, document)
@@ -525,6 +588,7 @@ def _compare(args: argparse.Namespace) -> int:
             candidate,
             cross_index=args.cross_index,
             cross_tokenizer=args.cross_tokenizer,
+            cross_rerank=args.cross_rerank,
         )
     except EvaluationError as error:
         print(safe_text(error), file=sys.stderr)
@@ -541,6 +605,7 @@ def main(
     *,
     client_factory: ClientFactory | None = None,
     embedder_factory: EmbedderFactory = build_embedder,
+    reranker_factory: RerankerFactory = build_reranker,
 ) -> int:
     parser = argparse.ArgumentParser(
         prog="evaluation", description="Way2Australia evaluation tools."
@@ -589,6 +654,16 @@ def main(
         default=None,
         help="CCL language code (active product_support code, not en)",
     )
+    group = retrieval.add_mutually_exclusive_group()
+    group.add_argument(
+        "--rerank",
+        dest="rerank",
+        action="store_const",
+        const=True,
+        default=None,
+        help="rerank hybrid results (default: rerank.enabled in the config)",
+    )
+    group.add_argument("--no-rerank", dest="rerank", action="store_const", const=False)
     security = commands.add_parser(
         "security",
         help="authorization hard gate on a throwaway in-memory index",
@@ -629,6 +704,12 @@ def main(
             "chunk_count match"
         ),
     )
+    compare_cmd.add_argument(
+        "--cross-rerank",
+        action="store_true",
+        help="allow rerank identity (enabled, model, revision, depth, max_length) "
+        "to differ",
+    )
     args = parser.parse_args(argv)
     if args.command == "compare":
         return _compare(args)
@@ -636,7 +717,7 @@ def main(
         return _validate(args.repo_root.resolve())
     if args.command == "security":
         return _security(args)
-    return _retrieval(args, client_factory, embedder_factory)
+    return _retrieval(args, client_factory, embedder_factory, reranker_factory)
 
 
 if __name__ == "__main__":

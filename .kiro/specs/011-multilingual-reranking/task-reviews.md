@@ -122,3 +122,79 @@
 
 ### User decision (2026-11-05)
 - Approved (verbatim): "T2 approved. F1: accepted. The membership re-check (every returned hit equals exactly one fused candidate that the legs passed through `check_hit`, ignoring only rank/score fields, no duplicates, then `check_applicable` with a `lote`) replaces "run `check_hit` on every returned hit". Route it to `spec-planner` now, before T3: one dated change-log line amending R4, design step 7 and the T2 box, citing this decision. T4's defective-stage harness uses the same wording. F2: leave the code. Note it in the T6 As-built notes with T1 F2, and add a box to T3: a unit test that fails if `check_applicable` reads any `PointPayload` field besides `document_id` and `lote_languages`."
+
+
+## T3 — round 1
+
+### Implementation
+- Model: claude-sonnet-5-5 (Sonnet 5.5), run as a subagent; intended tier BEST_MINUS_ONE per `agent-skills/MODEL_PREFERENCES.md`, tier match not checked against the table.
+- Files changed:
+  - `evaluation/results.py`: `SCHEMA_VERSION` 2.5; 2.4 and 2.5 readable; `DISTINCT_VERSIONS` (2.3, 2.4, 2.5) so the 2.3-and-later family compares as one; 2.5 files must carry `rerank_requested`, `rerank` (with `model_id`, `revision`, `depth`, `max_length`) and `rerank_skip_counts` or are refused as malformed; older files read as not reranked (`info["rerank"]` None, `rerank_skips` 0); `lote` read for 2.4 and 2.5.
+  - `evaluation/retrieval_eval.py`: result 2.5 per design (top-level `rerank_requested`, `rerank`, `rerank_skip_counts` as `<reason>:<stage>`, `rerank_truncation`, `warmup_rerank_skip`; per case `served_path`, `rerank_top1_score`, `rerank_truncated_pairs`, `relevant_fused_ranks`; latency `by_served_path` keyed by served path, `legs.rerank`, `warmup_rerank_load_ms`, `rerank_device`; unanswerable `rerank_top1_score`, `rerank_top1_distribution`, `golden_rerank_top1_distribution`, `informational`, written only when reranking was requested); `require_real_reranker`; `warmup_ms` includes the open-time load.
+  - `evaluation/cli.py`: `--rerank` / `--no-rerank` (mutually exclusive) on `retrieval`; `--cross-rerank` on `compare`; reranker factory wrapper refuses a fake reranker, and a config `rerank.provider: fake` is refused before any Qdrant contact (exit 2); with reranking the runner's `retrieval_depth` is `rerank.depth`; summary lines for rerank identity, load, leg latency, skips, truncation.
+  - `evaluation/compare.py`: rerank identity refusal unless `--cross-rerank` (prints `cross-rerank:` lines, then the existing gate), skipped-run refusal naming the count (always, with or without the flag), combination with `--cross-index` / `--cross-tokenizer` (each relaxes only its own fields).
+  - `evaluation/continuity.py`: rerank identity and skipped-run refusals (D-C option 1).
+  - `retrieval/opening.py`: `OpenedRetrieval.rerank_load_ms` (timing around `_load_reranker` only).
+  - `experiments/configs/rerank/retrieval-depth50.yaml` (copy of `config/retrieval.yaml`, only `rerank.depth: 50`).
+  - Tests: new `tests/evaluation/test_rerank_eval.py` (32 tests: result 2.5 keys, skip counts, truncation, warm-up load excluded from p50/p95, unanswerable distributions, off run, older files, compare refusals, `--cross-rerank`, flag combinations, skipped-run refusal, continuity, CLI fake refusal, depth-50 config, `check_applicable` field-read spy). Format-only edits: `test_compare.py` (`doc23` gains the three 2.5 keys), `test_retrieval_eval.py` and `test_strategy_eval.py` (`"2.4"` -> `"2.5"`; new per-case keys added to the equivalence test's new-key set).
+  - `graphify-out/*` refreshed; no doc edits (COMMANDS.md left to T6).
+- Verification run:
+  - targeted `pytest` on `tests/evaluation` and `tests/retrieval` during iteration; `make lint typecheck` clean;
+  - `HF_HUB_OFFLINE=1 HF_HOME=$(mktemp -d) make verify` (the single run) -> 1410 passed, 3 skipped;
+  - `git status --porcelain -- evaluation knowledge config` -> empty; `graphify update .` run;
+  - the `--rerank` + `rerank.provider: fake` refusal is covered by `test_cli_refuses_a_fake_reranker_before_any_qdrant_contact` (exit 2, stderr "the configured ... fake reranker"; client factory raises if called; no output file). Refusal text: "rerank.provider is 'fake'; eval-retrieval measures quality and never runs on a fake reranker."
+  - Not run: `make test-integration` (T3 does not require it; no Docker code touched); the real embedder and reranker; no `w2a-realcheck-*` / `way2australia-*` collection touched.
+- Notes and deviations:
+  - State was set once, directly to `in task review (round 1)` (I did not set `implementing (round 1)` first).
+  - **Compare family fix.** `compare.py` used `SCHEMA_VERSION` as "the distinct-document format", which the 2.4 bump (Spec 010) had already left meaning only 2.4. Bumping to 2.5 would have refused a 2.5 arm against the 2.4 hybrid reference (T5's comparison) through the format rule. Replaced by `DISTINCT_VERSIONS` (2.3, 2.4, 2.5). Side effect: 2.3 vs 2.4/2.5 now compare as one family; the previous behaviour for 2.3 vs 2.4 was the same defect. Reviewer to confirm.
+  - With reranking, the runner's depth is `rerank.depth` (the stage returns at most that many chunks and `top_k > depth` raises); `require_retrieval_depth` therefore checks distinct-document depth against `rerank.depth`. The runner's `retrieval_depth` field records it.
+  - Skip counts, truncation and the unanswerable distributions cover all measured queries (goldens plus unanswerable, like `fallback_counts`); a warm-up-only skip is reported in `warmup_rerank_skip` and does not make the file "skipped" for compare.
+  - `rerank_requested: true` with a dense outage at open: the reranker is built but never loaded, `opened.reranker` is None, so `rerank` is null and BM25 serves; compare sees it as not reranked (the strategy differs anyway).
+  - Distribution keys are `min, p25, median, p75, max` per the design (the dense `top1_score` block keeps `min, p50, p95, max`).
+  - Rerank keys in the unanswerable block appear only when reranking was requested, so a reranking-off result keeps its previous unanswerable block byte for byte.
+  - `relevant_fused_ranks` is computed from the reranked hits' `fused_rank` (all candidates come back because `top_k == depth`); null when the stage did not run or skipped.
+- Usage: 233K tokens · 62 tool uses · 19:36
+
+### Review
+- Model: claude-opus-5-5 (Opus 5.5), run as a subagent; matches the BEST tier (`Opus`) in `agent-skills/MODEL_PREFERENCES.md`; differs from the implementer's model (Sonnet 5.5).
+- Verdict: PASS
+- Commands:
+  - `HF_HUB_OFFLINE=1 HF_HOME=$(mktemp -d) uv run pytest -q packages/rag/tests/evaluation/` → 400 passed;
+  - `HF_HUB_OFFLINE=1 HF_HOME=$(mktemp -d) make verify` (the reviewer's single run) → pass (lint, format, typecheck clean; 1410 passed, 3 skipped);
+  - `QDRANT_URL=http://127.0.0.1:1 make eval-retrieval EVAL_ARGS="--rerank --retrieval-config <scratch copy of config/retrieval.yaml with provider: fake> --output experiments/results/tmp/t3-review-fake.json"` → exit 2, `EvaluationConfigurationError: rerank.provider is 'fake'; eval-retrieval measures quality and never runs on a fake reranker.`; no output file written (closed port, so no Qdrant contact was possible either);
+  - `git status --porcelain -- evaluation/ knowledge/ config/` → empty (allowed: none);
+  - unchanged-code list: `git diff HEAD --stat` on `retrieval/{fusion,hybrid,fallback,retriever,bm25,access,applicability,index,availability}.py`, `lexical/`, `ingestion/` → empty;
+  - `diff config/retrieval.yaml experiments/configs/rerank/retrieval-depth50.yaml` → only line 19, `depth: 20` → `depth: 50`;
+  - scratch check (outside the repo): the `_FieldSpy` test, run against a `check_applicable` variant that also reads `payload.access_scope`, records the read and raises `KeyError`, which the test does not catch, so the test fails as required;
+  - scratch check: 2.3 vs 2.4, 2.3 vs 2.5 and 2.4 vs 2.5 fixtures compare, and a chunker difference is refused in each pair;
+  - `make test-integration` not run (T3 does not require it; no Docker code changed). Real embedder and reranker not run; no `w2a-realcheck-*` / `way2australia-*` collection touched; nothing written under `experiments/results/`.
+- Existing-test edits: `test_compare.py` (`doc23` gains the three 2.5 keys), `test_retrieval_eval.py` and `test_strategy_eval.py` (`"2.4"` → `"2.5"`, four new per-case keys in the equivalence test's new-key set). No rank, score, document ID or ordering assertion changed. 2.0–2.4 files still load (existing reader tests pass; `test_a_2_4_file_reads_as_not_reranked`).
+- Implementer's declared decisions:
+  1. `DISTINCT_VERSIONS` (2.3, 2.4, 2.5) in `compare.py`: in scope and safe. It is required for T5 (a 2.5 arm against the 2.4 hybrid reference would otherwise hit the format rule on idx-v2, `max_chunks_per_document` 4). At HEAD, 2.3 vs 2.4 was refused by the format rule for multi-chunk files ("re-run both with result 2.3"), was refused under `--cross-index`, and skipped the chunker and `metric_unit` checks: a latent Spec 010 defect from the 2.4 bump. 2.3 and 2.4 are additive formats, so treating 2.3+ as one family is the correct reading; the new behaviour is stricter where it matters (chunker identity now checked). See F1.
+  2. Retrieval depth `rerank.depth` when reranking: consistent with the design (stage returns at most `rerank.depth`; `top_k > rerank.depth` is refused), and `relevant_fused_ranks` depends on every candidate coming back. The distinct-document depth check therefore applies to the depth actually ranked (idx-v2 `required_depth` 17 ≤ 20).
+  3. Skip counts, truncation and unanswerable distributions over goldens plus unanswerable: consistent with R6/R7 and with `fallback_counts` (81 = 69 + 12). A warm-up-only skip is not a measured query; an open-stage skip is sticky (D-A), so it always appears in the measured counts and the file is refused. Consistent. See F3.
+  4. Fake reranker refused before any Qdrant contact: confirmed by the test (client factory raises if called) and by the closed-port `make` run; a built reranker with `is_fake` is refused again in the factory wrapper.
+  5. State set directly to `in task review (round 1)`: see F4.
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R7] The `DISTINCT_VERSIONS` change alters 2.3 vs 2.4 behaviour (multi-chunk files now compare; chunker and `metric_unit` checks now run) but no test pins 2.3 vs 2.4/2.5 with `max_chunks_per_document > 1`, and the spec does not mention it. → T6: record it in the design As-built notes (and a decision line if the user wants); optionally a small test.
+  - F2 [MINOR, IMPLEMENTATION, R6] The runner tests drive a scripted `Reranked` wrapper over the dense retriever, not `RerankingRetriever` over hybrid, and the `eval-retrieval` CLI path with reranking on (depth selection, `rerank_load_ms` pass-through, `_rerank_lines` summary) has no test; only the fake refusal is tested. Read correct by inspection; T5's real run would be its first end-to-end exercise. → optional test through `cli.main` with a non-fake stub reranker on `QdrantClient(":memory:")`, or accept.
+  - F3 [MINOR, IMPLEMENTATION, R6] `rerank_truncation.cases` and `rerank_skip_counts` count unanswerable queries too, while per-case rows exist only for goldens, so `cases` can exceed the rows that show truncation. Consistent with `fallback_counts`; → T6 `COMMANDS.md` states "measured queries (goldens plus unanswerable)".
+  - F4 [MINOR, IMPLEMENTATION, process] The task skipped `implementing (round 1)` (WORKFLOW.md task states). No effect on the work.
+- Summary for user (PASS only):
+  - Changed: `make eval-retrieval` writes result 2.5 (rerank identity, skip counts by reason and stage, truncation, per-case served path, cross-encoder top-1, fused ranks beside reranked ranks, rerank leg latency, reranker load inside warm-up, informational unanswerable distributions) and takes `--rerank` / `--no-rerank`; a fake reranker is refused (exit 2) before Qdrant is contacted. `make eval-compare` refuses a rerank difference unless `--cross-rerank`, and always refuses a reranked file with skipped queries; `make eval-continuity` refuses both (D-C). New `experiments/configs/rerank/retrieval-depth50.yaml` for T5's second arm.
+  - Verified by: 400 evaluation tests, one hub-free `make verify` (1410 passed, 3 skipped), the fake-provider `make eval-retrieval` refusal (exit 2) on a closed Qdrant port, protected-path and unchanged-code checks empty.
+  - Worth your attention: F1, the compare format family is now "2.3 and later", which also fixes 2.3 vs 2.4 compares that Spec 010 left refused for multi-chunk files; please accept it for the T6 As-built notes. With reranking on, the run's `retrieval_depth` is `rerank.depth` (20), not 50. F2: the CLI's reranking-on path is first exercised end to end by your T5 run.
+  - Reading order (follow the flow: entry point → core logic → models/errors/config → tests):
+    1. `packages/rag/src/way2australia_rag/evaluation/cli.py` → `_retrieval`, `_rerank_lines`, `main`: flags, fake refusal, depth choice, summary lines, `--cross-rerank`.
+    2. `packages/rag/src/way2australia_rag/retrieval/opening.py` → `open_retrieval`: `rerank_load_ms` timing around the load.
+    3. `packages/rag/src/way2australia_rag/evaluation/retrieval_eval.py` → `run_retrieval_evaluation`, `_path_label`, `relevant_fused_ranks`, `_rerank_counts`, `unanswerable_report`: the 2.5 document.
+    4. `packages/rag/src/way2australia_rag/evaluation/results.py` → `read_result`, `_rerank_fields`, `DISTINCT_VERSIONS`: reading 2.0–2.5.
+    5. `packages/rag/src/way2australia_rag/evaluation/compare.py` → `_refusals`, `rerank_identity`, `skipped_rerank_problems`, `_format_rule_problem`: refusals and the format family.
+    6. `packages/rag/src/way2australia_rag/evaluation/continuity.py` → `_identity_refusals`: D-C.
+    7. `experiments/configs/rerank/retrieval-depth50.yaml`: T5 arm config.
+    8. `packages/rag/tests/evaluation/test_rerank_eval.py`: result keys, compare and continuity refusals, CLI refusal, depth-50 config, `check_applicable` field-read spy.
+    9. Supporting edits: format-only changes in `test_compare.py`, `test_retrieval_eval.py`, `test_strategy_eval.py`; `tasks.md` boxes and State.
+- Usage: 174K tokens · 39 tool uses · 11:54
+
+### User decision (2026-11-05)
+- Approved (verbatim): "T3 approved. Add two boxes to T4 (tests only, reviewed with T4): F2: a CLI test of `make eval-retrieval --rerank` through `RerankingRetriever` over hybrid with a stub reranker injected at the factory: depth selection (`rerank.depth` as retrieval depth), `rerank_load_ms` inside warm-up and out of p50/p95, served path per case, the rerank output lines, and a clean 2.5 file. T5 must not be the first end-to-end run of this path. F1: an `eval-compare` test for a 2.3/2.4/2.5 pair with `max_chunks_per_document > 1` (the `DISTINCT_VERSIONS` change), including that a chunker difference is still refused. T6 As-built notes: F1 (the compare family is now 2.3 and later; fixes the Spec 010 multi-chunk refusal), F3 ("measured queries (goldens plus unanswerable)" in `COMMANDS.md`), that a reranked run's `retrieval_depth` is the rerank depth while each leg still fetches 50, and T1 F2 and T2 F2. F4: process only, no action."
