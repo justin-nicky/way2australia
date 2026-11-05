@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-11-05 (Spec 011 T1–T2 approved on `spec/011`; D073–D074)
+Last updated: 2026-11-05 (Spec 011 T1–T4 approved on `spec/011`; D073–D074)
 
 ## Current phase
 
@@ -12,7 +12,7 @@ Spec 001 project foundation is complete.
 
 ## Current goal
 
-Specs **001–010** are **verified on `main`** (Spec 010 merged 2026-11-04, fast-forward to **`cae06c3`**). Default production index **`idx-v2`** / recursive 128+title (D071): run **`make ingest`**, then **`make index-lexical`** with default **`lexical-v2`** tokenizer (D072; settings 1.2; rebuild once if upgrading from 1.1 for `--lote`). Hybrid default retrieval needs the lexical file. Ignored stale `knowledge_release_id` / `evaluation_suite_id` keys remain on the promoted yaml until the next `index_version` (D071 carry-over). Verify-budget hook in-repo (**D073**); pytest-xdist **not** adopted for default verify (**D074**); follow-up **`pytest --durations=25`** still open. **Spec 011** (roadmap item 9, multilingual reranking; context building deferred to item 10) is **planned and approved** (requirements, design, tasks 2026-11-04) on branch **`spec/011`** (base `3b81508`); no task started. **Spec 011 progress (2026-11-05):** T1 (reranker contract, adapters, config; revision `953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e`) and T2 (`RerankingRetriever`, skip policy, `--rerank`) approved; R4 re-check amended to membership wording. **Next:** T3 (result 2.5, compare). **No HTTP-route spec yet:** Spec 008 serving items belong with roadmap **item 10 (grounded generation)**. Repository-based shared context keeps Codex, Claude Code, Cursor and Kiro interchangeable (D063).
+Specs **001–010** are **verified on `main`** (Spec 010 merged 2026-11-04, fast-forward to **`cae06c3`**). Default production index **`idx-v2`** / recursive 128+title (D071): run **`make ingest`**, then **`make index-lexical`** with default **`lexical-v2`** tokenizer (D072; settings 1.2; rebuild once if upgrading from 1.1 for `--lote`). Hybrid default retrieval needs the lexical file. Ignored stale `knowledge_release_id` / `evaluation_suite_id` keys remain on the promoted yaml until the next `index_version` (D071 carry-over). Verify-budget hook in-repo (**D073**); pytest-xdist **not** adopted for default verify (**D074**); follow-up **`pytest --durations=25`** still open. **Spec 011** (roadmap item 9, multilingual reranking; context building deferred to item 10) is **planned and approved** (requirements, design, tasks 2026-11-04) on branch **`spec/011`** (base `3b81508`); no task started. **Spec 011 progress (2026-11-05):** T1 (reranker contract, adapters, config; revision `953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e`), T2 (`RerankingRetriever`, skip policy, `--rerank`), T3 (result 2.5, compare, continuity) and T4 (security gate, eight paths, security 1.5) approved; R4 re-check amended to membership wording. **Next:** T5 (user-owned real runs and promotion decision), then T6. **No HTTP-route spec yet:** Spec 008 serving items belong with roadmap **item 10 (grounded generation)**. Repository-based shared context keeps Codex, Claude Code, Cursor and Kiro interchangeable (D063).
 
 ## Finalized high-level decisions
 
