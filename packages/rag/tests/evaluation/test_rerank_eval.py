@@ -456,3 +456,69 @@ def test_check_applicable_reads_only_the_two_fields_the_stage_builds(
     except LanguageApplicabilityError:
         pass
     assert spy.reads <= {"document_id", "lote_languages"}  # type: ignore[attr-defined]
+
+
+# ---- eval-compare over the 2.3 / 2.4 / 2.5 family with several chunks per document
+
+
+MULTI_CHUNK = {
+    "chunk_count": 34,
+    "document_count": 13,
+    "max_chunks_per_document": 4,
+    "required_depth": 17,
+}
+RECURSIVE_CHUNKER = {
+    "name": "recursive",
+    "version": "1",
+    "params": {"target_tokens": 128, "overlap_tokens": 16, "context_prefix": "title"},
+    "tokenizer": "bge-m3@5617a9f",
+}
+
+
+def multi_chunk(version: str, **over: Any) -> dict[str, Any]:
+    """A result of the given 2.3 to 2.5 version with several chunks per document."""
+    document = doc23(n=10, schema_version=version, chunk_stats=MULTI_CHUNK, **over)
+    if version in ("2.3", "2.4"):
+        for key in ("rerank_requested", "rerank", "rerank_skip_counts"):
+            del document[key]
+    return document
+
+
+@pytest.mark.parametrize(
+    ("base_v", "cand_v"), [("2.3", "2.4"), ("2.3", "2.5"), ("2.4", "2.5")]
+)
+def test_a_multi_chunk_pair_across_2_3_2_4_2_5_compares_without_cross_index(
+    tmp_path: Path, base_v: str, cand_v: str
+) -> None:
+    result = go(tmp_path, multi_chunk(base_v), multi_chunk(cand_v))
+    assert result.passed
+
+
+@pytest.mark.parametrize(
+    ("base_v", "cand_v"), [("2.3", "2.4"), ("2.3", "2.5"), ("2.4", "2.5")]
+)
+def test_a_chunker_difference_is_still_refused_in_every_multi_chunk_pair(
+    tmp_path: Path, base_v: str, cand_v: str
+) -> None:
+    with pytest.raises(NotComparableError) as info:
+        go(
+            tmp_path,
+            multi_chunk(base_v),
+            multi_chunk(cand_v, chunker=RECURSIVE_CHUNKER),
+        )
+    assert "chunker changed heading 1 -> recursive 1" in str(info.value)
+
+
+def test_a_multi_chunk_reranked_2_5_arm_compares_with_a_2_4_reference(
+    tmp_path: Path,
+) -> None:
+    arm = multi_chunk("2.5", retrieval_depth=20)
+    arm["rerank_requested"] = True
+    arm["rerank"] = with_rerank()["rerank"]
+    with pytest.raises(NotComparableError, match="--cross-rerank"):
+        go(tmp_path, multi_chunk("2.4"), arm)
+    assert go(tmp_path, multi_chunk("2.4"), arm, cross_rerank=True).passed
+    # a chunker difference is still refused when the rerank difference is allowed
+    other = {**arm, "chunker": RECURSIVE_CHUNKER}
+    with pytest.raises(NotComparableError, match="chunker changed"):
+        go(tmp_path, multi_chunk("2.4"), other, cross_rerank=True)

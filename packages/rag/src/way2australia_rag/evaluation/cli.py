@@ -552,6 +552,18 @@ def format_security_summary(document: dict[str, Any], shown: Path) -> str:
         )
         lines.append(f"  paths: {', '.join(run['paths'])}")
         lines.append(f"  strategies: {', '.join(run['strategies'])}")
+        for path, detail in (run.get("path_details") or {}).items():
+            reranker = detail["reranker"]
+            skip = detail["skip"]
+            lines.append(
+                f"  {path}: fake reranker {reranker['model_id']} "
+                f"(depth {detail['depth']}); "
+                + (
+                    "no skip"
+                    if skip is None
+                    else f"skip {skip['reason']} at {skip['stage']}"
+                )
+            )
         for key, label in (
             ("authorization_violations", "AUTH"),
             ("applicability_violations", "APPLIC"),

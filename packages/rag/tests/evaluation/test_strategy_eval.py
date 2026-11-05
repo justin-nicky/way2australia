@@ -8,6 +8,7 @@ import asyncio
 import json
 import re
 from pathlib import Path
+from time import sleep
 from typing import Any
 
 import pytest
@@ -41,6 +42,7 @@ from way2australia_rag.repositories import (
     LocalRepositoryConfig,
 )
 from way2australia_rag.repositories.hashing import HASH_CONTRACT
+from way2australia_rag.rerank.fake import FakeReranker
 from way2australia_rag.retrieval import cli as retrieve_cli
 from way2australia_rag.retrieval.base import Strategy
 from way2australia_rag.retrieval.identity import IndexIdentity
@@ -614,6 +616,103 @@ def test_eval_cli_still_refuses_a_fake_embedder(
         ).FakeEmbedder(),
     )
     assert code == 2 and factory.calls == 0 and not out.exists()
+
+
+# ---- eval-retrieval --rerank through RerankingRetriever over hybrid (Spec 011 T4) ----
+
+
+class _RealStubReranker(FakeReranker):
+    """A non-fake reranker identity over the deterministic fake scores, with a
+    measurable load time. Injected at the CLI's reranker factory."""
+
+    LOAD_SECONDS = 0.4
+
+    def __init__(self) -> None:
+        super().__init__(model_id="stub-reranker", revision="a" * 40)
+        self.info = self.info.model_copy(update={"is_fake": False})
+
+    def load(self) -> None:
+        if not self._loaded:
+            sleep(self.LOAD_SECONDS)
+        super().load()
+
+
+def test_eval_cli_rerank_runs_the_stage_over_hybrid_end_to_end(
+    tmp_path: Path, lexical_env: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from way2australia_rag.retrieval.reranking import RerankingRetriever
+
+    factory = eval_world(lexical_env, "hybrid")
+    built: list[_RealStubReranker] = []
+    stages: list[RerankingRetriever] = []
+
+    def reranker_factory(config: Any, provider: str | None) -> _RealStubReranker:
+        reranker = _RealStubReranker()
+        built.append(reranker)
+        return reranker
+
+    real_init = RerankingRetriever.__init__
+
+    def spying_init(self: RerankingRetriever, *args: Any, **kwargs: Any) -> None:
+        real_init(self, *args, **kwargs)
+        stages.append(self)
+
+    out = tmp_path / "r.json"
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(RerankingRetriever, "__init__", spying_init)
+        code = cli.main(
+            [
+                "retrieval",
+                "--repo-root",
+                str(REPO_ROOT),
+                "--strategy",
+                "hybrid",
+                "--rerank",
+                "--output",
+                str(out),
+            ],
+            client_factory=factory,
+            embedder_factory=lambda config, provider: RealStub(),
+            reranker_factory=reranker_factory,
+        )
+    assert code == 0
+    # the production composition: one stage over hybrid, one reranker, loaded once
+    assert len(stages) == 1 and len(built) == 1
+    assert built[0].load_calls >= 1
+    depth = RETRIEVAL_CONFIG.rerank.depth
+    assert stages[0]._depth == depth  # noqa: SLF001
+    doc = json.loads(out.read_text(encoding="utf-8"))
+    # a clean 2.5 file that older tools can read
+    assert doc["schema_version"] == "2.5"
+    read_result(out)
+    assert doc["rerank_requested"] is True
+    assert doc["rerank"]["model_id"] == "stub-reranker"
+    assert doc["rerank"]["is_fake"] is False and doc["rerank"]["depth"] == depth
+    assert doc["rerank_skip_counts"] == {} and doc["warmup_rerank_skip"] is None
+    assert doc["fallback_counts"] == {}
+    assert doc["retrieval_strategy"] == "hybrid"
+    # depth selection: rerank.depth is the retrieval depth of the run
+    assert doc["retrieval_depth"] == depth
+    # served path per case
+    assert doc["cases"] and {c["served_path"] for c in doc["cases"]} == {
+        "hybrid+rerank"
+    }
+    assert all(c["rerank_top1_score"] is not None for c in doc["cases"])
+    # the load is inside warm-up and outside p50/p95
+    latency = doc["latency_ms"]
+    load_ms = _RealStubReranker.LOAD_SECONDS * 1000.0
+    assert latency["warmup_rerank_load_ms"] >= load_ms * 0.9
+    assert latency["warmup_ms"] >= latency["warmup_rerank_load_ms"]
+    assert latency["p95"] < load_ms
+    assert latency["legs"]["rerank"]["p95"] < load_ms
+    assert list(latency["by_served_path"]) == ["hybrid+rerank"]
+    # the rerank output lines
+    shown = capsys.readouterr().out
+    assert f"rerank: stub-reranker@{'a' * 7} depth {depth}" in shown
+    assert "(fake=false, device=fake)" in shown
+    assert "in warm-up, excluded from p50/p95" in shown
+    assert "rerank leg p50" in shown
+    assert str(tmp_path) not in out.read_text(encoding="utf-8")
 
 
 # ---- make retrieve ------------------------------------------------------------

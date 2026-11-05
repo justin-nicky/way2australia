@@ -35,9 +35,11 @@ from way2australia_rag.evaluation.security_corpus import (
     build_security_repository,
 )
 from way2australia_rag.evaluation.security_eval import (
+    ALL_PATHS,
     DEFERRED_OWNERS,
     FORBIDDEN_VARIANTS,
     PATHS,
+    RERANK_PATHS,
     RETRIEVAL_SIDE_ATTACK_TYPES,
     SecurityQuery,
     run_security_evaluation,
@@ -47,11 +49,13 @@ from way2australia_rag.evaluation.security_eval import (
 )
 from way2australia_rag.evaluation.security_index import (
     FAKE_VECTOR_SIZE,
+    INJECTION_TEXT,
     NON_APPLICABLE_DOCUMENT_ID,
     NON_APPLICABLE_LOTE_CODE,
     SecurityIndex,
     build_security_index,
     delete_security_index,
+    is_non_applicable_document,
     require_non_applicable_lote_inactive,
 )
 from way2australia_rag.evaluation.suite import load_suite
@@ -836,7 +840,7 @@ def test_the_missing_owner_row_is_excluded_by_owner_present_not_check_hit(
     assert report.passed
 
 
-def test_security_result_1_4_has_runs_paths_and_no_text(
+def test_security_result_1_5_has_runs_paths_and_no_text(
     security_repository: LocalDocumentRepository,
 ) -> None:
     queries, deferred = real_queries()
@@ -862,11 +866,12 @@ def test_security_result_1_4_has_runs_paths_and_no_text(
             candidate, guest_access(), queries, deferred, RETRIEVAL_CONFIG
         )
         document = security_result(candidate, report)
-        assert document["schema_version"] == "1.4"
+        assert document["schema_version"] == "1.5"
         assert document["lote_modes"] == [None, ACTIVE_LOTE.code]
         assert document["passed"] is passed
         run = document["runs"][0]
         assert run["paths"] == list(PATHS)
+        assert run["path_details"] == {}  # the five paths run no rerank stage
         assert run["strategies"] == ["dense", "bm25", "hybrid"]
         assert run["bm25_no_term_queries"] == 0
         assert (
@@ -1004,7 +1009,7 @@ def test_cli_lexical_file_is_removed_after_a_pass(
     out = capsys.readouterr().out
     assert "strategies: dense, bm25, hybrid" in out
     document = json.loads(output.read_text(encoding="utf-8"))
-    assert document["schema_version"] == "1.4"
+    assert document["schema_version"] == "1.5"
     assert document["lote_modes"] == [None, ACTIVE_LOTE.code]
     assert len(document["runs"]) == 3
 
@@ -1374,3 +1379,464 @@ def test_dropped_access_filter_still_reports_authorization(
     assert not report.passed
     assert report.authorization_violations
     assert not report.applicability_violations
+
+
+# --- Spec 011 R8, R9: the reranked paths -----------------------------------
+
+
+def test_the_gate_defaults_to_eight_paths_and_the_original_five_are_unchanged() -> None:
+    assert PATHS == (
+        "dense",
+        "bm25",
+        "hybrid",
+        "hybrid_fallback_open",
+        "hybrid_fallback_query",
+    )
+    assert RERANK_PATHS == (
+        "hybrid_rerank",
+        "hybrid_rerank_skip_open",
+        "hybrid_rerank_skip_query",
+    )
+    assert ALL_PATHS == (*PATHS, *RERANK_PATHS)
+    assert len(ALL_PATHS) == 8
+    default = security_eval.run_security_evaluation.__defaults__
+    assert default is not None and default[0] == ALL_PATHS
+
+
+def test_the_security_corpus_has_an_injection_style_forbidden_row(
+    security_repository: LocalDocumentRepository,
+) -> None:
+    assert "injection" in FORBIDDEN_VARIANTS
+    queries, _ = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    assert index.points_per_variant["injection"] == len(queries)
+    points, _ = index.client.scroll(
+        index.collection,
+        scroll_filter=models.Filter(
+            must=[
+                models.FieldCondition(
+                    key="document_id",
+                    match=models.MatchValue(value="forbidden_injection"),
+                )
+            ]
+        ),
+        limit=1,
+        with_payload=True,
+    )
+    payload = points[0].payload or {}
+    assert payload["chunk_text"] == INJECTION_TEXT
+    assert payload["access_scope"] == "staff"
+    assert "ignore previous instructions" in INJECTION_TEXT
+
+
+@pytest.mark.parametrize(
+    "chunker",
+    security_gate_chunkers(),
+    ids=["heading", "structure", "recursive"],
+)
+def test_rerank_paths_pass_over_every_chunker_in_both_lote_modes(
+    chunker: HeadingChunker | StructureChunker | RecursiveChunker,
+    security_repository: LocalDocumentRepository,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: dict[str, list[str | None]] = {path: [] for path in RERANK_PATHS}
+    real = security_eval._retrievers
+
+    def counting(index: SecurityIndex, config: Any, paths: Any) -> Any:
+        wrapped = []
+        for name, inner in real(index, config, paths):
+
+            class Counting:
+                def __init__(self, path: str = name, inner: Any = inner) -> None:
+                    self.path, self.inner = path, inner
+
+                def retrieve(self, *a: Any, **k: Any) -> Any:
+                    lote = k.get("lote")
+                    seen[self.path].append(None if lote is None else lote.code)
+                    return self.inner.retrieve(*a, **k)
+
+            wrapped.append((name, Counting()))
+        return wrapped
+
+    monkeypatch.setattr(security_eval, "_retrievers", counting)
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository, chunker=chunker)
+    report = run_gate(
+        index, guest_access(), queries, deferred, RETRIEVAL_CONFIG, RERANK_PATHS
+    )
+    assert report.passed, report.violations
+    for path in RERANK_PATHS:
+        assert seen[path].count(None) == len(queries)
+        assert seen[path].count(ACTIVE_LOTE.code) == len(queries)
+    details = report.path_details
+    assert set(details) == set(RERANK_PATHS)
+    for detail in details.values():
+        assert detail["reranker"]["is_fake"] is True
+        assert detail["reranker"]["model_id"] == "fake-reranker"
+    assert details["hybrid_rerank"]["skip"] is None
+    assert details["hybrid_rerank_skip_open"]["skip"] == {
+        "reason": "model_unavailable",
+        "stage": "open",
+    }
+    assert details["hybrid_rerank_skip_query"]["skip"] == {
+        "reason": "model_unavailable",
+        "stage": "query",
+    }
+
+
+def test_the_rerank_paths_run_the_real_stage_over_hybrid_inside_fallback(
+    security_repository: LocalDocumentRepository,
+) -> None:
+    from way2australia_rag.retrieval.fallback import FallbackRetriever
+    from way2australia_rag.retrieval.reranking import RerankingRetriever
+
+    queries, _ = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    built = dict(security_eval._retrievers(index, RETRIEVAL_CONFIG, RERANK_PATHS))
+    stages: dict[str, RerankingRetriever] = {}
+    for path, retriever in built.items():
+        assert isinstance(retriever, FallbackRetriever)
+        stage = retriever._primary  # noqa: SLF001
+        assert isinstance(stage, RerankingRetriever)
+        stages[path] = stage
+    assert stages["hybrid_rerank_skip_open"]._open_skip is not None  # noqa: SLF001
+    assert stages["hybrid_rerank"]._open_skip is None  # noqa: SLF001
+
+
+def test_the_fake_reranker_prefers_forbidden_and_injection_text(
+    security_repository: LocalDocumentRepository,
+) -> None:
+    queries, _ = real_queries()
+    prefer = security_eval._preferring([q.text for q in queries])  # noqa: SLF001
+    assert prefer("forbidden fixture")
+    assert prefer(INJECTION_TEXT)
+    assert prefer(f"{INJECTION_TEXT} extra terms")
+    assert prefer(security_eval.lexical_probe_text(queries[0].text, repeats=2))
+    assert not prefer("Mock assessments are optional practice sessions.")
+
+
+def test_a_forbidden_candidate_is_never_returned_even_when_the_reranker_prefers_it(
+    security_repository: LocalDocumentRepository,
+) -> None:
+    """With the access filter dropped in the dense leg, the leg's fail-closed
+    check_hit raises before fusion, so forbidden rows never reach the reranker
+    while the filters hold; the gate must report that as a violation on
+    hybrid_rerank. Separately, on the intact index the fake reranker's
+    preference really orders results: a preferred (non-applicable) row is rank 1
+    with lote None, so the preference is a committed, observable effect."""
+    queries, deferred = real_queries()
+    intact = build([q.text for q in queries], security_repository)
+    retriever = dict(
+        security_eval._retrievers(intact, RETRIEVAL_CONFIG, ["hybrid_rerank"])
+    )["hybrid_rerank"]
+    for query in queries:
+        result = retriever.retrieve(
+            query.text,
+            guest_access(),
+            top_k=RETRIEVAL_CONFIG.rerank.depth,
+            lote=None,
+        )
+        assert result.hits
+        assert is_non_applicable_document(result.hits[0].document_id), query.case_id
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    broken, _ = spied(index, drop_filter=True)
+    report = run_gate(
+        broken,
+        guest_access(),
+        queries,
+        deferred,
+        RETRIEVAL_CONFIG,
+        ["hybrid_rerank"],
+    )
+    assert not report.passed
+    assert {v["path"] for v in report.violations} == {"hybrid_rerank"}
+    variants = {v["variant"] for v in report.authorization_violations}
+    assert "injection" in variants
+
+
+@pytest.mark.parametrize(
+    ("path", "make_fake", "reason", "stage"),
+    [
+        ("hybrid_rerank_skip_open", "fail_on_load", "model_unavailable", "open"),
+        ("hybrid_rerank_skip_query", "fail_on_call", "model_unavailable", "query"),
+    ],
+)
+def test_skip_paths_record_the_expected_skip_for_every_query(
+    path: str,
+    make_fake: str,
+    reason: str,
+    stage: str,
+    security_repository: LocalDocumentRepository,
+) -> None:
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    retriever = dict(security_eval._retrievers(index, RETRIEVAL_CONFIG, [path]))[path]
+    for lote in (None, ACTIVE_LOTE):
+        for query in queries:
+            result = retriever.retrieve(
+                query.text,
+                guest_access(),
+                top_k=RETRIEVAL_CONFIG.fusion.candidate_depth,
+                lote=lote,
+            )
+            assert result.fallback_reason is None  # a skip is never a BM25 fallback
+            assert result.rerank is not None and result.rerank.is_fake
+            assert result.rerank.skipped_reason == reason
+            assert result.rerank.stage == stage
+            assert result.hits
+
+
+def test_the_harness_reranker_failures_use_the_fake_reranker_switches() -> None:
+    from way2australia_rag.rerank.errors import RerankerUnavailableError
+
+    one_shot = security_eval.FakeReranker(fail_on_call=1)
+    always = security_eval._AlwaysFailingScore()  # noqa: SLF001
+    one_shot.load()
+    with pytest.raises(RerankerUnavailableError):
+        one_shot.score("q", ["a"])
+    assert one_shot.score("q", ["a"]).scores  # fail_on_call is one-shot
+    for _ in range(3):
+        with pytest.raises(RerankerUnavailableError):
+            always.score("q", ["a"])
+    with pytest.raises(RerankerUnavailableError):
+        security_eval.FakeReranker(fail_on_load=True).load()
+
+
+@pytest.mark.parametrize(
+    "path", ["hybrid_rerank_skip_open", "hybrid_rerank_skip_query"]
+)
+def test_a_skip_path_that_records_no_skip_fails_the_gate(
+    path: str,
+    security_repository: LocalDocumentRepository,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    real = security_eval._retrievers
+
+    def wrong(index: SecurityIndex, config: Any, paths: Any) -> Any:
+        # the plain reranking composition under a skip path's name
+        built = dict(real(index, config, ["hybrid_rerank"]))
+        return [(p, built["hybrid_rerank"]) for p in paths]
+
+    monkeypatch.setattr(security_eval, "_retrievers", wrong)
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    with pytest.raises(EvaluationHarnessError, match="vacuous"):
+        run_gate(index, guest_access(), queries, deferred, RETRIEVAL_CONFIG, [path])
+
+
+def test_a_rerank_path_without_a_rerank_stage_is_a_harness_error(
+    security_repository: LocalDocumentRepository, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real = security_eval._retrievers
+
+    def plain(index: SecurityIndex, config: Any, paths: Any) -> Any:
+        built = dict(real(index, config, ["hybrid"]))
+        return [(p, built["hybrid"]) for p in paths]
+
+    monkeypatch.setattr(security_eval, "_retrievers", plain)
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    with pytest.raises(EvaluationHarnessError, match="no rerank stage"):
+        run_gate(
+            index,
+            guest_access(),
+            queries,
+            deferred,
+            RETRIEVAL_CONFIG,
+            ["hybrid_rerank"],
+        )
+
+
+def test_a_rerank_path_that_fell_back_is_a_harness_error(
+    security_repository: LocalDocumentRepository, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real = security_eval._retrievers
+
+    def falling_back(index: SecurityIndex, config: Any, paths: Any) -> Any:
+        built = dict(real(index, config, ["hybrid_fallback_query"]))
+        return [(p, built["hybrid_fallback_query"]) for p in paths]
+
+    monkeypatch.setattr(security_eval, "_retrievers", falling_back)
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    with pytest.raises(EvaluationHarnessError, match="fell back"):
+        run_gate(
+            index,
+            guest_access(),
+            queries,
+            deferred,
+            RETRIEVAL_CONFIG,
+            ["hybrid_rerank"],
+        )
+
+
+def test_a_forbidden_hit_injected_after_the_stage_fails_each_rerank_path(
+    security_repository: LocalDocumentRepository, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real = security_eval._retrievers
+
+    class Injecting:
+        def __init__(self, inner: Any) -> None:
+            self.inner = inner
+
+        def retrieve(self, *a: Any, **k: Any) -> Any:
+            result = self.inner.retrieve(*a, **k)
+            bad = result.hits[0].model_copy(
+                update={"document_id": "forbidden_injection"}
+            )
+            return result.model_copy(update={"hits": [bad, *result.hits]})
+
+    def injecting(index: SecurityIndex, config: Any, paths: Any) -> Any:
+        return [(n, Injecting(r)) for n, r in real(index, config, paths)]
+
+    monkeypatch.setattr(security_eval, "_retrievers", injecting)
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    report = run_gate(
+        index, guest_access(), queries, deferred, RETRIEVAL_CONFIG, RERANK_PATHS
+    )
+    assert not report.passed
+    assert {v["path"] for v in report.violations} == set(RERANK_PATHS)
+    assert {v["variant"] for v in report.violations} == {"injection"}
+
+
+class _DefectiveStage:
+    """Harness-only: a reranking stage whose ordering is defective. The base
+    stage's `_order` is replaced; the post-stage membership re-check is real."""
+
+    def __init__(
+        self, index: SecurityIndex, mode: str, *, hybrid_ignores_lote: bool = False
+    ) -> None:
+        from way2australia_rag.retrieval.bm25 import BM25Retriever
+        from way2australia_rag.retrieval.fallback import FallbackRetriever
+        from way2australia_rag.retrieval.hybrid import HybridRetriever
+        from way2australia_rag.retrieval.identity import IndexIdentity
+        from way2australia_rag.retrieval.reranking import RerankingRetriever
+        from way2australia_rag.retrieval.retriever import DenseRetriever
+
+        identity = IndexIdentity.from_dense(index.dense)
+        bm25 = BM25Retriever(identity, index.lexical)
+        hybrid: Any = HybridRetriever(
+            DenseRetriever(index.dense, index.embedder), bm25, RETRIEVAL_CONFIG.fusion
+        )
+        if hybrid_ignores_lote:
+            inner = hybrid
+
+            class IgnoresLote:
+                strategy = inner.strategy
+
+                def retrieve(self, q: Any, access: Any, top_k: int = 5, **_: Any):  # noqa: ANN202
+                    return inner.retrieve(q, access, top_k, lote=None)
+
+            hybrid = IgnoresLote()
+
+        class Defective(RerankingRetriever):
+            def _order(self, candidates: Any, scores: Any, top_k: int) -> Any:
+                ordered = super()._order(candidates, scores, top_k)
+                if mode == "duplicate":
+                    return [ordered[0], ordered[0], *ordered[1:]]
+                if mode == "unknown":
+                    other = ordered[0].model_copy(
+                        update={"point_id": "00000000-0000-0000-0000-000000000000"}
+                    )
+                    return [other, *ordered]
+                if mode == "altered":
+                    return [
+                        ordered[0].model_copy(update={"chunk_text": "tampered"}),
+                        *ordered[1:],
+                    ]
+                return ordered  # "plain": defect is in the legs, not the stage
+
+        from way2australia_rag.rerank.fake import FakeReranker
+
+        stage = Defective(
+            hybrid, FakeReranker(), RETRIEVAL_CONFIG.fusion.candidate_depth
+        )
+        self.retriever = FallbackRetriever(stage, bm25, None)
+
+    def retrieve(self, *a: Any, **k: Any) -> Any:
+        return self.retriever.retrieve(*a, **k)
+
+
+@pytest.mark.parametrize("mode", ["duplicate", "unknown", "altered"])
+def test_the_post_rerank_membership_recheck_fails_closed_for_a_defective_stage(
+    mode: str,
+    security_repository: LocalDocumentRepository,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository)
+
+    def defective(i: SecurityIndex, config: Any, paths: Any) -> Any:
+        return [(p, _DefectiveStage(i, mode)) for p in paths]
+
+    monkeypatch.setattr(security_eval, "_retrievers", defective)
+    report = run_gate(
+        index, guest_access(), queries, deferred, RETRIEVAL_CONFIG, ["hybrid_rerank"]
+    )
+    # the stage raised RetrievalAuthorizationError, recorded as a violation
+    # (it is never caught inside the stage or FallbackRetriever)
+    assert not report.passed
+    assert report.authorization_violations
+    assert not report.applicability_violations
+    assert {v["variant"] for v in report.authorization_violations} == {
+        "check_hit_failed"
+    }
+
+
+def test_the_post_rerank_applicability_recheck_fails_closed_with_a_lote(
+    security_repository: LocalDocumentRepository,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A hybrid that ignores the lote hands the stage a non-applicable candidate
+    that is a member of the pool; only `check_applicable` can stop it."""
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository)
+
+    def defective(i: SecurityIndex, config: Any, paths: Any) -> Any:
+        return [
+            (p, _DefectiveStage(i, "plain", hybrid_ignores_lote=True)) for p in paths
+        ]
+
+    monkeypatch.setattr(security_eval, "_retrievers", defective)
+    report = run_gate(
+        index, guest_access(), queries, deferred, RETRIEVAL_CONFIG, ["hybrid_rerank"]
+    )
+    assert not report.passed
+    assert report.applicability_violations
+    assert not report.authorization_violations
+    assert {v["lote"] for v in report.applicability_violations} == {ACTIVE_LOTE.code}
+
+
+def test_the_summary_prints_the_rerank_path_details(
+    security_repository: LocalDocumentRepository,
+) -> None:
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    report = run_gate(
+        index,
+        guest_access(),
+        queries,
+        deferred,
+        RETRIEVAL_CONFIG,
+        RERANK_PATHS,
+    )
+    document = security_result(index, report)
+    assert document["schema_version"] == "1.5"
+    run = document["runs"][0]
+    assert run["paths"] == list(RERANK_PATHS)
+    assert set(run["path_details"]) == set(RERANK_PATHS)
+    lines = cli.format_security_summary(document, Path("r.json")).splitlines()
+    assert any(
+        line.startswith("hybrid_rerank_skip_open: fake reranker")
+        and "skip model_unavailable at open" in line
+        for line in lines
+    )
+    assert any(
+        line.startswith("hybrid_rerank: fake reranker") and "no skip" in line
+        for line in lines
+    )
+    text = json.dumps(document, ensure_ascii=False)
+    assert all(q.text not in text for q in queries)
+    assert INJECTION_TEXT not in text
