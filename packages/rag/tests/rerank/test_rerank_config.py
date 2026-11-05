@@ -124,3 +124,11 @@ def test_factory_builds_fake_and_bge(monkeypatch: pytest.MonkeyPatch) -> None:
     assert fake.info.max_length == config.max_length
     with pytest.raises(RetrievalConfigurationError):
         build_reranker(config, "nope")
+
+
+def test_a_bge_model_id_other_than_the_adapter_model_is_refused() -> None:
+    """T1 review F1: `rerank.model_id` must match what the adapter loads."""
+    config = RerankConfig.model_validate({**RERANK, "model_id": "someone/else"})
+    with pytest.raises(RetrievalConfigurationError, match="rerank.model_id"):
+        build_reranker(config)
+    assert isinstance(build_reranker(config, "fake"), FakeReranker)

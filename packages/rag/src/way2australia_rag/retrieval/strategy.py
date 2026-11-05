@@ -22,6 +22,8 @@ from way2australia_rag.ingestion.embedding import Embedder
 from way2australia_rag.lexical.build import default_lexical_dir, lexical_index_path
 from way2australia_rag.lexical.store import LexicalIndex
 from way2australia_rag.lexical.tokenizer import TOKENIZERS
+from way2australia_rag.rerank.base import Reranker
+from way2australia_rag.rerank.errors import RerankSkipReason
 from way2australia_rag.retrieval.base import MAX_TOP_K, Retriever, Strategy
 from way2australia_rag.retrieval.bm25 import BM25Retriever
 from way2australia_rag.retrieval.errors import RetrievalConfigurationError
@@ -30,6 +32,7 @@ from way2australia_rag.retrieval.fusion import FusionConfig
 from way2australia_rag.retrieval.hybrid import HybridRetriever
 from way2australia_rag.retrieval.identity import IndexIdentity
 from way2australia_rag.retrieval.index import DenseIndex
+from way2australia_rag.retrieval.reranking import RerankingRetriever
 from way2australia_rag.retrieval.retriever import DenseRetriever
 
 DEFAULT_CONFIG_PATH = "config/retrieval.yaml"
@@ -165,15 +168,23 @@ def build_retriever(
     embedder: Embedder | None,
     lexical: LexicalIndex | None,
     config: RetrievalConfig,
+    reranker: Reranker | None = None,
+    rerank_open_skip: RerankSkipReason | None = None,
 ) -> Retriever:
     """Map a strategy to its retriever. `dense` and `hybrid` need `dense_index`
-    and `embedder`; `bm25` and `hybrid` need `lexical`."""
+    and `embedder`; `bm25` and `hybrid` need `lexical`. A `reranker` (hybrid only)
+    puts the reranking stage between `HybridRetriever` and `FallbackRetriever`;
+    without one the composition is exactly the pre-Spec 011 one."""
     try:
         chosen = Strategy(strategy)
     except ValueError:
         raise RetrievalConfigurationError(
             f"unknown retrieval strategy {strategy!r}"
         ) from None
+    if reranker is not None and chosen != Strategy.HYBRID:
+        raise RetrievalConfigurationError(
+            "reranking applies to the hybrid strategy only."
+        )
     if chosen == Strategy.BM25:
         if lexical is None:
             raise RetrievalConfigurationError(
@@ -196,6 +207,11 @@ def build_retriever(
         )
     bm25 = BM25Retriever(identity, lexical)
     hybrid = HybridRetriever(DenseRetriever(dense_index, embedder), bm25, config.fusion)
+    if reranker is not None:
+        staged = RerankingRetriever(
+            hybrid, reranker, config.rerank.depth, rerank_open_skip
+        )
+        return FallbackRetriever(staged, bm25, None)
     return FallbackRetriever(hybrid, bm25, None)
 
 

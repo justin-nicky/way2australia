@@ -240,3 +240,4 @@ The user records real reranked results on v3; a rule fixed here decides the defa
 
 <!-- Approved amendments only, one dated line each:
 - YYYY-MM-DD — <R#/T#>: <what changed and why>. Re-opened <T#>. -->
+- 2026-11-05 — R3/T2: `build_reranker` refuses a `rerank.model_id` that differs from the adapter's model when the provider is `bge` (T1 review F1; user decision of 2026-11-05 recorded in `task-reviews.md`, T1 "User decision"). Added a T2 task box.

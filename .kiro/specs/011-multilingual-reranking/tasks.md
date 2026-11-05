@@ -51,11 +51,11 @@ Allowed protected-path changes: `config/retrieval.yaml` (schema and `rerank` blo
 
 ## T2 — `RerankingRetriever`, skip policy and wiring
 
-**State:** not started
+**State:** approved (2026-11-05)
 **Requirements:** R3 (selection part), R4, R5, R9
 
-- [ ] `retrieval/models.py`: `RerankRecord`; `RetrievedChunk.fused_rank: int | None = None`; `RetrievalResult.rerank: RerankRecord | None = None`.
-- [ ] `retrieval/reranking.py`: `RerankingRetriever(hybrid, reranker, depth, open_skip: RerankSkipReason | None)`, per design "Data flow":
+- [x] `retrieval/models.py`: `RerankRecord`; `RetrievedChunk.fused_rank: int | None = None`; `RetrievalResult.rerank: RerankRecord | None = None`.
+- [x] `retrieval/reranking.py`: `RerankingRetriever(hybrid, reranker, depth, open_skip: RerankSkipReason | None)`, per design "Data flow":
   - `top_k > depth` → `RetrievalConfigurationError`;
   - `hybrid.retrieve(q, access, depth, lote=lote)`; a `RetrievalUnavailableError` propagates untouched;
   - open-skipped run (D-A option 1, sticky): every query returns the hybrid result cut to `top_k`, marked `skipped_reason`, `stage: "open"`, no reload;
@@ -63,16 +63,16 @@ Allowed protected-path changes: `config/retrieval.yaml` (schema and `rerank` blo
   - order by `(-score, fused_rank)`, cut `top_k`, set `rank`, `score`, `fused_rank`, keep `leg_ranks`; `score_kind: "cross_encoder"`;
   - re-check every returned hit with `check_hit`, then `check_applicable` when `lote` is set, on the reranked path and both skip paths;
   - `leg_latency_ms` gains `rerank`; `rerank: RerankRecord` set (identity, device, depth, candidates scored, truncated pairs, skip fields).
-- [ ] No inference timeout (D-B option 1); a code comment points to the decision.
-- [ ] `retrieval/strategy.py` `build_retriever(..., reranker=None, rerank=None)`: with a reranker, `FallbackRetriever(RerankingRetriever(HybridRetriever(...)), bm25, None)`; without, exactly today's composition.
-- [ ] `retrieval/opening.py` `open_retrieval(..., rerank: bool, reranker_factory=build_reranker)`:
+- [x] No inference timeout (D-B option 1); a code comment points to the decision.
+- [x] `retrieval/strategy.py` `build_retriever(..., reranker=None, rerank=None)`: with a reranker, `FallbackRetriever(RerankingRetriever(HybridRetriever(...)), bm25, None)`; without, exactly today's composition.
+- [x] `retrieval/opening.py` `open_retrieval(..., rerank: bool, reranker_factory=build_reranker)`:
   - reranking with an effective strategy other than `hybrid` → `RetrievalConfigurationError` (exit 2);
   - reranking off → `reranker_factory` is never called;
   - reranking on → construct (missing extra exits 2), then `load()` once at open; an eligible `RerankerUnavailableError` sets the sticky open skip; any other load error propagates (offline-not-cached exits 2 with advice);
   - an open-time dense outage still goes to `_open_fallback` (BM25, no reranker load needed; if the reranker was already constructed it is simply unused);
   - `OpenedRetrieval.reranker` exposed (for device and load timing).
-- [ ] `retrieval/cli.py`: `--rerank` / `--no-rerank` (mutually exclusive; default from config); prints `rerank: <model>@<rev7> depth <n>`, `rerank: off`, or `rerank: skipped (<reason>, <stage>)` with a stderr warning only on a skip; `--reranker fake` allowed with the existing fake allowance.
-- [ ] Tests (`tests/retrieval/test_reranking.py`, `test_opening*.py`, CLI tests):
+- [x] `retrieval/cli.py`: `--rerank` / `--no-rerank` (mutually exclusive; default from config); prints `rerank: <model>@<rev7> depth <n>`, `rerank: off`, or `rerank: skipped (<reason>, <stage>)` with a stderr warning only on a skip; `--reranker fake` allowed with the existing fake allowance.
+- [x] Tests (`tests/retrieval/test_reranking.py`, `test_opening*.py`, CLI tests):
   - ordering, ties by fused rank, `top_k` cut, `fused_rank`/`leg_ranks` preserved;
   - malformed count and NaN fail closed;
   - re-check after reranking and on both skip paths: an injected stage defect (candidate outside the fused set; duplicated candidate; forbidden row) raises `RetrievalAuthorizationError`; a non-applicable row with `lote` raises `LanguageApplicabilityError`;
@@ -83,7 +83,9 @@ Allowed protected-path changes: `config/retrieval.yaml` (schema and `rerank` blo
   - offline-not-cached at load exits 2 with setup advice and records no skip;
   - `--rerank` with `--strategy dense|bm25` exits 2; `top_k > depth` exits 2;
   - reranking off returns the pre-spec hits on the seed corpus (fake embedder).
-- [ ] Docker integration test (`make test-integration`): `hybrid` + `FakeReranker` through `open_retrieval` on a throwaway base; hits re-checked; collection deleted.
+- [x] Docker integration test (`make test-integration`): `hybrid` + `FakeReranker` through `open_retrieval` on a throwaway base; hits re-checked; collection deleted.
+
+- [x] `rerank/build.py` `build_reranker`: with provider `bge`, refuse a `rerank.model_id` that differs from the adapter's model (`BAAI/bge-reranker-v2-m3`) with a `RetrievalConfigurationError` naming `rerank.model_id`, mirroring the embedder refusal in `ingestion/cli.py` (T1 review F1, user decision 2026-11-05); test in `tests/rerank/test_rerank_config.py`.
 
 Allowed protected-path changes: none.
 

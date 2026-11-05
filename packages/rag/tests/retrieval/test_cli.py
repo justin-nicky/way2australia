@@ -77,7 +77,8 @@ def test_success_prints_header_and_hit_lines(
         f"index: {PRODUCTION_COLLECTION} (index_version {PRODUCTION_INDEX_VERSION};"
     )
     assert "fake=true" in lines[1] and "device=" in lines[1]
-    hits = lines[3:]
+    assert lines[-1] == "rerank: off"  # Spec 011: printed after the hits
+    hits = lines[3:-1]
     assert 1 <= len(hits) <= 3
     assert re.match(r"^1  \S+  \S+  -?\d+\.\d{4}  .+", hits[0])
 
@@ -116,6 +117,9 @@ def test_parser_has_no_role_scope_or_tenant_option() -> None:
         "--embedder",
         "--strategy",
         "--retrieval-config",
+        "--rerank",
+        "--no-rerank",
+        "--reranker",
         "--lote",
     }
     for flag in ("--role", "--scope", "--tenant", "--tenant-id", "--access-scope"):

@@ -643,7 +643,8 @@ def test_retrieve_hybrid_prints_strategy_and_leg_ranks(
     lines = capsys.readouterr().out.strip().splitlines()
     assert lines[0] == "lote: none"
     assert "strategy=hybrid" in lines[2]
-    hits = lines[3:]
+    assert lines[-1] == "rerank: off"  # Spec 011: printed after the hits
+    hits = lines[3:-1]
     assert 1 <= len(hits) <= 3
     for hit in hits:
         assert re.match(

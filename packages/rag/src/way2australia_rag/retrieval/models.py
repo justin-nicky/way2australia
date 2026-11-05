@@ -3,6 +3,8 @@
 `chunk_text` is untrusted data: it is returned, never interpreted.
 """
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -25,6 +27,7 @@ class RetrievedChunk(BaseModel):
     content_language: str
     lote_languages: list[str]
     leg_ranks: dict[str, int | None] | None = None
+    fused_rank: int | None = None
 
 
 class LexicalIdentity(BaseModel):
@@ -37,6 +40,23 @@ class LexicalIdentity(BaseModel):
     tokenizer_version: str
     source_chunk_digest: str
     chunk_count: int
+
+
+class RerankRecord(BaseModel):
+    """What the reranking stage did for one query (Spec 011 R4, R5)."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    model_id: str
+    revision: str
+    max_length: int
+    is_fake: bool
+    device: str | None
+    depth: int
+    candidates: int
+    truncated_pairs: int
+    skipped_reason: str | None = None
+    stage: Literal["open", "query"] | None = None
 
 
 class RetrievalResult(BaseModel):
@@ -60,3 +80,4 @@ class RetrievalResult(BaseModel):
     requested_strategy: str | None = None
     fallback_reason: str | None = None
     lote: str | None = None
+    rerank: RerankRecord | None = None
