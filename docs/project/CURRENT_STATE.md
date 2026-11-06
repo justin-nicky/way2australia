@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-11-05 (Spec 011 T1–T4 approved on `spec/011`; D073–D074)
+Last updated: 2026-11-06 (Spec 011 T1–T5 approved on `spec/011`; reranking promoted at depth 20; D073–D074)
 
 ## Current phase
 
@@ -12,7 +12,7 @@ Spec 001 project foundation is complete.
 
 ## Current goal
 
-Specs **001–010** are **verified on `main`** (Spec 010 merged 2026-11-04, fast-forward to **`cae06c3`**). Default production index **`idx-v2`** / recursive 128+title (D071): run **`make ingest`**, then **`make index-lexical`** with default **`lexical-v2`** tokenizer (D072; settings 1.2; rebuild once if upgrading from 1.1 for `--lote`). Hybrid default retrieval needs the lexical file. Ignored stale `knowledge_release_id` / `evaluation_suite_id` keys remain on the promoted yaml until the next `index_version` (D071 carry-over). Verify-budget hook in-repo (**D073**); pytest-xdist **not** adopted for default verify (**D074**); follow-up **`pytest --durations=25`** still open. **Spec 011** (roadmap item 9, multilingual reranking; context building deferred to item 10) is **planned and approved** (requirements, design, tasks 2026-11-04) on branch **`spec/011`** (base `3b81508`); no task started. **Spec 011 progress (2026-11-05):** T1 (reranker contract, adapters, config; revision `953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e`), T2 (`RerankingRetriever`, skip policy, `--rerank`), T3 (result 2.5, compare, continuity) and T4 (security gate, eight paths, security 1.5) approved; R4 re-check amended to membership wording. **Next:** T5 (user-owned real runs and promotion decision), then T6. **No HTTP-route spec yet:** Spec 008 serving items belong with roadmap **item 10 (grounded generation)**. Repository-based shared context keeps Codex, Claude Code, Cursor and Kiro interchangeable (D063).
+Specs **001–010** are **verified on `main`** (Spec 010 merged 2026-11-04, fast-forward to **`cae06c3`**). Default production index **`idx-v2`** / recursive 128+title (D071): run **`make ingest`**, then **`make index-lexical`** with default **`lexical-v2`** tokenizer (D072; settings 1.2; rebuild once if upgrading from 1.1 for `--lote`). Hybrid default retrieval needs the lexical file. Ignored stale `knowledge_release_id` / `evaluation_suite_id` keys remain on the promoted yaml until the next `index_version` (D071 carry-over). Verify-budget hook in-repo (**D073**); pytest-xdist **not** adopted for default verify (**D074**); follow-up **`pytest --durations=25`** still open. **Spec 011** (roadmap item 9, multilingual reranking; context building deferred to item 10) is **planned and approved** (requirements, design, tasks 2026-11-04) on branch **`spec/011`** (base `3b81508`); no task started. **Spec 011 progress (2026-11-05):** T1 (reranker contract, adapters, config; revision `953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e`), T2 (`RerankingRetriever`, skip policy, `--rerank`), T3 (result 2.5, compare, continuity) and T4 (security gate, eight paths, security 1.5) and T5 (user-run real evaluation, **reranking promoted at depth 20**: `rerank.enabled: true`, MRR 0.9228 → 0.9751, p95 +920.6 ms on `mps:0`) approved; R4 re-check amended to membership wording. **Next:** T6 (docs, decisions D075+, As-built notes, hand-off; amended 2026-11-06 with two required CLI tests and the promotion docs), then the required `spec-reviewer` retrospective. **No HTTP-route spec yet:** Spec 008 serving items belong with roadmap **item 10 (grounded generation)**. Repository-based shared context keeps Codex, Claude Code, Cursor and Kiro interchangeable (D063).
 
 ## Finalized high-level decisions
 
@@ -153,13 +153,26 @@ Not yet implemented:
 | 008 — retrieval fallback | **verified (2026-11-01, merged 1107b67)**; required `spec-reviewer` retrospective round 1 `PASS` (five MINOR findings, docs reconciled, no RM tasks), approved by the user 2026-11-01 (branch spec/008, base f25b552); requirements, design and tasks approved 2026-10-29 (8 tasks: T1 failure classification and Qdrant timeouts, T2 standalone lexical open and freshness, T3 `bm25` without Qdrant or the extra, T4 `FallbackRetriever`, T5 result 2.2 and `eval-compare`, T6 security gate over fallback paths, T7 user-owned real runs, T8 docs and hand-off); T1–T6 approved (2026-10-31/11-01); T7 (user-owned real runs) approved 2026-11-01: Qdrant unreachable (`QDRANT_URL=http://127.0.0.1:1`) `experiments/results/retrieval-evaluation-idx-v1-20261101T070658Z.json`, Qdrant up `...20261101T070736Z.json` (see Next step item 6); T8 (docs D056–D062, ROADMAP note, As-built notes, hand-off) approved 2026-11-01; retrospective `.kiro/specs/008-retrieval-fallback/review.md` round 1 |
 | 009 — chunking experiments | **verified (2026-11-04, merged `5a6deb7`)**; branch `spec/009` (base `d21dc41`); required `spec-reviewer` retrospective round 1 `PASS`, approved 2026-11-04; T1–T7 approved 2026-11-03; default **`idx-v2`**: **`make ingest`** then **`make index-lexical`**; D064–D071; deferred carry-overs in Known issues and 009 `review.md` Notes |
 | 010 — multilingual retrieval | **verified (2026-11-04, merged `cae06c3`)**; branch `spec/010` (base `f0e809b`); T1–T6 approved 2026-11-04; required `spec-reviewer` retrospective round 1 `PASS`, approved 2026-11-04; D072; default suite v3 and `lexical-v2` |
-| 011 — multilingual reranking | **approved (2026-11-04)**; branch `spec/011` (base `3b81508`); requirements, design (D-A sticky open-time skip, D-B no inference timeout, D-C `eval-continuity` refuses rerank identity differences) and tasks approved; 6 tasks (T1 reranker contract/adapters/config, T2 reranking stage and skip policy, T3 result 2.5 and compare, T4 security 1.5, T5 user-owned real runs and promotion, T6 docs and hand-off); all `not started`; `rerank.enabled: false` committed until T5 |
+| 011 — multilingual reranking | **in progress (T1–T5 approved 2026-11-05/06)**; branch `spec/011` (base `3b81508`); requirements, design (D-A sticky open-time skip, D-B no inference timeout, D-C `eval-continuity` refuses rerank identity differences) and tasks approved; 6 tasks (T1 reranker contract/adapters/config, T2 reranking stage and skip policy, T3 result 2.5 and compare, T4 security 1.5, T5 user-owned real runs and promotion, T6 docs and hand-off); T5 promoted depth 20 (`rerank.enabled: true` in `config/retrieval.yaml`, commit `5b24dc7`); T6 `not started` |
 
 ## Next step
 
-**After Spec 011 planning (2026-11-04):**
+**Spec 011 T5 done (2026-11-06; user-run, `w2a-realcheck-idx-v2`, suite `public-eval-v3`, `lote ml`, BGE-M3 @ `5617a9f`, reranker `BAAI/bge-reranker-v2-m3@953dc6f` on `mps:0`):**
 
-1. **Spec 011 T1** — fresh session: **`spec-orchestrator`** on `spec/011` (`.kiro/specs/011-multilingual-reranking/`). T1 reports the pinned `BAAI/bge-reranker-v2-m3` revision SHA and its source URL for the user to check. T5 is user-owned (real runs at rerank depth 20 and 50 vs hybrid reference `…idx-v2-20261104T105300Z.json`).
+- Files: rerank off `experiments/results/retrieval-evaluation-idx-v2-20261106T064835Z.json`; depth 20 `…20261106T072428Z.json`; depth 50 `…20261106T072853Z.json`; reference `…20261104T105300Z.json`. A Qdrant-down attempt (`…072053Z`, Docker stopped, BM25 fallback) was discarded and never committed.
+- Continuity (off vs reference): `shared goldens: 87`, `continuity: no shared-case differences`, exit 0.
+- `eval-compare --cross-rerank` vs reference, depth 20: `PASS (hits 86 -> 87, MRR 0.9228 -> 0.9751)`, flip `g026` miss→hit, p95 108.2 → 1028.7 ms (+920.6 ms). Depth 50: same quality (PASS, same hits and MRR), p95 2061.9 ms (+1953.7 ms), rerank leg about twice the depth-20 time.
+- Promotion (R10): depth 20 passes (no `ml`/`mixed`/`en` hit→miss; p95 delta under 1000 ms) and is promoted: only `rerank.enabled` changed in `config/retrieval.yaml`. Two hits drop a rank (`g038`, `g062`, 1.0 → 0.5) and `g057` stays at 0.5. The unanswerable cross-encoder top-1 scores overlap the golden ones (three unanswerable cases above 0), so no fixed cut-off is safe.
+- Operating change: with `rerank.enabled: true`, `--strategy dense|bm25` needs `--no-rerank`; default runs need the `reranker` extra and a cached model.
+
+**Spec 011 next (2026-11-06):**
+
+1. **T6** — fresh session: **`spec-orchestrator`** on `spec/011`. Then the required `spec-reviewer` retrospective, merge, and the user runs `/graphify . --update` on `main`.
+2. After the merge and before Spec 012: bring the `chore/workflow-trim` plan to the user first (saved plan: command detection in the two scripts, graph once per spec, graphify query optional in briefs, graphify upgrade).
+
+**Earlier (Spec 011 planning, 2026-11-04):**
+
+1. Done 2026-11-05/06: Spec 011 T1–T5 (see above).
 2. Optional: **`pytest --durations=25`** to rank slow tests before any future parallel verify work (D074 follow-up).
 3. Remove user-level verify-budget hook copies after merge; committed hook is `.claude/settings.json` + `tools/hooks/verify_budget.py`.
 
@@ -219,6 +232,7 @@ Observations for later (no task opened): consider `UV_HTTP_TIMEOUT ?= 300` in th
 
 - Default production index (after Spec 009 T6 promotion): **`idx-v2`**, **`recursive` v1** (128 tokens, 16 overlap, title prefix) in `config/ingestion.yaml`; collection **`way2australia-idx-v2`**. Legacy **`idx-v1`** / heading: `experiments/configs/chunking/heading-idx-v1.yaml` with `--config`.
 - Use `QDRANT_COLLECTION_BASE` for every fake-embedder run. A fake run without it records the default collection for the configured `index_version` as fake, and a later real run is then refused until a new `index_version` is set in `config/ingestion.yaml`.
+- After `make setup`, default runs (hybrid with reranking on, Spec 011 T5) need `make setup-bge-m3` plus a cached reranker (the first reranked run downloads the pinned model); `--strategy bm25` (and `dense`) now needs `--no-rerank`.
 - `make setup` removes the optional `bge-m3` extra; use `make setup-bge-m3` before a real-embedding run (on a slow connection `UV_HTTP_TIMEOUT=600 make setup-bge-m3`). A missing extra is detected when the embedder is built (exit 2, before any Qdrant call).
 - `make verify` runs the Docker integration tests too when a local Qdrant is reachable (they create and remove temporary collections); otherwise they skip.
 - `INGESTION_NAMESPACE` (`533d6c5a-5ac2-4dd5-a4e6-5fbb620efba2`) is permanent: changing it changes every point ID.
