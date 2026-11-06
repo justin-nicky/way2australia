@@ -54,7 +54,15 @@ def retrieve(
     factory: Factory, *extra: str, query: str = "Is coaching compulsory?"
 ) -> int:
     return cli.main(
-        [query, "--repo-root", str(REPO_ROOT), "--embedder", "fake", *extra],
+        [
+            query,
+            "--repo-root",
+            str(REPO_ROOT),
+            "--embedder",
+            "fake",
+            "--no-rerank",
+            *extra,
+        ],
         client_factory=factory,
     )
 
@@ -226,6 +234,7 @@ def test_unreachable_qdrant_prints_class_name_only(
             str(REPO_ROOT),
             "--embedder",
             "fake",
+            "--no-rerank",
             "--strategy",
             "dense",
         ]

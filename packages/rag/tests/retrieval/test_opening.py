@@ -134,6 +134,7 @@ def test_retrieve_cli_bm25_needs_neither_qdrant_nor_the_model(
             str(REPO_ROOT),
             "--embedder",
             "fake",
+            "--no-rerank",
             "--strategy",
             "bm25",
         ],

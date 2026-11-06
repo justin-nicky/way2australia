@@ -367,6 +367,7 @@ def run_cli(*extra: str, port: int) -> int:
             str(REPO_ROOT),
             "--embedder",
             "fake",
+            "--no-rerank",
             *extra,
         ],
         client_factory=client_at(port),

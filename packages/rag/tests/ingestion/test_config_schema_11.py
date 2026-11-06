@@ -467,6 +467,7 @@ def test_open_hybrid_paths_without_tokenizer(
                     str(REPO_ROOT),
                     "--embedder",
                     "fake",
+                    "--no-rerank",
                     "--strategy",
                     "hybrid",
                 ],

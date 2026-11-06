@@ -12,7 +12,7 @@ qdrant:
   connect_timeout_s: 2           # integer 1..30; bounds every open/binding request
   query_timeout_s: 3             # integer 1..30; bounds each search request
 rerank:
-  enabled: false                 # Spec 011: only T5 may change enabled/depth
+  enabled: true                  # Spec 011: only T5 may change enabled/depth
   provider: bge                  # bge | fake
   model_id: BAAI/bge-reranker-v2-m3
   revision: 953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e   # hub commit SHA read 2026-11-05

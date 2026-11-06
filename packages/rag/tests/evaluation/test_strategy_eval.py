@@ -734,7 +734,15 @@ def retrieve_world(lexical_env: Path, tmp_path: Path, monkeypatch: pytest.Monkey
 
 def retrieve(factory, *extra: str, query: str = "Is coaching compulsory?") -> int:  # noqa: ANN001
     return retrieve_cli.main(
-        [query, "--repo-root", str(REPO_ROOT), "--embedder", "fake", *extra],
+        [
+            query,
+            "--repo-root",
+            str(REPO_ROOT),
+            "--embedder",
+            "fake",
+            "--no-rerank",
+            *extra,
+        ],
         client_factory=factory,
     )
 

@@ -49,13 +49,14 @@ def v13(**rerank: Any) -> dict[str, Any]:
     return {**BASE, "schema_version": "1.3", "rerank": {**RERANK, **rerank}}
 
 
-def test_committed_file_is_1_3_with_reranking_off_and_a_pinned_revision() -> None:
+def test_committed_file_is_1_3_with_reranking_on_and_a_pinned_revision() -> None:
     path = REPO_ROOT / DEFAULT_CONFIG_PATH
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
     config = load_retrieval_config(path)
     assert raw["schema_version"] == "1.3"
-    assert raw["rerank"]["enabled"] is False
-    assert config.rerank.enabled is False
+    assert raw["rerank"]["enabled"] is True
+    assert config.rerank.enabled is True
+    assert config.rerank.depth == 20
     assert config.rerank.model_id == "BAAI/bge-reranker-v2-m3"
     revision = config.rerank.revision or ""
     assert len(revision) == 40 and set(revision) <= set("0123456789abcdef")

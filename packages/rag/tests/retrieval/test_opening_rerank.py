@@ -88,9 +88,10 @@ def memory_client(fake_lexical: Path) -> Factory:  # noqa: F811
     return Factory(client)
 
 
-def test_committed_config_has_reranking_off() -> None:
+def test_committed_config_has_reranking_on() -> None:
     config = load_retrieval_config(REPO_ROOT / "config/retrieval.yaml")
-    assert config.rerank.enabled is False
+    assert config.rerank.enabled is True
+    assert config.rerank.depth == 20
 
 
 @pytest.mark.parametrize("strategy", [Strategy.DENSE, Strategy.BM25])
@@ -224,10 +225,10 @@ def run(factory: Factory, *extra: str) -> int:
     )
 
 
-def test_cli_prints_rerank_off_by_default(
+def test_cli_prints_rerank_off_with_no_rerank(
     memory_client: Factory, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    assert run(memory_client) == 0
+    assert run(memory_client, "--no-rerank") == 0
     out = capsys.readouterr().out
     assert out.splitlines()[-1] == "rerank: off"
 
