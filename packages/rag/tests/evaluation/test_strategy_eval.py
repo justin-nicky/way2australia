@@ -8,6 +8,7 @@ import asyncio
 import json
 import re
 from pathlib import Path
+from time import sleep
 from typing import Any
 
 import pytest
@@ -41,6 +42,7 @@ from way2australia_rag.repositories import (
     LocalRepositoryConfig,
 )
 from way2australia_rag.repositories.hashing import HASH_CONTRACT
+from way2australia_rag.rerank.fake import FakeReranker
 from way2australia_rag.retrieval import cli as retrieve_cli
 from way2australia_rag.retrieval.base import Strategy
 from way2australia_rag.retrieval.identity import IndexIdentity
@@ -82,13 +84,17 @@ def production_chunker():  # noqa: ANN201
 def test_dense_2_2_equals_the_pre_change_2_0_result() -> None:
     before = json.loads(FIXTURE.read_text(encoding="utf-8"))
     after = run_equivalence()
-    assert before["schema_version"] == "2.0" and after["schema_version"] == "2.4"
+    assert before["schema_version"] == "2.0" and after["schema_version"] == "2.5"
     new_row_keys = {
         "query_terms_truncated",
         "leg_ranks",
         "served_strategy",
         "fallback_reason",
         "script_mix",
+        "served_path",
+        "rerank_top1_score",
+        "rerank_truncated_pairs",
+        "relevant_fused_ranks",
     }
     assert len(after["cases"]) == len(before["cases"]) > 0
     for old, new in zip(before["cases"], after["cases"], strict=True):
@@ -276,7 +282,7 @@ def test_2_3_keys_for_each_strategy(
     tmp_path: Path, strategy: Strategy, score_kind: str
 ) -> None:
     doc = run_strategy(tmp_path, strategy)
-    assert doc["schema_version"] == "2.4"
+    assert doc["schema_version"] == "2.5"
     assert doc["metric_unit"] == "distinct_documents"
     assert COMMON_KEYS <= set(doc)
     assert doc["retrieval_strategy"] == strategy.value
@@ -512,7 +518,7 @@ def test_eval_cli_writes_a_2_2_result_without_text(
     assert eval_cli(factory, "--strategy", strategy, "--output", str(out)) == 0
     text = out.read_text(encoding="utf-8")
     doc = json.loads(text)
-    assert doc["schema_version"] == "2.4" and doc["retrieval_strategy"] == strategy
+    assert doc["schema_version"] == "2.5" and doc["retrieval_strategy"] == strategy
     queries = [
         r["query"]
         for kind in ("golden_answerable", "unanswerable_refusal")
@@ -612,6 +618,103 @@ def test_eval_cli_still_refuses_a_fake_embedder(
     assert code == 2 and factory.calls == 0 and not out.exists()
 
 
+# ---- eval-retrieval --rerank through RerankingRetriever over hybrid (Spec 011 T4) ----
+
+
+class _RealStubReranker(FakeReranker):
+    """A non-fake reranker identity over the deterministic fake scores, with a
+    measurable load time. Injected at the CLI's reranker factory."""
+
+    LOAD_SECONDS = 0.4
+
+    def __init__(self) -> None:
+        super().__init__(model_id="stub-reranker", revision="a" * 40)
+        self.info = self.info.model_copy(update={"is_fake": False})
+
+    def load(self) -> None:
+        if not self._loaded:
+            sleep(self.LOAD_SECONDS)
+        super().load()
+
+
+def test_eval_cli_rerank_runs_the_stage_over_hybrid_end_to_end(
+    tmp_path: Path, lexical_env: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from way2australia_rag.retrieval.reranking import RerankingRetriever
+
+    factory = eval_world(lexical_env, "hybrid")
+    built: list[_RealStubReranker] = []
+    stages: list[RerankingRetriever] = []
+
+    def reranker_factory(config: Any, provider: str | None) -> _RealStubReranker:
+        reranker = _RealStubReranker()
+        built.append(reranker)
+        return reranker
+
+    real_init = RerankingRetriever.__init__
+
+    def spying_init(self: RerankingRetriever, *args: Any, **kwargs: Any) -> None:
+        real_init(self, *args, **kwargs)
+        stages.append(self)
+
+    out = tmp_path / "r.json"
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(RerankingRetriever, "__init__", spying_init)
+        code = cli.main(
+            [
+                "retrieval",
+                "--repo-root",
+                str(REPO_ROOT),
+                "--strategy",
+                "hybrid",
+                "--rerank",
+                "--output",
+                str(out),
+            ],
+            client_factory=factory,
+            embedder_factory=lambda config, provider: RealStub(),
+            reranker_factory=reranker_factory,
+        )
+    assert code == 0
+    # the production composition: one stage over hybrid, one reranker, loaded once
+    assert len(stages) == 1 and len(built) == 1
+    assert built[0].load_calls >= 1
+    depth = RETRIEVAL_CONFIG.rerank.depth
+    assert stages[0]._depth == depth  # noqa: SLF001
+    doc = json.loads(out.read_text(encoding="utf-8"))
+    # a clean 2.5 file that older tools can read
+    assert doc["schema_version"] == "2.5"
+    read_result(out)
+    assert doc["rerank_requested"] is True
+    assert doc["rerank"]["model_id"] == "stub-reranker"
+    assert doc["rerank"]["is_fake"] is False and doc["rerank"]["depth"] == depth
+    assert doc["rerank_skip_counts"] == {} and doc["warmup_rerank_skip"] is None
+    assert doc["fallback_counts"] == {}
+    assert doc["retrieval_strategy"] == "hybrid"
+    # depth selection: rerank.depth is the retrieval depth of the run
+    assert doc["retrieval_depth"] == depth
+    # served path per case
+    assert doc["cases"] and {c["served_path"] for c in doc["cases"]} == {
+        "hybrid+rerank"
+    }
+    assert all(c["rerank_top1_score"] is not None for c in doc["cases"])
+    # the load is inside warm-up and outside p50/p95
+    latency = doc["latency_ms"]
+    load_ms = _RealStubReranker.LOAD_SECONDS * 1000.0
+    assert latency["warmup_rerank_load_ms"] >= load_ms * 0.9
+    assert latency["warmup_ms"] >= latency["warmup_rerank_load_ms"]
+    assert latency["p95"] < load_ms
+    assert latency["legs"]["rerank"]["p95"] < load_ms
+    assert list(latency["by_served_path"]) == ["hybrid+rerank"]
+    # the rerank output lines
+    shown = capsys.readouterr().out
+    assert f"rerank: stub-reranker@{'a' * 7} depth {depth}" in shown
+    assert "(fake=false, device=fake)" in shown
+    assert "in warm-up, excluded from p50/p95" in shown
+    assert "rerank leg p50" in shown
+    assert str(tmp_path) not in out.read_text(encoding="utf-8")
+
+
 # ---- make retrieve ------------------------------------------------------------
 
 
@@ -631,7 +734,15 @@ def retrieve_world(lexical_env: Path, tmp_path: Path, monkeypatch: pytest.Monkey
 
 def retrieve(factory, *extra: str, query: str = "Is coaching compulsory?") -> int:  # noqa: ANN001
     return retrieve_cli.main(
-        [query, "--repo-root", str(REPO_ROOT), "--embedder", "fake", *extra],
+        [
+            query,
+            "--repo-root",
+            str(REPO_ROOT),
+            "--embedder",
+            "fake",
+            "--no-rerank",
+            *extra,
+        ],
         client_factory=factory,
     )
 
@@ -643,7 +754,8 @@ def test_retrieve_hybrid_prints_strategy_and_leg_ranks(
     lines = capsys.readouterr().out.strip().splitlines()
     assert lines[0] == "lote: none"
     assert "strategy=hybrid" in lines[2]
-    hits = lines[3:]
+    assert lines[-1] == "rerank: off"  # Spec 011: printed after the hits
+    hits = lines[3:-1]
     assert 1 <= len(hits) <= 3
     for hit in hits:
         assert re.match(
@@ -749,7 +861,7 @@ def test_a_2_2_file_reads_with_strategy_and_lexical(tmp_path: Path) -> None:
     path = tmp_path / "r.json"
     path.write_text(json.dumps(doc), encoding="utf-8")
     run_ = read_result(path)
-    assert run_.schema_version == "2.4"
+    assert run_.schema_version == "2.5"
     assert run_.info["retrieval_strategy"] == "hybrid"
     assert run_.info["lexical"]["tokenizer_name"] == "lexical-v2"
     assert len(run_.cases) == len(doc["cases"])
@@ -795,7 +907,7 @@ def test_eval_cli_bm25_needs_neither_qdrant_nor_the_embedder(
     )
     assert code == 0
     doc = json.loads(out.read_text(encoding="utf-8"))
-    assert doc["schema_version"] == "2.4" and doc["retrieval_strategy"] == "bm25"
+    assert doc["schema_version"] == "2.5" and doc["retrieval_strategy"] == "bm25"
     assert doc["index_settings"] is None and doc["device"] is None
     assert doc["document_count"] == manifest_document_count()
     assert doc["embedder_is_fake"] is False

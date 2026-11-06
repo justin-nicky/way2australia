@@ -79,7 +79,7 @@ def real_factory(config, provider):  # noqa: ANN001, ANN201
 
 def run(factory: Factory, *extra: str, root: Path = REPO_ROOT, embedder=real_factory):  # noqa: ANN001, ANN201
     return cli.main(
-        ["retrieval", "--repo-root", str(root), *extra],
+        ["retrieval", "--repo-root", str(root), "--no-rerank", *extra],
         client_factory=factory,
         embedder_factory=embedder,
     )
@@ -187,7 +187,14 @@ def test_unexpected_exception_prints_class_name_only(
 
     out = tmp_path / "e.json"
     code = cli.main(
-        ["retrieval", "--repo-root", str(REPO_ROOT), "--output", str(out)],
+        [
+            "retrieval",
+            "--repo-root",
+            str(REPO_ROOT),
+            "--no-rerank",
+            "--output",
+            str(out),
+        ],
         client_factory=boom,
         embedder_factory=real_factory,
     )

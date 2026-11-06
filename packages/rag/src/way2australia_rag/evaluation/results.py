@@ -21,7 +21,8 @@ from way2australia_rag.retrieval.baseline import (
 from way2australia_rag.retrieval.text import safe_text
 
 RESULT_KIND = "retrieval_evaluation"
-SCHEMA_VERSION = "2.4"
+SCHEMA_VERSION = "2.5"
+_PRE_RERANK_SCHEMA_VERSION = "2.4"
 _LEGACY_SCHEMA_VERSION = "2.3"
 _PRE_LOTE_SCHEMA_VERSION = "2.2"
 LEGACY_KIND = "retrieval_baseline"
@@ -32,6 +33,7 @@ SUPPORTED_FORMATS = {
     (RESULT_KIND, "2.1"),
     (RESULT_KIND, _PRE_LOTE_SCHEMA_VERSION),
     (RESULT_KIND, _LEGACY_SCHEMA_VERSION),
+    (RESULT_KIND, _PRE_RERANK_SCHEMA_VERSION),
     (RESULT_KIND, SCHEMA_VERSION),
 }
 # Versions whose case rows carry `source_authority` (2.0 and later).
@@ -40,8 +42,16 @@ AUTHORITY_VERSIONS = {
     "2.1",
     _PRE_LOTE_SCHEMA_VERSION,
     _LEGACY_SCHEMA_VERSION,
+    _PRE_RERANK_SCHEMA_VERSION,
     SCHEMA_VERSION,
 }
+# Distinct-document metrics (2.3), `lote` (2.4) and rerank fields (2.5) are
+# additive: 2.3 and later form one comparison family (Spec 011 T3).
+DISTINCT_VERSIONS = frozenset(
+    {_LEGACY_SCHEMA_VERSION, _PRE_RERANK_SCHEMA_VERSION, SCHEMA_VERSION}
+)
+_SERVED_VERSIONS = frozenset({_PRE_LOTE_SCHEMA_VERSION, *DISTINCT_VERSIONS})
+_LOTE_VERSIONS = frozenset({_PRE_RERANK_SCHEMA_VERSION, SCHEMA_VERSION})
 
 __all__ = [
     "CaseRow",
@@ -50,6 +60,7 @@ __all__ = [
     "RESULT_KIND",
     "SCHEMA_VERSION",
     "AUTHORITY_VERSIONS",
+    "DISTINCT_VERSIONS",
     "check_output_free",
     "default_output_path",
     "write_document",
@@ -108,7 +119,7 @@ def _num(value: object) -> bool:
 
 
 def read_result(path: Path, label: str = "result") -> ComparableRun:
-    """Read a `retrieval_baseline` 1.0 or `retrieval_evaluation` 2.0 through 2.4 file.
+    """Read a `retrieval_baseline` 1.0 or `retrieval_evaluation` 2.0 through 2.5 file.
 
     Anything else raises `NotComparableError` (exit 2 in the CLI). Only the file
     name appears in messages.
@@ -127,7 +138,7 @@ def read_result(path: Path, label: str = "result") -> ComparableRun:
             name,
             f"has kind {kind!r} and schema_version {version!r} "
             "(supported: retrieval_baseline 1.0, "
-            "retrieval_evaluation 2.0, 2.1, 2.2, 2.3 and 2.4)",
+            "retrieval_evaluation 2.0, 2.1, 2.2, 2.3, 2.4 and 2.5)",
         )
     try:
         return _build_run(name, raw, str(kind), str(version), label)
@@ -159,6 +170,32 @@ def _served_strategy(raw: dict[str, Any], name: str, label: str) -> tuple[str, s
         )
         raise _mixed(label, name, detail)
     return served[0], requested
+
+
+def _rerank_fields(
+    raw: dict[str, Any], version: str
+) -> tuple[bool, dict[str, Any] | None, int]:
+    """Requested flag, identity and measured skip total; files before 2.5 read as
+    "no reranking" (Spec 011 R6)."""
+    if version != SCHEMA_VERSION:
+        return False, None, 0
+    requested, identity, counts = (
+        raw["rerank_requested"],
+        raw["rerank"],
+        raw["rerank_skip_counts"],
+    )
+    if not (
+        isinstance(requested, bool)
+        and (identity is None or isinstance(identity, dict))
+        and isinstance(counts, dict)
+        and all(isinstance(v, int) and not isinstance(v, bool) for v in counts.values())
+    ):
+        raise ValueError("malformed")
+    if isinstance(identity, dict):
+        for key in ("model_id", "revision", "depth", "max_length"):
+            if key not in identity:
+                raise ValueError("malformed")
+    return requested, identity, int(sum(counts.values()))
 
 
 def _mixed(label: str, name: str, detail: str) -> NotComparableError:
@@ -208,11 +245,7 @@ def _build_run(
             source_authority=None if authority is None else str(authority),
         )
     settings = raw.get("index_settings") or {}
-    identity = (
-        raw.get("dense_identity")
-        if version in ("2.2", _LEGACY_SCHEMA_VERSION, SCHEMA_VERSION)
-        else None
-    )
+    identity = raw.get("dense_identity") if version in _SERVED_VERSIONS else None
     if not isinstance(identity, dict):
         identity = {}
     latency = raw.get("latency_ms") or {}
@@ -220,12 +253,12 @@ def _build_run(
     strategy = raw.get("retrieval_strategy") or "dense"
     requested = strategy
     latency_path = None
-    if version in ("2.2", _LEGACY_SCHEMA_VERSION, SCHEMA_VERSION):
+    if version in _SERVED_VERSIONS:
         strategy, requested = _served_strategy(raw, name, label)
         paths = latency.get("by_served_path") or {}
         latency_path = next(iter(paths)) if len(paths) == 1 else None
     if (
-        version in ("2.1", "2.2", _LEGACY_SCHEMA_VERSION, SCHEMA_VERSION)
+        (version == "2.1" or version in _SERVED_VERSIONS)
         and strategy in ("bm25", "hybrid")
         and not isinstance(lexical, dict)
     ):
@@ -233,6 +266,7 @@ def _build_run(
         raise _unreadable(
             label, name, f"is a {strategy} run without a lexical_index object"
         )
+    rerank_requested, rerank, rerank_skips = _rerank_fields(raw, version)
     info = {
         # 1.0 and 2.0 files are dense runs; 2.2 records the served strategy.
         "retrieval_strategy": strategy,
@@ -256,7 +290,10 @@ def _build_run(
         "chunker": raw.get("chunker"),
         "ingestion_config": raw.get("ingestion_config"),
         "chunk_stats": raw.get("chunk_stats"),
-        "lote": raw.get("lote") if version == SCHEMA_VERSION else None,
+        "lote": raw.get("lote") if version in _LOTE_VERSIONS else None,
+        "rerank_requested": rerank_requested,
+        "rerank": rerank,
+        "rerank_skips": rerank_skips,
     }
     return ComparableRun(
         name=name,

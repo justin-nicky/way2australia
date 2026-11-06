@@ -55,6 +55,21 @@ def _strategy_line(result: RetrievalResult) -> str:
     return line
 
 
+def rerank_line(result: RetrievalResult, rerank_requested: bool) -> str | None:
+    record = result.rerank
+    if record is None:
+        return "rerank: off" if not rerank_requested else None
+    if record.skipped_reason is not None:
+        return (
+            f"rerank: skipped ({safe_text(record.skipped_reason)}, "
+            f"{safe_text(record.stage or 'unknown')})"
+        )
+    return (
+        f"rerank: {safe_text(record.model_id)}@{safe_text(record.revision[:7])} "
+        f"depth {record.depth}"
+    )
+
+
 def format_result(result: RetrievalResult) -> str:
     lines = [
         f"index: {safe_text(result.collection)} "
@@ -117,6 +132,22 @@ def _parser() -> argparse.ArgumentParser:
         default=None,
         help=f"retrieval config (default: <repo-root>/{DEFAULT_RETRIEVAL_CONFIG})",
     )
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--rerank",
+        dest="rerank",
+        action="store_const",
+        const=True,
+        default=None,
+        help="rerank hybrid results (default: rerank.enabled in the config)",
+    )
+    group.add_argument("--no-rerank", dest="rerank", action="store_const", const=False)
+    parser.add_argument(
+        "--reranker",
+        choices=("bge", "fake"),
+        default=None,
+        help="reranker (default: rerank.provider from the retrieval config)",
+    )
     parser.add_argument(
         "--lote",
         default=None,
@@ -151,6 +182,7 @@ def main(
             args.retrieval_config or repo_root / DEFAULT_RETRIEVAL_CONFIG
         )
         strategy = Strategy(args.strategy or retrieval_config.default_strategy)
+        rerank = retrieval_config.rerank.enabled if args.rerank is None else args.rerank
         opened = open_retrieval(
             strategy,
             settings=settings,
@@ -159,6 +191,8 @@ def main(
             provider=provider,
             repo_root=repo_root,
             client_factory=client_factory,
+            rerank=rerank,
+            reranker_provider=args.reranker,
         )
         access = resolve_access(guest_access(settings))
         result = opened.retriever.retrieve(args.query, access, args.top_k, lote=lote)
@@ -180,7 +214,18 @@ def main(
             file=sys.stderr,
         )
     print(f"lote: {safe_text(result.lote or 'none')}")
+    if result.rerank is not None and result.rerank.skipped_reason is not None:
+        print(
+            "WARNING reranking skipped: "
+            f"{safe_text(result.rerank.skipped_reason)} "
+            f"({safe_text(result.rerank.stage or 'unknown')}); "
+            "served un-reranked hybrid.",
+            file=sys.stderr,
+        )
     print(format_result(result))
+    line = rerank_line(result, rerank)
+    if line is not None:
+        print(line)
     return EXIT_OK
 
 

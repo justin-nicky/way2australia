@@ -1,9 +1,12 @@
 """Authorization hard gate over a throwaway security index (Spec 006 R8, Spec 008 R10).
 
 Every retrieval-side security case and every active golden query runs through
-five paths: the production `dense`, `bm25` and `hybrid` retrievers (built by
-`build_retriever`), and the two `hybrid` fallback paths (`hybrid_fallback_open`,
-`hybrid_fallback_query`), with the one server-resolved `ResolvedAccess` passed in. A
+eight paths: the production `dense`, `bm25` and `hybrid` retrievers (built by
+`build_retriever`), the two `hybrid` fallback paths (`hybrid_fallback_open`,
+`hybrid_fallback_query`), and the three reranked paths of Spec 011
+(`hybrid_rerank`, `hybrid_rerank_skip_open`, `hybrid_rerank_skip_query`, built by
+`build_retriever` with a `FakeReranker`), with the one server-resolved
+`ResolvedAccess` passed in. A
 case's own `access_context` is never consulted, and query text never reaches the
 filter. A forbidden document in the results, or a `check_hit` failure, is a
 violation. Violations name `case_id`, `document_id` and variant, never text.
@@ -19,13 +22,16 @@ from urllib.parse import quote
 from way2australia_rag.evaluation.errors import EvaluationHarnessError
 from way2australia_rag.evaluation.models import DatasetType, LoadedSuite
 from way2australia_rag.evaluation.security_index import (
+    FORBIDDEN_SENTINEL,
     FORBIDDEN_VARIANTS,
+    INJECTION_TEXT,
     NON_APPLICABLE_VARIANT,
     SECURITY_COLLECTION_PREFIX,
     SecurityIndex,
     forbidden_variant,
     is_forbidden_document,
     is_non_applicable_document,
+    lexical_probe_text,
 )
 from way2australia_rag.ingestion.chunking import Chunker, HeadingChunker
 from way2australia_rag.ingestion.recursive import RecursiveChunker
@@ -36,6 +42,11 @@ from way2australia_rag.lexical.build import production_entries
 from way2australia_rag.lexical.store import LexicalIndex, LexicalIndexBindingError
 from way2australia_rag.lexical.tokenizer import query_terms
 from way2australia_rag.repositories.hashing import HASH_CONTRACT
+from way2australia_rag.rerank.errors import (
+    RerankSkipReason,
+    classify_reranker_error,
+)
+from way2australia_rag.rerank.fake import FakeReranker
 from way2australia_rag.retrieval.access import ResolvedAccess, build_sql_access_clause
 from way2australia_rag.retrieval.applicability import ResolvedLote, dense_query_filter
 from way2australia_rag.retrieval.base import Retriever, Strategy
@@ -89,8 +100,21 @@ PATH_BM25 = "bm25"
 PATH_HYBRID = "hybrid"
 PATH_FALLBACK_OPEN = "hybrid_fallback_open"
 PATH_FALLBACK_QUERY = "hybrid_fallback_query"
+PATH_RERANK = "hybrid_rerank"
+PATH_RERANK_SKIP_OPEN = "hybrid_rerank_skip_open"
+PATH_RERANK_SKIP_QUERY = "hybrid_rerank_skip_query"
+# The five Spec 006 to 008 paths. Their results are unchanged by Spec 011.
 PATHS = (PATH_DENSE, PATH_BM25, PATH_HYBRID, PATH_FALLBACK_OPEN, PATH_FALLBACK_QUERY)
+RERANK_PATHS = (PATH_RERANK, PATH_RERANK_SKIP_OPEN, PATH_RERANK_SKIP_QUERY)
+# What `make eval-security` runs.
+ALL_PATHS = (*PATHS, *RERANK_PATHS)
 _FALLBACK_PATHS = frozenset({PATH_FALLBACK_OPEN, PATH_FALLBACK_QUERY})
+# The (reason, stage) a skip path must record, or the gate would be vacuous.
+_EXPECTED_SKIP: dict[str, tuple[str, str] | None] = {
+    PATH_RERANK: None,
+    PATH_RERANK_SKIP_OPEN: (RerankSkipReason.MODEL_UNAVAILABLE.value, "open"),
+    PATH_RERANK_SKIP_QUERY: (RerankSkipReason.MODEL_UNAVAILABLE.value, "query"),
+}
 LEXICAL_SANITY_SQL = (
     "SELECT c.document_id FROM chunk_terms "
     "JOIN chunks c ON c.rowid = chunk_terms.rowid "
@@ -104,10 +128,12 @@ LEXICAL_ACCESS_SANITY_SQL = (
 )
 
 __all__ = [
+    "ALL_PATHS",
     "DEFERRED_OWNERS",
     "EXCLUDED_FIXTURES",
     "FORBIDDEN_VARIANTS",
     "PATHS",
+    "RERANK_PATHS",
     "RETRIEVAL_SIDE_ATTACK_TYPES",
     "SECURITY_COLLECTION_PREFIX",
     "SecurityQuery",
@@ -156,6 +182,8 @@ class SecurityReport:
     golden_query_count: int = 0
     bm25_no_term_queries: int = 0
     paths: tuple[str, ...] = PATHS
+    # Rerank paths only: the fake reranker identity and the skip seen (R8).
+    path_details: dict[str, dict[str, Any]] = field(default_factory=dict)
     authorization_violations: list[dict[str, str]] = field(default_factory=list)
     applicability_violations: list[dict[str, str]] = field(default_factory=list)
     deferred: list[dict[str, Any]] = field(default_factory=list)
@@ -210,7 +238,7 @@ def run_security_evaluation(
     queries: Sequence[SecurityQuery],
     deferred: Sequence[dict[str, Any]],
     retrieval_config: RetrievalConfig,
-    paths: Sequence[str] = PATHS,
+    paths: Sequence[str] = ALL_PATHS,
     *,
     active_lote: ResolvedLote,
 ) -> SecurityReport:
@@ -246,8 +274,17 @@ def run_security_evaluation(
             else:
                 report.bm25_no_term_queries += 1
             for path, retriever in retrievers:
-                _gate(report, path, retriever, query, access, lote=None)
-                _gate(report, path, retriever, query, access, lote=active_lote)
+                top_k = _path_top_k(path, retrieval_config)
+                _gate(report, path, retriever, query, access, lote=None, top_k=top_k)
+                _gate(
+                    report,
+                    path,
+                    retriever,
+                    query,
+                    access,
+                    lote=active_lote,
+                    top_k=top_k,
+                )
             report.query_count += 1
             if query.kind == "security":
                 report.security_case_count += 1
@@ -277,6 +314,51 @@ class _UnavailableDense:
         raise RetrievalUnavailableError(FallbackReason.QDRANT_UNAVAILABLE)
 
 
+class _AlwaysFailingScore(FakeReranker):
+    """Harness-only reranker whose every `score` call fails as unavailable.
+
+    `FakeReranker.fail_on_call` fails one numbered call; resetting the counter
+    before each call makes it fail every call. Constructed only by this gate."""
+
+    def __init__(self) -> None:
+        super().__init__(fail_on_call=1)
+
+    def score(self, query: str, texts: Sequence[str]) -> Any:
+        self.score_calls = 0
+        return super().score(query, texts)
+
+
+def _rerank_config(config: RetrievalConfig) -> RetrievalConfig:
+    """The gate asks the stage for every candidate the legs fetch (the widest
+    pool the re-check must cover), not only the committed `rerank.depth`."""
+    depth = config.fusion.candidate_depth
+    return config.model_copy(
+        update={"rerank": config.rerank.model_copy(update={"depth": depth})}
+    )
+
+
+def _path_top_k(path: str, config: RetrievalConfig) -> int:
+    if path in RERANK_PATHS:
+        return min(MAX_TOP_K, _rerank_config(config).rerank.depth)
+    return MAX_TOP_K
+
+
+def _preferring(queries: Sequence[str]) -> Any:
+    """What the gate's fake reranker puts first: every forbidden, non-applicable
+    and injection-style text (the worst case for a stage that trusts scores)."""
+    probes = {
+        text
+        for q in queries
+        for repeats in (2, 3)
+        if (text := lexical_probe_text(q, repeats=repeats))
+    }
+
+    def prefer(text: str) -> bool:
+        return FORBIDDEN_SENTINEL in text or INJECTION_TEXT in text or text in probes
+
+    return prefer
+
+
 def _path_strategy(path: str) -> str:
     if path in (PATH_DENSE, PATH_BM25):
         return path
@@ -284,7 +366,9 @@ def _path_strategy(path: str) -> str:
 
 
 def _retrievers(
-    index: SecurityIndex, config: RetrievalConfig, paths: Sequence[str]
+    index: SecurityIndex,
+    config: RetrievalConfig,
+    paths: Sequence[str],
 ) -> list[tuple[str, Retriever]]:
     """One retriever per gated path, all over the one throwaway index."""
     identity = IndexIdentity.from_dense(index.dense)
@@ -326,10 +410,48 @@ def _retrievers(
             retriever = FallbackRetriever(
                 HybridRetriever(_UnavailableDense(), bm25, config.fusion), bm25, None
             )
+        elif path in RERANK_PATHS:
+            retriever = _rerank_retriever(path, index, identity, config)
         else:
             raise EvaluationHarnessError(f"unknown gate path '{path}'.")
         built.append((path, retriever))
     return built
+
+
+def _rerank_retriever(
+    path: str,
+    index: SecurityIndex,
+    identity: IndexIdentity,
+    config: RetrievalConfig,
+) -> Retriever:
+    """The production composition (`build_retriever` with a reranker) over the
+    throwaway index, with a `FakeReranker`. The open-time load happens here, as
+    in `open_retrieval`: an eligible failure becomes the sticky open-stage skip."""
+    reranker: FakeReranker
+    open_skip: RerankSkipReason | None = None
+    if path == PATH_RERANK:
+        reranker = FakeReranker(prefer=_preferring(index.queries))
+    elif path == PATH_RERANK_SKIP_OPEN:
+        reranker = FakeReranker(fail_on_load=True)
+    else:
+        reranker = _AlwaysFailingScore()
+    try:
+        reranker.load()
+    except Exception as error:  # noqa: BLE001 - classified; anything else re-raised
+        mapped = classify_reranker_error(error)
+        if mapped is None:
+            raise
+        open_skip = mapped.reason
+    return build_retriever(
+        Strategy.HYBRID,
+        identity,
+        index.dense,
+        index.embedder,
+        index.lexical,
+        _rerank_config(config),
+        reranker,
+        open_skip,
+    )
 
 
 def _check_standalone_open(index: SecurityIndex, identity: IndexIdentity) -> None:
@@ -386,9 +508,10 @@ def _gate(
     access: ResolvedAccess,
     *,
     lote: ResolvedLote | None,
+    top_k: int = MAX_TOP_K,
 ) -> None:
     try:
-        result = retriever.retrieve(query.text, access, top_k=MAX_TOP_K, lote=lote)
+        result = retriever.retrieve(query.text, access, top_k=top_k, lote=lote)
         if path in _FALLBACK_PATHS and (
             result.fallback_reason != FallbackReason.QDRANT_UNAVAILABLE.value
             or result.strategy != Strategy.BM25.value
@@ -404,6 +527,8 @@ def _gate(
                 f"path '{path}' fell back ({result.fallback_reason}) for case "
                 f"'{query.case_id}', so it did not gate the strategy it names."
             )
+        if path in RERANK_PATHS:
+            _check_rerank_path(report, path, result, query)
     except RetrievalAuthorizationError as error:
         document_id = error.document_id
         report.authorization_violations.append(
@@ -454,6 +579,45 @@ def _gate(
                     variant=NON_APPLICABLE_VARIANT,
                 )
             )
+
+
+def _check_rerank_path(
+    report: SecurityReport, path: str, result: RetrievalResult, query: SecurityQuery
+) -> None:
+    """A reranked path must show the stage it names: the reranker identity, and
+    for a skip path exactly the expected reason and stage. Otherwise the gate
+    would pass without exercising the path it claims to."""
+    record = result.rerank
+    if record is None:
+        raise EvaluationHarnessError(
+            f"path '{path}' recorded no rerank stage for case '{query.case_id}', "
+            "so the gate would be vacuous."
+        )
+    expected = _EXPECTED_SKIP[path]
+    seen = (
+        None
+        if record.skipped_reason is None
+        else (record.skipped_reason, str(record.stage))
+    )
+    if seen != expected:
+        raise EvaluationHarnessError(
+            f"path '{path}' recorded skip {seen} instead of {expected} for case "
+            f"'{query.case_id}', so the gate would be vacuous."
+        )
+    detail = {
+        "reranker": {
+            "model_id": record.model_id,
+            "revision": record.revision,
+            "max_length": record.max_length,
+            "is_fake": record.is_fake,
+        },
+        "depth": record.depth,
+        "skip": (None if seen is None else {"reason": seen[0], "stage": seen[1]}),
+    }
+    if report.path_details.setdefault(path, detail) != detail:
+        raise EvaluationHarnessError(
+            f"path '{path}' changed its rerank record between queries."
+        )
 
 
 def _violation_row(
@@ -577,7 +741,7 @@ def _lexical_sanity_check(
 
 
 SECURITY_RESULT_KIND = "security_evaluation"
-SECURITY_SCHEMA_VERSION = "1.4"
+SECURITY_SCHEMA_VERSION = "1.5"
 
 
 def security_run_record(index: SecurityIndex, report: SecurityReport) -> dict[str, Any]:
@@ -590,6 +754,11 @@ def security_run_record(index: SecurityIndex, report: SecurityReport) -> dict[st
         "golden_queries_run": report.golden_query_count,
         "paths": list(report.paths),
         "strategies": list(report.strategies),
+        "path_details": {
+            path: report.path_details[path]
+            for path in report.paths
+            if path in report.path_details
+        },
         "bm25_no_term_queries": report.bm25_no_term_queries,
         "violations": report.violations,
         "authorization_violations": report.authorization_violations,

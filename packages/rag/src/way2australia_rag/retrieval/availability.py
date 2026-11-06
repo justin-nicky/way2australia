@@ -55,6 +55,17 @@ _EXCLUDED_TYPES: tuple[type[BaseException], ...] = _optional_types(
 )
 
 
+def _cause_chain(error: BaseException) -> list[BaseException]:
+    """The error and its explicit `__cause__` links (`raise ... from`), at most
+    `MAX_CAUSE_LINKS` of them. `__context__` is never followed."""
+    chain: list[BaseException] = []
+    link: BaseException | None = error
+    while link is not None and len(chain) < MAX_CAUSE_LINKS and link not in chain:
+        chain.append(link)
+        link = link.__cause__
+    return chain
+
+
 def classify_qdrant_error(error: BaseException) -> RetrievalUnavailableError | None:
     """Map a qdrant-client failure to a reason, or `None` (not eligible).
 
@@ -82,11 +93,7 @@ def classify_model_error(error: BaseException) -> RetrievalUnavailableError | No
     from`, at most `MAX_CAUSE_LINKS` links, starting at the error itself) must
     contain a network or timeout error. `__context__` is never followed.
     """
-    chain: list[BaseException] = []
-    link: BaseException | None = error
-    while link is not None and len(chain) < MAX_CAUSE_LINKS and link not in chain:
-        chain.append(link)
-        link = link.__cause__
+    chain = _cause_chain(error)
     if _EXCLUDED_TYPES and any(isinstance(item, _EXCLUDED_TYPES) for item in chain):
         return None
     if any(isinstance(item, _NETWORK_TYPES) for item in chain):

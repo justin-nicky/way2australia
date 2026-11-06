@@ -48,7 +48,7 @@ Reason:
 - Reciprocal Rank Fusion (RRF), implemented (D052); parameters in `config/retrieval.yaml`
 
 ### Reranking
-- Local multilingual BGE reranker initially
+- Local multilingual BGE reranker: `BAAI/bge-reranker-v2-m3` (Apache-2.0) through `sentence-transformers` `CrossEncoder`, pinned to revision `953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e`; optional `reranker` extra installed by `make setup-bge-m3`; implemented by Spec 011 (D075), hybrid only, default depth 20 (D079). A hosted reranker can be added behind the `Reranker` Protocol in Phase 2.
 
 ### Generation
 - Amazon Bedrock Runtime

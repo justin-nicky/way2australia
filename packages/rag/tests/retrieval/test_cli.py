@@ -54,7 +54,15 @@ def retrieve(
     factory: Factory, *extra: str, query: str = "Is coaching compulsory?"
 ) -> int:
     return cli.main(
-        [query, "--repo-root", str(REPO_ROOT), "--embedder", "fake", *extra],
+        [
+            query,
+            "--repo-root",
+            str(REPO_ROOT),
+            "--embedder",
+            "fake",
+            "--no-rerank",
+            *extra,
+        ],
         client_factory=factory,
     )
 
@@ -77,7 +85,8 @@ def test_success_prints_header_and_hit_lines(
         f"index: {PRODUCTION_COLLECTION} (index_version {PRODUCTION_INDEX_VERSION};"
     )
     assert "fake=true" in lines[1] and "device=" in lines[1]
-    hits = lines[3:]
+    assert lines[-1] == "rerank: off"  # Spec 011: printed after the hits
+    hits = lines[3:-1]
     assert 1 <= len(hits) <= 3
     assert re.match(r"^1  \S+  \S+  -?\d+\.\d{4}  .+", hits[0])
 
@@ -116,6 +125,9 @@ def test_parser_has_no_role_scope_or_tenant_option() -> None:
         "--embedder",
         "--strategy",
         "--retrieval-config",
+        "--rerank",
+        "--no-rerank",
+        "--reranker",
         "--lote",
     }
     for flag in ("--role", "--scope", "--tenant", "--tenant-id", "--access-scope"):
@@ -222,6 +234,7 @@ def test_unreachable_qdrant_prints_class_name_only(
             str(REPO_ROOT),
             "--embedder",
             "fake",
+            "--no-rerank",
             "--strategy",
             "dense",
         ]

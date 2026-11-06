@@ -70,14 +70,16 @@ def manifest_document_count() -> int:
     )
 
 
-@pytest.fixture(autouse=True)
-def hub_offline_empty_cache(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Unit tests must not depend on a warm Hugging Face cache (Spec 009 T7).
+HUB_OPT_OUT_VARIABLES = ("W2A_RUN_BGE_M3_SMOKE", "W2A_RUN_RERANKER_SMOKE")
 
-    Opt out with W2A_RUN_BGE_M3_SMOKE=1 for the BGE-M3 smoke test.
+
+def apply_hub_offline_empty_cache(monkeypatch: pytest.MonkeyPatch) -> bool:
+    """Force offline mode and an empty cache unless a smoke opt-out is set.
+
+    Returns True when the offline setup was applied.
     """
-    if os.environ.get("W2A_RUN_BGE_M3_SMOKE") == "1":
-        return
+    if any(os.environ.get(name) == "1" for name in HUB_OPT_OUT_VARIABLES):
+        return False
     empty = REPO_ROOT / ".local" / "pytest-hf-empty"
     empty.mkdir(parents=True, exist_ok=True)
     hub = empty / "hub"
@@ -90,6 +92,17 @@ def hub_offline_empty_cache(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HUGGINGFACE_HUB_CACHE", str(hub))
     monkeypatch.setenv("TRANSFORMERS_CACHE", str(transformers))
     monkeypatch.setenv("TRANSFORMERS_OFFLINE", "1")
+    return True
+
+
+@pytest.fixture(autouse=True)
+def hub_offline_empty_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Unit tests must not depend on a warm Hugging Face cache (Spec 009 T7).
+
+    Opt out with W2A_RUN_BGE_M3_SMOKE=1 for the BGE-M3 smoke test, or with
+    W2A_RUN_RERANKER_SMOKE=1 for the reranker smoke test (Spec 011 T1).
+    """
+    apply_hub_offline_empty_cache(monkeypatch)
 
 
 @pytest.fixture

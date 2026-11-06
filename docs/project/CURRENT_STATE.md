@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-11-04 (`chore/verify-budget` merged; D073–D074)
+Last updated: 2026-11-06 (Spec 011 T1–T6 approved on `spec/011`; required retrospective round 1 `PASS`, awaiting the user's approval and the merge; reranking on at depth 20; D073–D079)
 
 ## Current phase
 
@@ -12,7 +12,7 @@ Spec 001 project foundation is complete.
 
 ## Current goal
 
-Specs **001–010** are **verified on `main`** (Spec 010 merged 2026-11-04, fast-forward to **`cae06c3`**). Default production index **`idx-v2`** / recursive 128+title (D071): run **`make ingest`**, then **`make index-lexical`** with default **`lexical-v2`** tokenizer (D072; settings 1.2; rebuild once if upgrading from 1.1 for `--lote`). Hybrid default retrieval needs the lexical file. Ignored stale `knowledge_release_id` / `evaluation_suite_id` keys remain on the promoted yaml until the next `index_version` (D071 carry-over). Verify-budget hook in-repo (**D073**); pytest-xdist **not** adopted for default verify (**D074**); follow-up **`pytest --durations=25`** still open. **Next:** **Spec 011** (roadmap item 9, reranking) via **`spec-planner`** in a fresh session (brief from `.kiro/specs/010-multilingual-retrieval/review.md` Notes). **No HTTP-route spec yet:** Spec 008 serving items belong with roadmap **item 10 (grounded generation)**. Repository-based shared context keeps Codex, Claude Code, Cursor and Kiro interchangeable (D063).
+Specs **001–010** are **verified on `main`** (Spec 010 merged 2026-11-04, fast-forward to **`cae06c3`**). Default production index **`idx-v2`** / recursive 128+title (D071): run **`make ingest`**, then **`make index-lexical`** with default **`lexical-v2`** tokenizer (D072; settings 1.2; rebuild once if upgrading from 1.1 for `--lote`). Hybrid default retrieval needs the lexical file. Ignored stale `knowledge_release_id` / `evaluation_suite_id` keys remain on the promoted yaml until the next `index_version` (D071 carry-over). Verify-budget hook in-repo (**D073**); pytest-xdist **not** adopted for default verify (**D074**); follow-up **`pytest --durations=25`** still open. **Spec 011** (roadmap item 9, multilingual reranking; context building deferred to item 10) is **implemented**: all six tasks T1–T6 approved on branch **`spec/011`** (base `3b81508`, planning approved 2026-11-04; T6 approved 2026-11-06). Reranking is **on by default at depth 20** (`rerank.enabled: true`, D079; MRR 0.9228 → 0.9751, p95 +920.6 ms on `mps:0`, `BAAI/bge-reranker-v2-m3` @ `953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e`). Required `spec-reviewer` retrospective round 1: **`PASS`** (2026-11-06, `.kiro/specs/011-multilingual-reranking/review.md`; four MINOR findings, docs reconciled, no RM tasks). **Next:** the user's approval of the retrospective, then the merge of `spec/011` into `main` (the spec is not verified until merged). **No HTTP-route spec yet:** Spec 008 serving items belong with roadmap **item 10 (grounded generation)**. Repository-based shared context keeps Codex, Claude Code, Cursor and Kiro interchangeable (D063).
 
 ## Finalized high-level decisions
 
@@ -29,7 +29,7 @@ Specs **001–010** are **verified on `main`** (Spec 010 merged 2026-11-04, fast
 - SQLite FTS5 fallback.
 - BGE-M3 initial embeddings.
 - BM25 + RRF hybrid retrieval (Spec 007, merged; default strategy `hybrid`, D055); `hybrid` degrades to BM25 when Qdrant or the embedding model is unreachable (Spec 008, merged).
-- multilingual reranking planned.
+- multilingual reranking implemented (Spec 011): `BAAI/bge-reranker-v2-m3` cross-encoder over hybrid candidates, default on at depth 20 (D079).
 - Amazon Bedrock Runtime for generation.
 - Langfuse for RAG tracing.
 - CloudWatch for operations.
@@ -130,8 +130,15 @@ Implemented:
   - Result **2.4**; `eval-compare --cross-tokenizer`; `make eval-continuity`; security **1.4**.
   - Retrospective: `.kiro/specs/010-multilingual-retrieval/review.md` (Notes for the next spec → Spec 011 / verify-budget).
 
+- Spec 011 (branch `spec/011`, base `3b81508`; T1–T6 approved; retrospective round 1 `PASS`, awaiting approval; not yet verified or merged): multilingual reranking, hybrid only (D075–D079).
+  - `packages/rag/.../rerank/`: `Reranker` Protocol, deterministic `FakeReranker`, `BgeRerankerV2M3` adapter (`BAAI/bge-reranker-v2-m3` @ `953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e`, raw logits, lazy import), `RerankerUnavailableError` and `classify_reranker_error`, `build_reranker`; optional `reranker` extra (installed by `make setup-bge-m3`); `config/retrieval.yaml` schema **1.3** with the `rerank` block.
+  - `retrieval/reranking.py`: `RerankingRetriever` inside `FallbackRetriever` over `HybridRetriever`; cross-encoder-only ordering with fused-rank ties; membership re-check; sticky open-time skip and per-query skip; reranking off never builds or loads. `make retrieve` and `make eval-retrieval` take `--rerank` / `--no-rerank` (`--reranker fake` on `make retrieve` only).
+  - Result **2.5**; `eval-compare --cross-rerank` (a reranked file with skipped queries is always refused; the format family is 2.3 and later); `eval-continuity` refuses rerank identity differences; `make eval-security` gates eight paths, security result **1.5**.
+  - T5 outcome: user-run real evaluation promoted **depth 20**, `rerank.enabled: true` (the only config line changed): MRR 0.9228 → 0.9751, hits 86 → 87 (`g026` miss → hit), no hit → miss; `g038` and `g062` drop from rank 1 to 2; p95 +920.6 ms on `mps:0` (108.2 → 1028.7 ms), 79 ms under the 1000 ms escalation line; depth 50 gives the same quality at about twice the rerank latency.
+  - `make verify` at T6 and in the retrospective (hub-free, no extras): 1442 passed, 3 skipped; `make test-integration`: 28 passed (Docker Qdrant); `make eval-security`: PASS on all eight paths and three chunkers; `git diff --name-status main...HEAD -- evaluation knowledge config` lists only `config/retrieval.yaml`.
+
 Not yet implemented:
-- reranking; no HTTP retrieval route; retrieval degradation exists only for `hybrid` (Spec 008); the reranker and model-failure paths of roadmap 13 are not implemented (no reranker or generation yet);
+- no HTTP retrieval route; context building (deduplication, budgeting, evidence ordering; moved to roadmap item 10); retrieval degradation exists only for `hybrid` (Spec 008); reranking exists on `hybrid` only (Spec 011); the model-failure path of roadmap 13 is not implemented (no generation yet);
 - a recorded real BGE-M3 retrieval baseline, recorded in `experiments/results/retrieval-baseline-idx-v1-20261023T063534Z.json` (commit `7418812`; BAAI/bge-m3 @ `5617a9f`, device `mps:0`, index `w2a-realcheck-idx-v1`): 63 cases, N=13; HitRate@5 0.952 vs random 0.385 (`min(1, 5/13)`), Recall@5 0.952, MRR 0.878; `en` (54) HitRate 0.963 / MRR 0.910, `mixed` (9) HitRate 0.889 / MRR 0.685; p50 61.5 ms, p95 216.5 ms (warm-up 105.9 s excluded); misses `g004`, `g026`, `g061`;
 - the Phase 2 "compare shared cases" mode of `eval-compare` (today any difference in the case set is refused);
 - generation;
@@ -153,12 +160,26 @@ Not yet implemented:
 | 008 — retrieval fallback | **verified (2026-11-01, merged 1107b67)**; required `spec-reviewer` retrospective round 1 `PASS` (five MINOR findings, docs reconciled, no RM tasks), approved by the user 2026-11-01 (branch spec/008, base f25b552); requirements, design and tasks approved 2026-10-29 (8 tasks: T1 failure classification and Qdrant timeouts, T2 standalone lexical open and freshness, T3 `bm25` without Qdrant or the extra, T4 `FallbackRetriever`, T5 result 2.2 and `eval-compare`, T6 security gate over fallback paths, T7 user-owned real runs, T8 docs and hand-off); T1–T6 approved (2026-10-31/11-01); T7 (user-owned real runs) approved 2026-11-01: Qdrant unreachable (`QDRANT_URL=http://127.0.0.1:1`) `experiments/results/retrieval-evaluation-idx-v1-20261101T070658Z.json`, Qdrant up `...20261101T070736Z.json` (see Next step item 6); T8 (docs D056–D062, ROADMAP note, As-built notes, hand-off) approved 2026-11-01; retrospective `.kiro/specs/008-retrieval-fallback/review.md` round 1 |
 | 009 — chunking experiments | **verified (2026-11-04, merged `5a6deb7`)**; branch `spec/009` (base `d21dc41`); required `spec-reviewer` retrospective round 1 `PASS`, approved 2026-11-04; T1–T7 approved 2026-11-03; default **`idx-v2`**: **`make ingest`** then **`make index-lexical`**; D064–D071; deferred carry-overs in Known issues and 009 `review.md` Notes |
 | 010 — multilingual retrieval | **verified (2026-11-04, merged `cae06c3`)**; branch `spec/010` (base `f0e809b`); T1–T6 approved 2026-11-04; required `spec-reviewer` retrospective round 1 `PASS`, approved 2026-11-04; D072; default suite v3 and `lexical-v2` |
+| 011 — multilingual reranking | **all tasks approved (T1–T6, 2026-11-06); required `spec-reviewer` retrospective round 1 `PASS` (2026-11-06; four MINOR findings, docs reconciled, no RM tasks), awaiting the user's approval and the merge**; branch `spec/011` (base `3b81508`); requirements, design (D-A sticky open-time skip, D-B no inference timeout, D-C `eval-continuity` refuses rerank identity differences) and tasks approved; 6 tasks (T1 reranker contract/adapters/config, T2 reranking stage and skip policy, T3 result 2.5 and compare, T4 security 1.5, T5 user-owned real runs and promotion, T6 docs and hand-off); T5 promoted depth 20 (`rerank.enabled: true` in `config/retrieval.yaml`, commit `5b24dc7`); T6 approved 2026-11-06 (D075–D079, docs, As-built notes, two required hub-free CLI tests) |
 
 ## Next step
 
-**After `chore/verify-budget` (2026-11-04):**
+**Spec 011 T5 done (2026-11-06; user-run, `w2a-realcheck-idx-v2`, suite `public-eval-v3`, `lote ml`, BGE-M3 @ `5617a9f`, reranker `BAAI/bge-reranker-v2-m3@953dc6f` on `mps:0`):**
 
-1. **Spec 011 (roadmap item 9, reranking)** — fresh session: **`spec-planner`** with `.kiro/specs/010-multilingual-retrieval/review.md` **Notes for the next spec** (translation/transliteration deferred; `g056`/`g057` fusion inputs; verify-budget hook live per D073).
+- Files: rerank off `experiments/results/retrieval-evaluation-idx-v2-20261106T064835Z.json`; depth 20 `…20261106T072428Z.json`; depth 50 `…20261106T072853Z.json`; reference `…20261104T105300Z.json`. A Qdrant-down attempt (`…072053Z`, Docker stopped, BM25 fallback) was discarded and never committed.
+- Continuity (off vs reference): `shared goldens: 87`, `continuity: no shared-case differences`, exit 0.
+- `eval-compare --cross-rerank` vs reference, depth 20: `PASS (hits 86 -> 87, MRR 0.9228 -> 0.9751)`, flip `g026` miss→hit, p95 108.2 → 1028.7 ms (+920.6 ms). Depth 50: same quality (PASS, same hits and MRR), p95 2061.9 ms (+1953.7 ms), rerank leg about twice the depth-20 time.
+- Promotion (R10): depth 20 passes (no `ml`/`mixed`/`en` hit→miss; p95 delta under 1000 ms) and is promoted: only `rerank.enabled` changed in `config/retrieval.yaml`. Two hits drop a rank (`g038`, `g062`, 1.0 → 0.5) and `g057` stays at 0.5. The unanswerable cross-encoder top-1 scores overlap the golden ones (three unanswerable cases above 0), so no fixed cut-off is safe.
+- Operating change: with `rerank.enabled: true`, `--strategy dense|bm25` needs `--no-rerank`; default runs need the `reranker` extra and a cached model.
+
+**Spec 011 next (2026-11-06):**
+
+1. **T6** approved (2026-11-06). Retrospective round 1 `PASS` (2026-11-06). Next: the user approves the retrospective, `spec/011` is merged into `main`, and the user runs `/graphify . --update` on `main`. When planning the next spec, pass the "Notes for the next spec" from `.kiro/specs/011-multilingual-reranking/review.md` to `spec-planner`.
+2. After the merge and before Spec 012: bring the `chore/workflow-trim` plan to the user first (saved plan: command detection in the two scripts, graph once per spec, graphify query optional in briefs, graphify upgrade).
+
+**Earlier (Spec 011 planning, 2026-11-04):**
+
+1. Done 2026-11-05/06: Spec 011 T1–T5 (see above).
 2. Optional: **`pytest --durations=25`** to rank slow tests before any future parallel verify work (D074 follow-up).
 3. Remove user-level verify-budget hook copies after merge; committed hook is `.claude/settings.json` + `tools/hooks/verify_budget.py`.
 
@@ -218,6 +239,7 @@ Observations for later (no task opened): consider `UV_HTTP_TIMEOUT ?= 300` in th
 
 - Default production index (after Spec 009 T6 promotion): **`idx-v2`**, **`recursive` v1** (128 tokens, 16 overlap, title prefix) in `config/ingestion.yaml`; collection **`way2australia-idx-v2`**. Legacy **`idx-v1`** / heading: `experiments/configs/chunking/heading-idx-v1.yaml` with `--config`.
 - Use `QDRANT_COLLECTION_BASE` for every fake-embedder run. A fake run without it records the default collection for the configured `index_version` as fake, and a later real run is then refused until a new `index_version` is set in `config/ingestion.yaml`.
+- After `make setup`, default runs (hybrid with reranking on, Spec 011 T5) need `make setup-bge-m3` plus a cached reranker (the first reranked run downloads the pinned model); `--strategy bm25` (and `dense`) now needs `--no-rerank`.
 - `make setup` removes the optional `bge-m3` extra; use `make setup-bge-m3` before a real-embedding run (on a slow connection `UV_HTTP_TIMEOUT=600 make setup-bge-m3`). A missing extra is detected when the embedder is built (exit 2, before any Qdrant call).
 - `make verify` runs the Docker integration tests too when a local Qdrant is reachable (they create and remove temporary collections); otherwise they skip.
 - `INGESTION_NAMESPACE` (`533d6c5a-5ac2-4dd5-a4e6-5fbb620efba2`) is permanent: changing it changes every point ID.
@@ -268,6 +290,22 @@ Spec 010 retrospective (`.kiro/specs/010-multilingual-retrieval/review.md`, roun
 - F3: `COMMANDS.md` `make eval-continuity` implied lexical identity could be skipped via cross-mode compares; `continuity.py` always compares `lexical_index`. Reconciled (parenthetical dropped).
 - F4: `COMMANDS.md` implemented-today list and “All four run one module” omitted `eval-continuity`. Reconciled.
 - F5: `TECH_STACK.md` sparse retrieval still named only `lexical-v1`. Reconciled (default `lexical-v2`, D072).
+
+Spec 011 known issues and carry-overs (documented by T6; no remediation tasks in this spec):
+- **Context building** (deduplication, context budgeting, evidence ordering) is not implemented; it moved to roadmap **item 10**.
+- **Latency limit and device for item 10:** depth 20 costs about 1 s per query at p95 on `mps:0` (+920.6 ms over the hybrid reference, 79 ms under the 1000 ms escalation line); there is no inference timeout (D077) and the device is not pinned. The binding per-request limit, circuit breaker, model and client lifecycle and device choice belong to the HTTP spec. The numbers are a dev-machine figure, not a production one.
+- **Unanswerable cross-encoder scores** (D079): top-1 scores for the 15 unanswerable cases (median -4.17, max 1.67) overlap the golden distribution (median 3.08); three unanswerable cases score above 0, so no fixed cut-off is safe. Input for the refusal-threshold work of item 10, not a threshold.
+- **Query translation / transliteration** remains the intended fix for `g067`–`g069` on BM25-only and on the hybrid fallback (reranking applies to hybrid only; on the v3 BM25-only run the `ml` misses return no BM25 candidates, so reranking the fallback cannot help).
+- **Residual rank losses:** `g038` (en) and `g062` (mixed) drop from rank 1 to 2 under reranking (still hits); `g057` stays at 0.5; `g026` is back to a hit at reciprocal rank 0.333.
+- **Gate coverage:** `make eval-security` runs the rerank paths at depth 50 / `top_k` 50, so the committed depth-20 cut is not itself exercised (membership is decided by the legs and re-checked; D078).
+- `retrieval/availability.py` private names are imported by `rerank/errors.py` (design As-built notes); `check_applicable` is called on a partial `PointPayload` and must keep reading only `document_id` and `lote_languages` (a test guards this).
+- `experiments/configs/rerank/retrieval-depth50.yaml` differs from `config/retrieval.yaml` in `rerank.enabled` and `rerank.depth`.
+
+Spec 011 retrospective (`.kiro/specs/011-multilingual-reranking/review.md`, round 1), MINOR, no remediation tasks:
+- F1: with reranking requested and a dense outage, `eval-retrieval` asks BM25 for `rerank.depth` (20) chunks instead of 50 and records `retrieval_depth` 20; top-5 distinct-document metrics are unaffected while `required_depth` (17) is at most 20. Recorded in the design As-built notes and `COMMANDS.md`; fix together with the item 10 rework of `open_retrieval` (depth per served path).
+- F2: `open_retrieval(rerank=False)` is the library default; only the two CLIs resolve the effective setting from `rerank.enabled`. The item 10 HTTP route must resolve it from config too, or it serves un-reranked hybrid silently.
+- F3: `top_k > rerank.depth` is refused inside the stage at query time, after the reranker was loaded at open (`make retrieve --top-k 30` loads the model, then exits 2); `eval-retrieval` refuses earlier through the distinct-document depth check, with advice that names `candidate_depth`, not `rerank.depth`. No wrong result is possible.
+- F4: docs gaps reconciled in this round (`ARCHITECTURE.md` module tables still said `RetrievalConfig` 1.2, results 1.0–2.4, five security paths and 1.4, and listed no `rerank/` package; `COMMANDS.md` said `make setup` removes only `bge-m3` and did not say that no `rerank:` line is printed when BM25 serves).
 
 Spec 010 known issues and carry-overs (documented by T6; no remediation tasks in this spec):
 - **Query translation / transliteration** (including Latin-script Malayalam): the intended fix for **`g067`–`g069`** on BM25-only and on the hybrid **fallback** path when dense is unavailable; out of scope for Spec 010. BM25-only `ml` MRR **0.2396** (n=16) on v3 realcheck (`…20261104T105321Z.json`).

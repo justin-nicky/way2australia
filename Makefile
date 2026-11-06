@@ -11,10 +11,10 @@ UV_HTTP_TIMEOUT ?= 300
 setup:
 	$(UV_ENV) $(UV) sync --all-packages --group dev
 
-# Adds the optional bge-m3 group (sentence-transformers, which brings PyTorch).
+# Adds the optional bge-m3 and reranker groups (sentence-transformers, which brings PyTorch).
 # `make setup` syncs without the group and therefore removes it again.
 setup-bge-m3:
-	UV_HTTP_TIMEOUT=$(UV_HTTP_TIMEOUT) $(UV_ENV) $(UV) sync --all-packages --group dev --extra bge-m3
+	UV_HTTP_TIMEOUT=$(UV_HTTP_TIMEOUT) $(UV_ENV) $(UV) sync --all-packages --group dev --extra bge-m3 --extra reranker
 
 format:
 	$(UV_ENV) $(UV) run ruff format $(PYTHON_TARGETS)

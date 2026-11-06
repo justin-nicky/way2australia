@@ -161,6 +161,7 @@ def test_all_result_fields_present(retriever: DenseRetriever) -> None:
         "content_language": "en",
         "lote_languages": ["*"],
         "leg_ranks": None,
+        "fused_rank": None,
     }
     assert result.strategy == "dense"
     assert result.score_kind == "dense_cosine"

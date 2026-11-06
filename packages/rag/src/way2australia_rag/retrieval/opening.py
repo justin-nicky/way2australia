@@ -10,6 +10,7 @@ from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from time import perf_counter
 from typing import Protocol
 
 from way2australia_rag.ingestion.chunker_build import chunker_identity_for_run
@@ -27,6 +28,9 @@ from way2australia_rag.repositories import (
     LocalRepositoryConfig,
 )
 from way2australia_rag.repositories.hashing import HASH_CONTRACT
+from way2australia_rag.rerank.base import Reranker
+from way2australia_rag.rerank.build import build_reranker
+from way2australia_rag.rerank.errors import RerankSkipReason, classify_reranker_error
 from way2australia_rag.retrieval.access import ResolvedAccess
 from way2australia_rag.retrieval.applicability import (
     ResolvedLote,
@@ -37,6 +41,7 @@ from way2australia_rag.retrieval.base import Retriever, Strategy
 from way2australia_rag.retrieval.bm25 import BM25Retriever
 from way2australia_rag.retrieval.errors import (
     FallbackReason,
+    RetrievalConfigurationError,
     RetrievalUnavailableError,
 )
 from way2australia_rag.retrieval.fallback import FallbackRetriever
@@ -44,12 +49,14 @@ from way2australia_rag.retrieval.identity import IndexIdentity
 from way2australia_rag.retrieval.index import DenseIndex
 from way2australia_rag.retrieval.qdrant_client import retrieval_client_factory
 from way2australia_rag.retrieval.strategy import (
+    RerankConfig,
     RetrievalConfig,
     build_retriever,
     open_bound_lexical,
 )
 
 EmbedderFactory = Callable[[IngestionConfig, str], Embedder]
+RerankerFactory = Callable[[RerankConfig, str | None], Reranker]
 
 _LOTE_COLUMN_ADVICE = (
     "(lexical settings 1.1); run `make index-lexical` for this collection "
@@ -127,6 +134,9 @@ class OpenedRetrieval:
     embedder: Embedder | None
     index_settings: IndexSettings | None
     lexical: LexicalIndex | None
+    reranker: Reranker | None = None
+    # Wall time of the reranker load at open (Spec 011 R6); None when not loaded.
+    rerank_load_ms: float | None = None
 
     def close(self) -> None:
         if self.lexical is not None:
@@ -145,9 +155,21 @@ def open_retrieval(
     client_factory: ClientFactory | None = None,
     embedder_factory: EmbedderFactory = build_embedder,
     repository: DocumentRepository | None = None,
+    rerank: bool = False,
+    reranker_factory: RerankerFactory = build_reranker,
+    reranker_provider: str | None = None,
 ) -> OpenedRetrieval:
-    """Open the stack for `strategy` (`dense`, `bm25` or `hybrid`)."""
+    """Open the stack for `strategy` (`dense`, `bm25` or `hybrid`).
+
+    With `rerank` the reranker is built and loaded here, once (Spec 011 D-A): an
+    eligible load failure skips reranking for the whole run (`stage: "open"`);
+    any other load error propagates. With `rerank` off `reranker_factory` is
+    never called."""
     strategy = Strategy(strategy)
+    if rerank and strategy != Strategy.HYBRID:
+        raise RetrievalConfigurationError(
+            "reranking applies to the hybrid strategy only."
+        )
     configured_chunker = chunker_identity_for_run(ingestion_config, provider)
     if strategy == Strategy.BM25:
         repository = repository or LocalDocumentRepository(
@@ -185,6 +207,9 @@ def open_retrieval(
         )
 
     embedder = embedder_factory(ingestion_config, provider)
+    reranker = (
+        reranker_factory(retrieval_config.rerank, reranker_provider) if rerank else None
+    )
     timeouts = retrieval_config.qdrant
     client = None
     try:
@@ -224,8 +249,20 @@ def open_retrieval(
         return index.document_count(dense_query_filter(access, lote))
 
     try:
+        load_started = perf_counter()
+        open_skip = _load_reranker(reranker)
+        load_ms = (
+            (perf_counter() - load_started) * 1000.0 if reranker is not None else None
+        )
         retriever = build_retriever(
-            strategy, identity, index, embedder, lexical, retrieval_config
+            strategy,
+            identity,
+            index,
+            embedder,
+            lexical,
+            retrieval_config,
+            reranker,
+            open_skip,
         )
     except BaseException:
         if lexical is not None:
@@ -239,7 +276,24 @@ def open_retrieval(
         embedder,
         index.settings,
         lexical,
+        reranker,
+        load_ms,
     )
+
+
+def _load_reranker(reranker: Reranker | None) -> RerankSkipReason | None:
+    """Load once at open. An eligible outage becomes the sticky open-stage skip;
+    anything else (including offline-not-cached) propagates."""
+    if reranker is None:
+        return None
+    try:
+        reranker.load()
+    except Exception as error:
+        mapped = classify_reranker_error(error)
+        if mapped is None:
+            raise
+        return mapped.reason
+    return None
 
 
 def _close_quietly(client: object) -> None:
