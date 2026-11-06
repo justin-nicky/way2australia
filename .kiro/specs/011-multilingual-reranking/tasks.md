@@ -1,6 +1,6 @@
 # 011 — Multilingual Reranking Tasks
 
-Status: all tasks approved (2026-11-06)
+Status: verified (2026-11-06, merged d40d734)
 
 Implement the tasks in order; each depends on the ones before it. Requirements: `requirements.md` (approved 2026-11-04). Design: `design.md` (approved 2026-11-04; D-A option 1, D-B option 1, D-C option 1).
 
