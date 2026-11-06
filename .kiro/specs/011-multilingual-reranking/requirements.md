@@ -1,6 +1,6 @@
 # 011 — Multilingual Reranking Requirements
 
-Status: approved (2026-11-05)
+Status: approved (2026-11-06)
 
 ## Goal
 
@@ -245,3 +245,4 @@ The user records real reranked results on v3; a rule fixed here decides the defa
 - 2026-11-05 — T3/T6: added a T3 task box (unit test that fails if `check_applicable` reads any `PointPayload` field besides `document_id` and `lote_languages`) and a T6 note that the As-built notes record T1 F2 and T2 F2 (T2 review F2; same user decision).
 - 2026-11-05 — R6/R7/T4/T6: added two test-only T4 boxes, reviewed with T4 (T3 review F2: a CLI test of `make eval-retrieval --rerank` through `RerankingRetriever` over hybrid with a stub reranker; T3 review F1: an `eval-compare` test for a 2.3/2.4/2.5 pair with `max_chunks_per_document > 1`, chunker difference still refused), and extended the T6 As-built notes box (compare family 2.3 and later; "measured queries (goldens plus unanswerable)" in `COMMANDS.md`, T3 review F3; reranked `retrieval_depth` is the rerank depth while each leg fetches 50). T3 F4 is process only, no action (user decision of 2026-11-05 recorded in `task-reviews.md`, T3 "User decision"). No task re-opened.
 - 2026-11-05 — R8/T6: extended the T6 As-built notes box: the gate paths run at rerank depth 50 / `top_k` 50, so the committed depth-20 cut is not exercised by the gate (T4 review F3; user T4 decision of 2026-11-05). No task re-opened.
+- 2026-11-06 — R3/R10/R12/T6: added three T6 items after the depth-20 promotion: two required hub-free CLI tests (no-flag default config reranks on the hybrid path; `--strategy dense|bm25` without `--no-rerank` exits 2) (T5 review F1); docs for the promotion (`COMMANDS.md` `--no-rerank` for dense/bm25 and reranker extra plus cached model for default runs, As-built note that `retrieval-depth50.yaml` differs in `rerank.enabled` and `rerank.depth`, `CURRENT_STATE.md` operating notes) (T5 review F6); and a decision sub-bullet that depth 20 costs about 1 s per query at p95 on `mps:0` (+920.6 ms, near the 1000 ms escalation line) as an input for item 10 (user decisions of 2026-11-06 recorded in `task-reviews.md`, T5 "User decision (2026-11-06)" and "User decision (2026-11-06, approval)"). Task count unchanged; no task re-opened.
