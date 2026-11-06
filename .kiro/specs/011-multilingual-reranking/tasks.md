@@ -1,6 +1,6 @@
 # 011 — Multilingual Reranking Tasks
 
-Status: approved (2026-11-06)
+Status: all tasks approved (2026-11-06)
 
 Implement the tasks in order; each depends on the ones before it. Requirements: `requirements.md` (approved 2026-11-04). Design: `design.md` (approved 2026-11-04; D-A option 1, D-B option 1, D-C option 1).
 
@@ -175,10 +175,10 @@ Allowed protected-path changes: `config/retrieval.yaml` (`rerank.enabled`, `rera
 
 ## T6 — Documentation, decisions and hand-off
 
-**State:** not started
+**State:** approved (2026-11-06)
 **Requirements:** R11, R12, Definition of Done
 
-- [ ] `DECISIONS.md` from D075:
+- [x] `DECISIONS.md` from D075:
   - reranker choice (`BAAI/bge-reranker-v2-m3`, pinned SHA), the `reranker` extra and `make setup-bge-m3`;
   - stage placement inside `FallbackRetriever`, `hybrid` only; cross-encoder-only scoring with fused-rank ties; post-rerank re-check;
   - `RerankerUnavailableError` (separate from `RetrievalUnavailableError`), eligibility rules, offline-not-cached as a configuration error, sticky open-time skip (D-A), query-time skip, reranking off never loads;
@@ -186,16 +186,16 @@ Allowed protected-path changes: `config/retrieval.yaml` (`rerank.enabled`, `rera
   - result 2.5 (served paths, truncation, unanswerable cross-encoder scores, warm-up includes load); `--cross-rerank` and the skipped-run refusal; `eval-continuity` refusal (D-C); security result 1.5;
   - the T5 outcome with numbers, `mps:0` dev-machine caveat, binding latency limit left to item 10.
   - (added 2026-11-06, user T5 decision) depth 20 costs about 1 s per query at p95 on `mps:0` (p95 108.2 -> 1028.7 ms, +920.6 ms over the hybrid reference, close to the 1000 ms escalation line), recorded as an input for roadmap item 10.
-- [ ] `ARCHITECTURE.md` (query flow with the rerank stage and its place inside the fallback), `COMMANDS.md` (`--rerank`, `--no-rerank`, `--reranker fake`, `--cross-rerank`, setup, refusals, smoke test variable), `TECH_STACK.md` (reranker), `ROADMAP.md` (item 9 context building moved to item 10; item 13 reranker-failure path done), `CURRENT_STATE.md` (implemented reality, Next step, Known issues carry-overs: context building, latency limit and device for item 10, unanswerable scores as refusal-threshold input, translation/transliteration for `g067`–`g069`, residual misses).
-- [ ] `design.md` "As-built notes" filled in, including T1 F2 (private imports from `availability.py`) and T2 F2 (the partial-payload construction with `PointPayload.model_construct`) (note added 2026-11-05); also (added 2026-11-05, T3 review): the compare family is now 2.3 and later (`DISTINCT_VERSIONS`; fixes the Spec 010 multi-chunk refusal), `COMMANDS.md` says "measured queries (goldens plus unanswerable)" for `rerank_truncation.cases` and the skip counts, and a reranked run's `retrieval_depth` is the rerank depth while each leg still fetches 50; also (added 2026-11-05, T4 review F3): the gate paths run at rerank depth 50 / `top_k` 50, so the committed depth-20 cut is not exercised by the gate.
-- [ ] Required tests (added 2026-11-06, T5 review F1, user T5 decision): both hub-free, without the `reranker` extra, no model or hub access, reading the default from `config/retrieval.yaml` (committed `rerank.enabled: true`), never a literal:
+- [x] `ARCHITECTURE.md` (query flow with the rerank stage and its place inside the fallback), `COMMANDS.md` (`--rerank`, `--no-rerank`, `--reranker fake`, `--cross-rerank`, setup, refusals, smoke test variable), `TECH_STACK.md` (reranker), `ROADMAP.md` (item 9 context building moved to item 10; item 13 reranker-failure path done), `CURRENT_STATE.md` (implemented reality, Next step, Known issues carry-overs: context building, latency limit and device for item 10, unanswerable scores as refusal-threshold input, translation/transliteration for `g067`–`g069`, residual misses).
+- [x] `design.md` "As-built notes" filled in, including T1 F2 (private imports from `availability.py`) and T2 F2 (the partial-payload construction with `PointPayload.model_construct`) (note added 2026-11-05); also (added 2026-11-05, T3 review): the compare family is now 2.3 and later (`DISTINCT_VERSIONS`; fixes the Spec 010 multi-chunk refusal), `COMMANDS.md` says "measured queries (goldens plus unanswerable)" for `rerank_truncation.cases` and the skip counts, and a reranked run's `retrieval_depth` is the rerank depth while each leg still fetches 50; also (added 2026-11-05, T4 review F3): the gate paths run at rerank depth 50 / `top_k` 50, so the committed depth-20 cut is not exercised by the gate.
+- [x] Required tests (added 2026-11-06, T5 review F1, user T5 decision): both hub-free, without the `reranker` extra, no model or hub access, reading the default from `config/retrieval.yaml` (committed `rerank.enabled: true`), never a literal:
   - (a) a CLI test with no `--rerank`/`--no-rerank` flag on the default committed config, through the hybrid CLI path (`make retrieve` / `make eval-retrieval`), with a stub reranker injected at the factory: the rerank stage runs and the `rerank: <model>@<rev7> depth <n>` output line is printed (built from `load_retrieval_config` values);
   - (b) a CLI test that `--strategy dense` and `--strategy bm25` without `--no-rerank` exit 2 with the reranking-applies-to-hybrid-only configuration error.
-- [ ] Docs for the promotion (added 2026-11-06, T5 review F6, user T5 decision):
+- [x] Docs for the promotion (added 2026-11-06, T5 review F6, user T5 decision):
   - `COMMANDS.md`: the `--strategy dense` / `--strategy bm25` examples and the sentence that `bm25` needs neither Qdrant nor the `bge-m3` extra also say `--no-rerank` is required while `rerank.enabled: true`; default (hybrid, rerank on) runs need the `reranker` extra and a cached model;
   - `design.md` As-built notes: `experiments/configs/rerank/retrieval-depth50.yaml` now differs from `config/retrieval.yaml` in `rerank.enabled` as well as `rerank.depth`; the T3 test `test_depth50_config_differs_only_in_rerank_depth` already tolerates `enabled` (its name says depth only; record this);
   - `CURRENT_STATE.md` "Ingestion operating notes": after `make setup`, default (hybrid, rerank on) runs need `make setup-bge-m3` plus a cached reranker (the first reranked run downloads the pinned model), and `--strategy bm25` (and `dense`) now needs `--no-rerank`.
-- [ ] Spec-wide checks: `make verify` (hub-free variables set), `make test-integration`, `make eval-security`; `git diff --name-status main...HEAD -- evaluation knowledge config`.
+- [x] Spec-wide checks: `make verify` (hub-free variables set), `make test-integration`, `make eval-security`; `git diff --name-status main...HEAD -- evaluation knowledge config`.
 
 Allowed protected-path changes: none.
 

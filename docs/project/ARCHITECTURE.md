@@ -252,7 +252,7 @@ query → validate_request → ResolvedAccess (one, server-resolved); optional R
 
 ## Target RAG query flow
 
-Target pipeline, partly implemented. Dense retrieval, BM25 retrieval and RRF fusion exist (see "Retrieval" above); there is no FastAPI route, reranker, context builder or generation yet.
+Target pipeline, partly implemented. Dense retrieval, BM25 retrieval, RRF fusion and the reranking stage exist (see "Retrieval" above and "Reranking" below); there is no FastAPI route, context builder or generation yet.
 
 ```text
 User
@@ -274,7 +274,8 @@ dense retrieval                       sparse/BM25 retrieval
   ↓                                      ↓
 RRF fusion (only already-authorized hits)
   ↓
-reranker
+reranker (Spec 011, hybrid only: cross-encoder over the top rerank.depth fused chunks;
+  membership re-check; on reranker outage the plain hybrid hits are served)
   ↓
 context builder
   ↓
@@ -290,6 +291,26 @@ response
 ```
 
 Authorization and optional language applicability are applied inside each retriever (dense, BM25 and the SQLite FTS5 fallback), as part of that retriever's own query, before fusion: every leg takes the same server-resolved `ResolvedAccess` and the same optional `ResolvedLote`, filters with them in the query, then re-checks each hit with `check_hit` and, when `lote` is set, `check_applicable` (D035, D040, D072). Neither filter is applied after RRF, after reranking or after generation.
+
+## Reranking
+
+Spec 011 (D075–D079). Reranking exists on `hybrid` only, inside the fallback:
+
+```text
+FallbackRetriever( RerankingRetriever( HybridRetriever(dense, bm25) ), bm25 )
+
+query → access (+ optional lote) filters inside each leg → RRF fusion (top rerank.depth)
+      → Reranker.score(query, chunk texts)       # BAAI/bge-reranker-v2-m3, pinned, raw logits
+      → order by cross-encoder score (ties: fused rank) → cut to top_k
+      → membership re-check: each hit equals exactly one leg-checked candidate, no duplicates;
+        check_applicable when a lote is set
+```
+
+- Authorization and applicability stay inside the legs. The stage only reorders candidates it was given; it never fetches text or IDs, and the re-check runs on the reranked path and both skip paths.
+- `RerankerUnavailableError` is separate from `RetrievalUnavailableError` and is caught only by the stage, so a reranker outage can never become a BM25 fallback. An eligible load failure at open is a sticky open-time skip for the run (`stage: open`); an eligible `score` failure skips that query (`stage: query`). Offline-and-not-cached weights are a configuration error (exit 2), not a skip. Malformed scores fail the query closed. There is no inference timeout (D077): the binding latency limit, circuit breaker, model lifecycle and device choice belong to roadmap item 10.
+- A dense outage still reaches `FallbackRetriever`: BM25 serves without reranking.
+- Default since Spec 011 T5: `rerank.enabled: true`, depth 20; `dense` and `bm25` need `--no-rerank`. Measured on the dev machine (`mps:0`): p95 about 1 s per query (D079).
+- Context building (deduplication, budgeting, evidence ordering) is not implemented; it moved to roadmap item 10.
 
 ## Retrieval fallback
 
@@ -319,7 +340,7 @@ Authorization: the fallback adds no authorization logic. `FallbackRetriever` pas
 Planned, not implemented:
 
 - query rewrite failure → original query;
-- reranker failure/timeout → hybrid/RRF output (roadmap 13; no reranker yet);
+- reranker failure/timeout → hybrid/RRF output: implemented by Spec 011 (see "Reranking"); a binding per-request timeout is roadmap item 10 (D077);
 - Langfuse unavailable → serving continues;
 - model (generation) failure → evidence-only response where possible (roadmap 13; no generation yet);
 - weak evidence → insufficient-evidence response.

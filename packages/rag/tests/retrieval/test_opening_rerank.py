@@ -299,3 +299,61 @@ def test_cli_rerank_and_no_rerank_are_mutually_exclusive() -> None:
     with pytest.raises(SystemExit) as caught:
         cli.main([QUERY, "--rerank", "--no-rerank"])
     assert caught.value.code == 2
+
+
+# --- Committed default (reranking on), no rerank flag (T5 review F1) ------------
+
+
+def with_stub_reranker(monkeypatch: pytest.MonkeyPatch, factory: Any) -> None:
+    """Inject a stub reranker at the factory the CLI hands to `open_retrieval`."""
+    real = cli.open_retrieval
+
+    def wrapped(*args: Any, **kwargs: Any) -> Any:
+        return real(*args, reranker_factory=factory, **kwargs)
+
+    monkeypatch.setattr(cli, "open_retrieval", wrapped)
+
+
+def test_cli_without_a_rerank_flag_reranks_on_the_committed_default(
+    memory_client: Factory,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No flag, default hybrid strategy: `rerank.enabled` in the config decides."""
+    config = load_retrieval_config(REPO_ROOT / "config/retrieval.yaml")
+    assert config.rerank.enabled is True  # the premise: read, never assumed
+    # A stub that reports the configured model identity, as the real adapter does.
+    factory = RecordingFactory(
+        FakeReranker(
+            model_id=config.rerank.model_id, revision=config.rerank.revision or ""
+        )
+    )
+    with_stub_reranker(monkeypatch, factory)
+    assert run(memory_client) == 0  # no --rerank, no --no-rerank, no --reranker
+    out = capsys.readouterr().out
+    assert factory.calls == 1
+    assert factory.reranker.load_calls == 1 and factory.reranker.score_calls >= 1
+    assert (
+        f"rerank: {config.rerank.model_id}@{(config.rerank.revision or '')[:7]} "
+        f"depth {config.rerank.depth}"
+    ) in out
+    assert "strategy=hybrid" in out and "rerank: off" not in out
+
+
+@pytest.mark.parametrize("strategy", ["dense", "bm25"])
+def test_cli_dense_or_bm25_without_no_rerank_exits_2_on_the_committed_default(
+    memory_client: Factory,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    strategy: str,
+) -> None:
+    config = load_retrieval_config(REPO_ROOT / "config/retrieval.yaml")
+    assert config.rerank.enabled is True
+    factory = RecordingFactory()
+    with_stub_reranker(monkeypatch, factory)
+    assert run(memory_client, "--strategy", strategy) == 2
+    err = capsys.readouterr().err
+    assert "hybrid strategy only" in err
+    assert factory.calls == 0
+    # --no-rerank lifts the refusal for the same strategy.
+    assert run(memory_client, "--strategy", strategy, "--no-rerank") == 0

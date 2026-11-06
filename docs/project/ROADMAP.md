@@ -77,10 +77,10 @@ Approximately one focused week.
 - `lote_languages` enforced at retrieval time (separate from access)
 
 ### 9. Reranking + context building
-- multilingual reranker
-- deduplication
-- context budgeting
-- evidence ordering
+- multilingual reranker — done by Spec 011 (D075–D079; `BAAI/bge-reranker-v2-m3`, hybrid only, depth 20)
+- deduplication — moved to item 10
+- context budgeting — moved to item 10
+- evidence ordering — moved to item 10
 
 ### 10. Grounded generation + citations
 - Bedrock Runtime
@@ -109,7 +109,9 @@ Approximately one focused week.
 - Qdrant failure → SQLite FTS5
 - model failure → evidence-only response where appropriate
 
-Done early by Spec 008 (D056), ahead of item 7: retrieval degradation. `hybrid` serves BM25 from the local SQLite FTS5 file when Qdrant or the embedding model is unreachable (dense → BM25 and Qdrant failure → SQLite FTS5), and an explicit `bm25` needs neither Qdrant nor the `bge-m3` extra. Still open in this item: the reranker failure path (needs a reranker, item 9) and the model failure path (needs generation, item 10), plus the serving concerns Spec 008 deferred to the HTTP route: a circuit breaker, a startup policy for a missing or stale lexical file, and Qdrant 5xx eligibility (D062).
+Reranker failure path done by Spec 011 (D077): an eligible reranker outage serves the plain hybrid hits, marked as skipped, and never becomes a BM25 fallback; a binding per-request timeout stays with item 10.
+
+Done early by Spec 008 (D056), ahead of item 7: retrieval degradation. `hybrid` serves BM25 from the local SQLite FTS5 file when Qdrant or the embedding model is unreachable (dense → BM25 and Qdrant failure → SQLite FTS5), and an explicit `bm25` needs neither Qdrant nor the `bge-m3` extra. Still open in this item: the model failure path (needs generation, item 10), plus the serving concerns Spec 008 deferred to the HTTP route: a circuit breaker, a startup policy for a missing or stale lexical file, and Qdrant 5xx eligibility (D062).
 
 ### 14. AWS deployment
 - Docker
