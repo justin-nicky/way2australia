@@ -183,7 +183,7 @@ run summary
 - Changing an index-defining setting means a new `index_version`, which gives a new collection; the store never deletes a collection.
 - Decisions: D025–D030, D032, D064–D071.
 
-## Retrieval (Phase 1 dense baseline, Spec 005; hybrid added by Spec 007; fallback by Spec 008)
+## Retrieval (Phase 1 dense baseline, Spec 005; hybrid added by Spec 007; fallback by Spec 008; reranking by Spec 011)
 
 Library code in `packages/rag/src/way2australia_rag/retrieval/` plus `languages.py` at the package root and the shared access types in `packages/core`. No HTTP route yet. Developer CLIs run it: `make retrieve` (all strategies), `make index-lexical` and the legacy dense-only `make retrieval-baseline`.
 
@@ -195,15 +195,16 @@ Library code in `packages/rag/src/way2australia_rag/retrieval/` plus `languages.
 | `index.py` | `DenseIndex`: read-only binding to the collection and its `-settings` record; `search`, `document_count` |
 | `retriever.py` | `DenseRetriever.retrieve(query, access, top_k, *, lote=None)` → `RetrievalResult` |
 | `models.py`, `errors.py`, `text.py` | `RetrievedChunk`/`RetrievalResult`, error hierarchy, `safe_text` for printing payload text |
-| `base.py`, `strategy.py` | `Strategy` (`dense`, `bm25`, `hybrid`), the `Retriever` Protocol (optional `lote` keyword), `RetrievalConfig` 1.2 (from `config/retrieval.yaml`, with `QdrantTimeouts` and `lexical.tokenizer`) and `build_retriever`, the only place a strategy name becomes a retriever (`hybrid` is returned wrapped in `FallbackRetriever`) |
+| `base.py`, `strategy.py` | `Strategy` (`dense`, `bm25`, `hybrid`), the `Retriever` Protocol (optional `lote` keyword), `RetrievalConfig` 1.3 (from `config/retrieval.yaml`, with `QdrantTimeouts`, `lexical.tokenizer` and `RerankConfig`, Spec 011) and `build_retriever`, the only place a strategy name becomes a retriever (`hybrid` is returned wrapped in `FallbackRetriever`; with a reranker, `FallbackRetriever(RerankingRetriever(HybridRetriever))`) |
 | `bm25.py` | `BM25Retriever(identity, lexical)` over the lexical index; `build_sql_access_clause` (in `access.py`) is its authorization builder |
 | `fusion.py`, `hybrid.py` | pure `rrf_fuse` and `HybridRetriever` (dense leg, then BM25 leg, at candidate depth); still fail closed |
 | `errors.py`, `availability.py` | `RetrievalUnavailableError(reason)` and `FallbackReason`; `classify_qdrant_error` and `classify_model_error`, the one mapping per source (D057) |
 | `qdrant_client.py` | `retrieval_client_factory`: the retrieval Qdrant client with the configured timeouts (D059) |
 | `identity.py` | `IndexIdentity` (collection, `index_version`, embedder pair, fake flag, `source` `qdrant` or `lexical_file`) |
 | `fallback.py` | `FallbackRetriever`: BM25 serves when the hybrid primary raises `RetrievalUnavailableError`, or when opening it did (D058) |
-| `opening.py` | `open_retrieval(...) -> OpenedRetrieval` (the one wiring function for both CLIs: retriever, identity, `document_count`, `close`) and `open_standalone_lexical` (D060) |
-| `cli.py` | `make retrieve` (`--strategy`) |
+| `opening.py` | `open_retrieval(...) -> OpenedRetrieval` (the one wiring function for both CLIs: retriever, identity, `document_count`, `close`; with `rerank=True` it builds and loads the reranker once, D077; its `rerank` parameter defaults to off, so callers resolve the effective setting from `rerank.enabled`) and `open_standalone_lexical` (D060) |
+| `reranking.py` | `RerankingRetriever` (Spec 011): top `rerank.depth` fused chunks, cross-encoder ordering, membership re-check, open/query skips (D076, D077) |
+| `cli.py` | `make retrieve` (`--strategy`, `--rerank` / `--no-rerank` / `--reranker`) |
 | `metrics.py`, `goldens.py`, `baseline.py`, `baseline_cli.py` | document-level metrics, read-only golden/suite/release loading, baseline runner and writer, `make retrieval-baseline` |
 
 The lexical side lives in `packages/rag/src/way2australia_rag/lexical/` (Spec 007; settings 1.2 and freshness Spec 009): `tokenizer.py` (`TOKENIZERS`: `lexical-v1` unchanged output; `lexical-v2` adds Unicode-cited chillu sequence replacement before v1 steps; module-level `tokenize`/`query_terms` stay v1 aliases), `equivalents.py` (sequence table), `store.py` (SQLite FTS5 file: `chunks` with access columns, `lote_languages`, full payload, `chunk_terms` FTS5, settings 1.2 with `ChunkerIdentity`; 1.1 accepted without `--lote`; 1.0 refused), `build.py` (`production_entries`, atomic `build_lexical_index(..., tokenizer)`), `cli.py` (`make index-lexical`, `--tokenizer`, `--config`), and `freshness.py` (`verify_fresh` per D067). BM25 always queries with the tokenizer recorded in the file. Default tokenizer in `config/retrieval.yaml` is `lexical-v2` (D072). The file is a derived artifact, one per collection (or a second directory via `W2A_LEXICAL_INDEX_DIR`), bound to dense or to configuration plus the repository.
@@ -306,6 +307,7 @@ query → access (+ optional lote) filters inside each leg → RRF fusion (top r
         check_applicable when a lote is set
 ```
 
+- Modules: `packages/rag/src/way2australia_rag/rerank/` (no exports in `__init__.py`): `base.py` (`Reranker` Protocol, `RerankerInfo`, `RerankScores`), `fake.py` (`FakeReranker`), `bge.py` (`BgeRerankerV2M3`, lazy `sentence-transformers` import), `errors.py` (`RerankSkipReason`, `RerankerUnavailableError`, `RerankerOutputError`, `classify_reranker_error`; reuses the private cause-chain helper of `retrieval/availability.py`), `build.py` (`build_reranker`); the stage itself is `retrieval/reranking.py`. The `rerank/` package knows nothing about access, `lote`, chunks or documents.
 - Authorization and applicability stay inside the legs. The stage only reorders candidates it was given; it never fetches text or IDs, and the re-check runs on the reranked path and both skip paths.
 - `RerankerUnavailableError` is separate from `RetrievalUnavailableError` and is caught only by the stage, so a reranker outage can never become a BM25 fallback. An eligible load failure at open is a sticky open-time skip for the run (`stage: open`); an eligible `score` failure skips that query (`stage: query`). Offline-and-not-cached weights are a configuration error (exit 2), not a skip. Malformed scores fail the query closed. There is no inference timeout (D077): the binding latency limit, circuit breaker, model lifecycle and device choice belong to roadmap item 10.
 - A dense outage still reaches `FallbackRetriever`: BM25 serves without reranking.
@@ -389,8 +391,8 @@ Library code in `packages/rag/src/way2australia_rag/evaluation/`, one CLI (`eval
 | `models.py`, `suite.py` | tolerant typed cases and suite; `load_suite` reads manifest and datasets read-only, ignores `access_context`, refuses unknown dataset types and escaping paths |
 | `schemas.py`, `validate.py` | local `referencing` registry for the three schemas; all checks behind `validate-evaluation` (schemas, cross-checks, relevant documents through the repository, candidates) |
 | `retrieval_eval.py`, `slices.py`, `sections.py` | run active goldens (and unanswerable cases, top-1 score only) through the chosen retriever; retrieve to candidate depth, dedupe by document for MRR@k (Spec 009); slices by query language, category and source authority; section-level metrics |
-| `results.py`, `compare.py`, `continuity.py`, `script_mix.py` | read results 1.0–2.4; quality gate; `--cross-index` (D069) and `--cross-tokenizer` (D072); per-case continuity without refusing suite/lote/case-set |
-| `security_corpus.py`, `security_index.py`, `security_eval.py` | throwaway corpus with forbidden and non-applicable rows; gate over five paths, three chunkers, two `lote` modes (security 1.4, D072) |
+| `results.py`, `compare.py`, `continuity.py`, `script_mix.py` | read results 1.0–2.5; quality gate; `--cross-index` (D069), `--cross-tokenizer` (D072) and `--cross-rerank` (D078); per-case continuity without refusing suite/lote/case-set (rerank identity refused, D078) |
+| `security_corpus.py`, `security_index.py`, `security_eval.py` | throwaway corpus with forbidden and non-applicable rows; gate over eight paths (Spec 011 adds three rerank paths with a fake reranker), three chunkers, two `lote` modes (security 1.5, D078) |
 
 Isolation and gates:
 - Access: every query, quality or security, goes through `DenseRetriever` with the one `resolve_access(guest_access(settings))`; evaluation code builds no filter and reads no role, scope or tenant from a case (D033 to D035, D040).
@@ -400,7 +402,7 @@ Isolation and gates:
 - Ingestion eligibility is the only guard against synthetic or unapproved documents. Retrieval does not re-check it because the payload does not carry those fields, so `poisoned_public_document` (public scope, synthetic) is not an authorization case.
 - Section-level keys are `"<document_id>#<section_id>"`. No active golden case has `relevant_section_ids` yet, so the section block reports zero measurable cases.
 - The security result's `access.role` is hard-coded `guest`, correct in Phase 1; it must become the resolved role when other roles are added.
-- Spec 007: `--strategy`, result 2.1; security 1.1. Spec 008: result 2.2; security 1.2. Spec 009: result 2.3; `--cross-index`; security 1.3. Spec 010: default suite `public-eval-v3`; `--lote`; result 2.4 with `by_script_mix`; `--cross-tokenizer`; `make eval-continuity`; security 1.4 with applicability. Decisions: D042–D047, D053–D054, D061–D072, D068–D070.
+- Spec 007: `--strategy`, result 2.1; security 1.1. Spec 008: result 2.2; security 1.2. Spec 009: result 2.3; `--cross-index`; security 1.3. Spec 010: default suite `public-eval-v3`; `--lote`; result 2.4 with `by_script_mix`; `--cross-tokenizer`; `make eval-continuity`; security 1.4 with applicability. Spec 011: result 2.5 (rerank identity, served paths, skip and truncation counts); `--rerank` / `--no-rerank`; `--cross-rerank`; security 1.5 with eight paths. Decisions: D042–D047, D053–D054, D061–D072, D068–D070, D078.
 
 ## Knowledge Release
 
