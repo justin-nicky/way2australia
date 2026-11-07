@@ -21,11 +21,13 @@ from __future__ import annotations
 import fcntl
 import json
 import os
-import re
 import subprocess
 import sys
 import time
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _shell import simple_commands  # noqa: E402
 
 STATE = Path(
     os.environ.get("VERIFY_BUDGET_STATE", str(Path.home() / ".cache" / "verify-budget"))
@@ -41,12 +43,6 @@ def _dedupe_window_s() -> float:
 
 
 MAX_AGE_S = 2 * 24 * 3600
-
-HEREDOC = re.compile(r"<<-?\s*['\"]?(\w+)['\"]?[^\n]*\n.*?\n\s*\1\b", re.S)
-QUOTED = re.compile(r"'[^']*'|\"(?:\\.|[^\"\\])*\"")
-SEPARATOR = re.compile(r"&&|\|\||[;|\n]")
-ENV_ASSIGN = re.compile(r"^\w+=\S*$")
-WRAPPERS = {"time", "env", "command", "nice", "exec", "caffeinate"}
 
 MESSAGE = (
     "verify-budget: full-suite `make verify` or `make test` already ran {count} times "
@@ -83,19 +79,15 @@ def repo_root() -> Path | None:
     return None
 
 
-def _strip_wrappers(words: list[str]) -> list[str]:
-    while words and (ENV_ASSIGN.match(words[0]) or words[0] in WRAPPERS):
-        words = words[1:]
-    return words
-
-
 def _make_targets(words: list[str]) -> list[str]:
-    """Targets after make/gmake, skipping -C, -j, and other flags."""
+    """Targets after make/gmake, skipping -C, -f, -j and other flags."""
     targets: list[str] = []
     i = 1
     while i < len(words):
         w = words[i]
-        if w in ("-C", "--directory") and i + 1 < len(words):
+        if w in ("-C", "--directory", "-f", "--file", "--makefile") and i + 1 < len(
+            words
+        ):
             i += 2
             continue
         if w.startswith("-") and w not in ("-", "--"):
@@ -107,18 +99,13 @@ def _make_targets(words: list[str]) -> list[str]:
 
 
 def runs_budgeted_make(command: str) -> bool:
-    """True for `make verify` or full `make test` (not test-unit/integration)."""
-    text = QUOTED.sub("''", HEREDOC.sub("", command))
-    for segment in SEPARATOR.split(text):
-        words = _strip_wrappers(segment.split())
+    """True for `make verify` or full `make test` (not test-unit/integration),
+    including inside `$(...)`, backticks, `bash -c '...'` and `uv run`."""
+    for words in simple_commands(command):
         if len(words) < 2 or words[0] not in ("make", "gmake"):
             continue
         for target in _make_targets(words):
-            if target == "verify":
-                return True
-            if target in ("test-unit", "test-integration"):
-                continue
-            if target == "test":
+            if target in ("verify", "test"):
                 return True
     return False
 
