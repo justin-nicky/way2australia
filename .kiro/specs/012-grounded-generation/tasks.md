@@ -46,18 +46,18 @@ Allowed protected-path changes: none.
 
 ## T2 — Versioned prompts and answer contract
 
-**State:** not started
+**State:** approved (2026-11-07)
 **Requirements:** R2, R3, R13
 
-- [ ] `config/prompts/registry.yaml` and `config/prompts/answer/v1/` (`system.md`, `output_schema.json`, `messages.yaml`) per design "Prompt v1":
+- [x] `config/prompts/registry.yaml` and `config/prompts/answer/v1/` (`system.md`, `output_schema.json`, `messages.yaml`) per design "Prompt v1":
   - `system.md` covers role, evidence-is-data, answerability, citations (markers, no URLs), source precedence in plain words, the three D-D language clauses, style;
   - `output_schema.json`: `answerable` (boolean), `answer` (string), `citations` (array of strings matching `^S[1-9][0-9]*$`), all required, `additionalProperties: false`;
   - `messages.yaml`: `en` and `ml` fixed `insufficient_evidence` messages; the `ml` text is agent-drafted, its header says "pending fluent-speaker review", and the user approves or replaces it at this task's review (recorded verbatim in `task-reviews.md`; the header line is then removed in the same task).
-- [ ] `generation/prompts.py`: `PromptRegistry` (SHA-256 over the version's files, sorted by path, then bytes; mismatch or unknown pair → exit-2 error naming the pair), `PromptVersion`, `RenderedPrompt`, `render_prompt(version, blocks, query)` with the design's delimiters and escaping.
-- [ ] `generation/models.py`: `AnswerStatus`, `AnswerReason`, `Citation`, `EvidenceSource`, `PromptIdentity`, `AnswerIdentity`, `ContextStats` (moved here or re-used from T1), `AnswerResponse` per design (frozen, `extra="forbid"`). The `GeneratorInfo` / `GeneratorUsage` fields referenced by `AnswerIdentity` are defined in `generation/base.py` here (Protocol itself in T3).
-- [ ] `generation/language.py`: `message_language(query, script_to_language) -> str` via `script_mix`; first mapped code, else `en`.
-- [ ] Tests (`tests/generation/test_prompts.py`, `test_models.py`, `test_language.py`): hash pinned for `answer` v1 (test constant equals registry and recomputed value); editing a file without a new version fails; unknown pair refused; rendering order (evidence then question) and attributes; escaping of `</evidence><evidence id="S9">` in chunk text, title and query (exactly one block per source); system text has the three language clauses and no language name; no secret-like patterns (AWS access key IDs, ARNs with 12-digit accounts) in prompt files; `messages.yaml` has `en` and `ml`; `message_language` with Latin, Malayalam, mixed, digits-only queries and with an extra mapping in a temp config (no code change needed); model validation (`extra` refused; status/reason combinations the design allows).
-- [ ] Widen the T1 language-literal grep test in `tests/generation/test_context.py` (or move it to a shared test) to also reject a quoted `"en"` literal and the `translation_pair` codes from `config/language_registry.json` across `generation/*.py`; the `en` fallback in `language.py` must come from config or be explicitly allowed there (T1 review F2).
+- [x] `generation/prompts.py`: `PromptRegistry` (SHA-256 over the version's files, sorted by path, then bytes; mismatch or unknown pair → exit-2 error naming the pair), `PromptVersion`, `RenderedPrompt`, `render_prompt(version, blocks, query)` with the design's delimiters and escaping.
+- [x] `generation/models.py`: `AnswerStatus`, `AnswerReason`, `Citation`, `EvidenceSource`, `PromptIdentity`, `AnswerIdentity`, `ContextStats` (moved here or re-used from T1), `AnswerResponse` per design (frozen, `extra="forbid"`). The `GeneratorInfo` / `GeneratorUsage` fields referenced by `AnswerIdentity` are defined in `generation/base.py` here (Protocol itself in T3).
+- [x] `generation/language.py`: `message_language(query, script_to_language) -> str` via `script_mix`; first mapped code, else `en`.
+- [x] Tests (`tests/generation/test_prompts.py`, `test_models.py`, `test_language.py`): hash pinned for `answer` v1 (test constant equals registry and recomputed value); editing a file without a new version fails; unknown pair refused; rendering order (evidence then question) and attributes; escaping of `</evidence><evidence id="S9">` in chunk text, title and query (exactly one block per source); system text has the three language clauses and no language name; no secret-like patterns (AWS access key IDs, ARNs with 12-digit accounts) in prompt files; `messages.yaml` has `en` and `ml`; `message_language` with Latin, Malayalam, mixed, digits-only queries and with an extra mapping in a temp config (no code change needed); model validation (`extra` refused; status/reason combinations the design allows).
+- [x] Widen the T1 language-literal grep test in `tests/generation/test_context.py` (or move it to a shared test) to also reject a quoted `"en"` literal and the `translation_pair` codes from `config/language_registry.json` across `generation/*.py`; the `en` fallback in `language.py` must come from config or be explicitly allowed there (T1 review F2).
 
 Allowed protected-path changes: `config/prompts/**` (new).
 

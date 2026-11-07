@@ -1,0 +1,9 @@
+schema_version: "1.0"
+versions:
+  - prompt_id: answer
+    prompt_version: 1
+    sha256: 7284d3b35cbdd4e5ff18570b770ae1d8c54153e9be3e04bdec6e8be8a6d55c11
+    files:
+      - answer/v1/messages.yaml
+      - answer/v1/output_schema.json
+      - answer/v1/system.md

@@ -10,6 +10,7 @@ from collections.abc import Sequence
 from pydantic import BaseModel, ConfigDict
 
 from way2australia_rag.generation.config import ContextConfig
+from way2australia_rag.generation.models import ContextStats
 from way2australia_rag.retrieval.models import RetrievedChunk
 
 
@@ -27,16 +28,6 @@ class EvidenceBlock(BaseModel):
     source_url: str | None
     content_language: str
     chunk_text: str
-
-
-class ContextStats(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-    received: int
-    deduplicated: int
-    dropped_by_budget: int
-    blocks: int
-    chars: int
 
 
 def _normalize(text: str) -> str:

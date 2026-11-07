@@ -1,0 +1,16 @@
+{
+  "type": "object",
+  "properties": {
+    "answerable": { "type": "boolean" },
+    "answer": { "type": "string" },
+    "citations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^S[1-9][0-9]*$"
+      }
+    }
+  },
+  "required": ["answerable", "answer", "citations"],
+  "additionalProperties": false
+}

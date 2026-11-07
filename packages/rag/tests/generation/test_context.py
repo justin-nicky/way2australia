@@ -171,11 +171,15 @@ def test_config_requires_positive_values(field: str) -> None:
 def test_generation_source_has_no_language_code_or_name() -> None:
     registry = json.loads((REPO_ROOT / "config/language_registry.json").read_text())
     needles: set[str] = set()
+    translation_pair_codes: set[str] = set()
     for key, entry in registry["product_support"].items():
         needles.add(key.lower())
         needles.add(str(entry.get("display_name", "")).lower())
+        for code in entry.get("translation_pair") or []:
+            translation_pair_codes.add(str(code))
     codes = {str(e["internal_code"]) for e in registry["product_support"].values()}
     needles.discard("")
+    allowed_en_literal_files = {"language.py"}
     files = sorted(GENERATION_SRC.glob("*.py"))
     assert files
     for path in files:
@@ -186,3 +190,14 @@ def test_generation_source_has_no_language_code_or_name() -> None:
         for code in codes:
             pattern = rf"""["']{re.escape(code)}["']"""
             assert not re.search(pattern, text), f"{path.name} has literal {code!r}"
+        if path.name not in allowed_en_literal_files:
+            assert not re.search(r"""["']en["']""", text), (
+                f"{path.name} has literal 'en'"
+            )
+        for code in translation_pair_codes:
+            if code == "en" and path.name in allowed_en_literal_files:
+                continue
+            pattern = rf"""["']{re.escape(code)}["']"""
+            assert not re.search(pattern, text), (
+                f"{path.name} has translation_pair literal {code!r}"
+            )
