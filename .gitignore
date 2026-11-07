@@ -95,15 +95,13 @@ Thumbs.db
 # Throwaway evaluation output (eval-security, fake runs)
 experiments/results/tmp/
 
-# graphify (D048): commit the graph, report, manifest and cache; ignore machine-local
-# interpreter/root paths and the regenerable HTML view (`graphify export html`).
+# graphify (D048, D080): commit the graph, report and manifest; ignore the
+# extraction cache (local, rebuilt on demand), machine-local interpreter/root
+# paths and the regenerable HTML view (`graphify export html`).
+graphify-out/cache/
 graphify-out/.graphify_python
 graphify-out/.graphify_root
 graphify-out/graph.html
-
-# graphify per-session hook state (local)
-graphify-out/cache/hook_sessions/
-graphify-out/cache/last_query_stamp
 
 # =============================================================================
 # Machine-local state (lexical indexes, pytest HF cache, workflow reviews, …)

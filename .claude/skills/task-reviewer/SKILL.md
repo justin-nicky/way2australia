@@ -36,7 +36,7 @@ git status --porcelain
 git diff HEAD -- . ':(exclude).kiro/specs/*/task-reviews.md' ':(exclude)graphify-out'
 ```
 
-Read untracked files listed by `git status` as part of the diff. Changes under `graphify-out/` are the regenerated knowledge graph, not task work: never review them as scope drift; check only that they exist when code changed. If there are no task changes, FAIL with an `IMPLEMENTATION` finding.
+Read untracked files listed by `git status` as part of the diff. Changes under `graphify-out/` are not expected during a spec (the orchestrator rebuilds the graph once per spec, D080); if any appear, they are not task work: never review them as scope drift and never require them. If there are no task changes, FAIL with an `IMPLEMENTATION` finding.
 
 ## Checks
 

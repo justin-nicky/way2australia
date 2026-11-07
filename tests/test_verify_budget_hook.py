@@ -105,6 +105,37 @@ class TestRunsBudgetedMake:
         mod, _, _ = hook_env
         assert mod.runs_budgeted_make("gmake verify")
 
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "uv run make verify",
+            "python3 -m uv run --extra bge-m3 make test",
+            "bash -c 'make verify'",
+            'sh -c "make test"',
+            "/usr/bin/make verify",
+            "echo $(make verify)",
+            "echo `make test`",
+            "(cd sub && make verify)",
+            "make -f Makefile verify",
+        ],
+    )
+    def test_wrapped_and_nested_forms_count(self, hook_env, command):
+        mod, _, _ = hook_env
+        assert mod.runs_budgeted_make(command)
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "git commit -m 'make verify'",
+            "bash -c 'make test-unit'",
+            "echo $(make lint)",
+            "make -f verify lint",
+        ],
+    )
+    def test_mentions_and_other_targets_not_counted(self, hook_env, command):
+        mod, _, _ = hook_env
+        assert not mod.runs_budgeted_make(command)
+
     def test_pytest_not_counted(self, hook_env):
         mod, _, _ = hook_env
         assert not mod.runs_budgeted_make("uv run pytest packages/rag/tests/foo.py")

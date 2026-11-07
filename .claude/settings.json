@@ -34,7 +34,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "graphify hook-guard search",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/tools/hooks/graphify_guard.py\" || true",
             "timeout": 10
           }
         ]

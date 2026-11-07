@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-11-06 (Spec 011 T1–T6 approved on `spec/011`; verified, merged `d40d734` (retrospective round 1 `PASS`); reranking on at depth 20; D073–D079)
+Last updated: 2026-11-07 (`chore/workflow-trim`, D080: hook command detection, graph once per spec, graphify 0.9.103; Spec 012 planned and approved on `spec/012`, not started)
 
 ## Current phase
 
@@ -12,7 +12,7 @@ Spec 001 project foundation is complete.
 
 ## Current goal
 
-Specs **001–010** are **verified on `main`** (Spec 010 merged 2026-11-04, fast-forward to **`cae06c3`**). Default production index **`idx-v2`** / recursive 128+title (D071): run **`make ingest`**, then **`make index-lexical`** with default **`lexical-v2`** tokenizer (D072; settings 1.2; rebuild once if upgrading from 1.1 for `--lote`). Hybrid default retrieval needs the lexical file. Ignored stale `knowledge_release_id` / `evaluation_suite_id` keys remain on the promoted yaml until the next `index_version` (D071 carry-over). Verify-budget hook in-repo (**D073**); pytest-xdist **not** adopted for default verify (**D074**); follow-up **`pytest --durations=25`** still open. **Spec 011** (roadmap item 9, multilingual reranking; context building deferred to item 10) is **verified**: all six tasks T1–T6 approved on branch **`spec/011`** (base `3b81508`, planning approved 2026-11-04; T6 approved 2026-11-06). Reranking is **on by default at depth 20** (`rerank.enabled: true`, D079; MRR 0.9228 → 0.9751, p95 +920.6 ms on `mps:0`, `BAAI/bge-reranker-v2-m3` @ `953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e`). Required `spec-reviewer` retrospective round 1: **`PASS`** (2026-11-06, `.kiro/specs/011-multilingual-reranking/review.md`; four MINOR findings, docs reconciled, no RM tasks). **Verified:** merged into `main` as `d40d734` on 2026-11-06. **No HTTP-route spec yet:** Spec 008 serving items belong with roadmap **item 10 (grounded generation)**. Repository-based shared context keeps Codex, Claude Code, Cursor and Kiro interchangeable (D063).
+Specs **001–010** are **verified on `main`** (Spec 010 merged 2026-11-04, fast-forward to **`cae06c3`**). Default production index **`idx-v2`** / recursive 128+title (D071): run **`make ingest`**, then **`make index-lexical`** with default **`lexical-v2`** tokenizer (D072; settings 1.2; rebuild once if upgrading from 1.1 for `--lote`). Hybrid default retrieval needs the lexical file. Ignored stale `knowledge_release_id` / `evaluation_suite_id` keys remain on the promoted yaml until the next `index_version` (D071 carry-over). Verify-budget hook in-repo (**D073**); pytest-xdist **not** adopted for default verify (**D074**); `pytest --durations=25` done 2026-11-07 (D080: slowest tests and a `make verify` time proposal, not adopted). Workflow trim (**D080**): hooks share one shell parser, the graphify search reminder is skipped for doc/spec searches, `graphify update .` runs once per spec (before the retrospective), `graphify query` is optional in briefs, `graphify-out/cache/` is git-ignored, graphify 0.9.103. **Spec 012** (roadmap item 10 without the HTTP route: context building, Bedrock generation, answerability, citations; serving and the route go to Spec 013) is **planned and approved** on `spec/012` (`16005d8`); T1 not started. **Spec 011** (roadmap item 9, multilingual reranking; context building deferred to item 10) is **verified**: all six tasks T1–T6 approved on branch **`spec/011`** (base `3b81508`, planning approved 2026-11-04; T6 approved 2026-11-06). Reranking is **on by default at depth 20** (`rerank.enabled: true`, D079; MRR 0.9228 → 0.9751, p95 +920.6 ms on `mps:0`, `BAAI/bge-reranker-v2-m3` @ `953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e`). Required `spec-reviewer` retrospective round 1: **`PASS`** (2026-11-06, `.kiro/specs/011-multilingual-reranking/review.md`; four MINOR findings, docs reconciled, no RM tasks). **Verified:** merged into `main` as `d40d734` on 2026-11-06. **No HTTP-route spec yet:** Spec 008 serving items belong with roadmap **item 10 (grounded generation)**. Repository-based shared context keeps Codex, Claude Code, Cursor and Kiro interchangeable (D063).
 
 ## Finalized high-level decisions
 
@@ -175,12 +175,12 @@ Not yet implemented:
 **Spec 011 next (2026-11-06):**
 
 1. **T6** approved (2026-11-06). Retrospective round 1 `PASS` (2026-11-06). Merged into `main` (`d40d734`). Next: the user runs `/graphify . --update` on `main`; then the `chore/workflow-trim` plan goes to the user before Spec 012. When planning the next spec, pass the "Notes for the next spec" from `.kiro/specs/011-multilingual-reranking/review.md` to `spec-planner`.
-2. After the merge and before Spec 012: bring the `chore/workflow-trim` plan to the user first (saved plan: command detection in the two scripts, graph once per spec, graphify query optional in briefs, graphify upgrade).
+2. Done 2026-11-07: `chore/workflow-trim` (D080). Before Spec 012 T1: merge it into `main`, merge `main` into `spec/012`, and amend Spec 012 for the graph rule (no per-task `graphify update`) and the decision numbers (Spec 012 starts at D081).
 
 **Earlier (Spec 011 planning, 2026-11-04):**
 
 1. Done 2026-11-05/06: Spec 011 T1–T5 (see above).
-2. Optional: **`pytest --durations=25`** to rank slow tests before any future parallel verify work (D074 follow-up).
+2. Done 2026-11-07: `pytest --durations=25` (D080). Open proposal: share one CLI gate run in `test_security_eval.py` and keep Docker tests out of `make verify` (about 238 → 155 s); needs its own approved change.
 3. Remove user-level verify-budget hook copies after merge; committed hook is `.claude/settings.json` + `tools/hooks/verify_budget.py`.
 
 1. Done 2026-10-24: the user ran the real `make eval-retrieval` on `w2a-realcheck-idx-v1` (`QDRANT_COLLECTION_BASE=w2a-realcheck`) and `make eval-compare` against the Spec 005 baseline: PASS, hits 60 -> 60, MRR 0.8783 -> 0.8783, no flips. The result `experiments/results/retrieval-evaluation-idx-v1-20261024T193140Z.json` (committed; BAAI/bge-m3 @ `5617a9f`, device `mps:0`, p50 79.7 ms, p95 97.8 ms) is the 2.0 baseline for suite `public-eval-v1` v1.
