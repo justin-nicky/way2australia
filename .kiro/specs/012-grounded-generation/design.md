@@ -437,4 +437,4 @@ Unit tests use no network, credentials, extras or Docker, and are hub-free.
 4. **T4 — `AnswerService`, citation validation and `make ask`:** including the retrieval CLI argument helper.
 5. **T5 — `make eval-generation`, security `1.6` and candidates:** the eval runner, cost guard, security checks, `012-candidates.jsonl`.
 6. **T6 — User-owned real runs:** smoke gate passed (recorded); thresholds recorded first; Sonnet 5.5 and Haiku 5.5 on v3 with `--model-id` and price overrides; zero `generator_unavailable` (or the affected cases re-run) before choosing; model choice; `default_generator: bedrock`, model ID and pricing committed together with the new-default CLI tests; v4 promotion and one reference run on v4.
-7. **T7 — Docs, decisions (D080+) and hand-off.**
+7. **T7 — Docs, decisions (D081+) and hand-off.**

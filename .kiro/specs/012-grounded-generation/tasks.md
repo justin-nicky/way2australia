@@ -18,7 +18,7 @@ Rules for every task:
 - **Results.** Tests never write under `experiments/results/` (use `tmp_path`). Throwaway CLI output goes to `experiments/results/tmp/`. Committed result files are never modified.
 - **Messages.** Refusals and errors name fields, codes, model IDs and document IDs only, never chunk text, paths, URLs or credentials.
 - **`lote` stays outside `AccessContext`** (C4, D072).
-- After code changes, run `graphify update .` (D048) as part of the task's verification.
+- **Graph once per spec (D080).** Tasks do not run `graphify update .`; `spec-orchestrator` runs it once after the last task approval, before the retrospective. The graph reflects `main` at the start of the spec, so read files changed earlier in this spec directly.
 - **Amendments.** Any task box or design edit added after approval gets a dated `## Change log` line in `requirements.md`.
 - **`task-reviews.md`** is edited only by exact, targeted edits.
 
@@ -43,7 +43,6 @@ Allowed protected-path changes: none.
 
 - `uv run pytest packages/rag/tests/generation packages/rag/tests/evaluation` (iteration), then `make verify` once.
 - `git status --porcelain -- evaluation knowledge config` is empty.
-- `graphify update .`
 
 ## T2 — Versioned prompts and answer contract
 
@@ -65,7 +64,6 @@ Allowed protected-path changes: `config/prompts/**` (new).
 
 - `uv run pytest packages/rag/tests/generation` (iteration), then `make verify` once.
 - `git status --porcelain -- evaluation knowledge config` lists only `config/prompts/`.
-- `graphify update .`
 
 ## T3 — Generator interface, fake, Bedrock adapter and config
 
@@ -98,7 +96,6 @@ User-owned check after this task is approved (gate before T6's runs; recommended
 
 - `uv run pytest packages/rag/tests/generation` (iteration), then `make verify` once (also with `HF_HUB_OFFLINE=1 HF_HOME=$(mktemp -d)` as the single run if budget allows only one).
 - `git status --porcelain -- evaluation knowledge config` lists only `config/prompts/` (T2, committed) and `config/generation.yaml`.
-- `graphify update .`
 
 ## T4 — Answer service, citation validation and `make ask`
 
@@ -122,7 +119,6 @@ Allowed protected-path changes: none.
 - `uv run pytest packages/rag/tests/generation packages/rag/tests/retrieval` (iteration), then `make verify` once.
 - `make ask QUERY="Is coaching compulsory?" ASK_ARGS="--embedder fake --reranker fake --generator fake"` against a throwaway fake index base (`QDRANT_COLLECTION_BASE=w2a-t012-<8 hex>`, deleted afterwards), or the in-memory fixture path the CLI tests use if Docker is not running; output recorded in the hand-off.
 - `git status --porcelain -- evaluation knowledge config` is empty for this task.
-- `graphify update .`
 
 ## T5 — `make eval-generation`, generation security checks and candidates
 
@@ -156,7 +152,6 @@ Allowed protected-path changes: `evaluation/candidates/012-candidates.jsonl` (ne
 - `make eval-generation EVAL_ARGS="--generator fake --allow-fake --embedder fake --reranker fake"` on a throwaway fake index, or the in-memory path if Docker is not running; output under `experiments/results/tmp/`, summary in the hand-off.
 - `make validate-evaluation`.
 - `git status --porcelain -- evaluation knowledge config` lists only the candidates file for this task.
-- `graphify update .`
 
 ## T6 — Real runs, model choice and suite v4 (user-owned gate)
 
@@ -188,14 +183,13 @@ Allowed protected-path changes: `config/generation.yaml` (`default_generator`, `
 - Result files checked and committed; thresholds and choice recorded verbatim.
 - `make validate-evaluation`; `make verify` once; `make eval-security` on v4.
 - `git diff --name-status main...HEAD -- evaluation knowledge config` matches R15.
-- `graphify update .`
 
 ## T7 — Docs, decisions and hand-off
 
 **State:** not started
 **Requirements:** R15, R16, Definition of Done
 
-- [ ] `DECISIONS.md` from D080: context builder (exact-text dedup only, the payload evidence, budget, ordering, source IDs); prompt versioning and registry hash; answer contract and reasons; answerability (pre-gate, model assessment, backend enforcement, no score threshold); citation validation rules; generator interface, client choice (D-A), extra, config and deadline; outage eligibility (D-B) **as its own decision recording the departure from D062**; no committed default until T6 (D-C) and the T6 default; answer-language rule and generic wording (D-D); generation result 1.0 and cost guard; security result 1.6; region / inference-profile choice; the T6 model outcome with the numbers listed in R14; suite v4 (or its absence).
+- [ ] `DECISIONS.md` from D081 (D080 is the workflow trim): context builder (exact-text dedup only, the payload evidence, budget, ordering, source IDs); prompt versioning and registry hash; answer contract and reasons; answerability (pre-gate, model assessment, backend enforcement, no score threshold); citation validation rules; generator interface, client choice (D-A), extra, config and deadline; outage eligibility (D-B) **as its own decision recording the departure from D062**; no committed default until T6 (D-C) and the T6 default; answer-language rule and generic wording (D-D); generation result 1.0 and cost guard; security result 1.6; region / inference-profile choice; the T6 model outcome with the numbers listed in R14; suite v4 (or its absence).
 - [ ] `ARCHITECTURE.md` (query flow through generation; `generation/` module table), `COMMANDS.md` (`make ask`, `make eval-generation`, `make setup-bedrock`, overrides, refusals and exit codes), `TECH_STACK.md` (Bedrock model, client, region), `ROADMAP.md` (item 10 done except the route; item 9 context building done; item 13 model-failure path done), `CURRENT_STATE.md` (implemented reality; Spec 012 row; Known issues).
 - [ ] Carry-overs in `CURRENT_STATE.md` Known issues and for the retrospective's notes: Spec 013 serving items (HTTP route, `open_retrieval` rework for 011 F1/F2/F3 and 008 F4, Qdrant client and model lifecycle, async freshness, lexical startup and tokenizer policy, circuit breaker, reranker reload/health, latency/concurrency/device budgets including generation); provenance-not-faithfulness (item 12 or an evaluation spec); neighbour merge needing overlap boundaries in the payload; streaming.
 - [ ] Design As-built notes for any deviation found during T1–T6.
@@ -207,4 +201,3 @@ Allowed protected-path changes: none.
 
 - All commands above pass; results recorded in the implementer hand-off.
 - `grep` of the docs for stale schema versions (security `1.5`, "no generation") and path counts before hand-off (Spec 011 process note).
-- `graphify update .`

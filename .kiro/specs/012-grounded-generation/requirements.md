@@ -228,7 +228,7 @@ The user runs the real generator and chooses the default model.
 
 ### Acceptance criteria
 
-- New decisions (from D080) record: the context builder (deduplication choice and evidence, budget, ordering, source IDs); prompt versioning; the answer contract and reasons; answerability; citation validation; the generator interface, client choice, extra and config; outage eligibility and `evidence_only`; the answer language rule; the generation result schema and cost guard; security result changes; the region or inference-profile choice; the R14 model outcome; suite v4.
+- New decisions (from D081; D080 is the workflow trim) record: the context builder (deduplication choice and evidence, budget, ordering, source IDs); prompt versioning; the answer contract and reasons; answerability; citation validation; the generator interface, client choice, extra and config; outage eligibility and `evidence_only`; the answer language rule; the generation result schema and cost guard; security result changes; the region or inference-profile choice; the R14 model outcome; suite v4.
 - `ARCHITECTURE.md` (query flow through generation), `COMMANDS.md` (`make ask`, `make eval-generation`, setup, refusals), `TECH_STACK.md` (Bedrock model and client), `ROADMAP.md` (item 10 done except the route; item 13 model-failure path done; item 9 context building done) and `CURRENT_STATE.md` describe the code as built.
 - Carry-overs for Spec 013 recorded in `CURRENT_STATE.md` Known issues and the retrospective notes: the HTTP route and all serving items listed under "Decisions resolved before drafting", plus generation latency and concurrency budgets.
 
@@ -290,3 +290,4 @@ The user runs the real generator and chooses the default model.
 - YYYY-MM-DD — <R#/T#>: <what changed and why>. Re-opened <T#>. -->
 - 2026-11-07 — R14, R15: aligned with the approved design D-C (no committed default generator until T6; T6 commits `default_generator: bedrock`, the model ID and pricing together, with the new-default CLI tests) and the D-B addition (zero `generator_unavailable`, or the affected cases re-run, before choosing a model); R15 also allows the v3 suite status change. Before any task started; no task re-opened.
 - 2026-11-07 — Design (D-A fallback): at tasks approval the user required that a strict-tool fallback amendment cite the documentation or a recorded HTTP 400 for the forced `tool_choice` rejection. Before any task started; no task re-opened.
+- 2026-11-07 — Workflow trim (D080), before T1: tasks no longer run `graphify update .` (removed from the rules and from every task's verification; the orchestrator rebuilds the graph once before the retrospective), and Spec 012 decisions start at D081 (R16, T7, design task outline). No task re-opened.
