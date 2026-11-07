@@ -1,0 +1,27 @@
+# Grounded generation (Spec 012). Reviewed like other config; schema 1.0.
+# D-C: no committed default generator, model or pricing until T6.
+schema_version: "1.0"
+default_generator: null             # null until T6 commits `bedrock`
+prompt: {id: answer, version: 1}
+retrieval: {top_k: 5}               # must not exceed rerank.depth while reranking is enabled
+context: {max_blocks: 5, max_chars: 8000}
+evidence_only: {snippet_chars: 240}
+languages:
+  script_to_language: {malayalam: ml}
+bedrock:
+  endpoint: runtime                 # runtime | mantle (D-A)
+  region: ap-south-1
+  model_id: null                    # null until T6 commits the chosen model's Bedrock ID
+  inference_profile: null           # set only if the model is not served in-region
+  effort: low                       # low | medium | high
+  max_tokens: 1024
+  request_timeout_s: 20
+  retries: 2                        # attempts = retries + 1
+  backoff_s: 1.0                    # delay = backoff_s * 2**attempt, capped by the deadline
+  deadline_s: 30                    # total per request, all attempts and backoff
+pricing:                            # USD per million tokens; null until T6
+  input_per_mtok: null
+  output_per_mtok: null
+estimate:
+  chars_per_token: 2.0              # conservative for Malayalam-heavy prompts
+  assumed_output_tokens: 400

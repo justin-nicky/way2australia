@@ -21,6 +21,7 @@ def _identity(*, with_generator: bool) -> AnswerIdentity:
         generator = GeneratorInfo(
             provider="fake",
             model_id="fake",
+            model_id_source="config",
             endpoint=None,
             region=None,
             inference_profile=None,

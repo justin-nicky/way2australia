@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-11-07 (Spec 012 T1 approved; T1 F1/F2 follow-ups recorded in tasks T2/T7; implementing T2 on `spec/012`)
+Last updated: 2026-11-07 (Spec 012 T3 approved; T3 review F1/F2 recorded as T4 boxes; implementing T4 next on `spec/012`)
 
 ## Current phase
 
@@ -95,12 +95,12 @@ Not yet implemented:
 | 009 — chunking experiments | verified 2026-11-04, merged `5a6deb7` |
 | 010 — multilingual retrieval | verified 2026-11-04, merged `cae06c3` |
 | 011 — multilingual reranking | verified 2026-11-06, merged `d40d734` |
-| 012 — grounded generation | implementing on `spec/012`; T1 approved 2026-11-07; T2–T7 not started |
+| 012 — grounded generation | implementing on `spec/012`; T1–T3 approved 2026-11-07; T4–T7 not started |
 
 ## Next step
 
-1. **Spec 012 T2:** versioned prompts, answer models, `language.py` (implementer → task review). Spec 012 decisions start at D081.
-2. **After Spec 012 T3 is approved:** the user runs the D-A smoke test (`W2A_RUN_BEDROCK_SMOKE=1`, Sonnet 5.5 and Haiku 5.5, `ap-south-1`) and records it in `task-reviews.md` before T6 (design "Bedrock adapter").
+1. **Spec 012 T4:** answer service, citation validation, `make ask`, plus the two T3 review boxes (F1 sub-reason on deadline, F2 lazy-import test). Spec 012 decisions start at D081.
+2. **D-A smoke test (T3 approved; in progress, user-run):** the user runs the smoke test (`W2A_RUN_BEDROCK_SMOKE=1`, Sonnet 5.5 and Haiku 5.5, `ap-south-1`) and records it in `task-reviews.md` before T6 (design "Bedrock adapter").
 3. **Follow-up chore (D080):** in `packages/rag/tests/evaluation/test_security_eval.py`, share one CLI gate run across `test_cli_lexical_file_is_removed_after_a_pass`, `test_cli_pass_writes_a_result_and_exits_zero` and `test_cli_clause_less_lexical_store_exits_one_naming_strategies` (about −38 s of `make verify`). Docker tests stay in `make verify` until CI runs `make test-integration`.
 4. The trial docs re-extraction of 2026-11-07 was discarded and is not to be retried (D080); the docs part of the graph stays from the earlier extraction.
 5. Open since the verify-budget chore: remove user-level verify-budget hook copies; the committed hook is `.claude/settings.json` + `tools/hooks/verify_budget.py`.

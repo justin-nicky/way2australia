@@ -29,6 +29,12 @@ reranker = [
   "sentence-transformers>=3.0.0",
 ]
 
+# Bedrock generation (Spec 012). 2.0.0 is the first SDK release on API version 2026-10-21
+# (https://platform.claude.com/docs/en/cli-sdks-libraries/sdks/python, read 2026-11-07).
+bedrock = [
+  "anthropic[bedrock]>=2.0.0,<3",
+]
+
 [tool.uv]
 package = true
 
