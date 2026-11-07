@@ -38,6 +38,7 @@ Then consult deeper context as needed:
 - `docs/project/CONVENTIONS.md`
 - `docs/project/DECISIONS.md`
 - `docs/project/COMMANDS.md`
+- `docs/project/HISTORY.md` (closed and done history moved out of `CURRENT_STATE.md`: per-spec detail, past real runs, closed findings)
 
 Repository docs are the source of truth. Do not rely on chat history when repo context exists.
 
