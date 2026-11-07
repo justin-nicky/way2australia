@@ -247,7 +247,7 @@ Do not automate destructive infrastructure commands.
 graphify update .
 ```
 
-Refresh the graph after code changes (local, no model cost).
+Refresh the graph after code changes (local, no model cost). In the spec workflow `spec-orchestrator` runs it once per spec, after the last task approval and before the retrospective; implementers do not run it per task (D080).
 
 ```text
 /graphify . --update
@@ -259,7 +259,7 @@ In Claude Code: refresh after documentation changes (re-extracts changed docs; u
 graphify query "<question>"
 ```
 
-Query the graph; `graphify path "<A>" "<B>"` and `graphify explain "<concept>"` for relationships and concepts. Install once with `uv tool install graphifyy` and make sure `~/.local/bin` is on `PATH` (`uv tool update-shell`).
+Query the graph; `graphify path "<A>" "<B>"` and `graphify explain "<concept>"` for relationships and concepts. The extraction cache `graphify-out/cache/` is local and git-ignored (D080). Install once with `uv tool install graphifyy` (upgrade with `uv tool upgrade graphifyy`; 0.9.103 at D080) and make sure `~/.local/bin` is on `PATH` (`uv tool update-shell`).
 
 ## Rule
 

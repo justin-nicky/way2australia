@@ -73,6 +73,7 @@ COMMAND_KINDS = [
         re.compile(r"\bgit\s+(status|diff|log|show|branch|rev-parse|ls-files)\b"),
     ),
 ]
+NON_MESSAGE_ROWS = {"api-request", "api-request-blob", "api-request-shape"}
 CURSOR_TS = re.compile(r"<timestamp>([^<]+)</timestamp>")
 # Heuristics for file reads and writes done through the shell (common in auto modes).
 SHELL_WRITE = re.compile(
@@ -115,20 +116,77 @@ RECORD_FILE = re.compile(
 )
 
 
+SHELL_C = re.compile(
+    r"\b(?:bash|sh|zsh)\s+(?:-[a-zA-Z]+\s+)*-[a-zA-Z]*c[a-zA-Z]*\s+"
+    r"(?:'([^']*)'|\"((?:\\.|[^\"\\])*)\")"
+)
+MAX_DEPTH = 4
+
+
+def _substitutions(text: str) -> tuple[str, list[str]]:
+    """Remove `$(...)` and backtick substitutions; return (rest, inner commands)."""
+    inner: list[str] = []
+    out: list[str] = []
+    i = 0
+    while i < len(text):
+        if text.startswith("$(", i) and not text.startswith("$((", i):
+            depth, j = 1, i + 2
+            while j < len(text) and depth:
+                if text[j] == "(":
+                    depth += 1
+                elif text[j] == ")":
+                    depth -= 1
+                j += 1
+            inner.append(text[i + 2 : j - 1] if depth == 0 else text[i + 2 :])
+            out.append(" ")
+            i = j
+        elif text[i] == "`":
+            j = text.find("`", i + 1)
+            end = len(text) if j == -1 else j
+            inner.append(text[i + 1 : end])
+            out.append(" ")
+            i = end + 1
+        else:
+            out.append(text[i])
+            i += 1
+    return "".join(out), inner
+
+
+def executed_parts(command: str, depth: int = 0) -> list[str]:
+    """The command lines actually run: heredoc bodies and quoted strings removed
+    (text that merely mentions a command is not a run), with `$(...)`, backtick
+    and `bash|sh|zsh -c '...'` payloads parsed as command lines of their own.
+    Mirrors `tools/hooks/_shell.py`; this script stays standalone."""
+    if depth > MAX_DEPTH:
+        return []
+    text = HEREDOC.sub("", command)
+    nested = [
+        m.group(1) if m.group(1) is not None else m.group(2)
+        for m in SHELL_C.finditer(text)
+    ]
+    text = SHELL_C.sub(" ", text)
+    text, substituted = _substitutions(text)
+    nested += substituted
+    parts = [QUOTED.sub("''", text)]
+    for inner in nested:
+        parts += executed_parts(inner, depth + 1)
+    return parts
+
+
 def executed_text(command: str) -> str:
-    """The command with heredoc bodies and quoted strings removed, so text that
-    merely mentions a command (commit messages, scripts) is not counted as a run."""
-    return QUOTED.sub("''", HEREDOC.sub("", command))
+    """All executed command lines of `command`, one per line."""
+    return "\n".join(executed_parts(command))
 
 
 def command_kinds(command: str) -> list[str]:
     """Kinds of the commands actually run: each segment of a command line
-    (split on `&&`, `||`, `;`, `|`, newlines), after leading environment
-    assignments and wrappers such as `uv run` are stripped, must start with the
-    command."""
+    (split on `&&`, `||`, `;`, `|`, newlines), including subshells and
+    `bash -c` payloads, after leading environment assignments and wrappers such
+    as `uv run` are stripped, must start with the command."""
     kinds = []
     for segment in SEGMENT_SPLIT.split(executed_text(command)):
-        segment = WRAPPER.sub("", segment.strip(" \t("))
+        segment = WRAPPER.sub("", segment.strip(" \t(){}"))
+        segment = re.sub(r"^\S*/(?=\S)", "", segment, count=1)
         for kind, pattern in COMMAND_KINDS:
             if kind not in kinds and pattern.match(segment):
                 kinds.append(kind)
@@ -183,6 +241,10 @@ def analyse(path: Path) -> dict:
         stamp = row.get("timestamp")
         if isinstance(stamp, str) and (t := parse_time(stamp)):
             times.append(t)
+        if row.get("type") in NON_MESSAGE_ROWS:
+            # Request bookkeeping (Claude Code `api-request*` rows) repeats
+            # messages already logged as `user`/`assistant` rows.
+            continue
         content = message.get("content")
         if role == "user":
             text = text_of(content)

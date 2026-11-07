@@ -42,7 +42,7 @@ Patterns seen in this project's Specs 007–009, how to detect them, and what us
 | Post-approval amendment without a dated change-log line | amendment commits vs `## Change log` lines |
 | Status date changed on amendment | `Status: approved (<new date>)` after an amendment |
 | Task work and workflow changes in one commit | files outside the task in a `Spec-Task` commit |
-| Graph not updated after code changes | no `graphify update` in an implementer run that edited code |
+| Graph not rebuilt once per spec (D080) | no `graphify update` by the orchestrator between the last task approval and the retrospective, or `graphify update` runs inside implementer rounds |
 | Learning notes missing after a PASS | no `~/learning/way2australia/specs/<NNN>-<slug>/T<id>.md` (full spec folder name) for a PASS task |
 | Usage lines unfilled | `not filled` or empty Usage lines in `task-reviews.md` |
 | Model tier mismatch not noted | model used differs from `MODEL_PREFERENCES.md` (read it on the spec branch at that time, with `git show <commit>:agent-skills/MODEL_PREFERENCES.md`) and the record says nothing; a host with no tier row is itself a finding |
