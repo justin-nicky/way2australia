@@ -24,18 +24,18 @@ Rules for every task:
 
 ## T1 — Context builder
 
-**State:** not started
+**State:** approved (2026-11-07)
 **Requirements:** R1, R13
 
-- [ ] Move `evaluation/script_mix.py` to the package root `script_mix.py` (function unchanged); update the two imports in `evaluation/cli.py` and `evaluation/retrieval_eval.py`; no re-export shim.
-- [ ] `generation/__init__.py` (no exports).
-- [ ] `generation/config.py`: `ContextConfig` (`max_blocks` ≥ 1, `max_chars` ≥ 1) only; the full `GenerationConfig` loader is completed in T3. Tests build configs directly.
-- [ ] `generation/context.py`: `EvidenceBlock`, `ContextStats`, `ContextBuilder.build(hits) -> (blocks, stats)` per design "Data flow" step 2:
+- [x] Move `evaluation/script_mix.py` to the package root `script_mix.py` (function unchanged); update the two imports in `evaluation/cli.py` and `evaluation/retrieval_eval.py`; no re-export shim.
+- [x] `generation/__init__.py` (no exports).
+- [x] `generation/config.py`: `ContextConfig` (`max_blocks` ≥ 1, `max_chars` ≥ 1) only; the full `GenerationConfig` loader is completed in T3. Tests build configs directly.
+- [x] `generation/context.py`: `EvidenceBlock`, `ContextStats`, `ContextBuilder.build(hits) -> (blocks, stats)` per design "Data flow" step 2:
   - normalization for comparison only (NFC, whitespace runs to one space, stripped); keep the first occurrence; `deduplicated` count;
   - **no neighbour merge** (design R1 decision); a code comment points to the design paragraph;
   - rank order kept; budget drops whole blocks in order by `max_blocks` and `max_chars`; `dropped_by_budget` count;
   - IDs `S1…Sn` in final order; metadata copied from the hit payload fields (`document_id`, `document_version`, `section_id`, `title`, `source_authority`, `source_url`, `content_language`).
-- [ ] Tests (`tests/generation/test_context.py`): exact and normalized duplicates (higher rank kept); different text kept; both budget caps; a block larger than `max_chars` alone is dropped, never cut; empty input → no blocks; IDs; metadata from payload; determinism (same input twice); `received` / `deduplicated` / `dropped_by_budget` / `blocks` / `chars` counts; a grep test that `generation/` contains no language code literal or language name.
+- [x] Tests (`tests/generation/test_context.py`): exact and normalized duplicates (higher rank kept); different text kept; both budget caps; a block larger than `max_chars` alone is dropped, never cut; empty input → no blocks; IDs; metadata from payload; determinism (same input twice); `received` / `deduplicated` / `dropped_by_budget` / `blocks` / `chars` counts; a grep test that `generation/` contains no language code literal or language name.
 
 Allowed protected-path changes: none.
 
