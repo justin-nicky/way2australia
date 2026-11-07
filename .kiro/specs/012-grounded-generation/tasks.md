@@ -1,6 +1,6 @@
 # 012 — Grounded Generation Tasks
 
-Status: approved (2026-11-07)
+Status: implementing (branch spec/012, base 416fc3a)
 
 Implement the tasks in order; each depends on the ones before it. Requirements: `requirements.md` (approved 2026-11-07). Design: `design.md` (approved 2026-11-07; D-A and D-B as recommended, D-C no committed default until T6, D-D generic wording with the English-terms clause).
 
