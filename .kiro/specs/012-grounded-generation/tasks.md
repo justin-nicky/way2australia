@@ -126,28 +126,28 @@ Allowed protected-path changes: none.
 
 ## T5 — `make eval-generation`, generation security checks and candidates
 
-**State:** not started
+**State:** approved (2026-11-09)
 **Requirements:** R9, R10, R11, R13
 
-- [ ] `evaluation/generation_eval.py` and the `generation` subcommand in `evaluation/cli.py`; `Makefile` target `eval-generation` (`EVAL_ARGS`), per design "`make eval-generation`":
+- [x] `evaluation/generation_eval.py` and the `generation` subcommand in `evaluation/cli.py`; `Makefile` target `eval-generation` (`EVAL_ARGS`), per design "`make eval-generation`":
   - `--generator` required while `default_generator` is null; `--model-id`, `--price-input`, `--price-output` overrides recorded;
   - real generator: exactly one of `--limit N` / `--all`; phase 1 (retrieval, context, rendering, estimate printed; zero generator calls) then confirmation (`y` on a TTY, or `--yes`; no TTY and no `--yes` → exit 2); null pricing without overrides → exit 2 naming the key;
   - fake generator: `--allow-fake` required, output to `experiments/results/tmp/`;
   - result `generation_evaluation` schema `1.0` with every top-level and per-case field in the design, including `generator_unavailable` counts by sub-reason with affected `case_id`s (also printed in the summary);
   - `--min-refusal-rate`, `--min-answer-rate`: exit 1 when not met.
-- [ ] `evaluation/security_eval.py`: `generation_prompt_isolation` over all eight retrieval paths, `generation_poisoned_evidence`, `generation_citation_manipulation` per design "Security"; security result `1.6`; the eight retrieval paths and their records unchanged.
-- [ ] `evaluation/candidates/012-candidates.jsonl`: `status: suggested` rows in the existing candidate format (no new case fields), each with drafter (`agent`) and the required reviews (`owner_review`; `fluent_speaker_review` for `ml`/`mixed`):
+- [x] `evaluation/security_eval.py`: `generation_prompt_isolation` over all eight retrieval paths, `generation_poisoned_evidence`, `generation_citation_manipulation` per design "Security"; security result `1.6`; the eight retrieval paths and their records unchanged.
+- [x] `evaluation/candidates/012-candidates.jsonl`: `status: suggested` rows in the existing candidate format (no new case fields), each with drafter (`agent`) and the required reviews (`owner_review`; `fluent_speaker_review` for `ml`/`mixed`):
   - generation goldens: answers needing two documents; fees and numbers; source-authority precedence; at least one whose evidence contradicts a likely wrong answer (the plausible false claim stated in the row's review notes, the true fact in `expected_facts`);
   - unanswerable / refusal cases, including near-miss questions whose topic is in the corpus but whose answer is not;
   - English, Malayalam and mixed rows.
-- [ ] Tests (`tests/evaluation/test_generation_eval.py`, `test_security_eval.py` additions, `test_validate.py` if needed):
+- [x] Tests (`tests/evaluation/test_generation_eval.py`, `test_security_eval.py` additions, `test_validate.py` if needed):
   - hard gates on the fake (R9): every fake defect gives the expected status and reason; every unanswerable case refuses when the fake declines or no evidence exists;
   - cost guard: estimate printed before any generator call (recording fake shows zero calls before confirmation); `--limit` proportional selection (at least one unanswerable case when N ≥ 2); `--all`; `--yes`; no-TTY exit 2; null pricing refused for a real generator (stub `bedrock` provider, no SDK); overrides recorded;
   - metrics on a crafted case set (answer rate, refusal rate with `evidence_only` excluded, `citation_invalid` by sub-reason, `generator_unavailable` by sub-reason, precision/recall, `expected_facts` coverage by language marked informational, script mix, latency, tokens, cost); `--min-*` exit 1; result written only under `tmp_path`;
   - security 1.6 checks pass and a deliberately broken validator (monkeypatched) makes `generation_citation_manipulation` fail;
   - `make validate-evaluation` passes with the candidates file; candidates are never loaded as cases.
-- [ ] T4 review F5: in `tests/generation/test_service_isolation.py` make the `document_id` check able to fail (prove it with a negative control that feeds a forbidden `document_id` into a rendered prompt or response), and correct the comment in `test_model_output_cannot_change_access_or_citation_metadata` (`FakeMode.UNKNOWN_ID` cites only an unissued ID, not a staff document or a URL).
-- [ ] T4 review F4: a `make ask` CLI test on `--strategy hybrid` with `--reranker fake`, and assertions that `OpenedRetrieval.close()` is called after the run on the success path and on the error path.
+- [x] T4 review F5: in `tests/generation/test_service_isolation.py` make the `document_id` check able to fail (prove it with a negative control that feeds a forbidden `document_id` into a rendered prompt or response), and correct the comment in `test_model_output_cannot_change_access_or_citation_metadata` (`FakeMode.UNKNOWN_ID` cites only an unissued ID, not a staff document or a URL).
+- [x] T4 review F4: a `make ask` CLI test on `--strategy hybrid` with `--reranker fake`, and assertions that `OpenedRetrieval.close()` is called after the run on the success path and on the error path.
 
 Allowed protected-path changes: `evaluation/candidates/012-candidates.jsonl` (new).
 
@@ -204,6 +204,7 @@ Allowed protected-path changes: `config/generation.yaml` (`default_generator`, `
   - Record: the `make ask` `retrieval:` line differs from `make retrieve` (rerank part omits `@revision` and the skip stage, adds `(fake=...)`; citation lines use `-` not `—`) (T4 review F1).
   - Record, and write into the design: citation rule order `no_citation` → `model_url` → `unknown_id` → `duplicate_id` → `marker_mismatch` decides the reported `sub_reason` when several rules break (T4 review F2).
   - Record: the T3 review F1 deadline change supersedes the design "Attempt loop" text ("`DEADLINE` is raised, whatever the last error was"): the classified sub-reason is kept and `deadline` is used only when no error caused it, and the backoff is no longer capped at the remaining time (the loop stops without sleeping when the wait leaves 1 s or less) (T4 review F3).
+  - Record (T5 round 3 tests): `answer_script_mix` measures the answer text including `[Sn]` markers and English-kept names (`NAATI`, `CCL`), so Malayalam answers can report `latin+malayalam`; informational only and does not indicate answer-language compliance.
 - [ ] Spec-wide checks (R15): `make verify` (no extras, network, credentials or Docker; hub-free), `make test-integration` (Docker Qdrant), `make eval-security`, protected-path diff.
 
 Allowed protected-path changes: none.

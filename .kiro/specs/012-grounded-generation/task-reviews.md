@@ -256,3 +256,140 @@
 ### User decision
 - 2026-11-09: "Approve T4. Add to T5 (dated change-log line citing the T4 review): 1. F5: make the `document_id` check in `test_service_isolation.py` able to fail (prove it with a negative control), and correct the `FakeMode.UNKNOWN_ID` comment. 2. F4: a `make ask` CLI test on hybrid with `--reranker fake`, and assert retrieval is closed after the run (success and error paths). Record for the T7 As-built notes: F1 (`make ask` retrieval line format vs `make retrieve`), F2 (citation rule order `no_citation` → `model_url` → `unknown_id` → `duplicate_id` → `marker_mismatch` decides the reported sub-reason; write it into the design), F3 (the deadline/backoff change supersedes the design's attempt-loop text). Then commit T4 with `Spec-Task: 012/T4` and push `spec/012`."
 - Applied: two boxes added to T5, three Record bullets added to T7, and a dated change-log line in `requirements.md` (T4 review F1–F5).
+
+## T5 — round 1
+
+### Implementation
+- Model: composer-2.5-fast (Cursor subagent); intended tier BEST_MINUS_ONE per `agent-skills/MODEL_PREFERENCES.md`.
+- Files changed:
+  - `packages/rag/src/way2australia_rag/evaluation/generation_eval.py` (new): `generation_evaluation` schema `1.0`, case selection (`--limit` / `--all`), cost estimate and confirmation guard, metrics/thresholds, result path and summary formatting.
+  - `packages/rag/src/way2australia_rag/evaluation/cli.py`: `generation` subcommand; security CLI runs generation checks before `delete_security_index` when the retrieval report already passed.
+  - `packages/rag/src/way2australia_rag/evaluation/security_eval.py`: security document `1.6`; `generation_prompt_isolation`, `generation_poisoned_evidence`, `generation_citation_manipulation`, `run_generation_security_checks`.
+  - `packages/rag/src/way2australia_rag/evaluation/models.py`: `GoldenCase.expected_facts`, `UnanswerableCase.query_language`.
+  - `Makefile`: `eval-generation` target (`EVAL_ARGS`).
+  - `evaluation/candidates/012-candidates.jsonl` (new, seven `status: suggested` rows).
+  - Tests: `packages/rag/tests/evaluation/test_generation_eval.py` (new); `test_security_eval.py`, `test_service_isolation.py` (T4 F5), `test_ask_cli.py` (T4 F4 hybrid close).
+- Verification run:
+  - `HF_HUB_OFFLINE=1 HF_HOME=$(mktemp -d) uv run pytest packages/rag/tests/evaluation packages/rag/tests/generation` → 636 passed, 1 skipped.
+  - `make eval-security` → PASS (includes generation checks, result under `experiments/results/tmp/`).
+  - `make validate-evaluation` → OK.
+  - `ruff check` + `ruff format --check packages/rag` → pass after final lint/format fixes.
+  - `make verify` once → failed on lint during iteration; a second full `make verify` was not run (agent verify budget); reviewer should run `make verify` once.
+  - `make eval-generation EVAL_ARGS="--generator fake --allow-fake --embedder fake --reranker fake --limit 2 --yes"` → exit 2 (`IndexBindingError`: production collection `way2australia-idx-v2` vs fake embedder). Fake CLI/metrics paths covered by `test_generation_eval.py` and related tests (in-memory / `tmp_path`).
+  - `git status --porcelain -- evaluation knowledge config` → only `?? evaluation/candidates/012-candidates.jsonl`.
+- Notes:
+  - Generation security checks use the isolated security index and `fixture_root` for poisoned fixture material (no hard-coded `tests/fixtures/...` path in library code).
+  - When retrieval authorization fails, generation checks are skipped (CLI exit 2) so violation-path tests remain stable.
+- Usage: not measured (243 tool uses)
+- Verify budget: 3 `make verify` attempts in transcript; budget is 2 per session.
+
+### Review
+- Model: Grok 4.7 (Cursor). Intended tier BEST (`agent-skills/MODEL_PREFERENCES.md`) matches. Fresh session; the implementer was composer-2.5-fast.
+- Verdict: FAIL
+- Commands:
+  - `make verify` → fail, exit 2, at typecheck. `ruff check` passed; `ruff format --check` passed (230 files). Pyright: 4 errors, 0 warnings. Did not reach skills-check, validate-knowledge, validate-evaluation, or the full pytest.
+  - `python3 -m uv run pytest packages/rag/tests/evaluation packages/rag/tests/generation -q` → exit 0, 636 passed, 1 skipped.
+  - `make validate-evaluation` → exit 0, `validate-evaluation: OK, 0 problems`.
+  - `make eval-security` → exit 0, PASS in 21598 ms. Result schema `1.6`, eight retrieval paths unchanged, `generation_checks.passed` true (`paths_checked` 8, `prompts_rendered` 40).
+  - Throwaway fake index `QDRANT_COLLECTION_BASE=w2a-t012r-05bd4d77` (`make ingest` / `make index-lexical` with `--embedder fake`), then `make eval-generation EVAL_ARGS="--generator fake --allow-fake --embedder fake --reranker fake"` → exit 0. Summary: suite public-eval-v3 v3, 87 golden and 15 unanswerable (`all`), answer rate 1.0, refusal rate 0.0, result `experiments/results/tmp/generation-evaluation-idx-v2-20261109T040435Z.json`. Collection and `.local/lexical/w2a-t012r-05bd4d77-idx-v2.sqlite` deleted afterwards. Refusal rate 0.0 is the default fake answering whenever retrieval returns a hit; it is not the R9 hard gate.
+  - `git status --porcelain -- evaluation knowledge config` → only `?? evaluation/candidates/012-candidates.jsonl`.
+  - `make test-integration` not required by T5; not run.
+- Findings:
+  - F1 [BLOCKING, IMPLEMENTATION, R9] `make verify` fails typecheck (4 errors). `_prompt_chars_for_case` uses `prompt.system`, but `PromptVersion` has `system_text` (`generation_eval.py:197`). A case with no evidence blocks raises `AttributeError` during the real-generator cost estimate; the CLI's bare `except` turns that into exit 2. The other three errors are `Retriever` mismatches: `security_eval.py:875` (`strategy = Strategy.HYBRID.value` is a `str`), `security_eval.py:995` (`_Retriever`), and `test_generation_eval.py:238` (`OneHit`) — `strategy` is not a `Strategy`, and `retrieve`'s parameters are not `query_text` / `access` / `top_k` with a default. → Use `prompt.system_text`. Type the harness retrievers as `Retriever` (`strategy: Strategy`, `retrieve(self, query_text, access, top_k=DEFAULT_TOP_K, *, lote=None)`). Re-run `make verify` until it passes.
+  - F2 [MAJOR, IMPLEMENTATION, R9] The checked test box is not backed by `test_generation_eval.py`. There is no crafted case set asserting answer rate, refusal rate with `evidence_only` excluded, `citation_invalid` by sub-reason, `generator_unavailable` by sub-reason, precision/recall, `expected_facts` coverage by language marked informational, script mix, latency, tokens, or cost. `--min-*` exit 1 is only `check_thresholds`, not the CLI. `--all`, `--yes`, and recorded price overrides are untested. `test_recording_fake_has_zero_calls_before_yes` never installs `Recording` (`Stub` has no `generate` and no `calls`); an `AttributeError` is also exit 2, so `calls == []` cannot fail. The hard gate is one synthetic `DECLINE` case, not every active unanswerable case and not the no-evidence path. `test_fake_cli_writes_tmp_result` passes `--output`, so it does not show the default fake path is `experiments/results/tmp/`. `test_bedrock_without_pricing_exits_two` does not assert the missing key name. → Add those tests. Wire the recording generator so a call before confirmation fails the test.
+  - F3 [BLOCKING, IMPLEMENTATION, R11] The contradiction and source-authority rows do not cite the evidence that contains the true fact. "Coaching is optional." is in `business_001_overview_scope.md`. `cand012_en_002` cites `business_005_coaching` and `official_002_candidate_rules_setup` (official docs do not mention coaching). `cand012_en_004` cites only `business_005_coaching`, which has duration and price, not "optional" or "not required". `expected_facts` also include "not compulsory" and "not required", which are not in the corpus. → Cite `business_001_overview_scope` for the true sentence, put a real official contrast in the precedence row only if one exists, and keep `expected_facts` as substrings of the cited text. Leave the false claim in the review notes.
+  - F4 [MINOR, IMPLEMENTATION, R9] The result stores `citation_invalid` counts and sub-reasons but not a rate. `answer_rate` and `refusal_rate` have no `small_sample` flag (fact-coverage language slices do; `small_sample_threshold` is stored). `estimated_cost_usd` is hardcoded `None` after the estimate is computed. → Store the rate (count over cases run), flag the rates the way result 2.x flags aggregates, and write the phase-1 estimate into the result.
+  - F5 [MINOR, IMPLEMENTATION, R8] The T4 F4 tests pass `--strategy hybrid --reranker fake` but stub `open_retrieval`, so they never build a hybrid retriever or a fake reranker. `close()` is asserted on that stub for success and error. → Open retrieval for real on the in-memory index, as the other `make ask` tests do, and assert `OpenedRetrieval.close()`.
+  - F6 [MINOR, IMPLEMENTATION, R7] `test_document_id_in_prompts_fails_when_forbidden_id_is_injected` renders a title and asserts the id is in the user text. It does not run the isolation check, so deleting `document_id not in recorded.user` would not fail it. The comment in `test_model_output_cannot_change_access_or_citation_metadata` is corrected. → Feed a forbidden id into a rendered prompt or response and assert the same check the isolation test uses.
+- Usage: not measured (88 tool uses)
+
+## T5 — round 2
+
+### Implementation
+- Model: composer-2.5-fast (Composer 2.5), run as a Cursor subagent; intended tier BEST_MINUS_ONE per `agent-skills/MODEL_PREFERENCES.md`.
+- Files changed:
+  - `packages/rag/src/way2australia_rag/evaluation/generation_eval.py`: F1 `prompt.system_text`; F4 `citation_invalid` rate and `small_sample`, answer/refusal rate flags, `estimated_cost_usd` parameter.
+  - `packages/rag/src/way2australia_rag/evaluation/cli.py`: pass phase-1 `estimated_cost_usd` into the result document.
+  - `packages/rag/src/way2australia_rag/evaluation/security_eval.py`: F1 Retriever harness typing (`Strategy` enum, `query_text`, `DEFAULT_TOP_K`, `ResolvedLote`).
+  - `evaluation/candidates/012-candidates.jsonl`: F3 coaching rows cite `business_001_overview_scope` with corpus-backed `expected_facts`.
+  - `packages/rag/tests/evaluation/test_generation_eval.py`: F2 expanded R9 tests (defects, all unanswerables, no-evidence pre-gate, CLI `--min-*`, `--all`, pricing overrides, cost guard, default tmp path, bedrock `--yes`, metrics shape).
+  - `packages/rag/tests/generation/test_ask_cli.py`: F5 real hybrid open + `OpenedRetrieval.close()` via lexical fixture.
+  - `packages/rag/tests/generation/test_service_isolation.py`: F6 negative control uses `document_id not in user` (same as isolation).
+  - `.kiro/specs/012-grounded-generation/tasks.md`: State → `in task review (round 2)`.
+- Verification run:
+  - `HF_HUB_OFFLINE=1 HF_HOME=$(mktemp -d) uv run pytest packages/rag/tests/evaluation packages/rag/tests/generation` → 649 passed, 1 skipped;
+  - `make lint typecheck` → pass (0 pyright errors) after format fix;
+  - `make validate-evaluation` → OK;
+  - `make verify` → first run stopped at ruff format on `generation_eval.py` (exit 2); after the format fix, agent verify budget (2/session) blocked a second full `make verify`. Reviewer should run `make verify` once.
+  - Not run this round: `make eval-security`, `make eval-generation` throwaway CLI, `make test-integration` (not required by T5).
+  - `git status --porcelain -- evaluation knowledge config` → `?? evaluation/candidates/012-candidates.jsonl` only.
+- Notes:
+  - Round 2 addresses review F1–F6 only; no commit.
+- Usage: not measured (111 tool uses)
+- Verify budget: 3 `make verify` attempts in transcript; budget is 2 per session.
+
+### Review
+- Model: Grok 4.7 (Cursor). Intended tier BEST (`agent-skills/MODEL_PREFERENCES.md`) matches. Fresh session; the implementer was composer-2.5-fast.
+- Verdict: FAIL
+- Commands:
+  - `make verify` → pass, exit 0. `ruff check` passed; `ruff format --check` passed (230 files). Pyright: 0 errors, 0 warnings, 0 informations. skills-check: 6 mirrors match. `validate-knowledge: OK, 0 problems`. `validate-evaluation: OK, 0 problems`. pytest: 1715 passed, 4 skipped (1719 collected) in 240.63s.
+  - `make eval-security` → exit 0, PASS in 19025 ms. Result schema `1.6`, eight retrieval paths unchanged, `generation_checks.passed` true (`paths_checked` 8, `prompts_rendered` 40).
+  - `make eval-generation` on a throwaway index not re-run: Docker is not running. The task's in-memory alternative passed inside `make verify` (`packages/rag/tests/evaluation/test_generation_eval.py`).
+  - `git status --porcelain -- evaluation knowledge config` → only `?? evaluation/candidates/012-candidates.jsonl`.
+  - `make test-integration` not required by T5; not run.
+- Findings:
+  - F1 [MAJOR, IMPLEMENTATION, R9] Round 1 F2 is still open. Round 1 F1, F3, F4, F5 and F6 are fixed (typecheck clean; coaching rows cite `business_001_overview_scope` with corpus substrings and the false claim in the review notes; `citation_invalid` rate, small-sample flags and the phase-1 `estimated_cost_usd` are stored; hybrid `make ask` opens real retrieval and leaves `lexical is None` after close on success and error; the isolation negative control uses `document_id not in user`). `test_run_generation_evaluation_metrics_shape` runs the live suite with `--limit 6` and checks that keys exist. It is not a crafted case set, and it does not assert an answer rate, a refusal rate that excludes `evidence_only`, `citation_invalid` counts by sub-reason, `generator_unavailable` counts by sub-reason with case ids, precision/recall, `expected_facts` coverage by language (only `informational` and the key `by_query_language`), script mix, latency, tokens, or cost. Dropping `generator_unavailable`, counting `evidence_only` as a refusal, or omitting precision/recall would still pass. `test_fake_defect_status_reason_subreason` covers five citation modes and `UnavailableReason.CONNECTION` only. `test_every_active_unanswerable_refuses_on_fake_decline` checks `insufficient_evidence` and `reason is not None`, not `model_declined`. Malformed JSON, schema mismatch, `max_tokens`, refusal, a non-eligible error, and the other unavailable reasons (including timeout) are not in this gate. → Drive `run_generation_evaluation` (or the CLI) with a scripted generator and a small crafted suite: mixed answered, `citation_invalid`, `evidence_only` and `generator_unavailable` outcomes, two query languages, and known citations, facts, tokens and prices. Assert the rates, sub-reason maps and case ids, precision/recall, informational fact coverage by language, script mix, latency, tokens and cost. Extend the defect gate so every R4 fake defect gives the expected status and reason, including `model_declined` on the decline path. Keep results under `tmp_path`.
+- Summary for user:
+  - Reading order: this Review block → `packages/rag/tests/evaluation/test_generation_eval.py` → `packages/rag/src/way2australia_rag/evaluation/generation_eval.py`.
+  - Round 2 landed `make eval-generation`, security 1.6 generation checks, and candidates; `make verify` (1715 tests) and `make eval-security` pass on `spec/012` with uncommitted work.
+  - Blocker is R9 test depth only (crafted metrics + full fake-defect matrix), not runtime behavior the reviewer exercised.
+- Usage: not measured (88 tool uses)
+
+## T5 — round 3
+
+### Implementation
+- Model: grok-4.7-high-fast (Grok 4.7). Intended tier BEST_MINUS_ONE (`agent-skills/MODEL_PREFERENCES.md`) is Grok 4.7; matches. Run as a Cursor subagent.
+- Files changed:
+  - `packages/rag/tests/evaluation/test_generation_eval.py`: F1 only. Crafted in-memory suite through `run_generation_evaluation` (result under `tmp_path`) with exact rates, sub-reason→case_id maps, precision/recall, informational fact coverage by language, script mix, latency, tokens, cost, and small-sample flags, each with a wrong-value control. Fake-defect matrix covers every `FakeMode` and every `UnavailableReason` (including `deadline`) plus `model_declined` on both the decline and refusal paths. `NON_ELIGIBLE` asserts the `RuntimeError` propagates.
+  - `.kiro/specs/012-grounded-generation/tasks.md`: State → `in task review (round 3)`.
+- Verification run:
+  - `uv run pytest packages/rag/tests/evaluation/test_generation_eval.py` → 33 passed.
+  - `uv run pytest packages/rag/tests/evaluation packages/rag/tests/generation` → 662 passed, 1 skipped.
+  - `HF_HUB_OFFLINE=1 HF_HOME=$(mktemp -d) make verify` → pass, exit 0 (1 of 2 budget). ruff check passed; ruff format --check passed (230 files). Pyright: 0 errors, 0 warnings, 0 informations. skills-check: 6 mirrors match. `validate-knowledge: OK, 0 problems`. `validate-evaluation: OK, 0 problems`. pytest: 1728 passed, 4 skipped (1732 collected) in 242.55s.
+  - `make eval-security` → exit 0, PASS in 19496 ms. Result schema `1.6`, `generation_checks.passed` true (`paths_checked` 8, `prompts_rendered` 40).
+  - `make eval-generation` throwaway CLI not re-run (Docker not required for this round). The in-memory crafted suite is `test_crafted_suite_metrics_are_exact`, which passed inside `make verify`.
+  - `make test-integration` not required by T5; not run.
+  - `git status --porcelain -- evaluation knowledge config` → `?? evaluation/candidates/012-candidates.jsonl` only.
+- Notes:
+  - Round 3 addresses review F1 only. No production code changed. The new tests passed against the existing metrics, so no production bug was exposed.
+  - Latency is measured with an integer-second test clock (six service calls → total 5000 ms; the pre-gate → 3000 ms; the Malayalam answer adds ten ticks → generation p95 11000 ms, total p95 15000 ms). Token totals use a fixed 100/40 usage on the nine outputs that return. The `[S1]` marker makes the Malayalam answer `latin+malayalam`.
+  - `agent-skills/MODEL_PREFERENCES.md` was already dirty before this round (Cursor BEST_MINUS_ONE `Composer 2.5` → `Grok 4.7`). Not part of T5; left untouched. Do not include it in the T5 commit.
+- Usage: not measured (103 tool uses)
+- Verify budget: 1 `make verify` this session (limit 2).
+
+### Review
+- Model: grok-4.7-high-fast (Grok 4.7). Intended tier BEST (`agent-skills/MODEL_PREFERENCES.md`) matches. Fresh session. Same model id as the implementer; the user assigned this model for the review.
+- Verdict: PASS
+- Commands:
+  - `make verify` → pass, exit 0. `ruff check` passed; `ruff format --check` passed (230 files). Pyright: 0 errors, 0 warnings, 0 informations. skills-check: 6 mirrors match. `validate-knowledge: OK, 0 problems`. `validate-evaluation: OK, 0 problems`. pytest: 1728 passed, 4 skipped (1732 collected) in 242.43s. `test_generation_eval.py` is in that run (33 cases, including the crafted suite and the defect matrix).
+  - `make eval-security` not re-run this review. The assigned command was `make verify`. Security tests ran inside that pytest. Production security code is unchanged from round 2.
+  - `make eval-generation` on a throwaway index not re-run. Docker is running. The in-memory path passed inside `make verify` (`test_crafted_suite_metrics_are_exact` and the rest of `test_generation_eval.py`). Round 1 already ran the throwaway CLI on this production code.
+  - `git status --porcelain -- evaluation knowledge config` → only `?? evaluation/candidates/012-candidates.jsonl`.
+  - `make test-integration` not required by T5; not run.
+- Findings: none
+- Summary for user (PASS only):
+  - Changed: Round 3 adds the R9 gates that round 2 missed, in `packages/rag/tests/evaluation/test_generation_eval.py` only. `test_crafted_suite_metrics_are_exact` drives `run_generation_evaluation` with a 19-case suite (11 goldens, 8 unanswerable; English and Malayalam) and checks exact answer rate 3/11, refusal rate 3/8 with the five `evidence_only` cases left out, `citation_invalid` and `generator_unavailable` sub-reason maps with case ids (including `deadline`), precision/recall 0.8333 and 0.6667, informational fact coverage by language, script mix, latency, tokens and cost 0.0081. Each of those has a wrong-value control. `test_fake_defect_status_reason_subreason` runs every `FakeMode` and every `UnavailableReason`; decline and refusal are `model_declined`, and `NON_ELIGIBLE` lets `RuntimeError` propagate. The result file is under `tmp_path`. Production sources were not edited this round.
+  - Verified by: `make verify` (1728 passed, 4 skipped). `validate-evaluation` passed inside that run. Protected paths show only the new candidates file.
+  - Worth your attention: The latency numbers are tied to how many times `AnswerService.answer` calls `perf_counter` (generation p95 11000 ms, total p95 15000 ms on a one-second test clock). The Malayalam answer is `latin+malayalam` because the `[S1]` marker is Latin. Leave `agent-skills/MODEL_PREFERENCES.md` out of the T5 commit. `docs/project/CURRENT_STATE.md` still describes the round-2 escalation in the next-step list.
+  - Reading order (follow the flow: entry point → core logic → models/errors/config → tests):
+    1. `Makefile` → `eval-generation`: the `EVAL_ARGS` entry point.
+    2. `packages/rag/src/way2australia_rag/evaluation/cli.py` → generation subcommand: cost guard, then the runner.
+    3. `packages/rag/src/way2australia_rag/evaluation/generation_eval.py` → `run_generation_evaluation`: schema 1.0 metrics the new test locks.
+    4. `packages/rag/src/way2australia_rag/evaluation/security_eval.py` → `run_generation_security_checks`: security result 1.6.
+    5. `evaluation/candidates/012-candidates.jsonl`: suggested generation and refusal rows.
+    6. `packages/rag/tests/evaluation/test_generation_eval.py` → `test_crafted_suite_metrics_are_exact`, `test_fake_defect_status_reason_subreason`: the round 3 gates.
+    7. Supporting edits: `evaluation/models.py`, `test_security_eval.py`, `test_ask_cli.py`, `test_service_isolation.py`, `tasks.md`.
+- Usage: not measured (92 tool uses)
+
+### User decision
+- 2026-11-09: Approve T5. Commit with `Spec-Task: 012/T5` excluding `agent-skills/MODEL_PREFERENCES.md`; separate commit for model prefs. Add T7 As-built note on `answer_script_mix`. T6 is user-owned (plan before paid runs); do not start T6 in the approval turn.

@@ -18,7 +18,7 @@ from way2australia_rag.evaluation.security_index import (
 from way2australia_rag.evaluation.suite import load_suite
 from way2australia_rag.generation.context import ContextBuilder
 from way2australia_rag.generation.fake import FakeGenerator, FakeMode
-from way2australia_rag.generation.prompts import PromptRegistry
+from way2australia_rag.generation.prompts import PromptRegistry, render_prompt
 from way2australia_rag.generation.service import AnswerService
 from way2australia_rag.ingestion.embedding import FakeEmbedder
 from way2australia_rag.languages import active_lote_codes
@@ -30,7 +30,7 @@ from way2australia_rag.retrieval.access import resolve_access
 from way2australia_rag.retrieval.strategy import load_retrieval_config
 
 from .support import REPO_ROOT as ROOT
-from .support import generation_config
+from .support import evidence_block, generation_config
 
 pytestmark = pytest.mark.filterwarnings(
     "ignore:Payload indexes have no effect:UserWarning"
@@ -96,6 +96,48 @@ def test_no_forbidden_text_or_document_id_reaches_any_rendered_prompt(
     assert rendered > 0  # not vacuous: prompts were rendered on the gated paths
 
 
+def test_document_id_in_prompts_fails_when_forbidden_id_is_injected(
+    security_repository: LocalDocumentRepository, tmp_path
+) -> None:
+    """Negative control: the document_id assertion is not vacuous."""
+    from way2australia_rag.evaluation.cli import DEFAULT_SUITE
+    from way2australia_rag.ingestion.chunking import HeadingChunker
+
+    queries, _ = select_security_queries(load_suite(ROOT, DEFAULT_SUITE))
+    client = QdrantClient(":memory:")
+    index = build_security_index(
+        client,
+        "w2a-sectest-" + uuid.uuid4().hex[:8],
+        [queries[0].text],
+        FakeEmbedder(FAKE_VECTOR_SIZE),
+        HeadingChunker(2000),
+        seed_repository=LocalDocumentRepository(LocalRepositoryConfig(ROOT)),
+        security_repository=security_repository,
+        tenant_id=TENANT,
+        lexical_dir=tmp_path / "lexical",
+        active_lote_code=active_lote_codes(ROOT)[0],
+    )
+    forbidden_id = next(
+        str((p.payload or {})["document_id"])
+        for p in client.scroll(index.collection, limit=2000, with_payload=True)[0]
+        if is_forbidden_document(str((p.payload or {})["document_id"]))
+    )
+    config = generation_config()
+    prompt = PromptRegistry(ROOT).get(config.prompt.id, config.prompt.version)
+    user = render_prompt(
+        prompt,
+        [
+            evidence_block("S1", "safe").model_copy(
+                update={"chunk_text": f"See also {forbidden_id} in policy."}
+            )
+        ],
+        "q",
+    ).user
+    with pytest.raises(AssertionError):
+        for document_id in {forbidden_id}:
+            assert document_id not in user
+
+
 def test_model_output_cannot_change_access_or_citation_metadata() -> None:
     from .support import FakeRetriever, hit
 
@@ -103,7 +145,7 @@ def test_model_output_cannot_change_access_or_citation_metadata() -> None:
     prompt = PromptRegistry(ROOT).get(config.prompt.id, config.prompt.version)
     access = resolve_access(AccessContext(role=Role.GUEST, tenant_id=TENANT))
     retriever = FakeRetriever([hit(1, "Public text.", document_id="doc_public")])
-    # A model that names a staff document and a URL, and cites an unissued ID.
+    # A model that cites an unissued source ID (no URL or staff doc in this mode).
     generator = FakeGenerator(FakeMode.UNKNOWN_ID)
     response = AnswerService(
         retriever, ContextBuilder(config.context), prompt, generator, config

@@ -6,7 +6,7 @@ UV_ENV = UV_CACHE_DIR=$(UV_CACHE_DIR) UV_PYTHON_INSTALL_DIR=$(UV_PYTHON_INSTALL_
 PYTHON_TARGETS ?= apps packages tests scripts tools
 UV_HTTP_TIMEOUT ?= 300
 
-.PHONY: setup setup-bge-m3 setup-bedrock format lint typecheck test test-unit test-integration verify skills-sync skills-check validate-knowledge validate-evaluation ingest index-lexical retrieve ask retrieval-baseline eval-retrieval eval-security eval-compare eval-continuity
+.PHONY: setup setup-bge-m3 setup-bedrock format lint typecheck test test-unit test-integration verify skills-sync skills-check validate-knowledge validate-evaluation ingest index-lexical retrieve ask retrieval-baseline eval-retrieval eval-security eval-generation eval-compare eval-continuity
 
 setup:
 	$(UV_ENV) $(UV) sync --all-packages --group dev
@@ -91,6 +91,11 @@ eval-retrieval:
 # Extra options go in EVAL_ARGS, e.g. make eval-security EVAL_ARGS="--output /tmp/x.json".
 eval-security:
 	@$(UV_ENV) $(UV) run python -m way2australia_rag.evaluation.cli security --repo-root $(CURDIR) $(EVAL_ARGS)
+
+# Generation evaluation over the active suite (fake needs --allow-fake and writes
+# to experiments/results/tmp/). Extra options go in EVAL_ARGS.
+eval-generation:
+	@$(UV_ENV) $(UV) run python -m way2australia_rag.evaluation.cli generation --repo-root $(CURDIR) $(EVAL_ARGS)
 
 # Compare two result files and apply the quality gate (exit 0 pass, 1 gate failure,
 # 2 refusal). Both variables are required:

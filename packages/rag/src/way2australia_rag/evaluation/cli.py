@@ -34,6 +34,19 @@ from way2australia_rag.evaluation.compare import compare
 from way2australia_rag.evaluation.errors import (
     EvaluationConfigurationError,
     EvaluationError,
+    EvaluationHarnessError,
+)
+from way2australia_rag.evaluation.generation_eval import (
+    apply_pricing_overrides,
+    check_thresholds,
+    default_generation_output_path,
+    estimate_cost,
+    format_generation_summary,
+    print_cost_estimate,
+    require_confirmation,
+    require_real_generator_pricing,
+    run_generation_evaluation,
+    select_cases,
 )
 from way2australia_rag.evaluation.results import (
     check_output_free,
@@ -51,6 +64,7 @@ from way2australia_rag.evaluation.retrieval_eval import (
 from way2australia_rag.evaluation.security_corpus import SCHEMA as SECURITY_SCHEMA
 from way2australia_rag.evaluation.security_corpus import build_security_repository
 from way2australia_rag.evaluation.security_eval import (
+    run_generation_security_checks,
     run_security_evaluation,
     security_document,
     security_gate_chunkers,
@@ -66,6 +80,18 @@ from way2australia_rag.evaluation.security_index import (
 from way2australia_rag.evaluation.slices import active_registry_languages
 from way2australia_rag.evaluation.suite import declared_release_id, load_suite
 from way2australia_rag.evaluation.validate import validate_evaluation
+from way2australia_rag.generation.build import build_generator
+from way2australia_rag.generation.config import (
+    DEFAULT_GENERATION_CONFIG,
+    load_generation_config,
+)
+from way2australia_rag.generation.context import ContextBuilder
+from way2australia_rag.generation.errors import GeneratorConfigurationError
+from way2australia_rag.generation.prompts import (
+    PromptConfigurationError,
+    PromptRegistry,
+)
+from way2australia_rag.generation.service import AnswerService, retrieval_identity
 from way2australia_rag.ingestion.cli import ClientFactory, build_embedder
 from way2australia_rag.ingestion.config import (
     DEFAULT_CONFIG_PATH,
@@ -429,6 +455,7 @@ def _security(args: argparse.Namespace) -> int:
     fixture_root: Path = args.fixture_root or repo_root / DEFAULT_FIXTURE_ROOT
     client: QdrantClient | None = None
     completed_runs: list[tuple[Any, Any]] = []
+    generation_checks = None
     try:
         settings = load_runtime_settings(EvaluationConfigurationError)
         retrieval_config = load_retrieval_config(
@@ -491,6 +518,15 @@ def _security(args: argparse.Namespace) -> int:
                         active_lote=active_lote,
                     )
                     completed_runs.append((index, report))
+                    if generation_checks is None and report.passed:
+                        generation_checks = run_generation_security_checks(
+                            index,
+                            access,
+                            queries,
+                            retrieval_config,
+                            repo_root,
+                            fixture_root,
+                        )
                 finally:
                     index.lexical.close()
                     delete_security_index(index)
@@ -503,6 +539,7 @@ def _security(args: argparse.Namespace) -> int:
             created_at=now.isoformat(),
             repo_root=repo_root,
             lote_modes=[None, active_lote.code],
+            generation_checks=generation_checks,
         )
         write_document(output, document)
     except (
@@ -510,6 +547,7 @@ def _security(args: argparse.Namespace) -> int:
         RetrievalError,
         IngestionError,
         DocumentRepositoryError,
+        EvaluationHarnessError,
     ) as e:
         print(f"ERROR {type(e).__name__}: {safe_text(e)}", file=sys.stderr)
         return EXIT_ERROR
@@ -589,6 +627,172 @@ def format_security_summary(document: dict[str, Any], shown: Path) -> str:
         f"eval-security: {verdict} in {document['duration_ms']:.0f} ms; result: {shown}"
     )
     return "\n".join(safe_text(line) for line in lines)
+
+
+def _generation(
+    args: argparse.Namespace,
+    client_factory: ClientFactory | None,
+    embedder_factory: EmbedderFactory,
+    reranker_factory: RerankerFactory = build_reranker,
+) -> int:
+    logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stderr)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    repo_root: Path = args.repo_root.resolve()
+    config_path: Path = args.config or repo_root / DEFAULT_CONFIG_PATH
+    gen_path: Path = args.generation_config or repo_root / DEFAULT_GENERATION_CONFIG
+    generator = None
+    opened = None
+    problems: list[str] = []
+    try:
+        top_k = args.top_k
+        lote = resolve_lote(args.lote, active_lote_codes(repo_root))
+        suite = load_suite(repo_root, args.suite)
+        require_active_suite(suite)
+        release_id = declared_release_id(repo_root, args.release)
+        config = load_generation_config(gen_path, repo_root)
+        if args.generator is None and config.default_generator is None:
+            raise GeneratorConfigurationError(
+                "no generator is configured; pass --generator fake or "
+                "--generator bedrock."
+            )
+        config, pricing_applied = apply_pricing_overrides(
+            config,
+            input_per_mtok=args.price_input,
+            output_per_mtok=args.price_output,
+            source="cli",
+        )
+        generator = build_generator(config, args.generator, args.model_id)
+        if generator.info.is_fake and not args.allow_fake:
+            raise EvaluationConfigurationError(
+                "the fake generator needs --allow-fake; results go to "
+                "experiments/results/tmp/ only."
+            )
+        use_all = bool(args.all) or (generator.info.is_fake and args.limit is None)
+        if not generator.info.is_fake and not args.all and args.limit is None:
+            raise EvaluationConfigurationError(
+                "a real generator run needs exactly one of --limit N or --all."
+            )
+        selected = select_cases(suite, limit=args.limit, all_cases=use_all)
+        ingestion = load_ingestion_config(config_path)
+        settings = load_runtime_settings(EvaluationConfigurationError)
+        retrieval_config = load_retrieval_config(
+            args.retrieval_config or repo_root / DEFAULT_RETRIEVAL_CONFIG
+        )
+        strategy = Strategy(args.strategy or retrieval_config.default_strategy)
+        rerank = retrieval_config.rerank.enabled if args.rerank is None else args.rerank
+        provider = args.embedder or ingestion.embedder.provider
+        reranker_provider = args.reranker or retrieval_config.rerank.provider
+        if top_k is None:
+            top_k = config.retrieval.top_k
+        if not MIN_TOP_K <= top_k <= MAX_TOP_K:
+            raise EvaluationConfigurationError(
+                f"top_k must be an integer from {MIN_TOP_K} to {MAX_TOP_K}."
+            )
+        prompt = PromptRegistry(repo_root).get(config.prompt.id, config.prompt.version)
+        now = datetime.now(UTC)
+        tmp = generator.info.is_fake
+        output: Path = args.output or default_generation_output_path(
+            repo_root, ingestion.index_version, now, tmp=tmp
+        )
+        check_output_free(output)
+        opened = open_retrieval(
+            strategy,
+            settings=settings,
+            ingestion_config=ingestion,
+            retrieval_config=retrieval_config,
+            provider=provider,
+            repo_root=repo_root,
+            client_factory=client_factory,
+            embedder_factory=embedder_factory,
+            rerank=rerank,
+            reranker_factory=reranker_factory,
+            reranker_provider=reranker_provider,
+        )
+        access = resolve_access(guest_access(settings))
+        builder = ContextBuilder(config.context)
+        estimated_cost_usd: float | None = None
+        if not generator.info.is_fake:
+            require_real_generator_pricing(generator, config.pricing)
+            estimate = estimate_cost(
+                selected=selected,
+                retriever=opened.retriever,
+                builder=builder,
+                prompt=prompt,
+                access=access,
+                config=config,
+                top_k=top_k,
+                lote=lote,
+            )
+            estimated_cost_usd = estimate.estimated_cost_usd
+            print_cost_estimate(estimate, config.pricing)
+            if getattr(generator, "calls", 0) != 0:
+                raise EvaluationHarnessError(
+                    "cost guard: generator was called before confirmation."
+                )
+            require_confirmation(yes=bool(args.yes))
+        service = AnswerService(opened.retriever, builder, prompt, generator, config)
+        warm_query = (
+            selected.goldens[0].query
+            if selected.goldens
+            else selected.unanswerables[0].query
+        )
+        warm = opened.retriever.retrieve(warm_query, access, top_k, lote=lote)
+        retrieval_id = retrieval_identity(warm)
+        document = run_generation_evaluation(
+            retriever=opened.retriever,
+            generator=generator,
+            service=service,
+            suite=suite,
+            selected=selected,
+            access=access,
+            release_id=release_id,
+            top_k=top_k,
+            lote=lote,
+            config=config,
+            prompt=prompt,
+            generator_info=generator.info,
+            pricing_applied=pricing_applied,
+            retrieval_identity=retrieval_id,
+            ingestion_config=ingestion_config_report(config_path, repo_root),
+            repo_root=repo_root,
+            min_answer_rate=args.min_answer_rate,
+            min_refusal_rate=args.min_refusal_rate,
+            estimated_cost_usd=estimated_cost_usd,
+            clock=lambda: now,
+        )
+        problems = check_thresholds(
+            document["metrics"],
+            min_answer_rate=args.min_answer_rate,
+            min_refusal_rate=args.min_refusal_rate,
+        )
+        write_document(output, document)
+    except (
+        EvaluationError,
+        RetrievalError,
+        IngestionError,
+        GeneratorConfigurationError,
+        PromptConfigurationError,
+    ) as error:
+        print(f"ERROR {type(error).__name__}: {safe_text(error)}", file=sys.stderr)
+        return EXIT_ERROR
+    except Exception as error:  # noqa: BLE001
+        print(f"ERROR {type(error).__name__}", file=sys.stderr)
+        return EXIT_ERROR
+    finally:
+        if generator is not None:
+            generator.close()
+        if opened is not None:
+            opened.close()
+    try:
+        shown = output.resolve().relative_to(repo_root)
+    except ValueError:
+        shown = Path(output.name)
+    print(format_generation_summary(document, shown))
+    if problems:
+        for problem in problems:
+            print(f"GATE {problem}", file=sys.stderr)
+        return EXIT_PROBLEMS
+    return EXIT_OK
 
 
 def _compare(args: argparse.Namespace) -> int:
@@ -696,6 +900,48 @@ def main(
         default=None,
         help="result file (default: experiments/results/tmp/security-*.json)",
     )
+    generation = commands.add_parser(
+        "generation",
+        help="run goldens and unanswerable cases through the answer path",
+    )
+    generation.add_argument("--repo-root", type=Path, default=Path.cwd())
+    generation.add_argument("--config", type=Path, default=None)
+    generation.add_argument("--generation-config", type=Path, default=None)
+    generation.add_argument("--suite", default=DEFAULT_SUITE)
+    generation.add_argument("--release", default=DEFAULT_RELEASE)
+    generation.add_argument(
+        "--strategy", choices=[s.value for s in Strategy], default=None
+    )
+    generation.add_argument("--retrieval-config", type=Path, default=None)
+    generation.add_argument("--embedder", choices=("bge_m3", "fake"), default=None)
+    generation.add_argument("--top-k", type=int, default=None)
+    generation.add_argument("--lote", default=None)
+    group = generation.add_mutually_exclusive_group()
+    group.add_argument(
+        "--rerank",
+        dest="rerank",
+        action="store_const",
+        const=True,
+        default=None,
+    )
+    group.add_argument("--no-rerank", dest="rerank", action="store_const", const=False)
+    generation.add_argument("--reranker", choices=("bge", "fake"), default=None)
+    generation.add_argument("--generator", choices=("fake", "bedrock"), default=None)
+    generation.add_argument("--model-id", default=None)
+    generation.add_argument(
+        "--price-input", type=float, default=None, dest="price_input"
+    )
+    generation.add_argument(
+        "--price-output", type=float, default=None, dest="price_output"
+    )
+    generation.add_argument("--allow-fake", action="store_true")
+    generation.add_argument("--yes", action="store_true")
+    limit_group = generation.add_mutually_exclusive_group()
+    limit_group.add_argument("--limit", type=int, default=None)
+    limit_group.add_argument("--all", action="store_true")
+    generation.add_argument("--min-answer-rate", type=float, default=None)
+    generation.add_argument("--min-refusal-rate", type=float, default=None)
+    generation.add_argument("--output", type=Path, default=None)
     compare_cmd = commands.add_parser(
         "compare", help="compare two result files and apply the quality gate"
     )
@@ -729,6 +975,8 @@ def main(
         return _validate(args.repo_root.resolve())
     if args.command == "security":
         return _security(args)
+    if args.command == "generation":
+        return _generation(args, client_factory, embedder_factory, reranker_factory)
     return _retrieval(args, client_factory, embedder_factory, reranker_factory)
 
 

@@ -67,6 +67,7 @@ class GoldenCase(CaseBase):
     answerable: bool
     relevant_document_ids: list[str]
     relevant_section_ids: list[str] = Field(default_factory=list)
+    expected_facts: list[str] = Field(default_factory=list)
     query_language: str
     category: str
 
@@ -74,6 +75,7 @@ class GoldenCase(CaseBase):
 class UnanswerableCase(CaseBase):
     answerable: bool
     expected_behavior: str
+    query_language: str = "en"
 
 
 class SecurityCase(CaseBase):
