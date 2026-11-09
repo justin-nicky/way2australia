@@ -277,26 +277,52 @@ def test_exhausted_retries_do_not_sleep_after_the_last_attempt() -> None:
 
 def test_deadline_stops_further_attempts_even_mid_retry() -> None:
     clock = Clock()
-    # Attempt 1 uses 25 s of the 30 s deadline; attempt 2 is bounded to the 4 s left.
+    # Attempt 1 uses 25 s of the 30 s deadline; attempt 2 is bounded to the 4 s left
+    # and uses 3.5 s of it. The 2 s backoff no longer fits, so nothing sleeps and the
+    # classified outage (not `deadline`) is reported (T3 review F1).
     generator, client, _ = _generator(
         [(25, APITimeoutError()), (3.5, APITimeoutError()), _message()], clock
     )
     with pytest.raises(GeneratorUnavailableError) as caught:
         generator.generate(rendered_prompt())
-    assert caught.value.reason == UnavailableReason.DEADLINE
+    assert caught.value.reason == UnavailableReason.TIMEOUT
     assert client.timeouts == [20, pytest.approx(4.0)]
     assert len(client.requests) == 2
+    assert clock.sleeps == [1.0]
 
 
-def test_no_attempt_starts_with_one_second_or_less_left() -> None:
+def test_no_attempt_starts_with_one_second_or_less_left_after_an_error() -> None:
     clock = Clock()
     generator, client, _ = _generator(
         [(29.5, APITimeoutError()), _message()], clock, retries=2
     )
     with pytest.raises(GeneratorUnavailableError) as caught:
         generator.generate(rendered_prompt())
-    assert caught.value.reason == UnavailableReason.DEADLINE
+    assert caught.value.reason == UnavailableReason.TIMEOUT
     assert len(client.requests) == 1
+    assert clock.sleeps == []
+
+
+def test_deadline_reason_is_used_only_when_no_error_caused_it() -> None:
+    # deadline_s equals request_timeout_s and leaves 1 s or less: no attempt starts.
+    generator, client, clock = _generator(
+        [_message()], request_timeout_s=1, deadline_s=1
+    )
+    with pytest.raises(GeneratorUnavailableError) as caught:
+        generator.generate(rendered_prompt())
+    assert caught.value.reason == UnavailableReason.DEADLINE
+    assert client.requests == []
+    assert clock.sleeps == []
+
+
+def test_deadline_passed_during_a_failed_attempt_keeps_the_classified_reason() -> None:
+    clock = Clock()
+    generator, client, _ = _generator([(31, APIStatusError(529)), _message()], clock)
+    with pytest.raises(GeneratorUnavailableError) as caught:
+        generator.generate(rendered_prompt())
+    assert caught.value.reason == UnavailableReason.SERVER_ERROR
+    assert len(client.requests) == 1
+    assert clock.sleeps == []
 
 
 def test_retry_after_within_the_deadline_is_honoured() -> None:
@@ -313,7 +339,7 @@ def test_retry_after_beyond_the_deadline_is_not_honoured() -> None:
     )
     with pytest.raises(GeneratorUnavailableError) as caught:
         generator.generate(rendered_prompt())
-    assert caught.value.reason == UnavailableReason.DEADLINE
+    assert caught.value.reason == UnavailableReason.THROTTLED
     assert clock.sleeps == []
     assert len(client.requests) == 1
 
@@ -425,13 +451,46 @@ def test_missing_extra_names_the_setup_target(monkeypatch: pytest.MonkeyPatch) -
 
 
 def test_importing_generation_modules_does_not_import_the_sdk() -> None:
+    # A meta-path finder records every import *attempt*, so the test fails even
+    # when the extra is absent (a missing module is never in `sys.modules`).
     script = (
-        "import pkgutil, importlib, sys\n"
+        "import importlib, pkgutil, sys\n"
+        "watched = ('anthropic', 'boto3', 'botocore')\n"
+        "attempts = []\n"
+        "class Recorder:\n"
+        "    def find_spec(self, name, path=None, target=None):\n"
+        "        if name.split('.')[0] in watched:\n"
+        "            attempts.append(name)\n"
+        "        return None\n"
+        "sys.meta_path.insert(0, Recorder())\n"
         "import way2australia_rag.generation as g\n"
         "for m in pkgutil.iter_modules(g.__path__):\n"
         "    importlib.import_module('way2australia_rag.generation.' + m.name)\n"
-        "bad = [n for n in ('anthropic', 'boto3', 'botocore') if n in sys.modules]\n"
+        "bad = attempts + [n for n in watched if n in sys.modules]\n"
+        "print(bad)\n"
         "sys.exit(1 if bad else 0)\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", script], capture_output=True, text=True, check=False
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_the_import_recorder_catches_an_sdk_import_attempt() -> None:
+    script = (
+        "import sys\n"
+        "attempts = []\n"
+        "class Recorder:\n"
+        "    def find_spec(self, name, path=None, target=None):\n"
+        "        if name.split('.')[0] == 'anthropic':\n"
+        "            attempts.append(name)\n"
+        "        return None\n"
+        "sys.meta_path.insert(0, Recorder())\n"
+        "try:\n"
+        "    import anthropic\n"
+        "except ImportError:\n"
+        "    pass\n"
+        "sys.exit(0 if attempts else 1)\n"
     )
     result = subprocess.run(
         [sys.executable, "-c", script], capture_output=True, text=True, check=False

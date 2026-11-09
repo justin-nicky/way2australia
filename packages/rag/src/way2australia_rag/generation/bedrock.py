@@ -204,10 +204,15 @@ class BedrockGenerator:
         request = self._request(prompt)
         deadline = self._clock() + config.deadline_s
         attempts = 0
+        last_outage: UnavailableReason | None = None
         for attempt in range(config.retries + 1):
             remaining = deadline - self._clock()
             if remaining <= _MIN_ATTEMPT_S:
-                raise GeneratorUnavailableError(UnavailableReason.DEADLINE)
+                # DEADLINE only when no error caused it; otherwise keep the
+                # classified sub-reason (T3 review F1).
+                raise GeneratorUnavailableError(
+                    last_outage or UnavailableReason.DEADLINE
+                )
             timeout = min(config.request_timeout_s, remaining)
             attempts += 1
             try:
@@ -220,26 +225,24 @@ class BedrockGenerator:
                     raise
                 if isinstance(verdict, GeneratorConfigurationError):
                     raise verdict from error
+                last_outage = verdict
                 remaining = deadline - self._clock()
-                if remaining <= 0:
-                    raise GeneratorUnavailableError(
-                        UnavailableReason.DEADLINE
-                    ) from error
-                if attempt == config.retries:
+                if remaining <= 0 or attempt == config.retries:
                     raise GeneratorUnavailableError(verdict) from error
-                delay = min(config.backoff_s * 2**attempt, remaining)
+                delay = config.backoff_s * 2**attempt
                 hinted = _retry_after_s(error)
                 if hinted is not None:
-                    if remaining - hinted <= _MIN_ATTEMPT_S:
-                        # The server asks for longer than the deadline allows.
-                        raise GeneratorUnavailableError(
-                            UnavailableReason.DEADLINE
-                        ) from error
                     delay = max(delay, hinted)
+                if remaining - delay <= _MIN_ATTEMPT_S:
+                    # The wait leaves no usable attempt before the deadline: stop
+                    # now, without sleeping, and keep the classified sub-reason.
+                    raise GeneratorUnavailableError(verdict) from error
                 self._sleep(delay)
                 continue
             return self._parse(message, prompt, attempts)
-        raise GeneratorUnavailableError(UnavailableReason.DEADLINE)  # pragma: no cover
+        raise GeneratorUnavailableError(  # pragma: no cover
+            last_outage or UnavailableReason.DEADLINE
+        )
 
     def _parse(
         self, message: Any, prompt: RenderedPrompt, attempts: int

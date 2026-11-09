@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-11-07 (Spec 012 T3 approved; T3 review F1/F2 recorded as T4 boxes; implementing T4 next on `spec/012`)
+Last updated: 2026-11-09 (Spec 012 T4 approved; T4 review F4/F5 recorded as T5 boxes, F1–F3 as T7 notes; T5 next on `spec/012`)
 
 ## Current phase
 
@@ -12,7 +12,7 @@ Spec 001 project foundation is complete.
 
 ## Current goal
 
-Specs **001–011** are **verified on `main`** (last: Spec 011, merged `d40d734`, 2026-11-06). Retrieval defaults: index **`idx-v2`** (recursive 128 + title, D071), **`hybrid`** with BM25 fallback (D055, D058), **`lexical-v2`** (D072), reranking on at depth 20 (D079). Setup for a default run: `make ingest`, then `make index-lexical`; reranked runs need `make setup-bge-m3` and a cached reranker. Workflow trim **D080** is in place (hooks share one shell parser, graph rebuilt once per spec, `graphify-out/cache/` local). **Spec 012** (roadmap item 10 without the HTTP route: context building, Bedrock generation, answerability, citations) is **implementing** on `spec/012`; **T1 approved** (context builder); **T2** (prompts, models, language) in progress. The HTTP route and serving policy go to **Spec 013**. Repository-based shared context keeps Codex, Claude Code, Cursor and Kiro interchangeable (D063). Closed history: `docs/project/HISTORY.md`.
+Specs **001–011** are **verified on `main`** (last: Spec 011, merged `d40d734`, 2026-11-06). Retrieval defaults: index **`idx-v2`** (recursive 128 + title, D071), **`hybrid`** with BM25 fallback (D055, D058), **`lexical-v2`** (D072), reranking on at depth 20 (D079). Setup for a default run: `make ingest`, then `make index-lexical`; reranked runs need `make setup-bge-m3` and a cached reranker. Workflow trim **D080** is in place (hooks share one shell parser, graph rebuilt once per spec, `graphify-out/cache/` local). **Spec 012** (roadmap item 10 without the HTTP route: context building, Bedrock generation, answerability, citations) is **implementing** on `spec/012`; **T1–T4 approved** (context builder, prompts and language, generator and Bedrock adapter, answer service and `make ask`). The HTTP route and serving policy go to **Spec 013**. Repository-based shared context keeps Codex, Claude Code, Cursor and Kiro interchangeable (D063). Closed history: `docs/project/HISTORY.md`.
 
 ## Finalized high-level decisions
 
@@ -95,11 +95,11 @@ Not yet implemented:
 | 009 — chunking experiments | verified 2026-11-04, merged `5a6deb7` |
 | 010 — multilingual retrieval | verified 2026-11-04, merged `cae06c3` |
 | 011 — multilingual reranking | verified 2026-11-06, merged `d40d734` |
-| 012 — grounded generation | implementing on `spec/012`; T1–T3 approved 2026-11-07; T4–T7 not started |
+| 012 — grounded generation | implementing on `spec/012`; T1–T3 approved 2026-11-07, T4 approved 2026-11-09; T5–T7 not started |
 
 ## Next step
 
-1. **Spec 012 T4:** answer service, citation validation, `make ask`, plus the two T3 review boxes (F1 sub-reason on deadline, F2 lazy-import test). Spec 012 decisions start at D081.
+1. **Spec 012 T5:** `make eval-generation`, generation security checks (result 1.6) and candidates, plus the two T4 review boxes (F5 isolation check, F4 hybrid CLI test and close assertions). Spec 012 decisions start at D081.
 2. **D-A smoke test (T3 approved; in progress, user-run):** the user runs the smoke test (`W2A_RUN_BEDROCK_SMOKE=1`, Sonnet 5.5 and Haiku 5.5, `ap-south-1`) and records it in `task-reviews.md` before T6 (design "Bedrock adapter").
 3. **Follow-up chore (D080):** in `packages/rag/tests/evaluation/test_security_eval.py`, share one CLI gate run across `test_cli_lexical_file_is_removed_after_a_pass`, `test_cli_pass_writes_a_result_and_exits_zero` and `test_cli_clause_less_lexical_store_exits_one_naming_strategies` (about −38 s of `make verify`). Docker tests stay in `make verify` until CI runs `make test-integration`.
 4. The trial docs re-extraction of 2026-11-07 was discarded and is not to be retried (D080); the docs part of the graph stays from the earlier extraction.

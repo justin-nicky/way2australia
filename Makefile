@@ -6,7 +6,7 @@ UV_ENV = UV_CACHE_DIR=$(UV_CACHE_DIR) UV_PYTHON_INSTALL_DIR=$(UV_PYTHON_INSTALL_
 PYTHON_TARGETS ?= apps packages tests scripts tools
 UV_HTTP_TIMEOUT ?= 300
 
-.PHONY: setup setup-bge-m3 setup-bedrock format lint typecheck test test-unit test-integration verify skills-sync skills-check validate-knowledge validate-evaluation ingest index-lexical retrieve retrieval-baseline eval-retrieval eval-security eval-compare eval-continuity
+.PHONY: setup setup-bge-m3 setup-bedrock format lint typecheck test test-unit test-integration verify skills-sync skills-check validate-knowledge validate-evaluation ingest index-lexical retrieve ask retrieval-baseline eval-retrieval eval-security eval-compare eval-continuity
 
 setup:
 	$(UV_ENV) $(UV) sync --all-packages --group dev
@@ -68,6 +68,13 @@ index-lexical:
 # e.g. make retrieve QUERY="Is coaching compulsory?" RETRIEVE_ARGS="--embedder fake".
 retrieve:
 	@$(UV_ENV) $(UV) run python -m way2australia_rag.retrieval.cli --repo-root $(CURDIR) $(RETRIEVE_ARGS) "$(QUERY)"
+
+# Answer a question with citations (retrieval, context, generation, citation check).
+# Extra options go in ASK_ARGS, e.g. make ask QUERY="Is coaching compulsory?"
+# ASK_ARGS="--embedder fake --reranker fake --generator fake". Until Spec 012 T6
+# there is no default generator: pass --generator fake or --generator bedrock.
+ask:
+	@$(UV_ENV) $(UV) run python -m way2australia_rag.generation.cli --repo-root $(CURDIR) $(ASK_ARGS) "$(QUERY)"
 
 # Run the golden cases through dense retrieval and write a JSON result. Extra
 # options go in BASELINE_ARGS, e.g. make retrieval-baseline BASELINE_ARGS="--embedder fake --allow-fake".

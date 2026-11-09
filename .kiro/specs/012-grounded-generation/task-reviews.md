@@ -179,3 +179,80 @@
 - In `ap-south-1`, `anthropic.claude-sonnet-5-5` and `anthropic.claude-haiku-5-5` support `INFERENCE_PROFILE` only (no on-demand). The only profiles are `global.anthropic.claude-sonnet-5-5` and `global.anthropic.claude-haiku-5-5`; there is no `apac.` profile. T6 must therefore set `bedrock.inference_profile` to a `global.` profile, and the T6 decision must record that requests may be processed outside India (data-residency trade-off).
 - `aws login` credentials need `botocore[crt]`, which the `bedrock` extra lacks (`MissingDependencyException`). Workaround used: `eval "$(aws configure export-credentials --format env)"`. Decide at T6/T7 whether to add `botocore[crt]` to the extra or document the workaround in `COMMANDS.md`.
 - Smoke runs use the profile ID as `W2A_BEDROCK_MODEL_ID` (the adapter sends `inference_profile or model_id`).
+
+## T4 — round 1
+
+### Implementation
+- Model: claude-sonnet-5-5 (Sonnet 5.5), run as a subagent; intended tier BEST_MINUS_ONE (`agent-skills/MODEL_PREFERENCES.md`) matches. The State went straight from `not started` to `in task review (round 1)` (no separate `implementing` write).
+- Files changed:
+  - New `generation/citations.py` (`validate_citations`, `CitationValidationError(rule)`, `RULES`), `generation/service.py` (`AnswerService`, `retrieval_identity`), `generation/cli.py` (`make ask`).
+  - New `retrieval/cli_args.py`: the argument definitions, `check_top_k` and the resolution of strategy, rerank, `lote`, ingestion/retrieval config and settings, extracted from `retrieval/cli.py` (`add_retrieval_arguments`, `resolve_retrieval_args`, `ResolvedRetrievalArgs.open_kwargs`). `retrieval/cli.py` now calls them; it still calls `open_retrieval` itself (existing tests wrap `cli.open_retrieval`). Its `DEFAULT_RETRIEVAL_CONFIG` constant moved to `cli_args.py` (no other user).
+  - `generation/language.py`: `_FALLBACK_MESSAGE_LANGUAGE` renamed public `FALLBACK_MESSAGE_LANGUAGE` (the service needs it; the language-literal grep test allows the quoted literal only in `language.py`).
+  - `generation/bedrock.py`: T3 review F1 (see below). `Makefile`: `ask` target and `.PHONY`.
+  - Tests: new `tests/generation/test_citations.py`, `test_service.py`, `test_service_isolation.py` (R7), `test_ask_cli.py`; `support.py` gains `generation_config`, `output`, `hit`, `retrieval_result`, `FakeRetriever`; `test_bedrock.py` changed for F1 and F2.
+- Verification run:
+  - iteration: `pytest packages/rag/tests/generation packages/rag/tests/retrieval` -> 609 passed, 1 skipped; `make lint typecheck` clean (0 pyright errors);
+  - `make verify` (one run, after the last behavioural edit; Docker Qdrant was reachable, so the integration tests ran too) -> 1690 passed, 4 skipped. After it, one cosmetic edit (the `rerank:` line of `make ask` gained `(fake=...)`): re-ran `make lint typecheck` (clean) and `pytest packages/rag/tests/generation` (195 passed, 1 skipped).
+  - `make ask QUERY="Is coaching compulsory?" ASK_ARGS="--embedder fake --reranker fake --generator fake"` against a throwaway base `w2a-t012-0f796d28` (`make ingest INGEST_ARGS="--embedder fake"`, `make index-lexical LEXICAL_ARGS="--embedder fake"`; collections and lexical file deleted afterwards). Output (stderr: `WARNING fake generator: ...`):
+    ```text
+    lote: none
+    status: answered
+    answer:
+      Fake answer. [S1]
+    [S1] Approved packages, pricing and validity - owner_approved - owner-approved
+    retrieval: strategy hybrid; rerank: BAAI/bge-reranker-v2-m3 depth 20 (fake=true)   (the run printed it without the "(fake=...)" suffix, added afterwards)
+    generator: fake (model fake, endpoint none, region/profile none, fake=true)
+    prompt: answer v1 7284d3b35cbd
+    tokens: in 1054 out 4 attempts 1
+    latency: retrieval_ms 21.6 context_ms 0.1 generation_ms 0.0 total_ms 21.8
+    ```
+  - `make retrieve` unchanged: a one-off script (not committed) ran the previous `retrieval/cli.py` (from `git show HEAD:`) and the new one on the same in-memory index for 8 argument sets (success, `--top-k 3 --lote ml`, bad `--top-k`, bad `--lote`, each with a normal and a blank query): exit codes, stdout and stderr identical (latency normalised); `--help` text identical. `test_make_retrieve_output_is_unchanged_by_the_shared_helper` pins the output shape; the existing retrieval CLI tests pass untouched.
+  - `git status --porcelain -- evaluation knowledge config` -> empty.
+  - Not run: the Bedrock smoke test (user-owned); `make test-integration` separately (not required by T4; Docker tests ran inside `make verify`); `make eval-security`.
+- T3 review boxes:
+  - F1: `generate` now tracks the last classified outage. At the top of the loop a `remaining <= 1 s` raises that outage's reason, `deadline` only when no error preceded (nothing sleeps, no attempt starts). After an error: `remaining <= 0` or the last attempt raises the classified reason; otherwise the wait is `backoff_s * 2**attempt`, raised to `retry-after` when given, and if `remaining - wait <= 1 s` the loop stops at once with the classified reason, without sleeping. Tests: `test_retry_after_beyond_the_deadline_is_not_honoured` (now `throttled`, nothing sleeps), new `test_deadline_passed_during_a_failed_attempt_keeps_the_classified_reason` (`remaining <= 0` after an error, `server_error`, nothing sleeps), new `test_deadline_reason_is_used_only_when_no_error_caused_it`.
+  - F2: the lazy-import test installs a `sys.meta_path` recorder in its subprocess and fails on any import attempt of `anthropic`, `boto3`, `botocore` (so it bites without the extra); a second test shows the recorder catches an attempt.
+- Notes (decisions and deviations):
+  - F1 goes slightly beyond the two cases the box names: the same rule applies when the backoff (not only `retry-after`) leaves no usable attempt, and at the loop top after a sleep. Two existing tests changed expectation as a result: `test_deadline_stops_further_attempts_even_mid_retry` (now `timeout`; the 2 s backoff no longer fits, so it stops with one sleep fewer) and `test_no_attempt_starts_with_one_second_or_less_left` (renamed `..._after_an_error`, now `timeout`, nothing sleeps). The design text "DEADLINE is raised, whatever the last error was" ("Attempt loop") is superseded by the T3 review F1 rule; T7 should record it in the design As-built notes.
+  - Citation rule order: `no_citation`, `model_url`, `unknown_id`, `duplicate_id`, `marker_mismatch`. `[S01]`, `[s1]`, `S1` without brackets are not markers (the marker set is then empty, so a listed `S1` is `marker_mismatch`); a listed `S01` is `unknown_id`. A marker glued to a word still counts (`Fee[S1]applies`). Citation metadata comes only from the blocks (a test puts a forged title/document ID in the answer text).
+  - `AnswerService` records `identity.generator` only when the generator was called (pre-gate: `None`); `usage` is set when the generator returned output (`None` when it raised, because the attempt count is not available from the error). `sub_reason` is the outage reason (`evidence_only`), the output rule (`json`/`schema`/`max_tokens`, `output_invalid`) or the citation rule; `model_declined` has none. A mapped message language with no entry in `messages.yaml` falls back to the default language (config-driven, tested with a temp mapping).
+  - `retrieval_identity` fields (the answer's `identity.retrieval`): served `strategy`, `requested_strategy`, `fallback_reason`, `score_kind`, `top_k`, `collection`, `index_version`, embedder model/revision/`is_fake`/device, `lexical` and `rerank` records (dicts) and `lote`. This is the per-result identity; it is not the evaluation result 2.5 document (that is T5).
+  - `make ask` builds the generator before opening retrieval (a configuration error never touches Qdrant; the test asserts zero client-factory calls); `--top-k` defaults to `generation.retrieval.top_k` (the shared parser takes `top_k_default=None`); extra option `--generation-config` (path, like `--retrieval-config`). The CLI prints `lote:` first, as `make retrieve` does. The retrieval line is built from the identity dict, not the same function as `make retrieve` (that one needs a `RetrievalResult`).
+  - R7 test (`test_service_isolation.py`) builds the isolated security index (fake embedder, heading chunker, first six retrieval-side security queries) and runs all eight `ALL_PATHS` retrievers (imports the private `_retrievers` from `security_eval`, as T5 will) through `AnswerService` with a recording fake generator: no forbidden `document_id` or forbidden chunk text appears in any rendered prompt or response. The test is not vacuous (forbidden rows exist in the index; prompts were rendered).
+  - Deferred (not in T4): `make eval-generation` and the security result 1.6 (T5); the `ask` default-generator tests for the committed default (T6); documentation (T7).
+- Usage: 217K tokens · 56 tool uses · 14:06
+
+### Review
+- Model: claude-opus-5-5 (Opus 5.5), run as a subagent in a fresh session (implementer was Sonnet 5.5); intended tier BEST.
+- Verdict: PASS
+- Commands:
+  - `pytest packages/rag/tests/generation packages/rag/tests/retrieval` → 609 passed, 1 skipped.
+  - `make verify` (once) → pass, 1690 passed, 4 skipped (lint and typecheck ran first in the target; Docker integration tests included when reachable).
+  - `git status --porcelain -- evaluation/ knowledge/ config/` → empty; also empty for `apps/`, `rerank/`, `lexical/`, `ingestion/`, `repositories/`. No diff under `packages/rag/tests/retrieval/`.
+  - Reviewer scratch check (not committed): HEAD `retrieval/cli.py` (from `git show HEAD:`) against the working copy on one in-memory fake index, 7 argument sets (dense, `--top-k 3 --lote ml`, bad `--top-k`, bad `--lote`, blank query, `--rerank` on dense, hybrid `--reranker fake` without a lexical file): exit codes, stdout and stderr identical (latency normalised); `--help` identical.
+  - Reviewer scratch check (not committed): R7 sensitivity. The security index holds 43 forbidden rows (7 document IDs); no forbidden chunk text contains `&`, `<` or `>`, so escaping cannot hide a leak from the test's raw-text check; feeding forbidden payloads straight to `AnswerService` as hits is caught by the chunk-text check (negative control).
+  - `make ask` on the in-memory fixture path: covered by `test_ask_cli.py` (fake embedder, fake generator); the implementer's throwaway-collection run was not repeated.
+  - Checked by reading: citation rule order (`no_citation`, `model_url`, `unknown_id`, `duplicate_id`, `marker_mismatch`), metadata only from blocks; pre-gate returns before `render_prompt` and `generate`; `AnswerService` catches only the three generator errors plus its own `CitationValidationError`; retrieval errors propagate (tested); T3 F1 in `BedrockGenerator.generate` (`DEADLINE` only when no error preceded; no sleep when the wait leaves ≤ 1 s); T3 F2 meta-path recorder plus a positive control; no secrets or account IDs; no new language literals in `service.py`, `citations.py`, `cli.py`.
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R8] The `make ask` `retrieval:` line is not "the same text as `make retrieve`" (design "`make ask`"): its rerank part omits the revision (`model@rev`) and the skip stage and adds `(fake=...)`; citation lines use `-` instead of the design's `—`. → Align with `retrieval/cli.py` `rerank_line`, or record the format in the T7 design As-built notes.
+  - F2 [MINOR, SPEC_DEFECT, R6] The design lists the citation rules without a precedence; the code fixes one (`no_citation`, `model_url`, `unknown_id`, `duplicate_id`, `marker_mismatch`), which decides the `sub_reason` when several rules break and so the T5 per-sub-reason counts. → Record the order in the T7 design As-built notes.
+  - F3 [MINOR, SPEC_DEFECT, R5] T3 review F1 supersedes the design "Attempt loop" sentence ("`DEADLINE` is raised, whatever the last error was") and changes the backoff (no longer capped at the remaining time; stop without sleeping when the wait leaves ≤ 1 s). T7's As-built box has no sub-bullet for it. → Add the sub-bullet to T7 (and a change-log line).
+  - F4 [MINOR, IMPLEMENTATION, R8] `test_ask_cli.py` asserts the generator is closed but not `OpenedRetrieval.close()`, and never runs the hybrid `--reranker fake` path the box names (all CLI tests use `--strategy dense --no-rerank`). The code closes both in `finally`. → Optional test additions in T5 or T7.
+  - F5 [MINOR, IMPLEMENTATION, R7] In `test_service_isolation.py` the `document_id` check on rendered prompts cannot fail (prompts never carry document IDs); the binding checks are chunk text (shown sensitive above) and the response dump. The comment in `test_model_output_cannot_change_access_or_citation_metadata` claims a staff document and a URL, but `FakeMode.UNKNOWN_ID` only cites an unissued ID. → Fix the comment; optional.
+- Summary for user:
+  - Changed: new `AnswerService` (retrieval, context, no-evidence pre-gate, generation, citation check), `validate_citations`, and `make ask`. The `make retrieve` arguments moved unchanged into `retrieval/cli_args.py` and are shared. Also the two T3 fixes: a deadline that cuts off a classified outage keeps its sub-reason, and the lazy-import test now fails without the extra.
+  - Verified by: `make verify` (1690 passed); my own byte comparison of old and new `make retrieve` output (identical); an R7 negative control showing the isolation test catches a leak.
+  - Worth your attention: no generator default yet (D-C), so `make ask` needs `--generator`. The `make ask` retrieval line differs a little from the design (F1). The citation rule order and the new deadline behaviour should go into the T7 design notes (F2, F3). Everything else is minor test polish.
+  - Reading order:
+    1. `packages/rag/src/way2australia_rag/generation/cli.py` → `main`, `format_response`: builds the generator, opens retrieval, prints the answer.
+    2. `packages/rag/src/way2australia_rag/retrieval/cli_args.py` → `add_retrieval_arguments`, `resolve_retrieval_args`: shared retrieval options (moved from `retrieval/cli.py`).
+    3. `packages/rag/src/way2australia_rag/generation/service.py` → `AnswerService.answer`: pre-gate, the three caught errors, status, reason and identity.
+    4. `packages/rag/src/way2australia_rag/generation/citations.py` → `validate_citations`: the five rules, metadata from blocks.
+    5. `packages/rag/src/way2australia_rag/generation/bedrock.py` → `BedrockGenerator.generate`: T3 F1 deadline and sub-reason.
+    6. `packages/rag/tests/generation/test_service.py`, `test_citations.py`, `test_service_isolation.py` (R7), `test_ask_cli.py`.
+    7. Supporting edits: `retrieval/cli.py` (now uses the helper), `generation/language.py` (public fallback constant), `tests/generation/support.py`, `test_bedrock.py` (F1/F2), `Makefile` (`ask`).
+- Usage: 162K tokens · 35 tool uses · 11:05
+
+### User decision
+- 2026-11-09: "Approve T4. Add to T5 (dated change-log line citing the T4 review): 1. F5: make the `document_id` check in `test_service_isolation.py` able to fail (prove it with a negative control), and correct the `FakeMode.UNKNOWN_ID` comment. 2. F4: a `make ask` CLI test on hybrid with `--reranker fake`, and assert retrieval is closed after the run (success and error paths). Record for the T7 As-built notes: F1 (`make ask` retrieval line format vs `make retrieve`), F2 (citation rule order `no_citation` → `model_url` → `unknown_id` → `duplicate_id` → `marker_mismatch` decides the reported sub-reason; write it into the design), F3 (the deadline/backoff change supersedes the design's attempt-loop text). Then commit T4 with `Spec-Task: 012/T4` and push `spec/012`."
+- Applied: two boxes added to T5, three Record bullets added to T7, and a dated change-log line in `requirements.md` (T4 review F1–F5).

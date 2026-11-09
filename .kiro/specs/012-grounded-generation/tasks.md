@@ -100,21 +100,21 @@ User-owned check after this task is approved (gate before T6's runs; recommended
 
 ## T4 — Answer service, citation validation and `make ask`
 
-**State:** not started
+**State:** approved (2026-11-09)
 **Requirements:** R3, R6, R7, R8, R13
 
-- [ ] `generation/citations.py`: `validate_citations(output, blocks)` per design step 6 (rules `unknown_id`, `marker_mismatch`, `no_citation`, `duplicate_id`, `model_url`); validated `Citation`s in first-marker order with metadata from the blocks.
-- [ ] `generation/service.py`: `AnswerService(retriever, builder, prompt_version, generator, config)` and `answer(query, access, top_k, lote) -> AnswerResponse` per design "Data flow" and the error table; pre-gate makes zero generator calls; catches only `GeneratorUnavailableError`, `GeneratorDeclinedError`, `GeneratorOutputError`; `evidence_only` sources with `safe_text` snippets cut to `snippet_chars`; `insufficient_evidence` message by `message_language`; identity (retrieval fields as result 2.5, prompt, generator or `None` when not called), usage, per-stage latency, context stats.
-- [ ] `retrieval/cli.py`: extract the retrieval argument definitions and rerank resolution into a helper reused by `generation/cli.py`; `make retrieve` behaviour and output unchanged (existing CLI tests untouched).
-- [ ] `generation/cli.py` and `Makefile` target `ask` (`make ask QUERY=... ASK_ARGS=...`) per design "`make ask`": shared retrieval arguments plus `--generator fake|bedrock` and `--model-id`; `open_retrieval` called as `retrieval/cli.py` calls it; without `--generator` and with `default_generator: null` → exit 2 with advice; output lines per design (answer through `safe_text`); fake generator prints `generator: fake` and a stderr warning; exit 0 for the three statuses, 2 for configuration errors; generator and retrieval closed on exit.
-- [ ] Tests (`tests/generation/test_citations.py`, `test_service.py`, `test_ask_cli.py`):
+- [x] `generation/citations.py`: `validate_citations(output, blocks)` per design step 6 (rules `unknown_id`, `marker_mismatch`, `no_citation`, `duplicate_id`, `model_url`); validated `Citation`s in first-marker order with metadata from the blocks.
+- [x] `generation/service.py`: `AnswerService(retriever, builder, prompt_version, generator, config)` and `answer(query, access, top_k, lote) -> AnswerResponse` per design "Data flow" and the error table; pre-gate makes zero generator calls; catches only `GeneratorUnavailableError`, `GeneratorDeclinedError`, `GeneratorOutputError`; `evidence_only` sources with `safe_text` snippets cut to `snippet_chars`; `insufficient_evidence` message by `message_language`; identity (retrieval fields as result 2.5, prompt, generator or `None` when not called), usage, per-stage latency, context stats.
+- [x] `retrieval/cli.py`: extract the retrieval argument definitions and rerank resolution into a helper reused by `generation/cli.py`; `make retrieve` behaviour and output unchanged (existing CLI tests untouched).
+- [x] `generation/cli.py` and `Makefile` target `ask` (`make ask QUERY=... ASK_ARGS=...`) per design "`make ask`": shared retrieval arguments plus `--generator fake|bedrock` and `--model-id`; `open_retrieval` called as `retrieval/cli.py` calls it; without `--generator` and with `default_generator: null` → exit 2 with advice; output lines per design (answer through `safe_text`); fake generator prints `generator: fake` and a stderr warning; exit 0 for the three statuses, 2 for configuration errors; generator and retrieval closed on exit.
+- [x] Tests (`tests/generation/test_citations.py`, `test_service.py`, `test_ask_cli.py`):
   - citations: every rule; `[S01]`, `[s1]`, markers inside words, no markers, URLs in `http` and `https` forms; metadata never taken from the model;
   - service: pre-gate zero calls; every status, reason and sub-reason end to end with a fake retriever and `FakeGenerator`; `RetrievalAuthorizationError` and `LanguageApplicabilityError` propagate; identity complete; message language;
   - R7: on the security corpus (fake embedder, fake reranker), a recording fake generator shows no staff-scope or other-tenant chunk text or `document_id` in any rendered prompt; the model output cannot change access or citation metadata;
   - CLI: with `--embedder fake --reranker fake --generator fake` on the in-memory fixtures used by the retrieval CLI tests; no `--generator` → exit 2 (reads `default_generator` from the file, never a literal); `--generator bedrock` without model ID → exit 2; fake warning; exit codes; `make retrieve` output unchanged for a fixed query.
 
-- [ ] T3 review F1: in `BedrockGenerator.generate`, when the deadline cuts off a classified outage (a `retry-after` beyond the remaining time, or `remaining <= 0` after an error), raise `GeneratorUnavailableError(verdict)` so the sub-reason stays `throttled` / `timeout` / `connection` / `server_error`; use `UnavailableReason.DEADLINE` only when no error caused it (no attempt can start with 1 s or less left before any error). Update `test_retry_after_beyond_the_deadline_is_not_honoured` and add a test for `remaining <= 0` after an error; both assert the classified sub-reason and that nothing sleeps.
-- [ ] T3 review F2: make the lazy-import test in `tests/generation/test_bedrock.py` fail without the `bedrock` extra by recording import attempts of `anthropic`, `boto3` and `botocore` in its subprocess (for example a `sys.meta_path` finder that records the requested names), so it guards the rule in the default environment.
+- [x] T3 review F1: in `BedrockGenerator.generate`, when the deadline cuts off a classified outage (a `retry-after` beyond the remaining time, or `remaining <= 0` after an error), raise `GeneratorUnavailableError(verdict)` so the sub-reason stays `throttled` / `timeout` / `connection` / `server_error`; use `UnavailableReason.DEADLINE` only when no error caused it (no attempt can start with 1 s or less left before any error). Update `test_retry_after_beyond_the_deadline_is_not_honoured` and add a test for `remaining <= 0` after an error; both assert the classified sub-reason and that nothing sleeps.
+- [x] T3 review F2: make the lazy-import test in `tests/generation/test_bedrock.py` fail without the `bedrock` extra by recording import attempts of `anthropic`, `boto3` and `botocore` in its subprocess (for example a `sys.meta_path` finder that records the requested names), so it guards the rule in the default environment.
 
 Allowed protected-path changes: none.
 
@@ -146,6 +146,8 @@ Allowed protected-path changes: none.
   - metrics on a crafted case set (answer rate, refusal rate with `evidence_only` excluded, `citation_invalid` by sub-reason, `generator_unavailable` by sub-reason, precision/recall, `expected_facts` coverage by language marked informational, script mix, latency, tokens, cost); `--min-*` exit 1; result written only under `tmp_path`;
   - security 1.6 checks pass and a deliberately broken validator (monkeypatched) makes `generation_citation_manipulation` fail;
   - `make validate-evaluation` passes with the candidates file; candidates are never loaded as cases.
+- [ ] T4 review F5: in `tests/generation/test_service_isolation.py` make the `document_id` check able to fail (prove it with a negative control that feeds a forbidden `document_id` into a rendered prompt or response), and correct the comment in `test_model_output_cannot_change_access_or_citation_metadata` (`FakeMode.UNKNOWN_ID` cites only an unissued ID, not a staff document or a URL).
+- [ ] T4 review F4: a `make ask` CLI test on `--strategy hybrid` with `--reranker fake`, and assertions that `OpenedRetrieval.close()` is called after the run on the success path and on the error path.
 
 Allowed protected-path changes: `evaluation/candidates/012-candidates.jsonl` (new).
 
@@ -199,6 +201,9 @@ Allowed protected-path changes: `config/generation.yaml` (`default_generator`, `
 - [ ] Design As-built notes for any deviation found during T1–T6.
   - Record: `evaluation/cli.py` has no `script_mix` import (only the `by_script_mix` key string), so T1 updated one import, not two (T1 review F1).
   - Record: the context budget stops at the first block that does not fit, so a top-ranked block larger than `max_chars` yields zero blocks and the T4 pre-gate refuses with `no_evidence`; unreachable with 128-token chunks and `max_chars` 8000 (T1 review).
+  - Record: the `make ask` `retrieval:` line differs from `make retrieve` (rerank part omits `@revision` and the skip stage, adds `(fake=...)`; citation lines use `-` not `—`) (T4 review F1).
+  - Record, and write into the design: citation rule order `no_citation` → `model_url` → `unknown_id` → `duplicate_id` → `marker_mismatch` decides the reported `sub_reason` when several rules break (T4 review F2).
+  - Record: the T3 review F1 deadline change supersedes the design "Attempt loop" text ("`DEADLINE` is raised, whatever the last error was"): the classified sub-reason is kept and `deadline` is used only when no error caused it, and the backoff is no longer capped at the remaining time (the loop stops without sleeping when the wait leaves 1 s or less) (T4 review F3).
 - [ ] Spec-wide checks (R15): `make verify` (no extras, network, credentials or Docker; hub-free), `make test-integration` (Docker Qdrant), `make eval-security`, protected-path diff.
 
 Allowed protected-path changes: none.
