@@ -25,7 +25,7 @@ Fill these in with exact model IDs. Leave a placeholder unset if you have no pre
 |---|---|---|
 | Codex | `<CODEX_BEST_MODEL>` | `<CODEX_BEST_MINUS_ONE_MODEL>` |
 | Claude Code | `Opus` | `Sonnet` |
-| Cursor | `Grok 4.7` | `Composer 2.5` |
+| Cursor | `Grok 4.7` | `Grok 4.7` |
 | Kiro | `<KIRO_BEST_MODEL>` | `<KIRO_BEST_MINUS_ONE_MODEL>` |
 
 ## Runtime rule
