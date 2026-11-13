@@ -76,8 +76,8 @@ retrieve:
 
 # Answer a question with citations (retrieval, context, generation, citation check).
 # Extra options go in ASK_ARGS, e.g. make ask QUERY="Is coaching compulsory?"
-# ASK_ARGS="--embedder fake --reranker fake --generator fake". Until Spec 012 T6
-# there is no default generator: pass --generator fake, bedrock or anthropic.
+# ASK_ARGS="--embedder fake --reranker fake --generator fake". The default
+# generator is default_generator in config/generation.yaml; --generator overrides it.
 ask:
 	@$(UV_ENV) $(UV) run python -m way2australia_rag.generation.cli --repo-root $(CURDIR) $(ASK_ARGS) "$(QUERY)"
 

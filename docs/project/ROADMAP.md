@@ -68,7 +68,7 @@ Approximately one focused week.
 
 ### 7. Chunking experiments
 **Status (Spec 009):** **verified (2026-11-04, merged `5a6deb7` on `main`)**. Delivered: `recursive` v1 and `structure` v1 chunkers beside unchanged `heading` v1; BGE-M3-aligned token counting and a pre-embed truncation guard; `ChunkerIdentity` and settings 1.1 (dense and lexical); per-document lexical freshness; distinct-document `eval-retrieval` metrics and result 2.3; `eval-compare --cross-index`; security result 1.3 over three chunkers; default production index **`idx-v2`** (`recursive` 128 / 16 with title prefix — confounded arm, D071). Operator default: `make ingest` then `make index-lexical` for `idx-v2`.
-- Still deferred (same spec carry-overs / later specs): FAQ-aware retrieval/indexing; optional semantic chunking; separating chunk size from title prefix in experiments; headed-document / `relevant_section_ids` evaluation coverage; `g026` en miss after promotion; per-scope lexical files (D050); Malayalam BM25 stemming (carry-over from Spec 010); Spec 008 serving items (**roadmap item 10** — grounded generation and first HTTP surface, not a retrieval-only route).
+- Still deferred (same spec carry-overs / later specs): FAQ-aware retrieval/indexing; optional semantic chunking; separating chunk size from title prefix in experiments; headed-document / `relevant_section_ids` evaluation coverage; `g026` en miss after promotion; per-scope lexical files (D050); Malayalam BM25 stemming (carry-over from Spec 010); Spec 008 serving items (**Spec 013**, the HTTP surface; split from roadmap item 10).
 
 ### 8. Multilingual retrieval
 **Status (Spec 010):** **verified (2026-11-04, merged `cae06c3`)**. Delivered: suite `public-eval-v3`; optional `--lote` applicability on every retrieval path; lexical settings 1.2; tokenizers `lexical-v1` and `lexical-v2` (default **`lexical-v2`**, D072); result 2.4 with script-mix reporting; `eval-compare --cross-tokenizer`; `make eval-continuity`; security result 1.4 with dual `lote` modes. **Deferred (documented in `CURRENT_STATE.md`):** query translation/transliteration for Latin-script Malayalam queries on BM25 fallback; Malayalam knowledge content; Malayalam stemming; per-script fusion weighting; script-mix uses Unicode name prefixes, not `Script` property files.
@@ -78,11 +78,10 @@ Approximately one focused week.
 
 ### 9. Reranking + context building
 - multilingual reranker — done by Spec 011 (D075–D079; `BAAI/bge-reranker-v2-m3`, hybrid only, depth 20)
-- deduplication — moved to item 10
-- context budgeting — moved to item 10
-- evidence ordering — moved to item 10
+- deduplication, context budgeting, evidence ordering — done by Spec 012 (D081): exact-text dedup, `max_blocks`/`max_chars` budget, rank order, source IDs; neighbour merge deferred (needs overlap boundaries in the payload)
 
 ### 10. Grounded generation + citations
+**Status (Spec 012):** implemented on `spec/012` except the HTTP route and serving policy, which move to Spec 013. Delivered: context builder, versioned prompt `answer` v1, `AnswerService`, answerability (pre-gate, model assessment, backend enforcement), citation validation, Claude generators (Bedrock target, direct Anthropic API for development and evaluation; D084, D086), `make ask`, `make eval-generation`, security 1.6, suite v4, default `claude-sonnet-5-5` (D081–D091). Not done: route, streaming, tracing, faithfulness checks, Bedrock access.
 - Bedrock Runtime
 - versioned prompts
 - answerability
@@ -109,9 +108,9 @@ Approximately one focused week.
 - Qdrant failure → SQLite FTS5
 - model failure → evidence-only response where appropriate
 
-Reranker failure path done by Spec 011 (D077): an eligible reranker outage serves the plain hybrid hits, marked as skipped, and never becomes a BM25 fallback; a binding per-request timeout stays with item 10.
+Reranker failure path done by Spec 011 (D077): an eligible reranker outage serves the plain hybrid hits, marked as skipped, and never becomes a BM25 fallback; a binding per-request timeout stays with Spec 013.
 
-Done early by Spec 008 (D056), ahead of item 7: retrieval degradation. `hybrid` serves BM25 from the local SQLite FTS5 file when Qdrant or the embedding model is unreachable (dense → BM25 and Qdrant failure → SQLite FTS5), and an explicit `bm25` needs neither Qdrant nor the `bge-m3` extra. Still open in this item: the model failure path (needs generation, item 10), plus the serving concerns Spec 008 deferred to the HTTP route: a circuit breaker, a startup policy for a missing or stale lexical file, and Qdrant 5xx eligibility (D062).
+Done early by Spec 008 (D056), ahead of item 7: retrieval degradation. `hybrid` serves BM25 from the local SQLite FTS5 file when Qdrant or the embedding model is unreachable (dense → BM25 and Qdrant failure → SQLite FTS5), and an explicit `bm25` needs neither Qdrant nor the `bge-m3` extra. The model failure path is done by Spec 012 (D085): an eligible generator outage gives `evidence_only` / `generator_unavailable`. Still open in this item: the serving concerns Spec 008 deferred to the HTTP route: a circuit breaker, a startup policy for a missing or stale lexical file, and Qdrant 5xx eligibility (D062).
 
 ### 14. AWS deployment
 - Docker

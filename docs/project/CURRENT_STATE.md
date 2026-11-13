@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-11-13 (Spec 012 T6 approved; T7 next)
+Last updated: 2026-11-13 (Spec 012 T7: docs and decisions D081-D091 written; T7 in task review)
 
 ## Current phase
 
@@ -12,7 +12,7 @@ Spec 001 project foundation is complete.
 
 ## Current goal
 
-Specs **001–011** are **verified on `main`** (last: Spec 011, merged `d40d734`, 2026-11-06). Retrieval defaults: index **`idx-v2`** (recursive 128 + title, D071), **`hybrid`** with BM25 fallback (D055, D058), **`lexical-v2`** (D072), reranking on at depth 20 (D079). Setup for a default run: `make ingest`, then `make index-lexical`; reranked runs need `make setup-bge-m3` and a cached reranker. Workflow trim **D080** is in place (hooks share one shell parser, graph rebuilt once per spec, `graphify-out/cache/` local). **Spec 012** (roadmap item 10 without the HTTP route: context building, Bedrock generation, answerability, citations) is **implementing** on `spec/012`; **T1–T6 approved** (context builder, prompts and language, generator and Bedrock adapter, answer service and `make ask`, `make eval-generation` and security 1.6, T5b direct API, T6 real runs). Bedrock is blocked (all quotas 0), so a 2026-11-10 amendment (approved) adds **T5b**: a direct Anthropic API generator for development and evaluation. Bedrock stays the production target. **T6**, the user-owned real-run gate, ran on that endpoint: default `anthropic` / `claude-sonnet-5-5`, suite `public-eval-v4` (2026-11-13). **T7** (docs and decisions) is next. The HTTP route and serving policy go to **Spec 013**. Repository-based shared context keeps Codex, Claude Code, Cursor and Kiro interchangeable (D063). Closed history: `docs/project/HISTORY.md`.
+Specs **001–011** are **verified on `main`** (last: Spec 011, merged `d40d734`, 2026-11-06). Retrieval defaults: index **`idx-v2`** (recursive 128 + title, D071), **`hybrid`** with BM25 fallback (D055, D058), **`lexical-v2`** (D072), reranking on at depth 20 (D079). Setup for a default run: `make ingest`, then `make index-lexical`; reranked runs need `make setup-bge-m3` and a cached reranker. Workflow trim **D080** is in place. **Spec 012** (roadmap item 10 without the HTTP route: context building, generation, answerability, citations) is **implemented on `spec/012`**: T1–T6 approved, **T7 (docs and decisions D081–D091) in task review**, then the retrospective. Generation: default generator `anthropic` (direct Anthropic API, development and evaluation) with `claude-sonnet-5-5` (D086, D090); Bedrock stays the production target but is blocked (all quotas 0; its smoke test is open). Default suite `public-eval-v4` (D091). `make ask` and `make eval-generation` exist; real runs call the API and are user-run. The HTTP route and serving policy go to **Spec 013**. Repository-based shared context keeps Codex, Claude Code, Cursor and Kiro interchangeable (D063). Closed history: `docs/project/HISTORY.md`.
 
 ## Finalized high-level decisions
 
@@ -71,12 +71,12 @@ Implemented (detail per spec: `docs/project/HISTORY.md`, the specs under `.kiro/
 - Spec 009: `structure` and `recursive` chunkers, default `idx-v2`, `eval-compare --cross-index`.
 - Spec 010: `lote` applicability on every path, `lexical-v2`, suite `public-eval-v3`, `make eval-continuity`.
 - Spec 011: cross-encoder reranking on `hybrid` (`BAAI/bge-reranker-v2-m3`, depth 20), result 2.5, security 1.5.
-- Spec 012 T1–T5: context builder, answer prompt v1, `AnswerService`, citation validation, Bedrock adapter (no committed default; D-C), `make ask`, `make eval-generation` (result 1.0) and security result 1.6. Real runs, the default model and suite v4 are T6; docs and decisions are T7.
+- Spec 012: `generation/` (context builder D081, prompt `answer` v1 and registry D082, answerability and citation validation D083, `AnswerService`, shared Claude adapter with `BedrockGenerator` and `AnthropicGenerator` D084/D086, outage eligibility D085), `make ask`, `make eval-generation` (result 1.1, D088), security 1.6 (D089), default `anthropic` / `claude-sonnet-5-5` (D090), suite `public-eval-v4` (D091). Real runs recorded in `task-reviews.md` (T6).
 
 Not yet implemented:
 - no HTTP retrieval route (Spec 013); retrieval degradation exists only for `hybrid` (Spec 008); reranking exists on `hybrid` only (Spec 011);
 - the Phase 2 "compare shared cases" mode of `eval-compare` (today any difference in the case set is refused);
-- generation docs and decisions (Spec 012 T7);
+- the generation HTTP route, streaming, tracing and a hard wall-clock generation deadline;
 - observability;
 - CI/CD;
 - Terraform deployment.
@@ -96,14 +96,12 @@ Not yet implemented:
 | 009 — chunking experiments | verified 2026-11-04, merged `5a6deb7` |
 | 010 — multilingual retrieval | verified 2026-11-04, merged `cae06c3` |
 | 011 — multilingual reranking | verified 2026-11-06, merged `d40d734` |
-| 012 — grounded generation | implementing on `spec/012`; T1–T5 approved 2026-11-09; 2026-11-10 amendment (T5b, direct Anthropic API) approved; T5b and T6 approved 2026-11-13 (T6: checkpoint `a0869a5` plus final commit); T7 not started |
+| 012 — grounded generation | implementing on `spec/012`; T1–T6 approved (T5b and T6 2026-11-13; T6: checkpoint `a0869a5` plus final commit `12534f0`); T7 (docs and decisions) in task review; retrospective not started |
 
 ## Next step
 
-1. **Spec 012 T5b and T6 approved 2026-11-13; T7 next.** (Amendment approved 2026-11-10.) Bedrock is blocked: every quota on the account is 0, and AWS Support referred both Claude 5.5 quota requests to AWS Sales. The amendment adds R17 and task **T5b**: a separate `anthropic` generator for the direct Anthropic API (development and evaluation). It shares a Claude-only adapter with Bedrock, takes the key only from `ANTHROPIC_API_KEY`, refuses `ANTHROPIC_BASE_URL`, uses no fallbacks and checks the response model. `requirements.md` and `design.md` are approved (2026-11-10). T6 then runs on `--generator anthropic` and commits `default_generator: anthropic`. Bedrock stays the production target, and the switch back is its own spec or task. No Anthropic API or Bedrock call has been made.
-   - 2026-11-13: the direct-API smoke gate passed for `claude-sonnet-5-5` and `claude-haiku-5-5` (recorded in `task-reviews.md`, T6 section; Bedrock smoke still open). T6 (now approved): thresholds approved 2026-11-13 (refusal 0.86, answer 0.90, p95 generation 8000 ms, cost per answer USD 0.015). The user ran both models on commit `e84e098` (result files `experiments/results/generation-evaluation-idx-v2-20261113T080223Z.json` Haiku, `...T082549Z.json` Sonnet, not yet committed). Haiku falls short (answer 0.8621, refusal 0.8000); Sonnet passes every criterion (answer 0.9655, refusal 0.8667, p95 5756 ms, USD 0.0052 per case). The user's spot check accepted Sonnet 5.5 (`task-reviews.md`, T6).
-1a. **Suite v4 (2026-11-13):** `public-eval-v4` is created (115 cases: 88 golden, 17 unanswerable, 10 security) and is `DEFAULT_SUITE`; v3 is `replaced`. The user ran the v4 retrieval run, `make eval-continuity` (exit 0, no shared-case differences) and the Sonnet v4 reference run (answer rate 0.9659, refusal rate 0.8824, cost $0.546976) on `a0869a5` on 2026-11-13; the agent's checks are in `task-reviews.md`, T6 stage 5. T6 was approved 2026-11-13 (prices confirmed: Sonnet 5.5 $2 / $10, Haiku 5.5 $0.10 / $0.50 per 1M input / output tokens); the final T6 commit holds the four result files and the records.
-2. **D-A smoke tests (user-run):** after T5b, the direct-API smoke test (`W2A_RUN_ANTHROPIC_SMOKE=1`, `W2A_ANTHROPIC_MODEL_ID` = `claude-sonnet-5-5` / `claude-haiku-5-5`) is the T6 gate. The Bedrock smoke test (`W2A_RUN_BEDROCK_SMOKE=1`, `global.` profiles, `ap-south-1`) stays open until AWS grants access. `aws login` still needs `eval "$(aws configure export-credentials --format env)"` (`botocore[crt]` is not in the bedrock extra; document or add it in T7).
+1. **Spec 012 T7 in task review; then the `spec-reviewer` retrospective.** The orchestrator runs `graphify update .` once before the retrospective (D080). Evidence for the T6 outcome is in D090 and `task-reviews.md` (T6 stages 2 to 5).
+2. **Bedrock smoke test (user-run, open):** the direct-API smoke test passed on 2026-11-13 for `claude-sonnet-5-5` and `claude-haiku-5-5`. The Bedrock smoke test (`W2A_RUN_BEDROCK_SMOKE=1`, `global.` profiles, `ap-south-1`) stays open until AWS grants access (Free plan blocks Marketplace models, all quotas 0, increases go through AWS Sales, `ap-south-1` offers only `global.` profiles for Claude 5.5). Switching `default_generator` to `bedrock` is its own spec or task with a timeout and latency re-check (D086). `aws login` credentials need `eval "$(aws configure export-credentials --format env)"` first (`botocore[crt]` is not in the `bedrock` extra; documented in `COMMANDS.md`).
 3. **Follow-up chore (D080):** in `packages/rag/tests/evaluation/test_security_eval.py`, share one CLI gate run across `test_cli_lexical_file_is_removed_after_a_pass`, `test_cli_pass_writes_a_result_and_exits_zero` and `test_cli_clause_less_lexical_store_exits_one_naming_strategies` (about −38 s of `make verify`). Docker tests stay in `make verify` until CI runs `make test-integration`.
 4. The trial docs re-extraction of 2026-11-07 was discarded and is not to be retried (D080); the docs part of the graph stays from the earlier extraction.
 5. Open since the verify-budget chore: remove user-level verify-budget hook copies; the committed hook is `.claude/settings.json` + `tools/hooks/verify_budget.py`.
@@ -120,10 +118,17 @@ Not yet implemented:
 
 ## Known issues / deferred
 
+Spec 012 carry-overs for Spec 013 and later (T7):
+- **Spec 013 serving items:** HTTP route; `open_retrieval` rework (Spec 011 F1/F2/F3 and Spec 008 F4: depth per served path, rerank resolved from config, one helper for the standalone open); Qdrant client and model lifecycle (close on every open failure and in `close()`); async freshness check; lexical startup and tokenizer policy; circuit breaker; reranker reload and health; latency, concurrency and device budgets that include generation (the generation deadline is the generation share of the request budget, D084); a hard wall-clock generation cap.
+- Validation proves provenance, not faithfulness: a valid citation can sit under an unsupported claim (roadmap item 12 or an evaluation spec).
+- Neighbour merge in the context builder needs overlap boundaries in the chunk payload, which means a new `index_version` (D081). Streaming is deferred to Spec 013.
+- Bedrock: the smoke test and the switch of `default_generator` are open (D086). Latency and timeout figures from Spec 012 are direct-API figures from the user's network, not Bedrock or production figures.
+- Prompt v2 inputs are listed below (URL habit, marker use, answer language, safe redirect).
+
 Spec 012 T6 carry-overs (for a later prompt version or follow-up; the prompt is not changed in this spec):
 - The refusal rate includes backend-enforced refusals. In the Sonnet run, 4 of its 13 unanswerable refusals are `citation_invalid/model_url` (the model wrote a URL, the backend discarded the answer) and the same rule cost 2 goldens (g035, g070); Haiku had `marker_mismatch` refusals on 5 goldens. A later prompt version should address URLs in answers and marker use.
 - Backend-enforced refusals in the Sonnet runs (counted from the result files, 2026-11-13): the v3 run had 4 unanswerable refusals from `citation_invalid/model_url` (u007, u011, u013, u014) out of 13; the v4 reference run has 6 of 15 (those four plus u016 and u017, the two new v4 unanswerable cases; the result rows record `citation_invalid / model_url`, so the backend found a URL in the model's output, and that Sonnet was trying to answer is an inference, since the files keep no text for a discarded answer). That is 6 distinct unanswerable cases across the two runs; v4 also repeats the 2 golden losses (g035, g070). Without the `model_url` discard the v4 refusal rate would be 9/17 (0.5294), not 0.8824, so the refusal-rate threshold is met through the backend, not the model's own judgement. Input for the prompt-v2 spec (URL habit).
-- `deadline_s` is a soft deadline: two cases (Haiku g040 31.9 s, Sonnet g022 32.6 s of generation against 30 s) overshot because `with_options(timeout=)` is a per-phase httpx timeout, not a wall-clock cap (`generation/claude.py`). The comment in `config/generation.yaml` ("total per request") is not strictly true. Comment fix and a hard wall-clock cap are a follow-up (T7 or later); no effect on the p95 criterion.
+- `deadline_s` is a soft deadline: three cases (Haiku g040 31.9 s, Sonnet g022 32.6 s and g021 32.1 s of generation against 30 s) overshot because `with_options(timeout=)` is a per-phase httpx timeout, not a wall-clock cap (`generation/claude.py`). The comment in `config/generation.yaml` ("total per request") is not strictly true. The comment fix and a hard wall-clock cap are a follow-up (Spec 013 or a chore; D084); no effect on the p95 criterion.
 - Haiku 5.5 hit `max_tokens` (1024) on 3 Malayalam or mixed goldens (g065, g076, g086): Malayalam token cost. Input for any later Haiku reconsideration.
 - Wrong answer language (g080, Sonnet): the question was romanized Malayalam ("Official test-nu headphone use cheyyamo?"), the answer was romanized Telugu ("Ledu... kaadu... chudandi... kosam"). The facts and citation were correct. Input for a later prompt version, together with the `model_url` habit above.
 - Safe redirect is not scored (decision 2026-11-13: option 3 for this spec): u001 and u003 are `insufficient_evidence_or_safe_redirect` cases, and Sonnet's answered "No, cannot guarantee / check Home Affairs" replies are safe redirects but count as known false misses in every run. Carry-over for a later prompt-v2 spec: a deterministic redirect marker in the answer contract, a `safe_handling_rate` and generation result 1.2, together with the g080 answer-language issue and the `model_url` habit above. No scorer or schema change in Spec 012.
@@ -145,20 +150,20 @@ Spec 009 known issues and carry-overs (documented; no remediation tasks):
 
 Spec 008 known issues and carry-overs (documented by T8; no remediation tasks):
 - Qdrant client lifecycle (T4 review): `open_retrieval` closes the Qdrant client on the fallback path but not on every open failure, and `OpenedRetrieval.close()` does not close the client. A long-running server would leak a connection pool per failed open; the CLIs exit after one run. **Spec 013** (first HTTP surface) must close the client on every open failure and in `close()`, with a test.
-- `verify_fresh` uses `asyncio.run`, so it cannot run inside a running event loop; **item 10** needs an async freshness check or a check at startup outside the loop (T2 review F3).
+- `verify_fresh` uses `asyncio.run`, so it cannot run inside a running event loop; **Spec 013** needs an async freshness check or a check at startup outside the loop (T2 review F3).
 - The standalone freshness check rereads every eligible document at each open (milliseconds for 13 documents); revisit for a large corpus (D060).
 - No circuit breaker: with Qdrant hanging, each hybrid query waits about `query_timeout_s` (3 s) before BM25 serves (D058). Qdrant 5xx and a Hugging Face hub 5xx are not fallback-eligible (D062).
 - The security gate's standalone `bm25` path checks identity plus "every seed chunk present" instead of `verify_fresh`, and that check is one-way (an extra non-forbidden row is not refused); see the design As-built notes (T6).
 
 Spec 008 retrospective (`.kiro/specs/008-retrieval-fallback/review.md`, round 1), MINOR, no remediation tasks:
-- F2: result 2.2 and `eval-compare` do not distinguish an open-time from a per-query fallback (same `bm25+fallback:<reason>` path; `dense_attempt` about 0 ms after an open-time fallback, yet labelled "includes failed dense attempt"). Docs corrected; a `fallback_stage`-style field is left to **roadmap item 10** or observability (item 11).
-- F4: `open_retrieval`'s `bm25` branch and `_open_fallback` duplicate the standalone open and lexical `document_count` wiring; fold into one helper when **roadmap item 10** reworks `open_retrieval` (together with the client lifecycle item).
+- F2: result 2.2 and `eval-compare` do not distinguish an open-time from a per-query fallback (same `bm25+fallback:<reason>` path; `dense_attempt` about 0 ms after an open-time fallback, yet labelled "includes failed dense attempt"). Docs corrected; a `fallback_stage`-style field is left to **Spec 013** or observability (item 11).
+- F4: `open_retrieval`'s `bm25` branch and `_open_fallback` duplicate the standalone open and lexical `document_count` wiring; fold into one helper when **Spec 013** reworks `open_retrieval` (together with the client lifecycle item).
 - F5: no test drives the open-time fallback from a `bind_to` scroll failure (Qdrant fails after `DenseIndex.open`) through `open_retrieval`; covered by composition (`chunk_identities` maps transport errors, T1; the `except` spans `open_bound_lexical`, T4).
 
 Spec 011 known issues and carry-overs (documented by T6; no remediation tasks in this spec):
-- **Context building** (deduplication, context budgeting, evidence ordering) is not implemented; it moved to roadmap **item 10**.
-- **Latency limit and device for item 10:** depth 20 costs about 1 s per query at p95 on `mps:0` (+920.6 ms over the hybrid reference, 79 ms under the 1000 ms escalation line); there is no inference timeout (D077) and the device is not pinned. The binding per-request limit, circuit breaker, model and client lifecycle and device choice belong to the HTTP spec. The numbers are a dev-machine figure, not a production one.
-- **Unanswerable cross-encoder scores** (D079): top-1 scores for the 15 unanswerable cases (median -4.17, max 1.67) overlap the golden distribution (median 3.08); three unanswerable cases score above 0, so no fixed cut-off is safe. Input for the refusal-threshold work of item 10, not a threshold.
+- **Context building** (deduplication, context budgeting, evidence ordering) was done by Spec 012 (D081).
+- **Latency limit and device for Spec 013:** depth 20 costs about 1 s per query at p95 on `mps:0` (+920.6 ms over the hybrid reference, 79 ms under the 1000 ms escalation line); there is no inference timeout (D077) and the device is not pinned. The binding per-request limit, circuit breaker, model and client lifecycle and device choice belong to the HTTP spec. The numbers are a dev-machine figure, not a production one.
+- **Unanswerable cross-encoder scores** (D079): top-1 scores for the 15 unanswerable cases (median -4.17, max 1.67) overlap the golden distribution (median 3.08); three unanswerable cases score above 0, so no fixed cut-off is safe. Input to the answerability decision (D083, which uses the retrieval hits' presence, not a score cut-off), not a threshold.
 - **Query translation / transliteration** remains the intended fix for `g067`–`g069` on BM25-only and on the hybrid fallback (reranking applies to hybrid only; on the v3 BM25-only run the `ml` misses return no BM25 candidates, so reranking the fallback cannot help).
 - **Residual rank losses:** `g038` (en) and `g062` (mixed) drop from rank 1 to 2 under reranking (still hits); `g057` stays at 0.5; `g026` is back to a hit at reciprocal rank 0.333.
 - **Gate coverage:** `make eval-security` runs the rerank paths at depth 50 / `top_k` 50, so the committed depth-20 cut is not itself exercised (membership is decided by the legs and re-checked; D078).
@@ -166,8 +171,8 @@ Spec 011 known issues and carry-overs (documented by T6; no remediation tasks in
 - `experiments/configs/rerank/retrieval-depth50.yaml` differs from `config/retrieval.yaml` in `rerank.enabled` and `rerank.depth`.
 
 Spec 011 retrospective (`.kiro/specs/011-multilingual-reranking/review.md`, round 1), MINOR, no remediation tasks:
-- F1: with reranking requested and a dense outage, `eval-retrieval` asks BM25 for `rerank.depth` (20) chunks instead of 50 and records `retrieval_depth` 20; top-5 distinct-document metrics are unaffected while `required_depth` (17) is at most 20. Recorded in the design As-built notes and `COMMANDS.md`; fix together with the item 10 rework of `open_retrieval` (depth per served path).
-- F2: `open_retrieval(rerank=False)` is the library default; only the two CLIs resolve the effective setting from `rerank.enabled`. The item 10 HTTP route must resolve it from config too, or it serves un-reranked hybrid silently.
+- F1: with reranking requested and a dense outage, `eval-retrieval` asks BM25 for `rerank.depth` (20) chunks instead of 50 and records `retrieval_depth` 20; top-5 distinct-document metrics are unaffected while `required_depth` (17) is at most 20. Recorded in the design As-built notes and `COMMANDS.md`; fix together with the Spec 013 rework of `open_retrieval` (depth per served path).
+- F2: `open_retrieval(rerank=False)` is the library default; only the two CLIs resolve the effective setting from `rerank.enabled`. The Spec 013 HTTP route must resolve it from config too, or it serves un-reranked hybrid silently.
 - F3: `top_k > rerank.depth` is refused inside the stage at query time, after the reranker was loaded at open (`make retrieve --top-k 30` loads the model, then exits 2); `eval-retrieval` refuses earlier through the distinct-document depth check, with advice that names `candidate_depth`, not `rerank.depth`. No wrong result is possible.
 
 Spec 010 known issues and carry-overs (documented by T6; no remediation tasks in this spec):
@@ -176,7 +181,7 @@ Spec 010 known issues and carry-overs (documented by T6; no remediation tasks in
 - **No Malayalam knowledge content** was added (`knowledge/` unchanged); evaluation grew via v3 cases only.
 - **Malayalam stemming** and **per-script fusion weighting** were declined (requirements out of scope).
 - **Script mix** uses Unicode **name** prefixes, not Scripts.txt; romanized Malayalam counts as **`latin`** (reporting only).
-- **`open_retrieval`** does not compare the lexical file's recorded tokenizer to `config/retrieval.yaml` (stale `lexical-v1` would serve silently); group with roadmap **item 10** startup policy (also missing/stale file).
+- **`open_retrieval`** does not compare the lexical file's recorded tokenizer to `config/retrieval.yaml` (stale `lexical-v1` would serve silently); group with the **Spec 013** startup policy (also missing/stale file).
 - Spec **009** carry-overs below remain unchanged (ignored yaml keys, `g026`, FAQ, semantic chunking, per-scope lexical files, shallow-clone test skip, etc.).
 
 Spec 007 known issues and carry-overs (documented by T10; no remediation tasks):
