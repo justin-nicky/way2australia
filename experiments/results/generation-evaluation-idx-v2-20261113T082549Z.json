@@ -1,0 +1,3775 @@
+{
+  "kind": "generation_evaluation",
+  "schema_version": "1.1",
+  "created_at": "2026-11-13T08:25:49.318209+00:00",
+  "git_commit": "e84e098427c24d899760755ccddac193a3aaa538",
+  "git_dirty": false,
+  "evaluation_suite_id": "public-eval-v3",
+  "evaluation_suite_version": 3,
+  "declared_knowledge_release_id": "seed-v1",
+  "case_selection": {
+    "mode": "all",
+    "limit": null,
+    "golden_selected": 87,
+    "unanswerable_selected": 15,
+    "golden_total": 87,
+    "unanswerable_total": 15
+  },
+  "prompt": {
+    "prompt_id": "answer",
+    "prompt_version": 1,
+    "sha256": "7284d3b35cbdd4e5ff18570b770ae1d8c54153e9be3e04bdec6e8be8a6d55c11"
+  },
+  "generator": {
+    "provider": "anthropic",
+    "model_id": "claude-sonnet-5-5",
+    "model_id_source": "cli",
+    "endpoint": "api",
+    "region": null,
+    "inference_profile": null,
+    "effort": "low",
+    "max_tokens": 1024,
+    "request_timeout_s": 20.0,
+    "retries": 2,
+    "deadline_s": 30.0,
+    "is_fake": false
+  },
+  "response_models": [
+    "claude-sonnet-5-5"
+  ],
+  "pricing_applied": {
+    "input_per_mtok": 2.0,
+    "output_per_mtok": 10.0,
+    "input_source": "cli",
+    "output_source": "cli"
+  },
+  "retrieval_identity": {
+    "strategy": "hybrid",
+    "requested_strategy": "hybrid",
+    "fallback_reason": null,
+    "score_kind": "cross_encoder",
+    "top_k": 5,
+    "collection": "w2a-realcheck-idx-v2",
+    "index_version": "idx-v2",
+    "embedder_model_id": "BAAI/bge-m3",
+    "embedder_revision": "5617a9f61b028005a4858fdac845db406aefb181",
+    "embedder_is_fake": false,
+    "device": "mps:0",
+    "lexical": {
+      "label": "w2a-realcheck-idx-v2.sqlite",
+      "tokenizer_name": "lexical-v2",
+      "tokenizer_version": "2",
+      "source_chunk_digest": "89b30b429b43e689ec41dc4525762f0e217d35b65188d470d3da28e0a677518c",
+      "chunk_count": 34
+    },
+    "rerank": {
+      "model_id": "BAAI/bge-reranker-v2-m3",
+      "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+      "max_length": 512,
+      "is_fake": false,
+      "device": "mps:0",
+      "depth": 20,
+      "candidates": 20,
+      "truncated_pairs": 0,
+      "skipped_reason": null,
+      "stage": null
+    },
+    "lote": "ml"
+  },
+  "ingestion_config": {
+    "path": "config/ingestion.yaml",
+    "sha256": "ed863021ad8215df01ff3d91c581a93dc6b2ed234b7a326a3f86978f452c7feb"
+  },
+  "thresholds": {
+    "min_answer_rate": 0.9,
+    "min_refusal_rate": 0.86
+  },
+  "status_counts_by_kind": {
+    "golden_answerable": {
+      "answered": 84,
+      "insufficient_evidence": 3
+    },
+    "unanswerable_refusal": {
+      "answered": 2,
+      "insufficient_evidence": 13
+    }
+  },
+  "metrics": {
+    "golden_count": 87,
+    "unanswerable_count": 15,
+    "answered_count": 84,
+    "refusal_count": 13,
+    "evidence_only_count": 0,
+    "output_invalid_count": 0,
+    "citation_invalid_count": 6,
+    "citation_invalid_rate": 0.058823529411764705,
+    "generator_unavailable_count": 0,
+    "answer_rate": 0.9655172413793104,
+    "answer_rate_small_sample": false,
+    "refusal_rate": 0.8666666666666667,
+    "refusal_rate_small_sample": false,
+    "cases_run": 102,
+    "cases_run_small_sample": false
+  },
+  "citation_invalid": {
+    "count": 6,
+    "by_sub_reason": {
+      "model_url": 6
+    },
+    "case_ids_by_sub_reason": {
+      "model_url": [
+        "g035",
+        "g070",
+        "u007",
+        "u011",
+        "u013",
+        "u014"
+      ]
+    },
+    "rate": 0.058823529411764705,
+    "small_sample": false
+  },
+  "generator_unavailable": {
+    "count": 0,
+    "by_sub_reason": {},
+    "case_ids_by_sub_reason": {}
+  },
+  "citation_precision_mean": 0.9187,
+  "citation_recall_mean": 0.994,
+  "expected_facts_coverage": {
+    "overall": 0.3950617283950617,
+    "matched": 64,
+    "total": 162,
+    "informational": true,
+    "by_query_language": {
+      "en": {
+        "matched": 58,
+        "total": 97,
+        "coverage": 0.5979381443298969,
+        "n": 54,
+        "small_sample": false
+      },
+      "mixed": {
+        "matched": 2,
+        "total": 30,
+        "coverage": 0.06666666666666667,
+        "n": 17,
+        "small_sample": false
+      },
+      "ml": {
+        "matched": 4,
+        "total": 35,
+        "coverage": 0.11428571428571428,
+        "n": 16,
+        "small_sample": false
+      }
+    }
+  },
+  "answer_script_mix": {
+    "latin": 58,
+    "latin+malayalam": 28,
+    "none": 16
+  },
+  "latency_ms": {
+    "retrieval_ms": {
+      "p50": 1351.525,
+      "p95": 2076.944,
+      "n": 102
+    },
+    "context_ms": {
+      "p50": 0.052,
+      "p95": 0.135,
+      "n": 102
+    },
+    "generation_ms": {
+      "p50": 2270.579,
+      "p95": 5755.702,
+      "n": 102
+    },
+    "total_ms": {
+      "p50": 3910.905,
+      "p95": 7321.786,
+      "n": 102
+    }
+  },
+  "tokens": {
+    "input_total": 187372,
+    "output_total": 15105,
+    "input_mean": 1836.98,
+    "output_mean": 148.088,
+    "cases_with_usage": 102
+  },
+  "estimated_cost_usd": 0.884952,
+  "actual_cost_usd": 0.525794,
+  "small_sample_threshold": 10,
+  "cases": [
+    {
+      "case_id": "g001",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "Way2Australia currently provides English–Malayalam NAATI CCL preparation through online dialogue practice, vocabulary learning, individual coaching and expert-reviewed mock assessments. [S1] Coaching is optional, so students can prepare independently using the materials, or get individual coaching for areas such as interpreting, vocabulary, note-taking and delivery. [S3] Vocabulary is organised into 13 categories (12 subject domains plus General), and paid access includes vocabulary lists and flashcards that use spaced repetition. [S5] Pricing is accepted in INR and AUD. [S2]",
+      "cited_document_ids": [
+        "business_001_overview_scope",
+        "business_001_overview_scope",
+        "business_004_vocabulary_and_free_access",
+        "business_007_payments_account_support"
+      ],
+      "relevant_document_ids": [
+        "business_001_overview_scope"
+      ],
+      "citation_precision": 0.3333333333333333,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 4,
+      "expected_facts_total": 5,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1844,
+        "output_tokens": 235,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1161.345,
+        "context_ms": 0.527,
+        "generation_ms": 3687.15,
+        "total_ms": 4850.37
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": true
+    },
+    {
+      "case_id": "g002",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "Way2Australia currently confirms only English–Malayalam NAATI CCL preparation, covering online dialogue practice, vocabulary learning, individual coaching and expert-reviewed mock assessments. [S1] The platform is intended to support more CCL languages later, but no other language course has been announced. [S1] The evidence does not mention PTE coaching.",
+      "cited_document_ids": [
+        "business_001_overview_scope"
+      ],
+      "relevant_document_ids": [
+        "business_001_overview_scope"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1921,
+        "output_tokens": 141,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1441.391,
+        "context_ms": 0.052,
+        "generation_ms": 2050.044,
+        "total_ms": 3491.593
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g003",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "No, coaching is optional. Students can prepare independently using the materials, while individual coaching is available for extra support with interpreting, vocabulary, note-taking and delivery. [S1]",
+      "cited_document_ids": [
+        "business_001_overview_scope"
+      ],
+      "relevant_document_ids": [
+        "business_001_overview_scope",
+        "business_005_coaching"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 0.5,
+      "expected_facts_matched": 2,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1781,
+        "output_tokens": 84,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 957.389,
+        "context_ms": 0.209,
+        "generation_ms": 2215.882,
+        "total_ms": 3173.664
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g004",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "No. Way2Australia cannot guarantee an exam result, a fixed preparation period, migration points or a visa outcome. [S1] Way2Australia mock scores are preparation feedback only, and NAATI alone determines official test results. [S1]",
+      "cited_document_ids": [
+        "business_001_overview_scope"
+      ],
+      "relevant_document_ids": [
+        "business_001_overview_scope"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1894,
+        "output_tokens": 105,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 970.902,
+        "context_ms": 0.048,
+        "generation_ms": 1864.23,
+        "total_ms": 2835.252
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g005",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "Practice materials cost ₹5,500 / A$81. [S1] This includes 60-day online materials access. [S1]",
+      "cited_document_ids": [
+        "business_002_packages_pricing_validity"
+      ],
+      "relevant_document_ids": [
+        "business_002_packages_pricing_validity"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 2,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1768,
+        "output_tokens": 64,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1496.043,
+        "context_ms": 0.083,
+        "generation_ms": 2049.848,
+        "total_ms": 3546.115
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g006",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "The Practice materials include 60-day online materials access. [S1] Package validity is 60 days from payment, and included sessions and mocks must be used within that period. [S5] Extension or pause requests must be referred to Way2Australia. [S5]",
+      "cited_document_ids": [
+        "business_002_packages_pricing_validity",
+        "business_002_packages_pricing_validity"
+      ],
+      "relevant_document_ids": [
+        "business_002_packages_pricing_validity"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1615,
+        "output_tokens": 105,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1311.768,
+        "context_ms": 0.033,
+        "generation_ms": 1723.116,
+        "total_ms": 3035.014
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g007",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "The ₹7,999 / A$119 package (Materials + personal guidance) includes materials, one 60-minute coaching session and one full-length self-paced mock. [S1]",
+      "cited_document_ids": [
+        "business_002_packages_pricing_validity"
+      ],
+      "relevant_document_ids": [
+        "business_002_packages_pricing_validity"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 3,
+      "expected_facts_total": 3,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1742,
+        "output_tokens": 81,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1691.847,
+        "context_ms": 0.056,
+        "generation_ms": 1565.891,
+        "total_ms": 3257.973
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g008",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "The personal coaching package costs ₹16,000 / A$236. [S2] It includes 60-day online materials access. [S1] It also includes six individual coaching sessions of 60 minutes each, conducted on Google Meet. [S1] It adds three additional live single-dialogue assessments of 25 minutes each, and two full-length self-paced mocks with expert feedback afterwards. [S1] The 25-minute assessments are additional appointments and are not part of the six coaching hours. [S5] Each 25-minute appointment includes both the assessment and feedback. [S5] Live-session recordings are not provided. [S5]",
+      "cited_document_ids": [
+        "business_002_packages_pricing_validity",
+        "business_005_coaching",
+        "business_005_coaching"
+      ],
+      "relevant_document_ids": [
+        "business_002_packages_pricing_validity",
+        "business_005_coaching"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 2,
+      "expected_facts_total": 4,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1694,
+        "output_tokens": 234,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1127.875,
+        "context_ms": 0.047,
+        "generation_ms": 2576.609,
+        "total_ms": 3704.674
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g009",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "No. The three 25-minute assessments are additional appointments and are not part of the six coaching hours. [S1] In the personal coaching package, they are listed separately from the six 60-minute coaching sessions. [S3]",
+      "cited_document_ids": [
+        "business_005_coaching",
+        "business_005_coaching"
+      ],
+      "relevant_document_ids": [
+        "business_005_coaching"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 2,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1759,
+        "output_tokens": 97,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1532.398,
+        "context_ms": 0.059,
+        "generation_ms": 1784.051,
+        "total_ms": 3316.611
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g010",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "The materials package includes 120+ practice dialogues. [S1]",
+      "cited_document_ids": [
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "relevant_document_ids": [
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1795,
+        "output_tokens": 46,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1469.861,
+        "context_ms": 0.098,
+        "generation_ms": 1542.674,
+        "total_ms": 3012.781
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g011",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "No. Recorded video lessons cover only five dialogues, and video lessons are not provided for all 120+ dialogues. [S1]",
+      "cited_document_ids": [
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "relevant_document_ids": [
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1906,
+        "output_tokens": 68,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1128.258,
+        "context_ms": 0.059,
+        "generation_ms": 2093.584,
+        "total_ms": 3222.014
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g012",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "No. Materials are accessed online and are not downloadable. [S1]",
+      "cited_document_ids": [
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "relevant_document_ids": [
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1809,
+        "output_tokens": 47,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1665.81,
+        "context_ms": 0.054,
+        "generation_ms": 2126.153,
+        "total_ms": 3792.141
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g013",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "No. Practice recordings stay in your browser and are not uploaded to your account. [S1] They can be lost if you refresh or close the page. [S1]",
+      "cited_document_ids": [
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "relevant_document_ids": [
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1853,
+        "output_tokens": 73,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1461.503,
+        "context_ms": 0.142,
+        "generation_ms": 1569.139,
+        "total_ms": 3030.983
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g014",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "No. A completion indicator only means the activity was attempted; it is not a score or quality assessment. [S1] Ordinary practice does not generate an automatic score, and scores and expert feedback are associated with marked assessments. [S1]",
+      "cited_document_ids": [
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "relevant_document_ids": [
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 3,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1909,
+        "output_tokens": 99,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1021.939,
+        "context_ms": 0.051,
+        "generation_ms": 1591.113,
+        "total_ms": 2613.204
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g015",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "No. Ordinary practice does not generate an automatic score. [S1] Scores and expert feedback are associated with marked assessments. [S1] A completion indicator only means the activity was attempted; it is not a score or quality assessment. [S1]",
+      "cited_document_ids": [
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "relevant_document_ids": [
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1937,
+        "output_tokens": 103,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 983.354,
+        "context_ms": 0.05,
+        "generation_ms": 2118.149,
+        "total_ms": 3101.755
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g016",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "There are 13 vocabulary categories in total: 12 subject domains plus General vocabulary. [S1]",
+      "cited_document_ids": [
+        "business_004_vocabulary_and_free_access"
+      ],
+      "relevant_document_ids": [
+        "business_004_vocabulary_and_free_access"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 2,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1944,
+        "output_tokens": 60,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1264.194,
+        "context_ms": 0.103,
+        "generation_ms": 1526.905,
+        "total_ms": 2791.374
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g017",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "\"Due today\" means vocabulary reviews are ready or overdue. It is a study reminder, not an exam score. [S1]",
+      "cited_document_ids": [
+        "business_004_vocabulary_and_free_access"
+      ],
+      "relevant_document_ids": [
+        "business_004_vocabulary_and_free_access"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 2028,
+        "output_tokens": 67,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 2493.516,
+        "context_ms": 0.11,
+        "generation_ms": 1517.813,
+        "total_ms": 4011.696
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g018",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "Free access currently includes the first published practice dialogue in each available domain, ten vocabulary words per domain in list mode, five sentences per domain where a sentence collection exists, and up to ten saved vocabulary entries overall. [S1] General vocabulary currently has no sentence collection. [S1] Saving beyond the free allowance and paid learning features need suitable active access. [S2]",
+      "cited_document_ids": [
+        "business_004_vocabulary_and_free_access",
+        "business_004_vocabulary_and_free_access"
+      ],
+      "relevant_document_ids": [
+        "business_004_vocabulary_and_free_access"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 4,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1775,
+        "output_tokens": 152,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1407.249,
+        "context_ms": 0.049,
+        "generation_ms": 3040.241,
+        "total_ms": 4447.657
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g019",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "No. Previously saved vocabulary remains readable after paid materials access expires. [S1] However, saving beyond the free allowance requires suitable active access. [S1] The free allowance includes up to ten saved vocabulary entries overall. [S3]",
+      "cited_document_ids": [
+        "business_004_vocabulary_and_free_access",
+        "business_004_vocabulary_and_free_access"
+      ],
+      "relevant_document_ids": [
+        "business_004_vocabulary_and_free_access"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1731,
+        "output_tokens": 108,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1351.525,
+        "context_ms": 0.049,
+        "generation_ms": 2550.155,
+        "total_ms": 3901.84
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g020",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "A standalone coaching session lasts 60 minutes. [S1] It is conducted on Google Meet. [S1]",
+      "cited_document_ids": [
+        "business_005_coaching"
+      ],
+      "relevant_document_ids": [
+        "business_005_coaching"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 3,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1691,
+        "output_tokens": 63,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1037.35,
+        "context_ms": 0.044,
+        "generation_ms": 1522.95,
+        "total_ms": 2560.482
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g021",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "A standalone coaching session is conducted on Google Meet. [S1] Appointments are arranged through Way2Australia, normally via WhatsApp, and availability should be confirmed directly. [S2]",
+      "cited_document_ids": [
+        "business_005_coaching",
+        "business_005_coaching"
+      ],
+      "relevant_document_ids": [
+        "business_005_coaching"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1689,
+        "output_tokens": 93,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1973.44,
+        "context_ms": 0.056,
+        "generation_ms": 1691.807,
+        "total_ms": 3665.424
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g022",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "For a planned cancellation, inform Way2Australia at least 24 hours before the session. [S1] If you miss a session or give less notice, a replacement or any charge cannot be promised here, so the case is referred to Way2Australia. [S1]",
+      "cited_document_ids": [
+        "business_005_coaching"
+      ],
+      "relevant_document_ids": [
+        "business_005_coaching"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1796,
+        "output_tokens": 103,
+        "attempts": 2
+      },
+      "latency_ms": {
+        "retrieval_ms": 1012.472,
+        "context_ms": 0.046,
+        "generation_ms": 32648.584,
+        "total_ms": 33661.338
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g023",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "No. If you miss a session or give less than 24 hours' notice, the assistant must not promise a replacement or decide whether a charge applies. Refer the case to Way2Australia. [S1] For a planned cancellation, you should inform Way2Australia at least 24 hours before the session. [S1] You can contact Way2Australia by WhatsApp or email. [S3]",
+      "cited_document_ids": [
+        "business_005_coaching",
+        "business_007_payments_account_support"
+      ],
+      "relevant_document_ids": [
+        "business_005_coaching"
+      ],
+      "citation_precision": 0.5,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 2,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1713,
+        "output_tokens": 147,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1612.34,
+        "context_ms": 0.042,
+        "generation_ms": 2470.667,
+        "total_ms": 4083.162
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g024",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "A full-length self-paced mock contains two dialogues. [S1][S2]",
+      "cited_document_ids": [
+        "business_006_mock_assessments",
+        "business_002_packages_pricing_validity"
+      ],
+      "relevant_document_ids": [
+        "business_006_mock_assessments"
+      ],
+      "citation_precision": 0.5,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1817,
+        "output_tokens": 53,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1053.456,
+        "context_ms": 0.054,
+        "generation_ms": 5653.787,
+        "total_ms": 6707.46
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g025",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "A standalone full-length self-paced mock costs ₹1,300 / A$20. [S1][S2] It includes two dialogues and expert-marked feedback afterwards. [S2]",
+      "cited_document_ids": [
+        "business_006_mock_assessments",
+        "business_002_packages_pricing_validity"
+      ],
+      "relevant_document_ids": [
+        "business_006_mock_assessments"
+      ],
+      "citation_precision": 0.5,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 2,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1741,
+        "output_tokens": 88,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1562.034,
+        "context_ms": 0.043,
+        "generation_ms": 3107.863,
+        "total_ms": 4670.31
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g026",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "An expert marker decides the mock score and feedback. [S4] The public AI assistant does not score or evaluate a learner's interpretation. [S4] Mock scores are preparation feedback only, and NAATI alone determines official test results. [S1]",
+      "cited_document_ids": [
+        "business_006_mock_assessments",
+        "business_001_overview_scope"
+      ],
+      "relevant_document_ids": [
+        "business_006_mock_assessments"
+      ],
+      "citation_precision": 0.5,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1754,
+        "output_tokens": 107,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1757.507,
+        "context_ms": 0.104,
+        "generation_ms": 1673.25,
+        "total_ms": 3431.527
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g027",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "Self-paced mock feedback is normally provided within three working days of submission, excluding weekends and public holidays. [S2] An exact feedback-return date cannot be promised. [S4]",
+      "cited_document_ids": [
+        "business_006_mock_assessments",
+        "business_006_mock_assessments"
+      ],
+      "relevant_document_ids": [
+        "business_006_mock_assessments"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 2,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1883,
+        "output_tokens": 87,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 2222.767,
+        "context_ms": 0.046,
+        "generation_ms": 1898.961,
+        "total_ms": 4122.825
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g028",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "No, I can't give an exact feedback-return date. [S1] Self-paced mock feedback is normally provided within three working days of submission, excluding weekends and public holidays. [S3]",
+      "cited_document_ids": [
+        "business_006_mock_assessments",
+        "business_006_mock_assessments"
+      ],
+      "relevant_document_ids": [
+        "business_006_mock_assessments"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 3,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1841,
+        "output_tokens": 87,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1759.488,
+        "context_ms": 0.09,
+        "generation_ms": 2523.453,
+        "total_ms": 4283.257
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g029",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "No. Mock attempts require a laptop or desktop computer, and phones and tablets are not supported for mock attempts. [S1]",
+      "cited_document_ids": [
+        "business_006_mock_assessments"
+      ],
+      "relevant_document_ids": [
+        "business_006_mock_assessments"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 2,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1925,
+        "output_tokens": 67,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1590.383,
+        "context_ms": 0.077,
+        "generation_ms": 4028.738,
+        "total_ms": 5619.373
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g030",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "Student and marker recordings are available for 14 days after evaluated feedback is returned. [S1] The window starts when the feedback is returned, not when you submit the mock. [S1] Transcripts and written feedback are available for 30 days after evaluated feedback is returned. [S1]",
+      "cited_document_ids": [
+        "business_006_mock_assessments"
+      ],
+      "relevant_document_ids": [
+        "business_006_mock_assessments"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1831,
+        "output_tokens": 115,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1640.572,
+        "context_ms": 0.045,
+        "generation_ms": 2384.353,
+        "total_ms": 4025.065
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g031",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "Transcripts and written feedback are available for 30 days after evaluated feedback is returned. [S1] The window starts when the feedback is returned, not when the mock is submitted. [S1]",
+      "cited_document_ids": [
+        "business_006_mock_assessments"
+      ],
+      "relevant_document_ids": [
+        "business_006_mock_assessments"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1828,
+        "output_tokens": 85,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1095.975,
+        "context_ms": 0.062,
+        "generation_ms": 2524.72,
+        "total_ms": 3620.867
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g032",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "No. Payments are non-refundable under the currently approved public policy. [S1] If you have questions about exceptional circumstances, contact Way2Australia. [S1]",
+      "cited_document_ids": [
+        "business_007_payments_account_support"
+      ],
+      "relevant_document_ids": [
+        "business_007_payments_account_support"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1666,
+        "output_tokens": 78,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1408.14,
+        "context_ms": 0.041,
+        "generation_ms": 1634.53,
+        "total_ms": 3042.804
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g033",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "No, do not pay again straight away. If payment was made but access is missing, support should check the purchase. [S1] The public AI assistant cannot inspect private payment records or activate an account, so contact Way2Australia support. [S3]",
+      "cited_document_ids": [
+        "business_007_payments_account_support",
+        "business_007_payments_account_support"
+      ],
+      "relevant_document_ids": [
+        "business_007_payments_account_support"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1694,
+        "output_tokens": 100,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1261.118,
+        "context_ms": 0.066,
+        "generation_ms": 3150.033,
+        "total_ms": 4411.347
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g034",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "No. The public AI assistant cannot activate an account. [S1] If you have login or password-reset problems, use account recovery first and then contact support if necessary. [S2] Never share a password, one-time code or password-reset link with the assistant. [S2]",
+      "cited_document_ids": [
+        "business_007_payments_account_support",
+        "business_007_payments_account_support"
+      ],
+      "relevant_document_ids": [
+        "business_007_payments_account_support"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1697,
+        "output_tokens": 107,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1667.783,
+        "context_ms": 0.04,
+        "generation_ms": 1925.099,
+        "total_ms": 3592.999
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g035",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "insufficient_evidence",
+      "reason": "citation_invalid",
+      "sub_reason": "model_url",
+      "answer": null,
+      "cited_document_ids": [],
+      "relevant_document_ids": [
+        "business_007_payments_account_support"
+      ],
+      "citation_precision": null,
+      "citation_recall": null,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "none",
+      "usage": {
+        "input_tokens": 1733,
+        "output_tokens": 74,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1100.003,
+        "context_ms": 0.038,
+        "generation_ms": 1912.434,
+        "total_ms": 3012.618
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g036",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "The official CCL test has two pre-recorded dialogues. [S1] Each dialogue is worth 45 marks, for a total of 90 marks. [S1]",
+      "cited_document_ids": [
+        "official_001_ccl_format_scoring_results"
+      ],
+      "relevant_document_ids": [
+        "official_001_ccl_format_scoring_results"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1932,
+        "output_tokens": 77,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1062.657,
+        "context_ms": 0.06,
+        "generation_ms": 3015.254,
+        "total_ms": 4078.105
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g037",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "The official CCL pass requirement is at least 63/90 overall and at least 29/45 in each dialogue. [S1] The test has two pre-recorded dialogues, each worth 45 marks. [S1] A candidate can fail even with 63 or more overall if one dialogue is below 29. [S1]",
+      "cited_document_ids": [
+        "official_001_ccl_format_scoring_results"
+      ],
+      "relevant_document_ids": [
+        "official_001_ccl_format_scoring_results"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1883,
+        "output_tokens": 123,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 994.351,
+        "context_ms": 0.044,
+        "generation_ms": 1740.168,
+        "total_ms": 2734.739
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g038",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "No, not under the official CCL format. You need at least 63/90 overall and at least 29/45 in each dialogue [S2]. A score of 28 in one dialogue is below 29, so a candidate can fail even with an overall score of 63 or more [S2]. If this was a mock, a score from one dialogue cannot establish an overall CCL pass/fail result [S1].",
+      "cited_document_ids": [
+        "official_001_ccl_format_scoring_results",
+        "business_006_mock_assessments"
+      ],
+      "relevant_document_ids": [
+        "official_001_ccl_format_scoring_results"
+      ],
+      "citation_precision": 0.5,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1918,
+        "output_tokens": 147,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1587.031,
+        "context_ms": 0.053,
+        "generation_ms": 2549.606,
+        "total_ms": 4136.757
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g039",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "Official CCL results are normally sent by email within 4–6 weeks. [S1][S2]",
+      "cited_document_ids": [
+        "official_001_ccl_format_scoring_results",
+        "official_003_booking_fees_validity"
+      ],
+      "relevant_document_ids": [
+        "official_001_ccl_format_scoring_results"
+      ],
+      "citation_precision": 0.5,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1812,
+        "output_tokens": 58,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1868.174,
+        "context_ms": 0.039,
+        "generation_ms": 1434.506,
+        "total_ms": 3315.324
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g040",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "No. CCL is not professional interpreter or translator certification. [S1]",
+      "cited_document_ids": [
+        "official_001_ccl_format_scoring_results"
+      ],
+      "relevant_document_ids": [
+        "official_001_ccl_format_scoring_results"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1916,
+        "output_tokens": 48,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1277.68,
+        "context_ms": 0.049,
+        "generation_ms": 1545.089,
+        "total_ms": 2822.933
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g041",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "You must begin interpreting within five seconds of the chime. [S1][S2] Excessive pauses can result in deductions. [S2]",
+      "cited_document_ids": [
+        "official_002_candidate_rules_setup",
+        "official_001_ccl_format_scoring_results"
+      ],
+      "relevant_document_ids": [
+        "official_001_ccl_format_scoring_results",
+        "official_002_candidate_rules_setup"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1936,
+        "output_tokens": 71,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1231.398,
+        "context_ms": 0.068,
+        "generation_ms": 1523.736,
+        "total_ms": 2755.327
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g042",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "In the official CCL test, one repeated segment per dialogue is allowed without penalty, but additional repeats may attract deductions. [S1] Excessive segment repeats can also result in deductions. [S2] In Way2Australia practice, repeats are allowed, and the application may remind you of the official test repeat rule. [S3] A practice repeat is not a new mock attempt. [S3]",
+      "cited_document_ids": [
+        "official_002_candidate_rules_setup",
+        "official_001_ccl_format_scoring_results",
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "relevant_document_ids": [
+        "official_002_candidate_rules_setup"
+      ],
+      "citation_precision": 0.3333333333333333,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1935,
+        "output_tokens": 156,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1022.756,
+        "context_ms": 0.042,
+        "generation_ms": 2505.65,
+        "total_ms": 3528.554
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g043",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "No. Headsets, headphones and earphones are not allowed in the official NAATI CCL test. [S1] Check the live NAATI candidate instructions for current requirements. [S2]",
+      "cited_document_ids": [
+        "official_002_candidate_rules_setup",
+        "official_002_candidate_rules_setup"
+      ],
+      "relevant_document_ids": [
+        "official_002_candidate_rules_setup"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1880,
+        "output_tokens": 87,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1024.435,
+        "context_ms": 0.043,
+        "generation_ms": 2217.435,
+        "total_ms": 3242.013
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g044",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "No. Typed notes are prohibited in the official test. [S1] Notes may be taken only with a pen and blank loose sheets of paper. [S1] Always check the live NAATI candidate instructions for current requirements. [S5]",
+      "cited_document_ids": [
+        "official_002_candidate_rules_setup",
+        "official_002_candidate_rules_setup"
+      ],
+      "relevant_document_ids": [
+        "official_002_candidate_rules_setup"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1879,
+        "output_tokens": 102,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1764.323,
+        "context_ms": 0.048,
+        "generation_ms": 2418.528,
+        "total_ms": 4190.079
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g045",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "Complete the system check at least 48 hours before the test, using the same computer, phone, location and internet connection you intend to use on test day. [S1] Check the live NAATI candidate instructions for current requirements. [S1]",
+      "cited_document_ids": [
+        "official_002_candidate_rules_setup"
+      ],
+      "relevant_document_ids": [
+        "official_002_candidate_rules_setup"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1808,
+        "output_tokens": 94,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 2076.944,
+        "context_ms": 0.042,
+        "generation_ms": 2162.399,
+        "total_ms": 4239.484
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g046",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "The official NAATI CCL test fee is A$814, according to information verified on 9 October 2026. [S1]",
+      "cited_document_ids": [
+        "official_003_booking_fees_validity"
+      ],
+      "relevant_document_ids": [
+        "official_003_booking_fees_validity"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1768,
+        "output_tokens": 60,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1508.93,
+        "context_ms": 0.101,
+        "generation_ms": 2167.857,
+        "total_ms": 3677.024
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g047",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "The NAATI CCL result review fee is A$187. [S1]",
+      "cited_document_ids": [
+        "official_003_booking_fees_validity"
+      ],
+      "relevant_document_ids": [
+        "official_003_booking_fees_validity"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1767,
+        "output_tokens": 46,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1258.017,
+        "context_ms": 0.08,
+        "generation_ms": 1705.61,
+        "total_ms": 2963.976
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g048",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "CCL credentials issued from 9 August 2022 are valid for five years. [S1] Credentials issued before that date had three-year validity. [S1] NAATI does not extend an expired CCL credential, so a new test is required. [S1]",
+      "cited_document_ids": [
+        "official_003_booking_fees_validity"
+      ],
+      "relevant_document_ids": [
+        "official_003_booking_fees_validity"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1814,
+        "output_tokens": 101,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1924.489,
+        "context_ms": 0.128,
+        "generation_ms": 2423.325,
+        "total_ms": 4348.347
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g049",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "No. NAATI does not extend an expired CCL credential; a new test is required. [S1]",
+      "cited_document_ids": [
+        "official_003_booking_fees_validity"
+      ],
+      "relevant_document_ids": [
+        "official_003_booking_fees_validity"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1819,
+        "output_tokens": 54,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1838.962,
+        "context_ms": 0.087,
+        "generation_ms": 2296.576,
+        "total_ms": 4157.823
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g050",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "The Home Affairs points tables currently award 5 points for holding a recognised qualification in a credentialled community language when the relevant points-test requirements are met. [S1] Passing CCL does not automatically make someone eligible for a visa or guarantee migration points, because eligibility depends on the applicable visa rules and personal circumstances. [S1]",
+      "cited_document_ids": [
+        "official_004_migration_points"
+      ],
+      "relevant_document_ids": [
+        "official_004_migration_points"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1940,
+        "output_tokens": 136,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1631.771,
+        "context_ms": 0.057,
+        "generation_ms": 2096.463,
+        "total_ms": 3728.462
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g051",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "No. Passing CCL does not automatically make you eligible for a visa or guarantee migration points, because eligibility depends on the applicable visa rules and your circumstances. [S1] Home Affairs awards 5 points for a recognised qualification in a credentialled community language when the relevant points-test requirements are met. [S1] Way2Australia also cannot guarantee migration points or a visa outcome. [S2] For your personal situation, check current Home Affairs information or consult an appropriately qualified migration adviser. [S1]",
+      "cited_document_ids": [
+        "official_004_migration_points",
+        "business_001_overview_scope"
+      ],
+      "relevant_document_ids": [
+        "business_001_overview_scope",
+        "official_004_migration_points"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 1,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1942,
+        "output_tokens": 198,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 2265.468,
+        "context_ms": 0.117,
+        "generation_ms": 2054.197,
+        "total_ms": 4320.005
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g052",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "No, not merely for using a Kerala regional dialect. NAATI recognises regional variations and dialects for Malayalam CCL, as long as the language would be understood by an average Malayalee living in Kerala. [S1]",
+      "cited_document_ids": [
+        "language_ml_001_naati_policy"
+      ],
+      "relevant_document_ids": [
+        "language_ml_001_naati_policy"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1978,
+        "output_tokens": 96,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1204.913,
+        "context_ms": 0.892,
+        "generation_ms": 2016.499,
+        "total_ms": 3222.398
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g053",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "Limited use of English words may be acceptable when the word is conventionally used and widely understood, particularly in scientific, medical and technical contexts or where an accurate Malayalam translation is unavailable. [S1] However, where a commonly used Malayalam equivalent exists, NAATI prefers the Malayalam term. [S2]",
+      "cited_document_ids": [
+        "language_ml_001_naati_policy",
+        "language_ml_001_naati_policy"
+      ],
+      "relevant_document_ids": [
+        "language_ml_001_naati_policy"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 2019,
+        "output_tokens": 134,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1600.028,
+        "context_ms": 0.086,
+        "generation_ms": 3013.789,
+        "total_ms": 4614.093
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g054",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "NAATI's Malayalam policy expects numbers to be rendered in Malayalam rather than simply repeated in English/Hindi numerals. [S1] Figures expressed in millions should be converted appropriately to lakhs/crores, and vice versa. [S1]",
+      "cited_document_ids": [
+        "language_ml_001_naati_policy"
+      ],
+      "relevant_document_ids": [
+        "language_ml_001_naati_policy"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 2014,
+        "output_tokens": 112,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1597.246,
+        "context_ms": 0.062,
+        "generation_ms": 5505.218,
+        "total_ms": 7102.761
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g055",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "mixed",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "Package validity payment ചെയ്ത ദിവസം മുതൽ 60 ദിവസമാണ്. [S3] Practice materials-ൽ 60-day online materials access ഉൾപ്പെടുന്നു. [S1]",
+      "cited_document_ids": [
+        "business_002_packages_pricing_validity",
+        "business_002_packages_pricing_validity"
+      ],
+      "relevant_document_ids": [
+        "business_002_packages_pricing_validity"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 1767,
+        "output_tokens": 112,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1931.569,
+        "context_ms": 0.066,
+        "generation_ms": 1723.056,
+        "total_ms": 3654.909
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g056",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "mixed",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "അതെ. personal coaching package-ൽ 60 മിനിറ്റ് വീതമുള്ള six individual coaching sessions ഉണ്ട്, കൂടാതെ 25 മിനിറ്റ് വീതമുള്ള three additional live single-dialogue assessments-ഉം ഉണ്ട് [S1]. ഈ മൂന്ന് 25 മിനിറ്റ് appointments അധികമായുള്ളവയാണ്, six coaching hours-ന്റെ ഭാഗമല്ല [S3]. ഓരോ 25 മിനിറ്റ് appointment-ലും single-dialogue assessment-ഉം feedback-ഉം ഉൾപ്പെടുന്നു [S3].",
+      "cited_document_ids": [
+        "business_005_coaching",
+        "business_005_coaching"
+      ],
+      "relevant_document_ids": [
+        "business_005_coaching"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 1727,
+        "output_tokens": 289,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1500.593,
+        "context_ms": 0.046,
+        "generation_ms": 4228.575,
+        "total_ms": 5729.295
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g057",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "mixed",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "ഉണ്ട്, ₹1,300 / A$20 വിലയുള്ള full-length self-paced mock-ൽ രണ്ട് dialogues ഉണ്ട്. [S1][S2] ഇത് പൂർത്തിയാക്കിയ ശേഷം expert-marked feedback ലഭിക്കും. [S1]",
+      "cited_document_ids": [
+        "business_002_packages_pricing_validity",
+        "business_006_mock_assessments"
+      ],
+      "relevant_document_ids": [
+        "business_006_mock_assessments"
+      ],
+      "citation_precision": 0.5,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 1806,
+        "output_tokens": 150,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1836.814,
+        "context_ms": 0.071,
+        "generation_ms": 2907.853,
+        "total_ms": 4744.936
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g058",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "mixed",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "Self-paced mock feedback സാധാരണയായി submission കഴിഞ്ഞ് മൂന്ന് working days-നുള്ളിൽ ലഭിക്കും. [S1] Weekends-ഉം public holidays-ഉം ഈ സമയപരിധിയിൽ count ചെയ്യില്ല. [S1] കൃത്യമായ feedback-return date ഉറപ്പ് പറയാൻ കഴിയില്ല. [S3]",
+      "cited_document_ids": [
+        "business_006_mock_assessments",
+        "business_006_mock_assessments"
+      ],
+      "relevant_document_ids": [
+        "business_006_mock_assessments"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 1779,
+        "output_tokens": 195,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1724.594,
+        "context_ms": 0.052,
+        "generation_ms": 5596.874,
+        "total_ms": 7321.786
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g059",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "mixed",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "ഇല്ല, pass ആകില്ല. CCL pass ആകാൻ overall കുറഞ്ഞത് 63/90 വേണം, കൂടാതെ ഓരോ dialogue-ലും കുറഞ്ഞത് 29/45 വേണം. [S1] ഒരു dialogue 29-ൽ കുറവാണെങ്കിൽ overall 63 അല്ലെങ്കിൽ അതിൽ കൂടുതലായാലും fail ആകാം. [S1]",
+      "cited_document_ids": [
+        "official_001_ccl_format_scoring_results"
+      ],
+      "relevant_document_ids": [
+        "official_001_ccl_format_scoring_results"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 1971,
+        "output_tokens": 206,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1797.082,
+        "context_ms": 0.051,
+        "generation_ms": 2933.699,
+        "total_ms": 4730.946
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g060",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "mixed",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "ചെറിയ തോതിൽ ഉപയോഗിക്കാം. English വാക്ക് പരമ്പരാഗതമായി ഉപയോഗിക്കുന്നതും വ്യാപകമായി മനസ്സിലാക്കപ്പെടുന്നതും ആണെങ്കിൽ, പ്രത്യേകിച്ച് scientific, medical, technical സന്ദർഭങ്ങളിലോ കൃത്യമായ Malayalam പരിഭാഷ ലഭ്യമല്ലാത്തപ്പോഴോ, NAATI അത് സ്വീകാര്യമായി കണക്കാക്കാം [S1]. എന്നാൽ സാധാരണയായി ഉപയോഗിക്കുന്ന Malayalam വാക്ക് ഉണ്ടെങ്കിൽ NAATI Malayalam പദമാണ് ഇഷ്ടപ്പെടുന്നത് [S2].",
+      "cited_document_ids": [
+        "language_ml_001_naati_policy",
+        "language_ml_001_naati_policy"
+      ],
+      "relevant_document_ids": [
+        "language_ml_001_naati_policy"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 2015,
+        "output_tokens": 375,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1087.804,
+        "context_ms": 0.052,
+        "generation_ms": 2969.416,
+        "total_ms": 4057.362
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g061",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "mixed",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "അതെ. NAATI CCL-ൽ ഓരോ dialogue-നും ഒരു repeated segment പിഴ ഇല്ലാതെ അനുവദിക്കുന്നു, അതിനാൽ ഒരു dialogue-ൽ repeat എടുത്താലും അടുത്ത dialogue-ൽ ഒരെണ്ണം എടുക്കാം. [S1] ഒരു dialogue-ൽ അതിൽ കൂടുതൽ repeat എടുത്താൽ deductions വരാം. [S1] Practice-ൽ repeat അനുവദനീയമാണ്, പക്ഷേ practice repeat പുതിയ mock attempt അല്ല. [S2]",
+      "cited_document_ids": [
+        "official_002_candidate_rules_setup",
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "relevant_document_ids": [
+        "official_002_candidate_rules_setup"
+      ],
+      "citation_precision": 0.5,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 1981,
+        "output_tokens": 456,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1348.6,
+        "context_ms": 0.106,
+        "generation_ms": 4731.565,
+        "total_ms": 6080.487
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g062",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "mixed",
+      "status": "insufficient_evidence",
+      "reason": "model_declined",
+      "sub_reason": null,
+      "answer": null,
+      "cited_document_ids": [],
+      "relevant_document_ids": [
+        "business_003_materials_and_dialogue_practice",
+        "business_006_mock_assessments"
+      ],
+      "citation_precision": null,
+      "citation_recall": null,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "none",
+      "usage": {
+        "input_tokens": 1859,
+        "output_tokens": 22,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1641.554,
+        "context_ms": 0.051,
+        "generation_ms": 1973.463,
+        "total_ms": 3615.132
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g063",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "mixed",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "ഇല്ല. CCL credentials 9 August 2022 മുതൽ issue ചെയ്തവയ്ക്ക് five years validity ആണ് [S1]. എന്നാൽ Practice materials package-ൽ 60-day online materials access ആണ് ഉൾപ്പെടുന്നത് [S3]. Mock review windows (recordings 14 days, transcripts and written feedback 30 days) വേറെയാണ്, അവ materials-access validity-യിൽ നിന്ന് വേറിട്ടതാണ് [S5].",
+      "cited_document_ids": [
+        "official_003_booking_fees_validity",
+        "business_002_packages_pricing_validity",
+        "business_006_mock_assessments"
+      ],
+      "relevant_document_ids": [
+        "business_002_packages_pricing_validity",
+        "official_003_booking_fees_validity"
+      ],
+      "citation_precision": 0.6666666666666666,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 3,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 1860,
+        "output_tokens": 224,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1147.643,
+        "context_ms": 0.065,
+        "generation_ms": 2247.915,
+        "total_ms": 3395.757
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g064",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "ml",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "NAATI CCL പരീക്ഷയിൽ ആകെ 90 മാർക്കാണ് ഉള്ളത്; രണ്ട് ഡയലോഗുകൾ ഉണ്ട്, ഓരോന്നിനും 45 മാർക്ക്. [S1] ജയിക്കാൻ ആകെ കുറഞ്ഞത് 63/90 വേണം, കൂടാതെ ഓരോ ഡയലോഗിലും കുറഞ്ഞത് 29/45 വേണം. [S1] ആകെ 63 അല്ലെങ്കിൽ കൂടുതൽ കിട്ടിയാലും ഒരു ഡയലോഗിൽ 29-ൽ കുറഞ്ഞാൽ തോൽക്കും. [S1]",
+      "cited_document_ids": [
+        "official_001_ccl_format_scoring_results"
+      ],
+      "relevant_document_ids": [
+        "official_001_ccl_format_scoring_results"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 3,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 1895,
+        "output_tokens": 312,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1086.651,
+        "context_ms": 0.042,
+        "generation_ms": 2983.949,
+        "total_ms": 4070.736
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g065",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "ml",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "ഔദ്യോഗിക NAATI CCL ടെസ്റ്റ് ഒരു computer അല്ലെങ്കിൽ laptop-ൽ ആണ് ചെയ്യേണ്ടത്. [S1] ഓൺലൈൻ proctoring-ന്റെ ഭാഗമായി വേറൊരു ഫോൺ അല്ലെങ്കിൽ tablet ഉപയോഗിക്കുന്നു. [S1] നോട്ടുകൾ എടുക്കാൻ പേനയും ശൂന്യമായ loose sheets പേപ്പറും ഉപയോഗിക്കാം. [S1] Headsets, headphones, earphones എന്നിവ അനുവദനീയമല്ല. [S1] മുൻകൂട്ടി തയ്യാറാക്കിയ നോട്ടുകൾ, electronic resources, typed notes, dictionaries, browsing, live captions, transcription tools എന്നിവയും നിരോധിച്ചിരിക്കുന്നു. [S1] ടെസ്റ്റിന് കുറഞ്ഞത് 48 മണിക്കൂർ മുമ്പ്, ഉപയോഗിക്കാൻ ഉദ്ദേശിക്കുന്ന അതേ computer, phone, സ്ഥലം, internet connection എന്നിവ ഉപയോഗിച്ച് system check പൂർത്തിയാക്കണം. [S2] ഏറ്റവും പുതിയ ആവശ്യങ്ങൾക്കായി live NAATI candidate instructions നോക്കുക. [S2]",
+      "cited_document_ids": [
+        "official_002_candidate_rules_setup",
+        "official_002_candidate_rules_setup"
+      ],
+      "relevant_document_ids": [
+        "official_002_candidate_rules_setup"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 3,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 1939,
+        "output_tokens": 609,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1167.638,
+        "context_ms": 0.054,
+        "generation_ms": 5755.702,
+        "total_ms": 6923.561
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g066",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "ml",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "ടെസ്റ്റ് തുടങ്ങുന്നതിന് കുറഞ്ഞത് ഒരു മണിക്കൂർ മുമ്പ് ക്യാൻസൽ ചെയ്താൽ 75% റീഫണ്ടിന് അർഹത ലഭിക്കാം, NAATI-യുടെ നിബന്ധനകൾക്ക് വിധേയമായി. [S1] ടെസ്റ്റിന് എട്ട് ദിവസം മുമ്പ് വരെ റീഷെഡ്യൂൾ ചെയ്യാം, നിലവിലെ NAATI മാർഗനിർദേശപ്രകാരം അതിന് ചെലവില്ല. [S1] CCL test fee A$814 ആണ്. [S1]",
+      "cited_document_ids": [
+        "official_003_booking_fees_validity"
+      ],
+      "relevant_document_ids": [
+        "official_003_booking_fees_validity"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 1838,
+        "output_tokens": 311,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1694.427,
+        "context_ms": 0.051,
+        "generation_ms": 2782.573,
+        "total_ms": 4477.144
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g067",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "ml",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "മെറ്റീരിയൽസും മൂന്ന് full-length self-paced mock-ഉം ഉള്ള പാക്കേജിന് ₹8,499 / A$129 ആണ് വില. [S1]",
+      "cited_document_ids": [
+        "business_002_packages_pricing_validity"
+      ],
+      "relevant_document_ids": [
+        "business_002_packages_pricing_validity"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 2,
+      "expected_facts_total": 3,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 1803,
+        "output_tokens": 102,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1111.991,
+        "context_ms": 0.042,
+        "generation_ms": 2943.553,
+        "total_ms": 4055.815
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g068",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "ml",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "ഇല്ല, ലൈവ് സെഷനുകളുടെ റെക്കോർഡിംഗുകൾ നൽകുന്നില്ല. [S1][S2]",
+      "cited_document_ids": [
+        "business_005_coaching",
+        "business_005_coaching"
+      ],
+      "relevant_document_ids": [
+        "business_005_coaching"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 1828,
+        "output_tokens": 93,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 2138.67,
+        "context_ms": 0.072,
+        "generation_ms": 3691.059,
+        "total_ms": 5830.095
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g069",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "ml",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "പോരാ. NAATI-യുടെ Malayalam policy പ്രകാരം സംഖ്യകൾ ഇംഗ്ലീഷ്/ഹിന്ദി അക്കങ്ങളായി ആവർത്തിക്കാതെ Malayalam-ൽ പറയണം. [S1] മില്യൺ കണക്കുകൾ ഉചിതമായി lakhs/crores ആയി മാറ്റണം, തിരിച്ചും. [S1] ഇംഗ്ലീഷ് വാക്കുകളുടെ പരിമിതമായ ഉപയോഗം സാധാരണയായി വ്യാപകമായി മനസ്സിലാകുന്ന വാക്കുകൾക്ക് മാത്രമേ സ്വീകാര്യമാകൂ, പ്രത്യേകിച്ച് ശാസ്ത്ര, വൈദ്യ, സാങ്കേതിക സന്ദർഭങ്ങളിൽ. [S2]",
+      "cited_document_ids": [
+        "language_ml_001_naati_policy",
+        "language_ml_001_naati_policy"
+      ],
+      "relevant_document_ids": [
+        "language_ml_001_naati_policy"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 2087,
+        "output_tokens": 389,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1719.315,
+        "context_ms": 0.057,
+        "generation_ms": 4116.701,
+        "total_ms": 5836.157
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g070",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "ml",
+      "status": "insufficient_evidence",
+      "reason": "citation_invalid",
+      "sub_reason": "model_url",
+      "answer": null,
+      "cited_document_ids": [],
+      "relevant_document_ids": [
+        "business_007_payments_account_support"
+      ],
+      "citation_precision": null,
+      "citation_recall": null,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "none",
+      "usage": {
+        "input_tokens": 1658,
+        "output_tokens": 367,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1407.999,
+        "context_ms": 0.05,
+        "generation_ms": 7762.752,
+        "total_ms": 9170.967
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g071",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "ml",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "ഒരു standalone കോച്ചിംഗ് സെഷന് ₹1,999 / A$30 ആണ്. [S1][S2] സെഷൻ 60 minutes നീണ്ടുനിൽക്കും, Google Meet വഴിയാണ് നടത്തുന്നത്. [S1]",
+      "cited_document_ids": [
+        "business_005_coaching",
+        "business_002_packages_pricing_validity"
+      ],
+      "relevant_document_ids": [
+        "business_002_packages_pricing_validity",
+        "business_005_coaching"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 2,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 1734,
+        "output_tokens": 139,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1640.16,
+        "context_ms": 0.037,
+        "generation_ms": 2270.579,
+        "total_ms": 3910.905
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g072",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "ml",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "പാക്കേജിന്റെ കാലാവധി പേയ്‌മെന്റ് നടത്തിയ ദിവസം മുതൽ 60 ദിവസമാണ്. [S1] ഉൾപ്പെടുത്തിയ സെഷനുകളും മോക്കുകളും ഈ കാലാവധിക്കുള്ളിൽ തന്നെ ഉപയോഗിക്കണം. [S1] കാലാവധി നീട്ടുന്നതുമായി ബന്ധപ്പെട്ട കാര്യങ്ങൾ Way2Australia-യെ നേരിട്ട് സമീപിച്ച് ചോദിക്കണം; അംഗീകരിച്ചിട്ടില്ലാത്ത ഉറപ്പുകൾ നൽകാൻ കഴിയില്ല. [S1]",
+      "cited_document_ids": [
+        "business_002_packages_pricing_validity"
+      ],
+      "relevant_document_ids": [
+        "business_002_packages_pricing_validity"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 1719,
+        "output_tokens": 332,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1088.005,
+        "context_ms": 0.038,
+        "generation_ms": 3223.399,
+        "total_ms": 4311.534
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g073",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "ml",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "സൗജന്യ ആക്സസിൽ ഇവ ഉൾപ്പെടുന്നു: ലഭ്യമായ ഓരോ domain-ലെയും ആദ്യത്തെ published practice dialogue, list mode-ൽ ഓരോ domain-നും ten vocabulary words, sentence collection ഉള്ള ഇടങ്ങളിൽ ഓരോ domain-നും five sentences, കൂടാതെ ആകെ പരമാവധി ten saved vocabulary entries. [S1] General vocabulary-ക്ക് നിലവിൽ sentence collection ഇല്ല. [S1] മുമ്പ് സേവ് ചെയ്ത vocabulary, paid materials access കാലഹരണപ്പെട്ടാലും വായിക്കാൻ സാധിക്കും. [S2] Paid learning features-ഉം free allowance-നപ്പുറം സേവ് ചെയ്യുന്നതും സജീവമായ access ആവശ്യപ്പെടുന്നു. [S2]",
+      "cited_document_ids": [
+        "business_004_vocabulary_and_free_access",
+        "business_004_vocabulary_and_free_access"
+      ],
+      "relevant_document_ids": [
+        "business_004_vocabulary_and_free_access"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 1820,
+        "output_tokens": 402,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 998.238,
+        "context_ms": 0.039,
+        "generation_ms": 4126.602,
+        "total_ms": 5124.973
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g074",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "ml",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "ഇല്ല. പ്രാക്ടീസ് റെക്കോർഡിംഗുകൾ സന്ദർശകന്റെ browser-ൽ മാത്രമാണ് നിലനിൽക്കുന്നത്, അവ അക്കൗണ്ടിലേക്ക് upload ചെയ്യപ്പെടുന്നില്ല. [S1] പേജ് refresh ചെയ്യുകയോ അടയ്ക്കുകയോ ചെയ്താൽ അവ നഷ്ടപ്പെടാം. [S1] Completion progress റെക്കോർഡിംഗുകളിൽ നിന്ന് വേറെയാണ് സൂക്ഷിക്കുന്നത്. [S1]",
+      "cited_document_ids": [
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "relevant_document_ids": [
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 3,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 1834,
+        "output_tokens": 292,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1362.654,
+        "context_ms": 0.135,
+        "generation_ms": 2625.657,
+        "total_ms": 3988.675
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g075",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "ml",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "ഒരു mock set-ൽ ഒരു submitted attempt മാത്രമേ അനുവദിക്കൂ. [S1] വീണ്ടും ഒരു mock എഴുതണമെങ്കിൽ മറ്റൊരു eligible set വേണം. [S1] സാധാരണ practice ആവർത്തിക്കാം, പക്ഷേ practice repeat ഒരു പുതിയ mock attempt അല്ല. [S2] ഉദാഹരണത്തിന്, Materials + three mocks പാക്കേജിൽ മൂന്ന് full-length self-paced mocks ഉൾപ്പെടുന്നു. [S5]",
+      "cited_document_ids": [
+        "business_006_mock_assessments",
+        "business_003_materials_and_dialogue_practice",
+        "business_002_packages_pricing_validity"
+      ],
+      "relevant_document_ids": [
+        "business_006_mock_assessments"
+      ],
+      "citation_precision": 0.3333333333333333,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 1899,
+        "output_tokens": 269,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1237.684,
+        "context_ms": 0.045,
+        "generation_ms": 2518.003,
+        "total_ms": 3755.831
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g076",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "ml",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "CCL പാസായാൽ മൈഗ്രേഷൻ പോയിന്റ് ഉറപ്പായും കിട്ടുമെന്ന് പറയാൻ കഴിയില്ല. Home Affairs points tables പ്രകാരം, points-test requirements പാലിക്കുമ്പോൾ credentialled community language-ലെ അംഗീകൃത യോഗ്യതയ്ക്ക് 5 പോയിന്റ് ലഭിക്കും [S1]. എന്നാൽ CCL പാസായതുകൊണ്ട് മാത്രം visa eligibility അല്ലെങ്കിൽ പോയിന്റ് ഉറപ്പാകില്ല; അത് ബാധകമായ visa നിയമങ്ങളെയും നിങ്ങളുടെ സാഹചര്യത്തെയും ആശ്രയിച്ചിരിക്കും [S1]. വ്യക്തിഗത കാര്യത്തിന് നിലവിലെ Home Affairs വിവരങ്ങൾ നോക്കുകയോ യോഗ്യതയുള്ള migration adviser-നെ സമീപിക്കുകയോ ചെയ്യുക [S1]. Way2Australia-യും migration points അല്ലെങ്കിൽ visa ഫലം ഉറപ്പ് നൽകുന്നില്ല [S2].",
+      "cited_document_ids": [
+        "official_004_migration_points",
+        "business_001_overview_scope"
+      ],
+      "relevant_document_ids": [
+        "official_004_migration_points"
+      ],
+      "citation_precision": 0.5,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 1969,
+        "output_tokens": 525,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1062.424,
+        "context_ms": 0.047,
+        "generation_ms": 5102.001,
+        "total_ms": 6164.587
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g077",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "ml",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "ടെസ്റ്റിന് കുറഞ്ഞത് 48 hours മുമ്പ് സിസ്റ്റം ചെക്ക് പൂർത്തിയാക്കണം. ടെസ്റ്റിന് ഉപയോഗിക്കാൻ ഉദ്ദേശിക്കുന്ന അതേ computer, phone, location, internet connection എന്നിവ തന്നെ ഉപയോഗിക്കണം. [S1]",
+      "cited_document_ids": [
+        "official_002_candidate_rules_setup"
+      ],
+      "relevant_document_ids": [
+        "official_002_candidate_rules_setup"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 1897,
+        "output_tokens": 193,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1772.97,
+        "context_ms": 0.138,
+        "generation_ms": 2412.082,
+        "total_ms": 4185.384
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g078",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "ml",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "പ്രാദേശിക ഭാഷാഭേദം ഉപയോഗിച്ചു എന്നതിന്റെ പേരിൽ മാത്രം candidate-നെ NAATI ശിക്ഷിക്കില്ല. പക്ഷേ ആ ഭാഷ കേരളത്തിൽ താമസിക്കുന്ന ഒരു സാധാരണ മലയാളിക്ക് മനസ്സിലാകുന്നതായിരിക്കണം. [S1] സാധാരണയായി ഉപയോഗിക്കുന്ന മലയാള പദം ഉണ്ടെങ്കിൽ NAATI മലയാള പദമാണ് ഇഷ്ടപ്പെടുന്നത്. [S3]",
+      "cited_document_ids": [
+        "language_ml_001_naati_policy",
+        "language_ml_001_naati_policy"
+      ],
+      "relevant_document_ids": [
+        "language_ml_001_naati_policy"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 1950,
+        "output_tokens": 302,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1058.655,
+        "context_ms": 0.041,
+        "generation_ms": 6865.516,
+        "total_ms": 7924.628
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g079",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "ml",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "2022 ഓഗസ്റ്റ് 9 മുതൽ നൽകുന്ന CCL ക്രെഡൻഷ്യലുകൾക്ക് അഞ്ച് വർഷം കാലാവധിയുണ്ട്. [S1] ആ തീയതിക്ക് മുമ്പ് നൽകിയവയ്ക്ക് മൂന്ന് വർഷമായിരുന്നു കാലാവധി. [S1] കാലാവധി കഴിഞ്ഞ CCL ക്രെഡൻഷ്യൽ NAATI നീട്ടിനൽകില്ല; പുതിയ ടെസ്റ്റ് എഴുതണം. [S1]",
+      "cited_document_ids": [
+        "official_003_booking_fees_validity"
+      ],
+      "relevant_document_ids": [
+        "official_003_booking_fees_validity"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 1914,
+        "output_tokens": 279,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1622.594,
+        "context_ms": 0.054,
+        "generation_ms": 5883.592,
+        "total_ms": 7506.343
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g080",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "mixed",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "Ledu, official CCL test-lo headsets, headphones, earphones allowed kaadu. [S1] Current requirements kosam live NAATI candidate instructions chudandi. [S2]",
+      "cited_document_ids": [
+        "official_002_candidate_rules_setup",
+        "official_002_candidate_rules_setup"
+      ],
+      "relevant_document_ids": [
+        "official_002_candidate_rules_setup"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1885,
+        "output_tokens": 92,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1317.325,
+        "context_ms": 0.039,
+        "generation_ms": 2099.34,
+        "total_ms": 3416.79
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g081",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "mixed",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "Planned cancellation aanenkil, session-nu kurachu 24 manikkoor munpe Way2Australia-ne ariyikkanam. [S1] Session miss aayaal allenkil 24 manikkoorinekkal kuravu notice aanenkil, replacement vaagdanam cheyyaan kazhiyilla, charge undo ennu theerumanikkaanum kazhiyilla; case Way2Australia-ku refer cheyyanam. [S1]",
+      "cited_document_ids": [
+        "business_005_coaching"
+      ],
+      "relevant_document_ids": [
+        "business_005_coaching"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1704,
+        "output_tokens": 185,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1103.605,
+        "context_ms": 0.068,
+        "generation_ms": 3377.129,
+        "total_ms": 4480.958
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g082",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "mixed",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "NAATI results normally email cheyyunnathu 4–6 aazhchakkullil aanu. [S2][S4]",
+      "cited_document_ids": [
+        "official_001_ccl_format_scoring_results",
+        "official_003_booking_fees_validity"
+      ],
+      "relevant_document_ids": [
+        "official_001_ccl_format_scoring_results",
+        "official_003_booking_fees_validity"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 1,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1908,
+        "output_tokens": 68,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1722.84,
+        "context_ms": 0.049,
+        "generation_ms": 4966.182,
+        "total_ms": 6689.278
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g083",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "mixed",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "\"Due today\" എന്നതിന്റെ അർത്ഥം vocabulary reviews തയ്യാറാണ് അല്ലെങ്കിൽ കഴിഞ്ഞുപോയി (overdue) എന്നാണ്. ഇത് ഒരു study reminder മാത്രമാണ്, exam score അല്ല. [S1]",
+      "cited_document_ids": [
+        "business_004_vocabulary_and_free_access"
+      ],
+      "relevant_document_ids": [
+        "business_004_vocabulary_and_free_access"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 1949,
+        "output_tokens": 152,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1588.328,
+        "context_ms": 0.056,
+        "generation_ms": 1931.838,
+        "total_ms": 3520.289
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g084",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "mixed",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "Sample dialogue-ലെ Malayalam model ഇതാണ്: \"നമസ്കാരം! ഞാൻ ടോം. നിങ്ങൾ ഇവിടെ പുതിയതായി താമസം മാറിയതാണെന്ന് ഞാൻ ശ്രദ്ധിച്ചു - നമ്മുടെ അയൽപക്കത്തേക്ക് സ്വാഗതം!\" [S1] ഇത് ഒരു സൗഹൃദപരമായ, അനൗപചാരിക അയൽക്കാരുടെ അഭിവാദ്യമാണ്; Malayalam ഔപചാരികമാകാതെ സൗഹൃദവും ലളിതവുമായി തുടരണം. [S1]",
+      "cited_document_ids": [
+        "business_008_public_samples"
+      ],
+      "relevant_document_ids": [
+        "business_008_public_samples"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 2002,
+        "output_tokens": 300,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1101.303,
+        "context_ms": 0.057,
+        "generation_ms": 3779.242,
+        "total_ms": 4880.705
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g085",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "mixed",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "അതെ, CCL test fee A$814 ആണ്. [S1] CCL result review fee A$187 ആണ്. [S1]",
+      "cited_document_ids": [
+        "official_003_booking_fees_validity"
+      ],
+      "relevant_document_ids": [
+        "official_003_booking_fees_validity"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 2,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 1756,
+        "output_tokens": 71,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1191.527,
+        "context_ms": 0.038,
+        "generation_ms": 2805.477,
+        "total_ms": 3997.137
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g086",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "mixed",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "ഇല്ല, CCL pass ആയാൽ visa ഉറപ്പില്ല. CCL pass ആയതുകൊണ്ട് മാത്രം വ്യക്തി automatically eligible ആകുമെന്നോ migration points ഉറപ്പാണെന്നോ കരുതാൻ പാടില്ല. [S1] Home Affairs points tables-ൽ, points-test requirements പാലിക്കുമ്പോൾ credentialled community language-ലെ അംഗീകൃത qualification-ന് 5 points നൽകുന്നു. [S1] എന്നാൽ eligibility visa rules-നെയും വ്യക്തിയുടെ സാഹചര്യത്തെയും ആശ്രയിച്ചിരിക്കും; ഇതിനായി നിലവിലെ Home Affairs വിവരങ്ങളോ യോഗ്യതയുള്ള migration adviser-നെയോ സമീപിക്കുക. [S1] Way2Australia-ക്കും migration points, visa outcome എന്നിവ ഉറപ്പ് നൽകാൻ കഴിയില്ല. [S2]",
+      "cited_document_ids": [
+        "official_004_migration_points",
+        "business_001_overview_scope"
+      ],
+      "relevant_document_ids": [
+        "business_001_overview_scope",
+        "official_004_migration_points"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 1923,
+        "output_tokens": 436,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1050.692,
+        "context_ms": 0.072,
+        "generation_ms": 4445.472,
+        "total_ms": 5496.379
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "g087",
+      "case_version": 1,
+      "kind": "golden_answerable",
+      "query_language": "mixed",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "ഇല്ല. Materials package-ൽ 120+ practice dialogues ഉണ്ട്, പക്ഷേ recorded video lessons അഞ്ച് dialogues-ന് മാത്രമാണ്. [S1] എല്ലാ dialogues-നും video lessons നൽകുന്നില്ല. [S1]",
+      "cited_document_ids": [
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "relevant_document_ids": [
+        "business_003_materials_and_dialogue_practice"
+      ],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 2,
+      "answer_script_mix": "latin+malayalam",
+      "usage": {
+        "input_tokens": 1825,
+        "output_tokens": 143,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1040.2,
+        "context_ms": 0.039,
+        "generation_ms": 2072.374,
+        "total_ms": 3112.726
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "u001",
+      "case_version": 1,
+      "kind": "unanswerable_refusal",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "No. Way2Australia cannot guarantee an exam result, a fixed preparation period, migration points or a visa outcome. [S1] Way2Australia mock scores are preparation feedback only, and NAATI alone determines official test results. [S1]",
+      "cited_document_ids": [
+        "business_001_overview_scope"
+      ],
+      "relevant_document_ids": [],
+      "citation_precision": null,
+      "citation_recall": null,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 0,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1893,
+        "output_tokens": 105,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1054.357,
+        "context_ms": 0.042,
+        "generation_ms": 2205.914,
+        "total_ms": 3260.402
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "u002",
+      "case_version": 1,
+      "kind": "unanswerable_refusal",
+      "query_language": "en",
+      "status": "insufficient_evidence",
+      "reason": "model_declined",
+      "sub_reason": null,
+      "answer": null,
+      "cited_document_ids": [],
+      "relevant_document_ids": [],
+      "citation_precision": null,
+      "citation_recall": null,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 0,
+      "answer_script_mix": "none",
+      "usage": {
+        "input_tokens": 1846,
+        "output_tokens": 22,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1314.712,
+        "context_ms": 0.075,
+        "generation_ms": 1214.069,
+        "total_ms": 2528.936
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "u003",
+      "case_version": 1,
+      "kind": "unanswerable_refusal",
+      "query_language": "en",
+      "status": "answered",
+      "reason": null,
+      "sub_reason": null,
+      "answer": "No. Passing CCL does not automatically make you eligible for a visa or guarantee migration points. [S1] Eligibility depends on the applicable visa rules and your circumstances. [S1] Please check current Home Affairs information or speak to an appropriately qualified migration adviser. [S1] Way2Australia also cannot guarantee migration points or a visa outcome. [S2]",
+      "cited_document_ids": [
+        "official_004_migration_points",
+        "business_001_overview_scope"
+      ],
+      "relevant_document_ids": [],
+      "citation_precision": null,
+      "citation_recall": null,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 0,
+      "answer_script_mix": "latin",
+      "usage": {
+        "input_tokens": 1861,
+        "output_tokens": 152,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1080.925,
+        "context_ms": 0.044,
+        "generation_ms": 7586.157,
+        "total_ms": 8667.254
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "u004",
+      "case_version": 1,
+      "kind": "unanswerable_refusal",
+      "query_language": "en",
+      "status": "insufficient_evidence",
+      "reason": "model_declined",
+      "sub_reason": null,
+      "answer": null,
+      "cited_document_ids": [],
+      "relevant_document_ids": [],
+      "citation_precision": null,
+      "citation_recall": null,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 0,
+      "answer_script_mix": "none",
+      "usage": {
+        "input_tokens": 1884,
+        "output_tokens": 22,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1768.853,
+        "context_ms": 0.053,
+        "generation_ms": 2210.408,
+        "total_ms": 3979.388
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "u005",
+      "case_version": 1,
+      "kind": "unanswerable_refusal",
+      "query_language": "en",
+      "status": "insufficient_evidence",
+      "reason": "model_declined",
+      "sub_reason": null,
+      "answer": null,
+      "cited_document_ids": [],
+      "relevant_document_ids": [],
+      "citation_precision": null,
+      "citation_recall": null,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 0,
+      "answer_script_mix": "none",
+      "usage": {
+        "input_tokens": 1823,
+        "output_tokens": 22,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1097.154,
+        "context_ms": 0.042,
+        "generation_ms": 5107.702,
+        "total_ms": 6205.01
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "u006",
+      "case_version": 1,
+      "kind": "unanswerable_refusal",
+      "query_language": "en",
+      "status": "insufficient_evidence",
+      "reason": "model_declined",
+      "sub_reason": null,
+      "answer": null,
+      "cited_document_ids": [],
+      "relevant_document_ids": [],
+      "citation_precision": null,
+      "citation_recall": null,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 0,
+      "answer_script_mix": "none",
+      "usage": {
+        "input_tokens": 1782,
+        "output_tokens": 22,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1613.209,
+        "context_ms": 0.051,
+        "generation_ms": 1319.29,
+        "total_ms": 2932.622
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "u007",
+      "case_version": 1,
+      "kind": "unanswerable_refusal",
+      "query_language": "en",
+      "status": "insufficient_evidence",
+      "reason": "citation_invalid",
+      "sub_reason": "model_url",
+      "answer": null,
+      "cited_document_ids": [],
+      "relevant_document_ids": [],
+      "citation_precision": null,
+      "citation_recall": null,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 0,
+      "answer_script_mix": "none",
+      "usage": {
+        "input_tokens": 1597,
+        "output_tokens": 115,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 997.717,
+        "context_ms": 0.03,
+        "generation_ms": 1899.069,
+        "total_ms": 2896.868
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "u008",
+      "case_version": 1,
+      "kind": "unanswerable_refusal",
+      "query_language": "en",
+      "status": "insufficient_evidence",
+      "reason": "model_declined",
+      "sub_reason": null,
+      "answer": null,
+      "cited_document_ids": [],
+      "relevant_document_ids": [],
+      "citation_precision": null,
+      "citation_recall": null,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 0,
+      "answer_script_mix": "none",
+      "usage": {
+        "input_tokens": 1605,
+        "output_tokens": 22,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 2359.261,
+        "context_ms": 0.084,
+        "generation_ms": 1210.433,
+        "total_ms": 3569.871
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "u009",
+      "case_version": 1,
+      "kind": "unanswerable_refusal",
+      "query_language": "en",
+      "status": "insufficient_evidence",
+      "reason": "model_declined",
+      "sub_reason": null,
+      "answer": null,
+      "cited_document_ids": [],
+      "relevant_document_ids": [],
+      "citation_precision": null,
+      "citation_recall": null,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 0,
+      "answer_script_mix": "none",
+      "usage": {
+        "input_tokens": 1829,
+        "output_tokens": 22,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1195.887,
+        "context_ms": 0.128,
+        "generation_ms": 1325.413,
+        "total_ms": 2521.583
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "u010",
+      "case_version": 1,
+      "kind": "unanswerable_refusal",
+      "query_language": "en",
+      "status": "insufficient_evidence",
+      "reason": "model_declined",
+      "sub_reason": null,
+      "answer": null,
+      "cited_document_ids": [],
+      "relevant_document_ids": [],
+      "citation_precision": null,
+      "citation_recall": null,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 0,
+      "answer_script_mix": "none",
+      "usage": {
+        "input_tokens": 1858,
+        "output_tokens": 22,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1120.6,
+        "context_ms": 0.053,
+        "generation_ms": 1602.875,
+        "total_ms": 2723.636
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "u011",
+      "case_version": 1,
+      "kind": "unanswerable_refusal",
+      "query_language": "en",
+      "status": "insufficient_evidence",
+      "reason": "citation_invalid",
+      "sub_reason": "model_url",
+      "answer": null,
+      "cited_document_ids": [],
+      "relevant_document_ids": [],
+      "citation_precision": null,
+      "citation_recall": null,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 0,
+      "answer_script_mix": "none",
+      "usage": {
+        "input_tokens": 1650,
+        "output_tokens": 147,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1171.692,
+        "context_ms": 0.073,
+        "generation_ms": 2101.97,
+        "total_ms": 3273.857
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "u012",
+      "case_version": 1,
+      "kind": "unanswerable_refusal",
+      "query_language": "en",
+      "status": "insufficient_evidence",
+      "reason": "model_declined",
+      "sub_reason": null,
+      "answer": null,
+      "cited_document_ids": [],
+      "relevant_document_ids": [],
+      "citation_precision": null,
+      "citation_recall": null,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 0,
+      "answer_script_mix": "none",
+      "usage": {
+        "input_tokens": 1789,
+        "output_tokens": 22,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1007.856,
+        "context_ms": 0.039,
+        "generation_ms": 2114.521,
+        "total_ms": 3122.459
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "u013",
+      "case_version": 1,
+      "kind": "unanswerable_refusal",
+      "query_language": "ml",
+      "status": "insufficient_evidence",
+      "reason": "citation_invalid",
+      "sub_reason": "model_url",
+      "answer": null,
+      "cited_document_ids": [],
+      "relevant_document_ids": [],
+      "citation_precision": null,
+      "citation_recall": null,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 0,
+      "answer_script_mix": "none",
+      "usage": {
+        "input_tokens": 1771,
+        "output_tokens": 386,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1159.664,
+        "context_ms": 0.039,
+        "generation_ms": 3447.392,
+        "total_ms": 4607.16
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "u014",
+      "case_version": 1,
+      "kind": "unanswerable_refusal",
+      "query_language": "ml",
+      "status": "insufficient_evidence",
+      "reason": "citation_invalid",
+      "sub_reason": "model_url",
+      "answer": null,
+      "cited_document_ids": [],
+      "relevant_document_ids": [],
+      "citation_precision": null,
+      "citation_recall": null,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 0,
+      "answer_script_mix": "none",
+      "usage": {
+        "input_tokens": 1768,
+        "output_tokens": 287,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1747.494,
+        "context_ms": 0.076,
+        "generation_ms": 3072.055,
+        "total_ms": 4819.754
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    },
+    {
+      "case_id": "u015",
+      "case_version": 1,
+      "kind": "unanswerable_refusal",
+      "query_language": "ml",
+      "status": "insufficient_evidence",
+      "reason": "model_declined",
+      "sub_reason": null,
+      "answer": null,
+      "cited_document_ids": [],
+      "relevant_document_ids": [],
+      "citation_precision": null,
+      "citation_recall": null,
+      "expected_facts_matched": 0,
+      "expected_facts_total": 0,
+      "answer_script_mix": "none",
+      "usage": {
+        "input_tokens": 1951,
+        "output_tokens": 22,
+        "attempts": 1
+      },
+      "latency_ms": {
+        "retrieval_ms": 1780.943,
+        "context_ms": 0.045,
+        "generation_ms": 1480.281,
+        "total_ms": 3261.324
+      },
+      "served_retrieval_path": "hybrid",
+      "response_model": "claude-sonnet-5-5",
+      "first_request": false
+    }
+  ],
+  "lote": "ml",
+  "top_k": 5,
+  "generator_is_fake": false
+}

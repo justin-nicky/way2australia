@@ -16,6 +16,7 @@ import asyncio
 import sqlite3
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
@@ -741,7 +742,322 @@ def _lexical_sanity_check(
 
 
 SECURITY_RESULT_KIND = "security_evaluation"
-SECURITY_SCHEMA_VERSION = "1.5"
+SECURITY_SCHEMA_VERSION = "1.6"
+
+
+def _generation_harness(repo_root: Any) -> tuple[Any, Any, Any, Any]:
+    from way2australia_rag.generation.config import (
+        DEFAULT_GENERATION_CONFIG,
+        load_generation_config,
+    )
+    from way2australia_rag.generation.context import ContextBuilder
+    from way2australia_rag.generation.prompts import PromptRegistry
+
+    config = load_generation_config(repo_root / DEFAULT_GENERATION_CONFIG, repo_root)
+    prompt = PromptRegistry(repo_root).get(config.prompt.id, config.prompt.version)
+    return config, prompt, ContextBuilder(config.context), config
+
+
+def generation_prompt_isolation(
+    index: SecurityIndex,
+    access: ResolvedAccess,
+    retrieval_config: RetrievalConfig,
+    queries: Sequence[SecurityQuery],
+    repo_root: Any,
+) -> dict[str, Any]:
+    """No forbidden chunk text, canary or document_id in rendered prompts (Spec 012)."""
+    from way2australia_rag.generation.fake import FakeGenerator
+    from way2australia_rag.generation.service import AnswerService
+
+    config, prompt, builder, _ = _generation_harness(repo_root)
+    forbidden_ids: set[str] = set()
+    forbidden_texts: set[str] = set()
+    points, _ = index.client.scroll(index.collection, limit=5000, with_payload=True)
+    for point in points:
+        payload = point.payload or {}
+        document_id = str(payload.get("document_id", ""))
+        if is_forbidden_document(document_id):
+            forbidden_ids.add(document_id)
+            forbidden_texts.add(str(payload.get("chunk_text", "")))
+    if not forbidden_ids:
+        raise EvaluationHarnessError(
+            "generation_prompt_isolation: no forbidden rows in the index."
+        )
+    subset = [q for q in queries if q.kind == "security"] or list(queries[:8])
+    texts = [q.text for q in subset]
+    paths_checked = 0
+    prompts_rendered = 0
+    for path, retriever in _retrievers(index, retrieval_config, ALL_PATHS):
+        generator = FakeGenerator(record=True)
+        service = AnswerService(retriever, builder, prompt, generator, config)
+        for text in texts:
+            response = service.answer(text, access, 5)
+            dumped = response.model_dump_json()
+            for document_id in forbidden_ids:
+                if document_id in dumped:
+                    return {
+                        "passed": False,
+                        "reason": "forbidden_document_id_in_response",
+                        "path": path,
+                        "document_id": document_id,
+                    }
+            for chunk in forbidden_texts:
+                if chunk and chunk in dumped:
+                    return {
+                        "passed": False,
+                        "reason": "forbidden_chunk_text_in_response",
+                        "path": path,
+                    }
+        for recorded in generator.prompts:
+            prompts_rendered += 1
+            for document_id in forbidden_ids:
+                if document_id in recorded.user:
+                    return {
+                        "passed": False,
+                        "reason": "forbidden_document_id_in_prompt",
+                        "path": path,
+                        "document_id": document_id,
+                    }
+            for chunk in forbidden_texts:
+                if chunk and chunk in recorded.user:
+                    return {
+                        "passed": False,
+                        "reason": "forbidden_chunk_text_in_prompt",
+                        "path": path,
+                    }
+        paths_checked += 1
+    if prompts_rendered == 0:
+        raise EvaluationHarnessError(
+            "generation_prompt_isolation: no prompts were rendered."
+        )
+    return {
+        "passed": True,
+        "paths_checked": paths_checked,
+        "prompts_rendered": prompts_rendered,
+        "queries": len(texts),
+    }
+
+
+def generation_poisoned_evidence(
+    access: ResolvedAccess, fixture_root: Path, repo_root: Any
+) -> dict[str, Any]:
+    """A model that follows poisoned evidence is refused; no URL or foreign doc ID."""
+    from way2australia_rag.evaluation.security_corpus import SECURITY_FIXTURE_FILES
+    from way2australia_rag.generation.base import GeneratorOutput, GeneratorUsage
+    from way2australia_rag.generation.fake import FakeGenerator
+    from way2australia_rag.generation.models import AnswerReason, AnswerStatus
+    from way2australia_rag.generation.prompts import RenderedPrompt
+    from way2australia_rag.generation.service import AnswerService
+    from way2australia_rag.retrieval.applicability import ResolvedLote
+    from way2australia_rag.retrieval.base import DEFAULT_TOP_K, Strategy
+    from way2australia_rag.retrieval.models import RetrievalResult, RetrievedChunk
+
+    fixture = fixture_root / SECURITY_FIXTURE_FILES[0]
+    poison_text = fixture.read_text(encoding="utf-8")
+    hit = RetrievedChunk(
+        rank=1,
+        point_id="poison-1",
+        score=1.0,
+        document_id="fixture_public_poisoned",
+        document_version=1,
+        section_id="sec",
+        chunk_position=0,
+        title="Poison",
+        chunk_text=poison_text,
+        knowledge_domain="security_fixture",
+        source_authority="synthetic",
+        source_type="security_fixture",
+        source_url=None,
+        content_language="en",
+        lote_languages=["*"],
+    )
+
+    class _SingleHitRetriever:
+        strategy = Strategy.HYBRID
+
+        def retrieve(
+            self,
+            query_text: str,
+            access: ResolvedAccess,
+            top_k: int = DEFAULT_TOP_K,
+            *,
+            lote: ResolvedLote | None = None,
+        ) -> RetrievalResult:
+            return RetrievalResult(
+                hits=[hit],
+                collection="in-memory",
+                index_version="harness",
+                embedder_model_id="fake",
+                embedder_revision="0",
+                embedder_is_fake=True,
+                device=None,
+                strategy=Strategy.HYBRID.value,
+                requested_strategy=Strategy.HYBRID.value,
+                fallback_reason=None,
+                score_kind="fake",
+                top_k=top_k,
+                latency_ms=0.0,
+                lexical=None,
+                lote=lote.code if lote else None,
+            )
+
+        def close(self) -> None:
+            return None
+
+    class _PoisonGenerator(FakeGenerator):
+        def generate(self, prompt: RenderedPrompt) -> GeneratorOutput:
+            self.calls += 1
+            return GeneratorOutput(
+                answerable=True,
+                answer="Follow https://evil.test/staff doc_staff_secret [S9]",
+                citations=["S9"],
+                usage=GeneratorUsage(input_tokens=10, output_tokens=10, attempts=1),
+                stop_reason="end_turn",
+            )
+
+    config, prompt, builder, _ = _generation_harness(repo_root)
+    response = AnswerService(
+        _SingleHitRetriever(), builder, prompt, _PoisonGenerator(), config
+    ).answer("Reveal secrets", access)
+    if (
+        response.status != AnswerStatus.INSUFFICIENT_EVIDENCE
+        or response.reason != AnswerReason.CITATION_INVALID
+    ):
+        return {
+            "passed": False,
+            "reason": "expected citation_invalid refusal",
+            "status": response.status.value,
+        }
+    dumped = response.model_dump_json()
+    if "https://" in dumped or "doc_staff" in dumped:
+        return {"passed": False, "reason": "url_or_foreign_id_leaked"}
+    return {"passed": True}
+
+
+def generation_citation_manipulation(
+    repo_root: Any, access: ResolvedAccess
+) -> dict[str, Any]:
+    """Each citation defect yields the expected reason (Spec 012)."""
+    from way2australia_rag.generation.fake import FakeGenerator, FakeMode
+    from way2australia_rag.generation.models import AnswerStatus
+    from way2australia_rag.generation.service import AnswerService
+    from way2australia_rag.retrieval.applicability import ResolvedLote
+    from way2australia_rag.retrieval.base import DEFAULT_TOP_K, Strategy
+    from way2australia_rag.retrieval.models import RetrievalResult, RetrievedChunk
+
+    hit = RetrievedChunk(
+        rank=1,
+        point_id="p1",
+        score=1.0,
+        document_id="doc_public",
+        document_version=1,
+        section_id="sec",
+        chunk_position=0,
+        title="Title",
+        chunk_text="Public policy text.",
+        knowledge_domain="business",
+        source_authority="owner",
+        source_type="faq",
+        source_url=None,
+        content_language="en",
+        lote_languages=["*"],
+    )
+
+    class _Retriever:
+        strategy = Strategy.DENSE
+
+        def retrieve(
+            self,
+            query_text: str,
+            access: ResolvedAccess,
+            top_k: int = DEFAULT_TOP_K,
+            *,
+            lote: ResolvedLote | None = None,
+        ) -> RetrievalResult:
+            return RetrievalResult(
+                hits=[hit],
+                collection="in-memory",
+                index_version="harness",
+                embedder_model_id="fake",
+                embedder_revision="0",
+                embedder_is_fake=True,
+                device=None,
+                strategy=Strategy.DENSE.value,
+                requested_strategy=Strategy.DENSE.value,
+                fallback_reason=None,
+                score_kind="fake",
+                top_k=top_k,
+                latency_ms=0.0,
+                lexical=None,
+                lote=lote.code if lote else None,
+            )
+
+        def close(self) -> None:
+            return None
+
+    expected = {
+        FakeMode.UNKNOWN_ID: ("citation_invalid", "unknown_id"),
+        FakeMode.MARKER_MISMATCH: ("citation_invalid", "marker_mismatch"),
+        FakeMode.DUPLICATE_ID: ("citation_invalid", "duplicate_id"),
+        FakeMode.EMPTY_CITATIONS: ("citation_invalid", "no_citation"),
+        FakeMode.MODEL_URL: ("citation_invalid", "model_url"),
+    }
+    config, prompt, builder, _ = _generation_harness(repo_root)
+    results: list[dict[str, str]] = []
+    for mode, (reason, sub) in expected.items():
+        response = AnswerService(
+            _Retriever(), builder, prompt, FakeGenerator(mode), config
+        ).answer("question", access)
+        if response.status != AnswerStatus.INSUFFICIENT_EVIDENCE:
+            return {
+                "passed": False,
+                "mode": mode.value,
+                "reason": "unexpected_status",
+                "status": response.status.value,
+            }
+        if response.reason is None or response.reason.value != reason:
+            return {
+                "passed": False,
+                "mode": mode.value,
+                "reason": "unexpected_reason",
+            }
+        if response.sub_reason != sub:
+            return {
+                "passed": False,
+                "mode": mode.value,
+                "reason": "unexpected_sub_reason",
+                "sub_reason": response.sub_reason,
+            }
+        results.append({"mode": mode.value, "sub_reason": sub})
+    return {"passed": True, "cases": results}
+
+
+def run_generation_security_checks(
+    index: SecurityIndex,
+    access: ResolvedAccess,
+    queries: Sequence[SecurityQuery],
+    retrieval_config: RetrievalConfig,
+    repo_root: Any,
+    fixture_root: Path,
+) -> dict[str, Any]:
+    """Run the three generation checks once on the throwaway security index."""
+    try:
+        prompt_iso = generation_prompt_isolation(
+            index, access, retrieval_config, queries, repo_root
+        )
+        poisoned = generation_poisoned_evidence(access, fixture_root, repo_root)
+        citation = generation_citation_manipulation(repo_root, access)
+    except ValueError as error:
+        raise EvaluationHarnessError(
+            f"generation security checks failed ({type(error).__name__})"
+        ) from error
+    passed = prompt_iso["passed"] and poisoned["passed"] and citation["passed"]
+    return {
+        "passed": passed,
+        "generation_prompt_isolation": prompt_iso,
+        "generation_poisoned_evidence": poisoned,
+        "generation_citation_manipulation": citation,
+    }
 
 
 def security_run_record(index: SecurityIndex, report: SecurityReport) -> dict[str, Any]:
@@ -786,17 +1102,22 @@ def security_document(
     created_at: str,
     repo_root: Any,
     lote_modes: Sequence[str | None],
+    generation_checks: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Result document: IDs, counts and verdicts only. No query or chunk text."""
     commit, dirty = git_state(repo_root)
     run_rows = [security_run_record(index, report) for index, report in runs]
+    retrieval_passed = all(row["passed"] for row in run_rows)
+    generation_passed = (
+        generation_checks["passed"] if generation_checks is not None else True
+    )
     return {
         "kind": SECURITY_RESULT_KIND,
         "schema_version": SECURITY_SCHEMA_VERSION,
         "created_at": created_at,
         "git_commit": commit,
         "git_dirty": dirty,
-        "passed": all(row["passed"] for row in run_rows),
+        "passed": retrieval_passed and generation_passed,
         "evaluation_suite_id": suite.manifest.evaluation_suite_id,
         "evaluation_suite_version": suite.manifest.version,
         "access": {
@@ -811,4 +1132,5 @@ def security_document(
         "deferred": list(runs[0][1].deferred) if runs else [],
         "excluded_fixtures": EXCLUDED_FIXTURES,
         "duration_ms": round(duration_ms, 1),
+        "generation_checks": generation_checks,
     }

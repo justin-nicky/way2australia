@@ -51,7 +51,9 @@ Reason:
 - Local multilingual BGE reranker: `BAAI/bge-reranker-v2-m3` (Apache-2.0) through `sentence-transformers` `CrossEncoder`, pinned to revision `953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e`; optional `reranker` extra installed by `make setup-bge-m3`; implemented by Spec 011 (D075), hybrid only, default depth 20 (D079). A hosted reranker can be added behind the `Reranker` Protocol in Phase 2.
 
 ### Generation
-- Amazon Bedrock Runtime
+- Amazon Bedrock Runtime: the production target. Client: the Anthropic Python SDK's Bedrock Runtime client (`bedrock` extra, `endpoint: runtime`), region `ap-south-1`, which offers Claude 5.5 only through the `global.` inference profiles (processed outside India). No Bedrock model or profile is committed: all quotas on the account are 0 and the Bedrock smoke test is still open (D084, D086).
+- Development and evaluation endpoint (Spec 012, D086): the direct Anthropic API through the same SDK (`anthropic` extra, `make setup-anthropic`, key only from `ANTHROPIC_API_KEY`). Committed default since Spec 012 T6: `default_generator: anthropic`, `claude-sonnet-5-5` (D090). Data is processed outside India; the user accepted this for development and evaluation. Switching production to Bedrock is its own spec or task.
+- Both Claude generators share one adapter (`generation/claude.py`); a non-Anthropic provider would be a new `Generator` implementation.
 
 Exact Bedrock model should be selected based on current:
 - Mumbai region support;

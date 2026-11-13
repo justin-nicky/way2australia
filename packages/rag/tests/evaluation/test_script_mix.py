@@ -4,7 +4,7 @@ import unicodedata
 
 import pytest
 from conftest import live_suite_rows
-from way2australia_rag.evaluation.script_mix import script_mix
+from way2australia_rag.script_mix import script_mix
 
 _LATIN = "ABCDEFHIKLMNOPRSTWabcdefghijklmnopqrstuvwxyz"
 _MALAYALAM = "അആഇഉഎഏഒകഖഗങചജഞടഡണതഥദധനപബഭമയരറലളഴവശഷസൻർൽൾ"

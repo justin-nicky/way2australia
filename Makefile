@@ -6,7 +6,7 @@ UV_ENV = UV_CACHE_DIR=$(UV_CACHE_DIR) UV_PYTHON_INSTALL_DIR=$(UV_PYTHON_INSTALL_
 PYTHON_TARGETS ?= apps packages tests scripts tools
 UV_HTTP_TIMEOUT ?= 300
 
-.PHONY: setup setup-bge-m3 format lint typecheck test test-unit test-integration verify skills-sync skills-check validate-knowledge validate-evaluation ingest index-lexical retrieve retrieval-baseline eval-retrieval eval-security eval-compare eval-continuity
+.PHONY: setup setup-bge-m3 setup-bedrock setup-anthropic format lint typecheck test test-unit test-integration verify skills-sync skills-check validate-knowledge validate-evaluation ingest index-lexical retrieve ask retrieval-baseline eval-retrieval eval-security eval-generation eval-compare eval-continuity
 
 setup:
 	$(UV_ENV) $(UV) sync --all-packages --group dev
@@ -15,6 +15,16 @@ setup:
 # `make setup` syncs without the group and therefore removes it again.
 setup-bge-m3:
 	UV_HTTP_TIMEOUT=$(UV_HTTP_TIMEOUT) $(UV_ENV) $(UV) sync --all-packages --group dev --extra bge-m3 --extra reranker
+
+# Adds the optional bedrock extra (Anthropic SDK with Bedrock support) to the other extras.
+# `make setup` syncs without the extra and therefore removes it again.
+setup-bedrock:
+	UV_HTTP_TIMEOUT=$(UV_HTTP_TIMEOUT) $(UV_ENV) $(UV) sync --all-packages --group dev --extra bge-m3 --extra reranker --extra bedrock
+
+# Adds the optional anthropic extra (Anthropic SDK, direct API generator) to the other extras.
+# `make setup` syncs without the extra and therefore removes it again.
+setup-anthropic:
+	UV_HTTP_TIMEOUT=$(UV_HTTP_TIMEOUT) $(UV_ENV) $(UV) sync --all-packages --group dev --extra bge-m3 --extra reranker --extra anthropic
 
 format:
 	$(UV_ENV) $(UV) run ruff format $(PYTHON_TARGETS)
@@ -64,6 +74,13 @@ index-lexical:
 retrieve:
 	@$(UV_ENV) $(UV) run python -m way2australia_rag.retrieval.cli --repo-root $(CURDIR) $(RETRIEVE_ARGS) "$(QUERY)"
 
+# Answer a question with citations (retrieval, context, generation, citation check).
+# Extra options go in ASK_ARGS, e.g. make ask QUERY="Is coaching compulsory?"
+# ASK_ARGS="--embedder fake --reranker fake --generator fake". The default
+# generator is default_generator in config/generation.yaml; --generator overrides it.
+ask:
+	@$(UV_ENV) $(UV) run python -m way2australia_rag.generation.cli --repo-root $(CURDIR) $(ASK_ARGS) "$(QUERY)"
+
 # Run the golden cases through dense retrieval and write a JSON result. Extra
 # options go in BASELINE_ARGS, e.g. make retrieval-baseline BASELINE_ARGS="--embedder fake --allow-fake".
 retrieval-baseline:
@@ -79,6 +96,11 @@ eval-retrieval:
 # Extra options go in EVAL_ARGS, e.g. make eval-security EVAL_ARGS="--output /tmp/x.json".
 eval-security:
 	@$(UV_ENV) $(UV) run python -m way2australia_rag.evaluation.cli security --repo-root $(CURDIR) $(EVAL_ARGS)
+
+# Generation evaluation over the active suite (fake needs --allow-fake and writes
+# to experiments/results/tmp/). Extra options go in EVAL_ARGS.
+eval-generation:
+	@$(UV_ENV) $(UV) run python -m way2australia_rag.evaluation.cli generation --repo-root $(CURDIR) $(EVAL_ARGS)
 
 # Compare two result files and apply the quality gate (exit 0 pass, 1 gate failure,
 # 2 refusal). Both variables are required:

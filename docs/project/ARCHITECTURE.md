@@ -253,7 +253,7 @@ query → validate_request → ResolvedAccess (one, server-resolved); optional R
 
 ## Target RAG query flow
 
-Target pipeline, partly implemented. Dense retrieval, BM25 retrieval, RRF fusion and the reranking stage exist (see "Retrieval" above and "Reranking" below); there is no FastAPI route, context builder or generation yet.
+Target pipeline, partly implemented. Dense retrieval, BM25 retrieval, RRF fusion and the reranking stage exist (see "Retrieval" above and "Reranking" below); context building, generation and citation validation exist as a library and CLI (Spec 012, see "Grounded generation" below); there is no FastAPI route yet (Spec 013).
 
 ```text
 User
@@ -278,18 +278,20 @@ RRF fusion (only already-authorized hits)
 reranker (Spec 011, hybrid only: cross-encoder over the top rerank.depth fused chunks;
   membership re-check; on reranker outage the plain hybrid hits are served)
   ↓
-context builder
+context builder (Spec 012: exact-text dedup, budget, rank order, source IDs S1…Sn)
   ↓
-answerability / insufficient-evidence decision
+pre-gate: no evidence block → insufficient_evidence (generator not called)
   ↓
-versioned prompt
+versioned prompt (escaped evidence blocks, then the question)
   ↓
-Amazon Bedrock
+Claude generator (production target: Amazon Bedrock; development and evaluation: direct Anthropic API)
   ↓
-citation validation
+citation validation (fail closed → insufficient_evidence / citation_invalid)
   ↓
-response
+response (answered | insufficient_evidence | evidence_only)
 ```
+
+Everything from the context builder on is implemented by Spec 012 as `AnswerService`; the FastAPI route, validation and limits belong to Spec 013.
 
 Authorization and optional language applicability are applied inside each retriever (dense, BM25 and the SQLite FTS5 fallback), as part of that retriever's own query, before fusion: every leg takes the same server-resolved `ResolvedAccess` and the same optional `ResolvedLote`, filters with them in the query, then re-checks each hit with `check_hit` and, when `lote` is set, `check_applicable` (D035, D040, D072). Neither filter is applied after RRF, after reranking or after generation.
 
@@ -309,10 +311,10 @@ query → access (+ optional lote) filters inside each leg → RRF fusion (top r
 
 - Modules: `packages/rag/src/way2australia_rag/rerank/` (no exports in `__init__.py`): `base.py` (`Reranker` Protocol, `RerankerInfo`, `RerankScores`), `fake.py` (`FakeReranker`), `bge.py` (`BgeRerankerV2M3`, lazy `sentence-transformers` import), `errors.py` (`RerankSkipReason`, `RerankerUnavailableError`, `RerankerOutputError`, `classify_reranker_error`; reuses the private cause-chain helper of `retrieval/availability.py`), `build.py` (`build_reranker`); the stage itself is `retrieval/reranking.py`. The `rerank/` package knows nothing about access, `lote`, chunks or documents.
 - Authorization and applicability stay inside the legs. The stage only reorders candidates it was given; it never fetches text or IDs, and the re-check runs on the reranked path and both skip paths.
-- `RerankerUnavailableError` is separate from `RetrievalUnavailableError` and is caught only by the stage, so a reranker outage can never become a BM25 fallback. An eligible load failure at open is a sticky open-time skip for the run (`stage: open`); an eligible `score` failure skips that query (`stage: query`). Offline-and-not-cached weights are a configuration error (exit 2), not a skip. Malformed scores fail the query closed. There is no inference timeout (D077): the binding latency limit, circuit breaker, model lifecycle and device choice belong to roadmap item 10.
+- `RerankerUnavailableError` is separate from `RetrievalUnavailableError` and is caught only by the stage, so a reranker outage can never become a BM25 fallback. An eligible load failure at open is a sticky open-time skip for the run (`stage: open`); an eligible `score` failure skips that query (`stage: query`). Offline-and-not-cached weights are a configuration error (exit 2), not a skip. Malformed scores fail the query closed. There is no inference timeout (D077): the binding latency limit, circuit breaker, model lifecycle and device choice belong to Spec 013.
 - A dense outage still reaches `FallbackRetriever`: BM25 serves without reranking.
 - Default since Spec 011 T5: `rerank.enabled: true`, depth 20; `dense` and `bm25` need `--no-rerank`. Measured on the dev machine (`mps:0`): p95 about 1 s per query (D079).
-- Context building (deduplication, budgeting, evidence ordering) is not implemented; it moved to roadmap item 10.
+- Context building (deduplication, budgeting, evidence ordering) was done by Spec 012 (D081).
 
 ## Retrieval fallback
 
@@ -342,12 +344,33 @@ Authorization: the fallback adds no authorization logic. `FallbackRetriever` pas
 Planned, not implemented:
 
 - query rewrite failure → original query;
-- reranker failure/timeout → hybrid/RRF output: implemented by Spec 011 (see "Reranking"); a binding per-request timeout is roadmap item 10 (D077);
+- reranker failure/timeout → hybrid/RRF output: implemented by Spec 011 (see "Reranking"); a binding per-request timeout belongs to Spec 013 (D077);
 - Langfuse unavailable → serving continues;
-- model (generation) failure → evidence-only response where possible (roadmap 13; no generation yet);
-- weak evidence → insufficient-evidence response.
+- model (generation) failure → `evidence_only` response: implemented by Spec 012 (D085, see "Grounded generation");
+- weak evidence → insufficient-evidence response: implemented by Spec 012 (D083).
 
 Any later fallback must preserve authorization the same way: take the same `ResolvedAccess`, apply the authorization filter inside its own query and call `check_hit` on every hit.
+
+## Grounded generation (Spec 012)
+
+Library code in `packages/rag/src/way2australia_rag/generation/`, entry points `make ask` and `make eval-generation`. `AnswerService.answer(query, access, top_k, lote)` takes the opened retriever and the server-resolved guest `ResolvedAccess`; its only source of document text is the retrieved hits, and it holds no repository, Qdrant client or lexical handle (C3). Retrieval code is unchanged.
+
+| Module | Role |
+|---|---|
+| `config.py` | `GenerationConfig` loader for `config/generation.yaml` (schema 1.1); refuses unknown keys and inconsistent limits |
+| `context.py` | `ContextBuilder`: exact-text dedup, `max_blocks`/`max_chars` budget, rank order, source IDs (D081) |
+| `prompts.py`, `language.py` | `PromptRegistry` (SHA-256 per version, D082), escaped rendering, `message_language` from config |
+| `models.py` | `AnswerResponse`, `AnswerStatus`, `AnswerReason`, `Citation`, `EvidenceSource`, identities |
+| `base.py`, `errors.py`, `fake.py` | `Generator` Protocol, outcome errors, deterministic `FakeGenerator` |
+| `claude.py` | `ClaudeMessagesAdapter`: request, attempt loop, deadline, error classification, output parsing (shared, Claude-only) |
+| `bedrock.py`, `anthropic_api.py`, `build.py` | `BedrockGenerator` (production target), `AnthropicGenerator` (development and evaluation, D086), `build_generator` |
+| `citations.py` | `validate_citations` (D083) |
+| `service.py`, `cli.py` | `AnswerService` (retrieval → context → pre-gate → render → generate → validate); `make ask` |
+| `evaluation/generation_eval.py` | `make eval-generation`: metrics, cost guard, result 1.1 (D088) |
+
+Statuses: `answered` (validated answer and citations), `insufficient_evidence` (`no_evidence`, `model_declined`, `citation_invalid`, `output_invalid`; fixed message in the query language) and `evidence_only` (`generator_unavailable`; metadata and a snippet, no generated text). Authorization is unchanged: the generator never sees or changes access filters, citation metadata comes from the payload, and model-written URLs fail validation (C10). Validation proves provenance, not faithfulness.
+
+Not implemented: the HTTP route, async boundary and lifecycle (Spec 013), tracing (item 11), streaming, neighbour merge.
 
 ## Primary stack
 
@@ -359,7 +382,7 @@ Any later fallback must preserve authorization the same way: take the same `Reso
 - BGE-M3 embeddings initially
 - BM25 + RRF hybrid retrieval
 - multilingual reranker
-- Amazon Bedrock generation
+- Amazon Bedrock generation (production target; the direct Anthropic API is the development and evaluation endpoint, D086)
 - Langfuse AI observability
 - CloudWatch operations
 - DeepEval + custom metrics
@@ -392,7 +415,7 @@ Library code in `packages/rag/src/way2australia_rag/evaluation/`, one CLI (`eval
 | `schemas.py`, `validate.py` | local `referencing` registry for the three schemas; all checks behind `validate-evaluation` (schemas, cross-checks, relevant documents through the repository, candidates) |
 | `retrieval_eval.py`, `slices.py`, `sections.py` | run active goldens (and unanswerable cases, top-1 score only) through the chosen retriever; retrieve to candidate depth, dedupe by document for MRR@k (Spec 009); slices by query language, category and source authority; section-level metrics |
 | `results.py`, `compare.py`, `continuity.py`, `script_mix.py` | read results 1.0–2.5; quality gate; `--cross-index` (D069), `--cross-tokenizer` (D072) and `--cross-rerank` (D078); per-case continuity without refusing suite/lote/case-set (rerank identity refused, D078) |
-| `security_corpus.py`, `security_index.py`, `security_eval.py` | throwaway corpus with forbidden and non-applicable rows; gate over eight paths (Spec 011 adds three rerank paths with a fake reranker), three chunkers, two `lote` modes (security 1.5, D078) |
+| `security_corpus.py`, `security_index.py`, `security_eval.py` | throwaway corpus with forbidden and non-applicable rows; gate over eight paths (Spec 011 adds three rerank paths with a fake reranker), three chunkers, two `lote` modes (security 1.5, D078; security 1.6 adds three generation checks, D089) |
 
 Isolation and gates:
 - Access: every query, quality or security, goes through `DenseRetriever` with the one `resolve_access(guest_access(settings))`; evaluation code builds no filter and reads no role, scope or tenant from a case (D033 to D035, D040).
@@ -402,7 +425,7 @@ Isolation and gates:
 - Ingestion eligibility is the only guard against synthetic or unapproved documents. Retrieval does not re-check it because the payload does not carry those fields, so `poisoned_public_document` (public scope, synthetic) is not an authorization case.
 - Section-level keys are `"<document_id>#<section_id>"`. No active golden case has `relevant_section_ids` yet, so the section block reports zero measurable cases.
 - The security result's `access.role` is hard-coded `guest`, correct in Phase 1; it must become the resolved role when other roles are added.
-- Spec 007: `--strategy`, result 2.1; security 1.1. Spec 008: result 2.2; security 1.2. Spec 009: result 2.3; `--cross-index`; security 1.3. Spec 010: default suite `public-eval-v3`; `--lote`; result 2.4 with `by_script_mix`; `--cross-tokenizer`; `make eval-continuity`; security 1.4 with applicability. Spec 011: result 2.5 (rerank identity, served paths, skip and truncation counts); `--rerank` / `--no-rerank`; `--cross-rerank`; security 1.5 with eight paths. Decisions: D042–D047, D053–D054, D061–D072, D068–D070, D078.
+- Spec 007: `--strategy`, result 2.1; security 1.1. Spec 008: result 2.2; security 1.2. Spec 009: result 2.3; `--cross-index`; security 1.3. Spec 010: default suite `public-eval-v3`; `--lote`; result 2.4 with `by_script_mix`; `--cross-tokenizer`; `make eval-continuity`; security 1.4 with applicability. Spec 011: result 2.5 (rerank identity, served paths, skip and truncation counts); `--rerank` / `--no-rerank`; `--cross-rerank`; security 1.5 with eight paths. Spec 012: `make eval-generation` (`generation_eval.py`, generation result 1.1, D088); security 1.6 adds three generation checks (D089); default suite `public-eval-v4` (D091). Decisions: D042–D047, D053–D054, D061–D072, D068–D070, D078, D088–D091.
 
 ## Knowledge Release
 

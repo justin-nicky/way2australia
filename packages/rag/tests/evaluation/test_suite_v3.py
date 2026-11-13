@@ -14,7 +14,6 @@ from typing import Any
 
 import pytest
 from conftest import REPO_ROOT
-from way2australia_rag.evaluation import cli
 from way2australia_rag.evaluation.schemas import load_schemas
 from way2australia_rag.evaluation.validate import validate_evaluation
 from way2australia_rag.repositories import (
@@ -82,13 +81,10 @@ def candidates() -> list[dict[str, Any]]:
     return rows(CANDIDATES)
 
 
-def test_cli_default_suite_is_v3() -> None:
-    assert cli.DEFAULT_SUITE == V3_SUITE
-
-
 def test_v3_manifest_counts_and_lineage() -> None:
     v3 = manifest(V3_SUITE)
-    assert v3["status"] == "active" and v3["version"] == 3
+    # replaced by v4 (Spec 012)
+    assert v3["status"] == "replaced" and v3["version"] == 3
     assert v3["replaces"] == {"evaluation_suite_id": "public-eval-v2", "version": 2}
     assert v3["case_count"] == sum(len(rows(d["path"])) for d in v3["datasets"])
     assert [d["type"] for d in v3["datasets"]] == list(FILES)

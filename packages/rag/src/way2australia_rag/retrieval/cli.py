@@ -12,36 +12,21 @@ import argparse
 import logging
 import sys
 from collections.abc import Sequence
-from pathlib import Path
 
 from way2australia_rag.ingestion.cli import ClientFactory
-from way2australia_rag.ingestion.config import (
-    DEFAULT_CONFIG_PATH,
-    load_ingestion_config,
-    load_runtime_settings,
-)
 from way2australia_rag.ingestion.errors import IngestionError
-from way2australia_rag.languages import active_lote_codes
 from way2australia_rag.retrieval.access import guest_access, resolve_access
-from way2australia_rag.retrieval.applicability import resolve_lote
-from way2australia_rag.retrieval.base import Strategy
-from way2australia_rag.retrieval.errors import (
-    RetrievalConfigurationError,
-    RetrievalError,
+from way2australia_rag.retrieval.cli_args import (
+    add_retrieval_arguments,
+    resolve_retrieval_args,
 )
+from way2australia_rag.retrieval.errors import RetrievalError
 from way2australia_rag.retrieval.models import RetrievalResult
 from way2australia_rag.retrieval.opening import open_retrieval
-from way2australia_rag.retrieval.retriever import (
-    DEFAULT_TOP_K,
-    MAX_TOP_K,
-    MIN_TOP_K,
-)
-from way2australia_rag.retrieval.strategy import load_retrieval_config
 from way2australia_rag.retrieval.text import safe_text
 
 EXIT_OK = 0
 EXIT_REFUSED = 2
-DEFAULT_RETRIEVAL_CONFIG = "config/retrieval.yaml"
 MAX_TERMS_NOTE = "note: the query was cut to its first 64 distinct terms for BM25."
 
 
@@ -105,54 +90,7 @@ def _parser() -> argparse.ArgumentParser:
         prog="python -m way2australia_rag.retrieval.cli",
         description="Dense retrieval over the guest/public index.",
     )
-    parser.add_argument("query")
-    parser.add_argument("--repo-root", type=Path, default=Path.cwd())
-    parser.add_argument(
-        "--config",
-        type=Path,
-        default=None,
-        help=f"ingestion config (default: <repo-root>/{DEFAULT_CONFIG_PATH})",
-    )
-    parser.add_argument("--top-k", type=int, default=DEFAULT_TOP_K)
-    parser.add_argument(
-        "--embedder",
-        choices=("bge_m3", "fake"),
-        default=None,
-        help="embedder (default: embedder.provider from the config)",
-    )
-    parser.add_argument(
-        "--strategy",
-        choices=[strategy.value for strategy in Strategy],
-        default=None,
-        help="retrieval strategy (default: default_strategy in config/retrieval.yaml)",
-    )
-    parser.add_argument(
-        "--retrieval-config",
-        type=Path,
-        default=None,
-        help=f"retrieval config (default: <repo-root>/{DEFAULT_RETRIEVAL_CONFIG})",
-    )
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument(
-        "--rerank",
-        dest="rerank",
-        action="store_const",
-        const=True,
-        default=None,
-        help="rerank hybrid results (default: rerank.enabled in the config)",
-    )
-    group.add_argument("--no-rerank", dest="rerank", action="store_const", const=False)
-    parser.add_argument(
-        "--reranker",
-        choices=("bge", "fake"),
-        default=None,
-        help="reranker (default: rerank.provider from the retrieval config)",
-    )
-    parser.add_argument(
-        "--lote",
-        default=None,
-        help="CCL language code (active product_support code, not en)",
-    )
+    add_retrieval_arguments(parser)
     return parser
 
 
@@ -164,38 +102,17 @@ def main(
     args = _parser().parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stderr)
     logging.getLogger("httpx").setLevel(logging.WARNING)  # request lines carry URLs
-    repo_root = args.repo_root.resolve()
-    config_path: Path = args.config or repo_root / DEFAULT_CONFIG_PATH
     opened = None
     try:
-        if not args.query.strip():
-            raise RetrievalConfigurationError("the query must not be empty.")
-        if not MIN_TOP_K <= args.top_k <= MAX_TOP_K:
-            raise RetrievalConfigurationError(
-                f"top_k must be an integer from {MIN_TOP_K} to {MAX_TOP_K}."
-            )
-        lote = resolve_lote(args.lote, active_lote_codes(repo_root))
-        config = load_ingestion_config(config_path)
-        settings = load_runtime_settings(RetrievalConfigurationError)
-        provider = args.embedder or config.embedder.provider
-        retrieval_config = load_retrieval_config(
-            args.retrieval_config or repo_root / DEFAULT_RETRIEVAL_CONFIG
-        )
-        strategy = Strategy(args.strategy or retrieval_config.default_strategy)
-        rerank = retrieval_config.rerank.enabled if args.rerank is None else args.rerank
+        resolved = resolve_retrieval_args(args)
+        rerank = resolved.rerank
         opened = open_retrieval(
-            strategy,
-            settings=settings,
-            ingestion_config=config,
-            retrieval_config=retrieval_config,
-            provider=provider,
-            repo_root=repo_root,
-            client_factory=client_factory,
-            rerank=rerank,
-            reranker_provider=args.reranker,
+            resolved.strategy, **resolved.open_kwargs(client_factory)
         )
-        access = resolve_access(guest_access(settings))
-        result = opened.retriever.retrieve(args.query, access, args.top_k, lote=lote)
+        access = resolve_access(guest_access(resolved.settings))
+        result = opened.retriever.retrieve(
+            args.query, access, args.top_k, lote=resolved.lote
+        )
     except (RetrievalError, IngestionError) as error:
         # Both families are path- and secret-free by contract.
         print(f"ERROR {type(error).__name__}: {safe_text(error)}", file=sys.stderr)

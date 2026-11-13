@@ -866,7 +866,7 @@ def test_security_result_1_5_has_runs_paths_and_no_text(
             candidate, guest_access(), queries, deferred, RETRIEVAL_CONFIG
         )
         document = security_result(candidate, report)
-        assert document["schema_version"] == "1.5"
+        assert document["schema_version"] == "1.6"
         assert document["lote_modes"] == [None, ACTIVE_LOTE.code]
         assert document["passed"] is passed
         run = document["runs"][0]
@@ -1009,7 +1009,7 @@ def test_cli_lexical_file_is_removed_after_a_pass(
     out = capsys.readouterr().out
     assert "strategies: dense, bm25, hybrid" in out
     document = json.loads(output.read_text(encoding="utf-8"))
-    assert document["schema_version"] == "1.5"
+    assert document["schema_version"] == "1.6"
     assert document["lote_modes"] == [None, ACTIVE_LOTE.code]
     assert len(document["runs"]) == 3
 
@@ -1823,7 +1823,7 @@ def test_the_summary_prints_the_rerank_path_details(
         RERANK_PATHS,
     )
     document = security_result(index, report)
-    assert document["schema_version"] == "1.5"
+    assert document["schema_version"] == "1.6"
     run = document["runs"][0]
     assert run["paths"] == list(RERANK_PATHS)
     assert set(run["path_details"]) == set(RERANK_PATHS)
@@ -1840,3 +1840,55 @@ def test_the_summary_prints_the_rerank_path_details(
     text = json.dumps(document, ensure_ascii=False)
     assert all(q.text not in text for q in queries)
     assert INJECTION_TEXT not in text
+
+
+def test_generation_security_checks_pass_on_throwaway_index(
+    security_repository: LocalDocumentRepository,
+) -> None:
+    from way2australia_rag.evaluation.security_eval import (
+        run_generation_security_checks,
+    )
+
+    queries, deferred = real_queries()
+    index = build([q.text for q in queries], security_repository)
+    access = guest_access()
+    checks = run_generation_security_checks(
+        index,
+        access,
+        queries,
+        RETRIEVAL_CONFIG,
+        REPO_ROOT,
+        REPO_ROOT / "tests/fixtures/security",
+    )
+    assert checks["passed"] is True
+
+
+def test_generation_citation_manipulation_fails_when_validator_is_broken(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from way2australia_core import AccessContext, Role
+    from way2australia_rag.evaluation.security_eval import (
+        generation_citation_manipulation,
+    )
+    from way2australia_rag.generation.models import Citation
+    from way2australia_rag.retrieval.access import resolve_access
+
+    def broken(_output, blocks):  # noqa: ANN001, ANN202
+        return [
+            Citation(
+                source_id="S1",
+                document_id=blocks[0].document_id,
+                document_version=1,
+                section_id="s",
+                title="t",
+                source_authority="owner",
+                source_url=None,
+            )
+        ]
+
+    monkeypatch.setattr(
+        "way2australia_rag.generation.service.validate_citations", broken
+    )
+    access = resolve_access(AccessContext(role=Role.GUEST, tenant_id=TENANT))
+    result = generation_citation_manipulation(REPO_ROOT, access)  # noqa: SLF001
+    assert not result["passed"]

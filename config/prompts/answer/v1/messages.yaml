@@ -1,0 +1,8 @@
+# insufficient_evidence messages (prompt answer v1)
+en: >-
+  I do not have enough approved evidence to answer that question safely. Try
+  rephrasing, or check the official NAATI or Home Affairs sources for
+  time-sensitive rules and fees.
+
+ml: >-
+  ഈ ചോദ്യത്തിന് സുരക്ഷിതമായി മറുപടി നൽകാൻ ആവശ്യമായ അംഗീകൃത വിവരങ്ങൾ എന്റെ പക്കൽ ഇല്ല. ചോദ്യം മറ്റൊരു രീതിയിൽ ചോദിച്ചുനോക്കുക, അല്ലെങ്കിൽ മാറിക്കൊണ്ടിരിക്കുന്ന നിയമങ്ങൾക്കും ഫീസുകൾക്കും NAATI-യുടെയോ Home Affairs-ന്റെയോ ഔദ്യോഗിക ഉറവിടങ്ങൾ പരിശോധിക്കുക.

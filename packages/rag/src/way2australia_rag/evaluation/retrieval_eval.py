@@ -23,7 +23,6 @@ from way2australia_rag.evaluation.models import (
     UnanswerableCase,
 )
 from way2australia_rag.evaluation.results import RESULT_KIND, SCHEMA_VERSION
-from way2australia_rag.evaluation.script_mix import script_mix
 from way2australia_rag.evaluation.sections import (
     dedupe_sections,
     section_report,
@@ -56,6 +55,7 @@ from way2australia_rag.retrieval.metrics import (
 )
 from way2australia_rag.retrieval.models import LexicalIdentity, RetrievalResult
 from way2australia_rag.retrieval.strategy import QdrantTimeouts
+from way2australia_rag.script_mix import script_mix
 
 OVERLAP_CASES = ("g004", "u001")
 UNANSWERABLE_STATUS = "not_evaluable_before_generation"
