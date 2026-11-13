@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-11-13 (Spec 012 T7: docs and decisions D081-D091 written; T7 in task review)
+Last updated: 2026-11-13 (Spec 012 retrospective round 1 PASS; merge awaits the user's approval)
 
 ## Current phase
 
@@ -12,7 +12,7 @@ Spec 001 project foundation is complete.
 
 ## Current goal
 
-Specs **001–011** are **verified on `main`** (last: Spec 011, merged `d40d734`, 2026-11-06). Retrieval defaults: index **`idx-v2`** (recursive 128 + title, D071), **`hybrid`** with BM25 fallback (D055, D058), **`lexical-v2`** (D072), reranking on at depth 20 (D079). Setup for a default run: `make ingest`, then `make index-lexical`; reranked runs need `make setup-bge-m3` and a cached reranker. Workflow trim **D080** is in place. **Spec 012** (roadmap item 10 without the HTTP route: context building, generation, answerability, citations) is **implemented on `spec/012`**: T1–T6 approved, **T7 (docs and decisions D081–D091) in task review**, then the retrospective. Generation: default generator `anthropic` (direct Anthropic API, development and evaluation) with `claude-sonnet-5-5` (D086, D090); Bedrock stays the production target but is blocked (all quotas 0; its smoke test is open). Default suite `public-eval-v4` (D091). `make ask` and `make eval-generation` exist; real runs call the API and are user-run. The HTTP route and serving policy go to **Spec 013**. Repository-based shared context keeps Codex, Claude Code, Cursor and Kiro interchangeable (D063). Closed history: `docs/project/HISTORY.md`.
+Specs **001–011** are **verified on `main`** (last: Spec 011, merged `d40d734`, 2026-11-06). Retrieval defaults: index **`idx-v2`** (recursive 128 + title, D071), **`hybrid`** with BM25 fallback (D055, D058), **`lexical-v2`** (D072), reranking on at depth 20 (D079). Setup for a default run: `make ingest`, then `make index-lexical`; reranked runs need `make setup-bge-m3` and a cached reranker. Workflow trim **D080** is in place. **Spec 012** (roadmap item 10 without the HTTP route: context building, generation, answerability, citations) is **implemented on `spec/012`**: every task (T1–T7, including T5b) approved 2026-11-13; the required retrospective (`.kiro/specs/012-grounded-generation/review.md`, round 1) **passed** with four MINOR carry-overs; merging into `main` waits for the user's approval. Generation: default generator `anthropic` (direct Anthropic API, development and evaluation) with `claude-sonnet-5-5` (D086, D090); Bedrock stays the production target but is blocked (all quotas 0; its smoke test is open). Default suite `public-eval-v4` (D091). `make ask` and `make eval-generation` exist; real runs call the API and are user-run. The HTTP route and serving policy go to **Spec 013**. Repository-based shared context keeps Codex, Claude Code, Cursor and Kiro interchangeable (D063). Closed history: `docs/project/HISTORY.md`.
 
 ## Finalized high-level decisions
 
@@ -96,11 +96,11 @@ Not yet implemented:
 | 009 — chunking experiments | verified 2026-11-04, merged `5a6deb7` |
 | 010 — multilingual retrieval | verified 2026-11-04, merged `cae06c3` |
 | 011 — multilingual reranking | verified 2026-11-06, merged `d40d734` |
-| 012 — grounded generation | implementing on `spec/012`; T1–T6 approved (T5b and T6 2026-11-13; T6: checkpoint `a0869a5` plus final commit `12534f0`); T7 (docs and decisions) in task review; retrospective not started |
+| 012 — grounded generation | implementing on `spec/012`; T1–T6 approved (T5b and T6 2026-11-13; T6: checkpoint `a0869a5` plus final commit `12534f0`); T7 approved 2026-11-13 (commit `1730ef9`); all tasks approved; retrospective round 1 PASS 2026-11-13 (`review.md`); merge awaits user approval |
 
 ## Next step
 
-1. **Spec 012 T7 in task review; then the `spec-reviewer` retrospective.** The orchestrator runs `graphify update .` once before the retrospective (D080). Evidence for the T6 outcome is in D090 and `task-reviews.md` (T6 stages 2 to 5).
+1. **Spec 012: all tasks approved 2026-11-13; retrospective round 1 PASS (`review.md`, no BLOCKING or MAJOR finding, F1–F4 MINOR under Known issues).** Next: the user approves the merge of `spec/012` into `main`; the spec is then verified. `graphify update .` was run once before the retrospective (D080). Evidence for the T6 outcome is in D090 and `task-reviews.md` (T6 stages 2 to 5).
 2. **Bedrock smoke test (user-run, open):** the direct-API smoke test passed on 2026-11-13 for `claude-sonnet-5-5` and `claude-haiku-5-5`. The Bedrock smoke test (`W2A_RUN_BEDROCK_SMOKE=1`, `global.` profiles, `ap-south-1`) stays open until AWS grants access (Free plan blocks Marketplace models, all quotas 0, increases go through AWS Sales, `ap-south-1` offers only `global.` profiles for Claude 5.5). Switching `default_generator` to `bedrock` is its own spec or task with a timeout and latency re-check (D086). `aws login` credentials need `eval "$(aws configure export-credentials --format env)"` first (`botocore[crt]` is not in the `bedrock` extra; documented in `COMMANDS.md`).
 3. **Follow-up chore (D080):** in `packages/rag/tests/evaluation/test_security_eval.py`, share one CLI gate run across `test_cli_lexical_file_is_removed_after_a_pass`, `test_cli_pass_writes_a_result_and_exits_zero` and `test_cli_clause_less_lexical_store_exits_one_naming_strategies` (about −38 s of `make verify`). Docker tests stay in `make verify` until CI runs `make test-integration`.
 4. The trial docs re-extraction of 2026-11-07 was discarded and is not to be retried (D080); the docs part of the graph stays from the earlier extraction.
@@ -124,6 +124,12 @@ Spec 012 carry-overs for Spec 013 and later (T7):
 - Neighbour merge in the context builder needs overlap boundaries in the chunk payload, which means a new `index_version` (D081). Streaming is deferred to Spec 013.
 - Bedrock: the smoke test and the switch of `default_generator` are open (D086). Latency and timeout figures from Spec 012 are direct-API figures from the user's network, not Bedrock or production figures.
 - Prompt v2 inputs are listed below (URL habit, marker use, answer language, safe redirect).
+
+Spec 012 retrospective (`.kiro/specs/012-grounded-generation/review.md`, round 1), MINOR, no remediation tasks:
+- F1: token counts and `actual_cost_usd` omit billed responses that raise (`output_invalid` from `max_tokens`/`json`/`schema`, and a refusal stop reason): `GeneratorOutputError` and `GeneratorDeclinedError` carry no usage, so the response records `usage: null` and the cost is a lower bound (`cases_with_usage` shows the gap; Haiku's three `max_tokens` cases are not in its $0.027876). Fix with prompt v2 or the next generation-result bump.
+- F2: `config/generation.yaml` comments beyond `deadline_s` are stale: `backoff_s` "capped by the deadline" (it is not, since the T3 review F1 change) and `bedrock.model_id` "null until T6 commits the chosen model's Bedrock ID" (it stays null until the Bedrock switch). Fix with the `deadline_s` comment and the hard wall-clock cap.
+- F3: the `make eval-security` deferral owners `roadmap-10` for s005/s006 (and `UNANSWERABLE_OWNER` in `retrieval_eval.py`) are code constants (`DEFERRED_OWNERS` in `evaluation/security_eval.py`), not evaluation data; item 10 is done except the route. The cases still do not run through the answer path, so only the owner label is stale. Retarget when item 12 or prompt v2 runs them.
+- F4: D083 and D084 headers cite the wrong requirement numbers (answerability is R6; the generator is R4/R5); the bodies are correct.
 
 Spec 012 T6 carry-overs (for a later prompt version or follow-up; the prompt is not changed in this spec):
 - The refusal rate includes backend-enforced refusals. In the Sonnet run, 4 of its 13 unanswerable refusals are `citation_invalid/model_url` (the model wrote a URL, the backend discarded the answer) and the same rule cost 2 goldens (g035, g070); Haiku had `marker_mismatch` refusals on 5 goldens. A later prompt version should address URLs in answers and marker use.

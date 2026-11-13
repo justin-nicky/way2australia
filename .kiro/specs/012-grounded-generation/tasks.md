@@ -1,6 +1,6 @@
 # 012 — Grounded Generation Tasks
 
-Status: implementing (branch spec/012, base 416fc3a)
+Status: all tasks approved 2026-11-13 (branch spec/012, base 416fc3a)
 
 Implement the tasks in order; each depends on the ones before it. T5b (2026-11-10 amendment) runs after T5 and before T6. Requirements: `requirements.md` (approved 2026-11-07; amendment approved 2026-11-10). Design: `design.md` (approved 2026-11-07; D-A and D-B as recommended, D-C no committed default until T6, D-D generic wording with the English-terms clause).
 
