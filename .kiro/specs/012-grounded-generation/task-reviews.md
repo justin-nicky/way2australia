@@ -564,7 +564,7 @@ Both untracked; the user commits them.
 | answer rate (threshold 0.90) | 0.8621 (75/87) FAIL | 0.9655 (84/87) pass |
 | refusal rate (threshold 0.86) | 0.8000 (12/15) FAIL | 0.8667 (13/15) pass |
 | p95 generation latency (<= 8000 ms) | 4228.8 ms pass | 5755.7 ms pass |
-| mean actual cost per answer (<= $0.015) | $0.000279 per case (total $0.027876 / 99 cases with usage; $0.000372 per answered case) pass | $0.005155 per case (total $0.525794 / 102; $0.006259 per answered case) pass |
+| mean actual cost per answer (<= $0.015) | $0.000282 per case (total $0.027876 / 99 cases with usage; $0.000372 per answered case) pass | $0.005155 per case (total $0.525794 / 102; $0.006259 per answered case) pass |
 | "falls short" criteria hit | answer rate and refusal rate (two) | none |
 
 Other (informational): citation_invalid Haiku 7 (6 `marker_mismatch`, 1 `model_url`), Sonnet 6 (all `model_url`); Haiku `output_invalid` (`max_tokens`) 3 (g065, g076 pure `ml`, g086 `mixed`), Sonnet 0; Haiku has no usage or response model for those 3 cases, so its cost total omits them; citation precision mean 0.9422 / 0.9187, recall 0.9933 / 0.9940; expected-facts coverage (informational) 0.358 / 0.395; p50 generation 1602 / 2271 ms.
@@ -707,3 +707,91 @@ Cost estimate from the stage-2 Sonnet run (USD 0.5258 for 102 cases, USD 0.00515
 - Accepted the `cand012_en_001` `proposed_case` change (Spec 006 precedent; original kept in `review.original_*`).
 - T6 checkpoint commit approved, verbatim: "Don't plan on a stash for the v4 runs. v4 is untracked, so `git stash` leaves it on disk while setting aside `DEFAULT_SUITE`, v3 `replaced` and the config default. `git_state` would also mark the run dirty because of the untracked suite files. And a reference result pointing at `e84e098`, which doesn't contain v4, isn't reproducible. Instead, I approve a T6 checkpoint commit now." Message "Spec 012 T6 (checkpoint): Sonnet default, suite v4", trailer `Spec-Task: 012/T6`, pushed; excludes the two stage-2 result files and `experiments/results/tmp/`.
 - Deviation recorded: T6 has two commits (checkpoint plus final), because the v4 runs need a commit that contains v4. This follows the Spec 010 precedent (v3 committed before its real runs). T6 stays `implementing`; the checkpoint is not task approval. The final T6 commit (the stage-2 result files, the v4 result files and the remaining records) comes after the task review and the user's approval.
+
+
+## T6 — v4 runs recorded (round 1, stage 5)
+
+### Implementation
+- Model: claude-sonnet-5-5 (Sonnet 5.5), run as a subagent. Read the three user-run result files and recorded. The agent made no Anthropic or Bedrock call, changed no product code, test, prompt, config or evaluation data, and committed and staged nothing. Files changed: this file, `tasks.md`, `docs/project/CURRENT_STATE.md`.
+- Verify: no tracked file changed since the checkpoint `a0869a5` except these records (`git status` shows only the four untracked result files before these edits), so `make verify` was not re-run; the last result is 1795 passed, 5 skipped, lint and typecheck clean (stage 4, same code as `a0869a5`).
+
+### Commands as run by the user (2026-11-13, on `a0869a5`, clean tree)
+- v4 retrieval: `experiments/results/retrieval-evaluation-idx-v2-20261113T101802Z.json`.
+- Continuity against `experiments/results/retrieval-evaluation-idx-v2-20261106T072428Z.json`: exit 0. Reported verbatim: "shared goldens: 87 / only in CANDIDATE: g088 v1 / continuity: no shared-case differences".
+- Sonnet v4 reference: `experiments/results/generation-evaluation-idx-v2-20261113T102514Z.json`, exit 0 (answer rate 0.9659, refusal rate 0.8824, cost $0.546976).
+
+### Result-file checks (agent, from the JSON)
+| Check | Result |
+|---|---|
+| Suite | both v4 files `public-eval-v4` version 4; the v3 reference is `public-eval-v3` (87 cases) |
+| Not fake | retrieval `embedder_is_fake` false, rerank `is_fake` false; generation `generator_is_fake` false, provider `anthropic`, endpoint `api` |
+| Commit | both v4 files `git_commit` `a0869a5fbd5be99fb163aaf75e669bfd2a1aa465`, `git_dirty` false (v3 reference: `e83762a`; stage-2 runs: `e84e098`, clean) |
+| Retrieval identity vs v3 reference | equal: collection `w2a-realcheck-idx-v2`, `idx-v2` settings, hybrid, rerank (bge-reranker-v2-m3, revision 953dc6f6, depth 20, `mps:0`), fusion rrf k 60 depth 50, lexical `lexical-v2` digest 89b30b42 (34 chunks), `lote` ml, top_k 5, chunk stats, ingestion_config sha, dense identity |
+| Retrieval identity vs stage-2 generation runs | the generation `retrieval_identity` block and `ingestion_config` of the v4 run equal both stage-2 runs (Haiku and Sonnet) field for field; only the suite differs |
+| Generator identity | `claude-sonnet-5-5`, `model_id_source` cli, effort low, max_tokens 1024, request timeout 20 s, retries 2, deadline 30 s; `response_models` `['claude-sonnet-5-5']`; prices 2 / 10 per Mtok (as the stage-2 Sonnet run) |
+| Prompt identity | `answer` v1, sha256 `7284d3b3...` equal to both stage-2 runs |
+| Thresholds given | `min_answer_rate` 0.9, `min_refusal_rate` 0.86 |
+| Case selection | mode all: 88 golden + 17 unanswerable = 105 (stage 2: 87 + 15 = 102) |
+| `generator_unavailable` | 0 (also 0 `output_invalid`, 0 `evidence_only`) |
+| Answer rate | 0.9659 (85/88), threshold 0.90: pass (stage-2 Sonnet 0.9655) |
+| Refusal rate | 0.8824 (15/17), threshold 0.86: pass (stage-2 Sonnet 0.8667, 13/15) |
+| p95 generation latency | 5772 ms (p50 2325 ms), limit 8000 ms: pass (stage-2 Sonnet 5756 ms); p95 total 7200 ms |
+| Mean cost per answer | actual $0.546976 / 105 cases = $0.00521 per case ($0.00644 per answered case), limit $0.015: pass. The file's `estimated_cost_usd` is $0.910448 (the guard's higher estimate); either figure is far below the limit |
+| Deadline overshoot | one case: g021, generation 32136 ms, 2 attempts, against `deadline_s` 30 (total 33092 ms). Same soft-deadline cause as g022 in the stage-2 Sonnet run (32649 ms); no effect on the p95 criterion. g015 also needed 2 attempts but stayed under the deadline |
+| Citation-invalid | 8 (all `model_url`: g035, g070, u007, u011, u013, u014, u016, u017) |
+| Retrieval metrics v4 vs v3 reference | HitRate@5 1.0 -> 1.0, Recall@5 1.0 -> 1.0, MRR 0.9751 (n 87) -> 0.9754 (n 88); en MRR 0.9784 -> 0.9788 (54 -> 55 cases); mixed 0.9412 and ml 1.0 unchanged. Retrieval p50 / p95 latency 963 / 1029 ms -> 911 / 1099 ms; served strategy hybrid only, no fallbacks |
+
+### Verification of the user's statements
+- "g088 answered with all 3 expected facts and both relevant documents": confirmed. Status `answered`, `expected_facts_matched` 3 of 3, cited `official_001_ccl_format_scoring_results` and `business_002_packages_pricing_validity` (both relevant documents), citation precision 1.0, recall 1.0. Retrieval also ranks both in the top 5 (ranks 1 and 2, reciprocal rank 1.0). The answer states 63/90, 29/45 and the 5,500 rupee package price.
+- "Golden misses are g035, g062, g070, the same as the v3 Sonnet run": confirmed. The v4 and the stage-2 Sonnet run both list exactly those three non-answered goldens: g035 and g070 `citation_invalid/model_url`, g062 `model_declined`. v4 golden answered 85 of 88 (v3: 84 of 87).
+- "u016 and u017 count as refusals only through the backend `model_url` discard (Sonnet tried to answer both)": confirmed as to status: both are `insufficient_evidence` with `reason` `citation_invalid` and `sub_reason` `model_url`, with usage recorded (output tokens 138 and 390, so the model produced text). The file stores no answer text for a discarded answer, so that the text was an answer attempt (and not, for example, a refusal containing a URL) is inferred from the rule and the token counts, not read from the file.
+- "That makes 6 backend-enforced refusals across the two Sonnet runs": counts from the files, unanswerable cases only: stage-2 Sonnet run 4 (u007, u011, u013, u014 of 13 refusals); v4 run 6 (those four plus u016 and u017, of 15 refusals). So 6 is the number of distinct unanswerable cases across the two runs (and the v4 run's own count), not 4 + 6 = 10 case-runs. Golden losses to the same rule (g035, g070) are 2 per run on top. Without the discard the v4 refusal rate would be 9/17 = 0.5294.
+- Mismatch flag: none with the user's 6 if it means distinct unanswerable cases or the v4 run; it would differ (10) only if read as a sum over the two runs.
+
+### Recorded elsewhere
+- `docs/project/CURRENT_STATE.md`: prompt-v2 carry-over bullet with the counts above; status line and Spec table. `tasks.md`: continuity and reference-run boxes ticked (the earlier result-file-checks and zero-`generator_unavailable` boxes already cover the v4 file: checks above), T6 State `in task review (round 1)`, T7 record for the g021 overshoot and the backend-enforced refusals.
+
+### T6 files for the reviewer
+In checkpoint commit `a0869a5` (18 files): `.kiro/specs/012-grounded-generation/task-reviews.md`, `.kiro/specs/012-grounded-generation/tasks.md`, `config/generation.yaml`, `docs/project/CURRENT_STATE.md`, `evaluation/candidates/012-candidates.jsonl`, `evaluation/datasets/v4/{golden,security,unanswerable}_public.jsonl`, `evaluation/suites/public-eval-v3.json`, `evaluation/suites/public-eval-v4.json`, `packages/rag/src/way2australia_rag/evaluation/cli.py`, `packages/rag/tests/evaluation/{test_generation_eval,test_status_handling,test_suite_loader,test_suite_v3,test_suite_v4}.py`, `packages/rag/tests/generation/{test_ask_cli,test_generation_config}.py`.
+Uncommitted result files (final T6 commit): `experiments/results/retrieval-evaluation-idx-v2-20261113T101802Z.json`, `experiments/results/generation-evaluation-idx-v2-20261113T102514Z.json` (v4), `experiments/results/generation-evaluation-idx-v2-20261113T080223Z.json` (stage-2 Haiku), `experiments/results/generation-evaluation-idx-v2-20261113T082549Z.json` (stage-2 Sonnet). Plus the uncommitted record edits in `task-reviews.md`, `tasks.md`, `CURRENT_STATE.md`.
+- Usage: (orchestrator)
+
+### Review
+- Model: claude-opus-5-5 (Opus 5.5, BEST tier as `MODEL_PREFERENCES.md` intends; run as a subagent). No Anthropic or Bedrock call, no key set, nothing staged or committed.
+- Verdict: PASS
+- Commands: `HF_HUB_OFFLINE=1 make verify` → pass (1795 passed, 5 skipped; lint and typecheck clean; Docker tests ran inside it); `make validate-evaluation` → `OK, 0 problems`; `HF_HUB_OFFLINE=1 make eval-security` → PASS (result `public-eval-v4` v4, schema 1.6, in `tmp/`); `make eval-continuity BASE=…20261106T072428Z.json CANDIDATE=…20261113T101802Z.json` → exit 0, shared goldens 87, only in CANDIDATE g088 v1, no shared-case differences; `git diff --name-status main...HEAD -- evaluation knowledge config` → only generation config, prompt files, candidates file, `datasets/v4/*`, `suites/public-eval-v4.json` (A) and `suites/public-eval-v3.json` (M), as R15 allows; `knowledge/` untouched; working tree has no protected-path change. `make test-integration` not run separately (T6 changes no retrieval code; Docker tests ran in `make verify`).
+- Independent checks (from the JSON, by script): all three generation files have schema 1.1, `generator_is_fake` false, provider `anthropic`, endpoint `api`, `git_dirty` false; commits `e84e098` (Haiku, Sonnet v3) and `a0869a5` (Sonnet v4); `retrieval_identity`, `ingestion_config` and `prompt` (answer v1, `7284d3b3…5c11`) equal across all three; thresholds 0.9 / 0.86 in each; `generator_unavailable` 0 in each. Haiku: answer 0.8621, refusal 0.8000 (both below the thresholds, so it falls short); Sonnet v3: 0.9655 / 0.8667, p95 generation 5755.7 ms, $0.005155 per case; Sonnet v4: 0.9659 / 0.8824, p95 5772.4 ms, $0.005209 per case, $0.006435 per answered case. Costs recomputed from per-case usage equal `actual_cost_usd`. Response models equal the configured ID. The choice of Sonnet follows the recorded rule (Haiku falls short on two criteria, Sonnet on none) plus the user's verbatim spot-check confirmation and data-location acceptance (stage 3). Thresholds and the rule are recorded verbatim; the result files carry the same thresholds, consistent with approval before the runs. Backend-enforced refusals confirmed: v4 refusals 15 of 17, with 6 `citation_invalid/model_url` (u007, u011, u013, u014, u016, u017), so 9/17 = 0.5294 without the discard; v3 had 4 of 13. Overshoot cases g040, g022 and g021 confirmed (only generation times above 10 s).
+- Config: only `default_generator: anthropic`, `anthropic.model_id: claude-sonnet-5-5`, `pricing` 2 / 10 and their comments changed; `bedrock.model_id` and `inference_profile` are null; schema 1.1.
+- Suite v4: the v3 rows match their v4 copies byte for byte except `evaluation_suite_id` (all three files checked by script); new cases g088, u016 and u017 match the user's decisions (g088 has the reworded query, 3 facts and 2 documents; u017 has the reworded reason); v3 `status` is `replaced`; `DEFAULT_SUITE` is v4 for retrieval, security and generation. The candidates file changes only `review` fields, plus the cand012_en_001 `proposed_case` deviation the user accepted (original kept in `review.original_*`).
+- Tests: the changed null-default assertions are each justified by the T6 config change, and the null paths stay covered through config copies. The new default tests read `default_generator`, the model and the pricing from the file (no literal), and stub the SDK.
+- Secrets: grep for key-like patterns (`sk-ant-`, `sk-`, AKIA/ASIA, ARN with account ID, `Bearer`, `x-api-key`, an assigned `ANTHROPIC_API_KEY`) across the four result files, the spec records, `CURRENT_STATE.md`, the config, v4 data, candidates and changed tests returned no matches. The result files hold no local paths or URLs.
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R14] The "Prices and data location" box asks the user to record the list prices. Data location is in the user's verbatim stage-3 decision. The prices (Sonnet 2 / 10, Haiku 0.10 / 0.50) appear only as the user's CLI arguments (`pricing_applied` source `cli` in the result files) and in the agent's narrative, with no verbatim user confirmation line. → Add a one-line verbatim price confirmation in the final T6 records or the T7 decision.
+  - F2 [MINOR, IMPLEMENTATION, R14] Stage 2 table: Haiku "$0.000279 per case (… / 99 cases with usage)" is $0.000282 (0.027876 / 99), and the per-answered figures divide by answered cases (Haiku $0.000372 = total / 75). This does not affect the criterion. → Correct the figure in the T7 decision.
+  - F3 [MINOR, IMPLEMENTATION] `CURRENT_STATE.md`: Next step item 1 still opens "T5b approved; T6 (user-owned) next" and says T6 is `implementing (round 1)`. The carry-over line states that Sonnet "tried to answer with a URL" for u016 and u017; the file has no answer text, so that is an inference from the rule and the token counts (stage 5 says so). → Reconcile in T7.
+- Summary for user (PASS only):
+  - Changed: `config/generation.yaml` now commits `anthropic` with `claude-sonnet-5-5` at $2 / $10 (Bedrock stays null). Suite `public-eval-v4` (115 cases; g088, u016 and u017 new) is the default; v3 is `replaced`. Candidate reviews are recorded. The default-generator tests read the file. Four user-run result files are checked and ready for the final T6 commit.
+  - Verified by: `make verify` (1795 passed), `make validate-evaluation`, `make eval-security` on v4 (PASS), `make eval-continuity` (no shared-case differences), and a script that checked every result file (identity, commit, thresholds, rates, p95, cost, zero `generator_unavailable`).
+  - Worth your attention: Sonnet clears the 0.86 refusal line only because the backend discards answers containing URLs (6 of 15 v4 refusals; 0.53 without them). That is the main prompt-v2 input. `deadline_s` is soft (3 overshoots of about 32 s). T6 has two commits (checkpoint plus final), which you approved. Three MINOR record fixes for T7: price confirmation line, a Haiku cost figure, a stale `CURRENT_STATE` next-step line.
+  - Reading order:
+    1. `config/generation.yaml`: the committed default, model and pricing.
+    2. `packages/rag/src/way2australia_rag/evaluation/cli.py` → `DEFAULT_SUITE`: v4 for all three eval commands.
+    3. `evaluation/suites/public-eval-v4.json` and `evaluation/datasets/v4/*`: the v3 rows plus g088, u016 and u017; `public-eval-v3.json` status.
+    4. `evaluation/candidates/012-candidates.jsonl`: review decisions and `promoted_as`.
+    5. `experiments/results/generation-evaluation-idx-v2-20261113T102514Z.json` (v4 Sonnet), then the two stage-2 files and `retrieval-evaluation-idx-v2-20261113T101802Z.json`.
+    6. `packages/rag/tests/generation/test_generation_config.py`, `test_ask_cli.py`, `tests/evaluation/test_generation_eval.py`: default-from-file tests and null-path copies.
+    7. Supporting edits: `test_suite_v4.py`, `test_suite_v3.py`, `test_status_handling.py`, `test_suite_loader.py`; records in `tasks.md`, `task-reviews.md`, `CURRENT_STATE.md`.
+- Usage: (orchestrator)
+
+### User decision (2026-11-13, T6 approved; verbatim)
+> I approve T6. I confirm the Anthropic list prices used, per 1M input / output tokens: Sonnet 5.5 $2 / $10 and Haiku 5.5 $0.10 / $0.50. Today's spend in the Anthropic Console is $1.11, which matches the recorded run costs.
+>
+> Fix F2 and F3 as you proposed, and record this approval and the prices verbatim. In the F3 rewording, keep the fact that the result rows record citation_invalid / model_url for u016 and u017 (the backend found a URL in the model's output), and mark only "tried to answer" as the inference.
+>
+> Then make the single final T6 commit with the Spec-Task: 012/T6 trailer and push spec/012. It includes the four result files and the remaining records, and nothing from experiments/results/tmp/. After that, start T7.
+
+Fixes made after approval (orchestrator, records only):
+- F1: the price confirmation above closes it.
+- F2: the stage-2 table Haiku cost per case is corrected to $0.000282 (0.027876 / 99); the per-answered figure ($0.000372) divides by answered cases and is unchanged.
+- F3: `CURRENT_STATE.md` Next step item 1 and the status lines now say T6 approved; the carry-over states the recorded `citation_invalid / model_url` rows as fact and marks "tried to answer" as an inference.
+- Usage: (orchestrator)
