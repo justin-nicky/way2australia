@@ -2,6 +2,7 @@
 
 import asyncio
 import re
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -156,18 +157,38 @@ def test_no_generator_and_null_default_exits_two_without_touching_qdrant(
     assert indexed.calls == 0
 
 
-def test_the_committed_default_is_read_from_the_file_not_a_literal(
-    indexed: Factory, capsys: pytest.CaptureFixture[str]
+def test_the_committed_default_is_built_without_a_generator_flag(
+    indexed: Factory,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    default = yaml.safe_load((REPO_ROOT / "config/generation.yaml").read_text())[
-        "default_generator"
-    ]
-    code = ask(indexed, *SHARED)
-    if default is None:  # D-C until T6
-        assert code == 2
-        assert "--generator" in capsys.readouterr().err
-    else:  # T6 replaces this test with the configured-provider stub test
-        pytest.skip("a default generator is committed; T6 owns this test")
+    """T6: no `--generator` builds the file's provider (stub SDK, no call)."""
+    from types import SimpleNamespace
+
+    from way2australia_rag.generation.anthropic_api import AnthropicGenerator
+
+    raw = yaml.safe_load((REPO_ROOT / "config/generation.yaml").read_text())
+    default = raw["default_generator"]
+    assert default is not None
+    if default != "anthropic":
+        pytest.skip("the committed default is not anthropic; the stub covers anthropic")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
+    monkeypatch.delenv("ANTHROPIC_BASE_URL", raising=False)
+    monkeypatch.delenv("ANTHROPIC_CUSTOM_HEADERS", raising=False)
+    stub = SimpleNamespace(close=lambda: None)
+    monkeypatch.setitem(
+        sys.modules, "anthropic", SimpleNamespace(Anthropic=lambda **_: stub)
+    )
+    monkeypatch.setattr(
+        AnthropicGenerator,
+        "generate",
+        lambda self, prompt: output("ok [S1]", ["S1"]),
+    )
+    assert ask(indexed, *SHARED) == 0
+    line = next(
+        x for x in capsys.readouterr().out.splitlines() if x.startswith("generator:")
+    )
+    assert line.startswith(f"generator: {default} (model {raw[default]['model_id']}")
 
 
 def test_bedrock_without_a_model_id_exits_two(
@@ -346,9 +367,15 @@ def test_make_retrieve_output_is_unchanged_by_the_shared_helper(
 
 
 def test_anthropic_without_a_model_id_exits_two(
-    indexed: Factory, capsys: pytest.CaptureFixture[str]
+    indexed: Factory, capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
-    code = ask(indexed, *SHARED, "--generator", "anthropic")
+    raw = yaml.safe_load((REPO_ROOT / "config/generation.yaml").read_text())
+    raw["anthropic"]["model_id"] = None  # T6: the file now commits a model
+    path = tmp_path / "generation.yaml"
+    path.write_text(yaml.safe_dump(raw), encoding="utf-8")
+    code = ask(
+        indexed, *SHARED, "--generator", "anthropic", "--generation-config", str(path)
+    )
     assert code == 2
     assert "--model-id" in capsys.readouterr().err
     assert indexed.calls == 0

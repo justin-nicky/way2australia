@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-11-13 (Spec 012 T5b approved; T6 user-owned smoke gate next; no real model call yet)
+Last updated: 2026-11-13 (Spec 012 T6: Sonnet chosen, suite v4 created and default; continuity and the v4 reference run are the user's next steps)
 
 ## Current phase
 
@@ -101,6 +101,8 @@ Not yet implemented:
 ## Next step
 
 1. **Spec 012 T5b approved 2026-11-13; T6 (user-owned) next.** (Amendment approved 2026-11-10.) Bedrock is blocked: every quota on the account is 0, and AWS Support referred both Claude 5.5 quota requests to AWS Sales. The amendment adds R17 and task **T5b**: a separate `anthropic` generator for the direct Anthropic API (development and evaluation). It shares a Claude-only adapter with Bedrock, takes the key only from `ANTHROPIC_API_KEY`, refuses `ANTHROPIC_BASE_URL`, uses no fallbacks and checks the response model. `requirements.md` and `design.md` are approved (2026-11-10). T6 then runs on `--generator anthropic` and commits `default_generator: anthropic`. Bedrock stays the production target, and the switch back is its own spec or task. No Anthropic API or Bedrock call has been made.
+   - 2026-11-13: the direct-API smoke gate passed for `claude-sonnet-5-5` and `claude-haiku-5-5` (recorded in `task-reviews.md`, T6 section; Bedrock smoke still open). T6 is `implementing (round 1)`: thresholds approved 2026-11-13 (refusal 0.86, answer 0.90, p95 generation 8000 ms, cost per answer USD 0.015). The user ran both models on commit `e84e098` (result files `experiments/results/generation-evaluation-idx-v2-20261113T080223Z.json` Haiku, `...T082549Z.json` Sonnet, not yet committed). Haiku falls short (answer 0.8621, refusal 0.8000); Sonnet passes every criterion (answer 0.9655, refusal 0.8667, p95 5756 ms, USD 0.0052 per case). Model choice is open until the user's quality spot check (`task-reviews.md`, T6 stage 2).
+1a. **Suite v4 (2026-11-13):** `public-eval-v4` is created (115 cases: 88 golden, 17 unanswerable, 10 security) and is `DEFAULT_SUITE`; v3 is `replaced`. User steps left in T6: `make eval-retrieval` on v4 with the Spec 011 reference settings, `make eval-continuity` against `experiments/results/retrieval-evaluation-idx-v2-20261106T072428Z.json`, and one v4 reference run of Sonnet (commands in `task-reviews.md`, T6 stage 4).
 2. **D-A smoke tests (user-run):** after T5b, the direct-API smoke test (`W2A_RUN_ANTHROPIC_SMOKE=1`, `W2A_ANTHROPIC_MODEL_ID` = `claude-sonnet-5-5` / `claude-haiku-5-5`) is the T6 gate. The Bedrock smoke test (`W2A_RUN_BEDROCK_SMOKE=1`, `global.` profiles, `ap-south-1`) stays open until AWS grants access. `aws login` still needs `eval "$(aws configure export-credentials --format env)"` (`botocore[crt]` is not in the bedrock extra; document or add it in T7).
 3. **Follow-up chore (D080):** in `packages/rag/tests/evaluation/test_security_eval.py`, share one CLI gate run across `test_cli_lexical_file_is_removed_after_a_pass`, `test_cli_pass_writes_a_result_and_exits_zero` and `test_cli_clause_less_lexical_store_exits_one_naming_strategies` (about −38 s of `make verify`). Docker tests stay in `make verify` until CI runs `make test-integration`.
 4. The trial docs re-extraction of 2026-11-07 was discarded and is not to be retried (D080); the docs part of the graph stays from the earlier extraction.
@@ -117,6 +119,14 @@ Not yet implemented:
 - Decisions: D025 to D030 and D032 in `DECISIONS.md`.
 
 ## Known issues / deferred
+
+Spec 012 T6 carry-overs (for a later prompt version or follow-up; the prompt is not changed in this spec):
+- The refusal rate includes backend-enforced refusals. In the Sonnet run, 4 of its 13 unanswerable refusals are `citation_invalid/model_url` (the model wrote a URL, the backend discarded the answer) and the same rule cost 2 goldens (g035, g070); Haiku had `marker_mismatch` refusals on 5 goldens. A later prompt version should address URLs in answers and marker use.
+- `deadline_s` is a soft deadline: two cases (Haiku g040 31.9 s, Sonnet g022 32.6 s of generation against 30 s) overshot because `with_options(timeout=)` is a per-phase httpx timeout, not a wall-clock cap (`generation/claude.py`). The comment in `config/generation.yaml` ("total per request") is not strictly true. Comment fix and a hard wall-clock cap are a follow-up (T7 or later); no effect on the p95 criterion.
+- Haiku 5.5 hit `max_tokens` (1024) on 3 Malayalam or mixed goldens (g065, g076, g086): Malayalam token cost. Input for any later Haiku reconsideration.
+- Wrong answer language (g080, Sonnet): the question was romanized Malayalam ("Official test-nu headphone use cheyyamo?"), the answer was romanized Telugu ("Ledu... kaadu... chudandi... kosam"). The facts and citation were correct. Input for a later prompt version, together with the `model_url` habit above.
+- Safe redirect is not scored (decision 2026-11-13: option 3 for this spec): u001 and u003 are `insufficient_evidence_or_safe_redirect` cases, and Sonnet's answered "No, cannot guarantee / check Home Affairs" replies are safe redirects but count as known false misses in every run. Carry-over for a later prompt-v2 spec: a deterministic redirect marker in the answer contract, a `safe_handling_rate` and generation result 1.2, together with the g080 answer-language issue and the `model_url` habit above. No scorer or schema change in Spec 012.
+- Expected-facts coverage uses English substring matching, so it is always 0 for Malayalam-script answers (g072 was correct but scored 0/2). Informational only for `ml`.
 
 These are evaluation-data gaps, deliberately deferred for now (decision 2026-10-13). Changing them requires human-approved evaluation cases (C6).
 - `relevant_section_ids` is empty in every evaluation case, so `eval-retrieval` reports zero section-measurable cases (deferred by Spec 009; headed documents and suite v3 are a later spec).

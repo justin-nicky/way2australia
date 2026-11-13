@@ -127,7 +127,7 @@ from way2australia_rag.retrieval.text import safe_text
 EXIT_OK = 0
 EXIT_PROBLEMS = 1
 EXIT_ERROR = 2
-DEFAULT_SUITE = "evaluation/suites/public-eval-v3.json"
+DEFAULT_SUITE = "evaluation/suites/public-eval-v4.json"
 DEFAULT_RELEASE = "seed-v1"
 DEFAULT_RETRIEVAL_CONFIG = "config/retrieval.yaml"
 

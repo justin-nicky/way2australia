@@ -35,15 +35,13 @@ def _load(tmp_path: Path, raw: dict[str, Any]) -> GenerationConfig:
     return load_generation_config(_write(tmp_path, raw), REPO_ROOT)
 
 
-def test_committed_file_loads_with_no_default_generator_model_or_pricing() -> None:
-    # Read from the file: D-C says null until T6.
+def test_committed_file_loads_with_no_bedrock_model_or_profile() -> None:
+    # T6 (2026-11-13): the default generator, anthropic model and pricing are now
+    # committed (see the T6 tests below); the Bedrock model and profile stay null.
     raw = _raw()
-    assert raw["default_generator"] is None
     assert raw["bedrock"]["model_id"] is None
     assert raw["bedrock"]["inference_profile"] is None
-    assert raw["pricing"] == {"input_per_mtok": None, "output_per_mtok": None}
     config = load_generation_config(COMMITTED)
-    assert config.default_generator is None
     assert config.bedrock.endpoint == "runtime"
     assert config.bedrock.region == "ap-south-1"
     assert config.bedrock.effort == "low"
@@ -168,7 +166,9 @@ def test_pricing_and_model_id_may_be_set(tmp_path: Path) -> None:
 
 
 def test_no_default_generator_is_refused() -> None:
-    config = load_generation_config(COMMITTED)
+    config = load_generation_config(COMMITTED).model_copy(
+        update={"default_generator": None}  # T6: the file now names one
+    )
     with pytest.raises(GeneratorConfigurationError, match="--generator"):
         build_generator(config)
 
@@ -219,13 +219,10 @@ def test_bedrock_override_is_recorded_in_the_identity(
 # --- T5b: schema 1.1 and the anthropic section ---------------------------------------
 
 
-def test_committed_file_has_the_anthropic_section_with_null_model() -> None:
+def test_committed_file_has_the_anthropic_section() -> None:
     raw = _raw()
     assert raw["schema_version"] == "1.1"
-    assert raw["default_generator"] is None
-    assert raw["anthropic"]["model_id"] is None
     assert raw["bedrock"]["model_id"] is None
-    assert raw["pricing"] == {"input_per_mtok": None, "output_per_mtok": None}
     config = load_generation_config(COMMITTED)
     assert config.anthropic.effort == "low"
     assert (config.anthropic.max_tokens, config.anthropic.request_timeout_s) == (
@@ -274,6 +271,9 @@ def test_anthropic_may_be_the_default_generator(tmp_path: Path) -> None:
 
 def test_anthropic_without_a_model_id_is_refused() -> None:
     config = load_generation_config(COMMITTED)
+    config = config.model_copy(
+        update={"anthropic": config.anthropic.model_copy(update={"model_id": None})}
+    )  # T6: the file now commits a model
     with pytest.raises(GeneratorConfigurationError, match="--model-id"):
         build_generator(config, "anthropic")
 
@@ -293,3 +293,42 @@ def test_anthropic_override_is_recorded_in_the_identity(
     assert generator.info.provider == "anthropic"
     assert generator.info.model_id == "claude-haiku-5-5"
     assert generator.info.model_id_source == "env"
+
+
+# --- T6: the committed default (read from the file, never a literal) ---------------
+
+
+def test_committed_default_generator_model_and_pricing_are_set() -> None:
+    raw = _raw()
+    config = load_generation_config(COMMITTED)
+    assert raw["default_generator"] in {"anthropic", "bedrock"}
+    assert config.default_generator == raw["default_generator"]
+    assert raw["bedrock"]["model_id"] is None  # T6 amendment: bedrock stays null
+    assert raw["bedrock"]["inference_profile"] is None
+    chosen = raw[raw["default_generator"]]["model_id"]
+    assert isinstance(chosen, str) and chosen
+    assert config.pricing.input_per_mtok == raw["pricing"]["input_per_mtok"]
+    assert config.pricing.output_per_mtok == raw["pricing"]["output_per_mtok"]
+    assert config.pricing.input_per_mtok and config.pricing.output_per_mtok
+
+
+def test_build_generator_without_a_provider_builds_the_configured_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from types import SimpleNamespace
+
+    config = load_generation_config(COMMITTED)
+    if config.default_generator != "anthropic":
+        pytest.skip("the committed default is not anthropic; stub covers anthropic")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
+    monkeypatch.delenv("ANTHROPIC_BASE_URL", raising=False)
+    monkeypatch.delenv("ANTHROPIC_CUSTOM_HEADERS", raising=False)
+    stub = SimpleNamespace(close=lambda: None)
+    monkeypatch.setitem(
+        sys.modules, "anthropic", SimpleNamespace(Anthropic=lambda **_: stub)
+    )
+    generator = build_generator(config)
+    assert generator.info.provider == config.default_generator
+    assert generator.info.model_id == config.anthropic.model_id
+    assert generator.info.model_id_source == "config"
+    assert generator.info.is_fake is False

@@ -1,8 +1,8 @@
 # Grounded generation (Spec 012). Reviewed like other config; schema 1.1.
-# D-C: no committed default generator, model or pricing until T6.
+# D-C: no default until T6; T6 (2026-11-13) commits `anthropic` with Sonnet 5.5 and its prices.
 # 1.1 (2026-11-10, T5b): adds the `anthropic:` section (direct Anthropic API).
 schema_version: "1.1"
-default_generator: null             # null until T6 commits `anthropic` (bedrock | anthropic | fake)
+default_generator: anthropic        # committed at T6 (2026-11-13); bedrock | anthropic | fake
 prompt: {id: answer, version: 1}
 retrieval: {top_k: 5}               # must not exceed rerank.depth while reranking is enabled
 context: {max_blocks: 5, max_chars: 8000}
@@ -21,16 +21,16 @@ bedrock:
   backoff_s: 1.0                    # delay = backoff_s * 2**attempt, capped by the deadline
   deadline_s: 30                    # total per request, all attempts and backoff
 anthropic:                          # direct Anthropic API; development and evaluation (R17)
-  model_id: null                    # null until T6; bare ID such as claude-sonnet-5-5
+  model_id: claude-sonnet-5-5       # T6 choice (2026-11-13); bare ID
   effort: low                       # low | medium | high
   max_tokens: 1024
   request_timeout_s: 20
   retries: 2                        # attempts = retries + 1
   backoff_s: 1.0                    # delay = backoff_s * 2**attempt, capped by the deadline
   deadline_s: 30                    # total per request, all attempts and backoff
-pricing:                            # USD per million tokens; null until T6
-  input_per_mtok: null
-  output_per_mtok: null
+pricing:                            # USD per million tokens; Sonnet 5.5 list prices (T6)
+  input_per_mtok: 2
+  output_per_mtok: 10
 estimate:
   chars_per_token: 2.0              # conservative for Malayalam-heavy prompts
   assumed_output_tokens: 400

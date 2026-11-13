@@ -1,0 +1,26 @@
+{
+  "evaluation_suite_id": "public-eval-v4",
+  "version": 4,
+  "status": "active",
+  "introduced_in_release": "seed-v1",
+  "datasets": [
+    {
+      "type": "golden_answerable",
+      "path": "evaluation/datasets/v4/golden_public.jsonl"
+    },
+    {
+      "type": "unanswerable_refusal",
+      "path": "evaluation/datasets/v4/unanswerable_public.jsonl"
+    },
+    {
+      "type": "security",
+      "path": "evaluation/datasets/v4/security_public.jsonl"
+    }
+  ],
+  "case_count": 115,
+  "replaces": {
+    "evaluation_suite_id": "public-eval-v3",
+    "version": 3
+  },
+  "notes": "Spec 012 suite. Every public-eval-v3 case is carried over unchanged except evaluation_suite_id, plus 3 owner-approved cases promoted from cand012_* in evaluation/candidates/012-candidates.jsonl: golden g088 (reworded from cand012_en_001), unanswerable u016 (en) and u017 (ml). g004 and u001 stay as in v1 (owner decision keep_both). Cases are versioned and human-governed."
+}

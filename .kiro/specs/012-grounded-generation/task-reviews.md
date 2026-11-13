@@ -452,3 +452,258 @@
 
 ### User decision
 - 2026-11-13: Approve T5b. Commit with `Spec-Task: 012/T5b`, the amended requirements, design and tasks in the same commit; push `spec/012`. Record the `ANTHROPIC_CUSTOM_HEADERS` refusal for T7 As-built notes. The user runs the T6 smoke gate from their own terminal.
+
+
+## T6 — preparation (round 1)
+
+### Implementation
+- Model: claude-sonnet-5-5 (Sonnet 5.5), run as a subagent; tier not checked against `MODEL_PREFERENCES.md` (no user to ask). Stage: preparation only. The agent made no Anthropic or Bedrock call and set no key. Files changed: this file, `tasks.md` (T6 State `implementing (round 1)`; the two smoke-gate boxes ticked), `docs/project/CURRENT_STATE.md`.
+
+### User-run smoke gate (recorded verbatim, 2026-11-13; no key)
+```
+make setup-anthropic: OK (anthropic SDK 2.6.0; bedrock extra removed by this target, as expected)
+anthropic smoke: pass model=claude-sonnet-5-5 endpoint=api response_model=claude-sonnet-5-5 answerable=False citations=[] tokens=912/22 attempts=1
+anthropic smoke: pass model=claude-haiku-5-5 endpoint=api response_model=claude-haiku-5-5 answerable=False citations=[] tokens=912/22 attempts=1
+```
+- `answerable=False` is correct: the fixed smoke evidence does not answer "What is the fee?" (user, 2026-11-13). Structured output accepted; response model equals the configured ID for both models, so the exact-match check holds.
+- Bedrock D-A smoke test: **still open** (AWS access pending; the Sonnet case was rejected, the Haiku case was referred to AWS Sales). Not a T6 gate.
+- Boxes ticked in `tasks.md`: "Smoke gate passed" (superseded) and "Direct-API smoke gate". Not yet ticked: thresholds, "Model access" (superseded; ticks with the prices box), prices and data location, runs.
+
+### Proposed, awaiting user approval (NOT approved, NOT recorded as approved)
+
+Basis: fake-generator run over all 102 cases of suite `public-eval-v3` with the real local retrieval (hybrid, rerank on at depth 20, `lote ml`, top_k 5, `w2a-realcheck-idx-v2`, `git_dirty` false; no network; result `experiments/results/tmp/generation-evaluation-idx-v2-20261113T072812Z.json`, git-ignored), and the Spec 011 / D079 reranker findings: the 15 unanswerable cases have top-1 cross-encoder scores from -7.83 to 1.67 (median -4.17), the goldens -7.79 to 7.19 (median 3.08), so no score cut-off separates them. Refusal therefore rests on the model's `answerable` assessment plus citation validation, and the thresholds below are the only gate.
+
+1. **Refusal threshold (unanswerable, n = 15): `--min-refusal-rate 0.86`.** The gate is `rate < threshold` fails, so 13 of 15 (0.8667) passes and 12 of 15 (0.80) fails: at most 2 unanswerable cases may get an answer. Reason: a wrong confident answer on NAATI or visa rules is the costly error, and at n = 15 one case is 6.7 points. Evidence the task is hard but fair: retrieval returns real content for several unanswerable cases (u005 1.67, u015 1.18, u009 0.46 are above 0), so 2 misses allow for those without excusing a model that answers most of them. Lenient alternative: 0.80 (the design example), which tolerates 3 misses.
+2. **Minimum golden answer rate (n = 87): `--min-answer-rate 0.90`.** 79 of 87 answered. Reason: retrieval finds the relevant document for all 87 goldens at depth 20 (Spec 011: hits 87), so every non-answer is a model, citation-validation or output failure, not missing evidence; 0.90 leaves 8 for strict citation rules, `model_declined` and the English-terms clause on `ml` and `mixed` cases. `citation_invalid`, `output_invalid`, cited-document precision and recall and `expected_facts` coverage are reported and recorded in the decision but not gated.
+3. **"Falls short" (direct-API figures, from the user's network, not Bedrock or production):** a model falls short if any of these holds on its run:
+   - refusal rate below 0.86 or golden answer rate below 0.90 (the CLI exits 1);
+   - any `generator_unavailable` that a re-run does not clear (R14);
+   - p95 generation latency (`latency_ms.generation_ms.p95`) above 8000 ms. Reason: the retrieval p95 is about 1.2 s with reranking, so total p95 stays under about 9.3 s for a non-streaming guest answer; deadline 30 s and per-request timeout 20 s stay as configured;
+   - mean actual cost per answer above USD 0.015 at the prices below (the guard's estimate for Sonnet is about 0.0087 per case, so this leaves headroom for real tokenization and retries and still catches a runaway output).
+   Latency and cost are checked by the agent from the result file; the CLI enforces only the two rates.
+4. **Choice rule (proposed):** the cheapest model that does not fall short (Haiku 5.5 if it passes, since it is 20 times cheaper); if only Sonnet 5.5 passes, Sonnet; Opus 5.5 is run only if both fall short (R14). If none passes, the user's verbatim decision.
+
+### Proposed commands (run from the repo root, in your own shell)
+Thresholds are the proposals above; replace them if you change them. Prices are USD per 1M input / output tokens (Sonnet 5.5 $2 / $10, Haiku 5.5 $0.10 / $0.50; confirm against Anthropic's price page before the run). Flags are as `evaluation/cli.py` defines them (`--generator`, `--model-id`, `--price-input`, `--price-output`, `--all`, `--yes`, `--min-refusal-rate`, `--min-answer-rate`, `--lote`, `--strategy`, `--rerank`, `--top-k`). The retrieval settings are the Spec 011 depth-20 reference (`retrieval-evaluation-idx-v2-20261106T072428Z.json`: collection `w2a-realcheck-idx-v2` = `QDRANT_COLLECTION_BASE=w2a-realcheck` + `idx-v2`, hybrid, top_k 5, rerank on at depth 20, `lote ml`, suite `public-eval-v3`); they are also the config defaults, passed explicitly so the identity is visible.
+
+```
+export QDRANT_COLLECTION_BASE=w2a-realcheck
+export ANTHROPIC_API_KEY=...   # set in your shell only; never paste it into the repo or chat
+unset ANTHROPIC_BASE_URL ANTHROPIC_CUSTOM_HEADERS ANTHROPIC_AUTH_TOKEN
+
+# Sonnet 5.5
+make eval-generation EVAL_ARGS="--generator anthropic --model-id claude-sonnet-5-5 --price-input 2 --price-output 10 --suite public-eval-v3 --strategy hybrid --rerank --top-k 5 --lote ml --all --yes --min-refusal-rate 0.86 --min-answer-rate 0.90"
+
+# Haiku 5.5
+make eval-generation EVAL_ARGS="--generator anthropic --model-id claude-haiku-5-5 --price-input 0.10 --price-output 0.50 --suite public-eval-v3 --strategy hybrid --rerank --top-k 5 --lote ml --all --yes --min-refusal-rate 0.86 --min-answer-rate 0.90"
+```
+- `--yes` skips the interactive `y`; to read the printed estimate first, drop `--yes` (a TTY is then required).
+- Exit 0 pass, 1 a `--min-*` threshold missed (the result file is still written), 2 configuration or refusal error. Result files go to `experiments/results/generation-evaluation-idx-v2-<UTC>.json` (not `tmp/`, never overwritten). Both runs must use the same commit with a clean tree (`git_dirty` false) and the same retrieval identity.
+- Processing is outside India (Anthropic's direct API, as with the `global.` Bedrock profiles); the decision is written in T7.
+
+### Cost estimate (cost guard's own logic, no network)
+- Cases: 102 (87 golden + 15 unanswerable). The 102 rendered prompts total about 477 000 characters (the fake generator reports `chars / 4`: 119 197 tokens, 983 to 1305 per case, mean 1169; unanswerable cases 17 407 of that).
+- Guard assumptions (`config/generation.yaml`, `estimate:`): `chars_per_token` 2.0 (conservative, for Malayalam-heavy prompts) gives about 238 000 input tokens; `assumed_output_tokens` 400 per case gives 40 800 output tokens.
+- Guard estimate: Sonnet 5.5 about **USD 0.89** (0.477 input + 0.408 output); Haiku 5.5 about **USD 0.044** (0.024 + 0.020). The guard prints its own figure in phase 1 before any call; trust that figure over this one.
+- Realistic expectation: English prompts at about 4 characters per token would be about 120 000 input tokens, and short JSON answers about 150 to 300 output tokens; that is about USD 0.5 for Sonnet and USD 0.03 for Haiku. The smoke test's 912 input tokens for a small fixed evidence is consistent with 1 000 to 2 400 tokens per case.
+- Upper bound: input at 2 characters per token (238 000) and every case using the full `max_tokens` 1024 (104 400 output): Sonnet about USD 1.52, Haiku about USD 0.076. With every request failing twice and retried (3 attempts each, `retries: 2`), at most 3 times that: Sonnet about USD 4.6, Haiku about USD 0.23. This is a loose ceiling; the usual retry cases (connection errors, throttling) return no output.
+- Cost per answer: Sonnet about USD 0.005 to 0.009, Haiku about USD 0.0003 to 0.0004. Both far below the proposed USD 0.015 limit.
+
+### Preconditions (checks that do not touch the Anthropic API)
+| Precondition | Check | Expected |
+|---|---|---|
+| Clean tree on `spec/012` (T5b committed) | `git branch --show-current; git status --short` | `spec/012`, no output |
+| Qdrant up | `curl -s localhost:6333/collections` | JSON `status: ok` (the agent saw it up 2026-11-13) |
+| Collection `w2a-realcheck-idx-v2` | `curl -s localhost:6333/collections \| grep -o 'w2a-realcheck-idx-v2"'` | one match (present 2026-11-13, with `-settings`) |
+| Lexical file | `ls .local/lexical/w2a-realcheck-idx-v2.sqlite` | file exists (present 2026-11-13) |
+| Cached reranker | `ls ~/.cache/huggingface/hub/models--BAAI--bge-reranker-v2-m3/snapshots/` | `953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e` (present); BGE-M3 `models--BAAI--bge-m3` also present |
+| Extras (anthropic, bge-m3, reranker) | `make setup-anthropic`, then `uv run python -c "import anthropic, sentence_transformers; print(anthropic.__version__)"` | `2.6.0` (done 2026-11-13) |
+| Key set, not echoed | `test -n "$ANTHROPIC_API_KEY" && echo set` | `set` |
+| Refused variables unset | `env \| grep -E '^ANTHROPIC_(BASE_URL\|CUSTOM_HEADERS\|AUTH_TOKEN)=' ; echo done` | only `done` (the agent's own session had `ANTHROPIC_BASE_URL` set by the host; a shell started by you may too) |
+| Collection base | `echo $QDRANT_COLLECTION_BASE` | `w2a-realcheck` |
+| Dry run of retrieval and the guard, no API | the agent's command: `HF_HUB_OFFLINE=1 QDRANT_COLLECTION_BASE=w2a-realcheck make eval-generation EVAL_ARGS="--generator fake --allow-fake --all --lote ml --price-input 2 --price-output 10"` | exit 0, 102 cases, answer rate 1.0 (fake), about 4 minutes on the dev machine; ran 2026-11-13 |
+| Same corpus and commit for both runs | `git rev-parse HEAD` before each run | identical and clean |
+
+### Not yet done / waiting
+- Waiting for the user's approval of the thresholds and the "falls short" criteria (items 1 to 4), and for the user to confirm the prices; then the user records them verbatim here and the two runs follow. No real run has been made; the T6 boxes for thresholds, prices, runs, `generator_unavailable`, result checks, model choice and everything after stay unticked.
+- Verification: no code changed, so `make verify` was not run; the fake run above is the only command executed.
+- Usage: (orchestrator)
+
+
+## T6 — real runs recorded (round 1, stage 2)
+
+### Implementation
+- Model: claude-sonnet-5-5 (Sonnet 5.5), run as a subagent. Stage 2 only: read the two user-run result files and recorded. The agent made no Anthropic or Bedrock call, set no key, changed no product code, prompt or config, and committed nothing. Files changed: this file, `tasks.md`, `docs/project/CURRENT_STATE.md`. Spot-check table (git-ignored): `experiments/results/tmp/t6-spotcheck.md`.
+
+### Approved thresholds and choice rule (user, 2026-11-13, verbatim)
+`--min-refusal-rate 0.86`, `--min-answer-rate 0.90`, p95 generation latency <= 8000 ms, mean cost per answer <= $0.015, any `generator_unavailable` left after a re-run counts as falling short. Choice rule: cheapest model that does not fall short (Haiku, then Sonnet; Opus only if both fall short). Additional user step: a quality spot check before the choice; the user confirms the chosen model's answers; the confirmation is recorded verbatim with the choice; if rejected, the next model up.
+
+### Commands as run (correction)
+The proposed commands above had `--suite public-eval-v3`. That failed with exit 2 (`cannot read 'public-eval-v3' as JSON`, before any API call): `--suite` takes a path. The runs used `--suite evaluation/suites/public-eval-v3.json`:
+```
+make eval-generation EVAL_ARGS="--generator anthropic --model-id <id> --price-input <p> --price-output <p> --suite evaluation/suites/public-eval-v3.json --strategy hybrid --rerank --top-k 5 --lote ml --all --yes --min-refusal-rate 0.86 --min-answer-rate 0.90"
+```
+Sonnet `claude-sonnet-5-5`, prices 2 / 10; Haiku `claude-haiku-5-5`, prices 0.10 / 0.50. Procedure: both runs on the pushed commit `e84e098` with the T6 preparation edits stashed (`git stash`, run, `git stash pop`), so `git_dirty` is false; the key was already loaded in the user's shell. Direct-API figures (user's network), not Bedrock or production.
+
+### Result files
+- Haiku: `experiments/results/generation-evaluation-idx-v2-20261113T080223Z.json` (CLI exit 1)
+- Sonnet: `experiments/results/generation-evaluation-idx-v2-20261113T082549Z.json` (CLI exit 0)
+Both untracked; the user commits them.
+
+### A. Result-file checks (agent, from the files)
+| Check | Haiku | Sonnet |
+|---|---|---|
+| suite | `public-eval-v3` v3, 87 golden + 15 unanswerable, mode `all` | same |
+| fake | `generator_is_fake` false | false |
+| clean commit | `git_dirty` false, `e84e098427c24d899760755ccddac193a3aaa538` | same (equal to Haiku) |
+| retrieval identity | equal across the two files (hybrid, rerank depth 20, `w2a-realcheck-idx-v2`, lexical-v2, `lote ml`, top_k 5, no fallback) | equal |
+| prompt identity | `answer` v1, sha256 `7284d3b3...5c11` | same |
+| generator identity | provider `anthropic`, endpoint `api`, `effort` low, max_tokens 1024, request_timeout_s 20, retries 2, deadline_s 30; response models `["claude-haiku-5-5"]` (99 cases; 3 cases have none, see below) | provider `anthropic`, endpoint `api`, same settings; response models `["claude-sonnet-5-5"]` (102 cases) |
+| thresholds recorded | min_answer 0.9, min_refusal 0.86 | same |
+| `generator_unavailable` | 0 | 0 |
+| answer rate (threshold 0.90) | 0.8621 (75/87) FAIL | 0.9655 (84/87) pass |
+| refusal rate (threshold 0.86) | 0.8000 (12/15) FAIL | 0.8667 (13/15) pass |
+| p95 generation latency (<= 8000 ms) | 4228.8 ms pass | 5755.7 ms pass |
+| mean actual cost per answer (<= $0.015) | $0.000279 per case (total $0.027876 / 99 cases with usage; $0.000372 per answered case) pass | $0.005155 per case (total $0.525794 / 102; $0.006259 per answered case) pass |
+| "falls short" criteria hit | answer rate and refusal rate (two) | none |
+
+Other (informational): citation_invalid Haiku 7 (6 `marker_mismatch`, 1 `model_url`), Sonnet 6 (all `model_url`); Haiku `output_invalid` (`max_tokens`) 3 (g065, g076 pure `ml`, g086 `mixed`), Sonnet 0; Haiku has no usage or response model for those 3 cases, so its cost total omits them; citation precision mean 0.9422 / 0.9187, recall 0.9933 / 0.9940; expected-facts coverage (informational) 0.358 / 0.395; p50 generation 1602 / 2271 ms.
+
+### B. Refusal breakdown (status, reason, sub_reason)
+| Kind | Haiku | Sonnet |
+|---|---|---|
+| golden, answered | 75 | 84 |
+| golden, refused | 12: `citation_invalid/marker_mismatch` 5 (g017, g030, g041, g044, g049), `citation_invalid/model_url` 1 (g035), `model_declined` 3 (g028, g043, g062), `output_invalid/max_tokens` 3 (g065, g076, g086) | 3: `citation_invalid/model_url` 2 (g035, g070), `model_declined` 1 (g062) |
+| unanswerable, answered (misses) | 3 (u001, u003, u013) | 2 (u001, u003) |
+| unanswerable, refused | 12: `model_declined` 11, `citation_invalid/marker_mismatch` 1 (u011) | 13: `model_declined` 9, `citation_invalid/model_url` 4 (u007, u011, u013, u014) |
+
+The user's statement is verified from the file: Sonnet's 13 unanswerable refusals are 9 `model_declined` + 4 `citation_invalid/model_url`, and `model_url` also cost 2 goldens (g035, g070). The refusal rate counts every `insufficient_evidence` on an unanswerable case, so it includes backend-enforced refusals (citation validation discarding an answer, 4 of 13 for Sonnet and 1 of 12 for Haiku), not only the model's own `answerable: false`. Sonnet's 0.8667 passes the 0.86 line partly because of the URL rule: the model wrote a URL into an answer on those 4 unanswerable cases, and the backend discarded it. A Known issue entry was added to `CURRENT_STATE.md` (prompt-version follow-up; no prompt change in this spec).
+
+### C. Deadline: generation 32 s against `deadline_s: 30`
+Cases: Haiku `g040` (generation 31 912 ms, attempts 2, status answered) and Sonnet `g022` (32 649 ms, attempts 2, answered). They are the only generation times above 10 s in either file. The result files hold no per-attempt timings or error type, so the first attempt's failure is not recorded (the code retries on timeout, 429, 5xx and connection errors).
+From `generation/claude.py` (`generate`): `deadline = clock() + deadline_s` once; each attempt starts only if `remaining > 1.0 s` (`_MIN_ATTEMPT_S`) and gets `timeout = min(request_timeout_s, remaining)`; after a retryable error it sleeps `backoff_s * 2**attempt` (or the larger `Retry-After`) only if `remaining - delay > 1.0 s`; SDK retries are off (`max_retries=0`, `anthropic_api.py`). If every timeout were a hard wall-clock cap, the loop would end by `deadline_s` (30 s): attempt 1 (<= 20 s) + backoff (1 s) + attempt 2 (<= 9 s) = 30 s. So the loop logic is correct, and 32 s is not explained by the loop. The overshoot (1.9 s and 2.6 s) comes from the timeout passed to the SDK: `with_options(timeout=<float>)` becomes an httpx per-phase timeout (connect, write, read, pool each up to that value, and the read timeout restarts on each received chunk), not a wall-clock cap on the call, plus time spent outside the request (client copy by `with_options`, response parsing). I did not prove which phase it was (no per-attempt data); this is the code reading, not a measurement.
+Verdict: expected for a soft deadline, but the config comment "total per request, all attempts and backoff" is not strictly true. Not a loop bug; a small defect in enforcement (deadline is soft). Bound from the code: loop alone <= `deadline_s`; actual worst case <= `deadline_s` + overshoot of the last attempt, which httpx per-phase timeouts allow to be up to about the last attempt's timeout times the number of phases that can each run long; observed +1.9 s and +2.6 s. No effect on the 8000 ms p95 criterion (p95 4.2 s and 5.8 s). Not fixed (stage rule). Proposed fix (T7 or a follow-up): pass an explicit `httpx`-style timeout with a short connect and `read` equal to the remaining time, and/or enforce a hard wall-clock cap around the call (a worker thread or the SDK's streaming path with a total timer), and reword the comment to "soft deadline" until then; add a test with a fake client that blocks past the deadline.
+
+### D. Spot check
+`experiments/results/tmp/t6-spotcheck.md` (git-ignored): all 33 `ml` and `mixed` goldens, 10 English goldens (every 5th English golden by case_id order: g005, g010, g015, g020, g025, g030, g035, g040, g045, g050), and all 15 unanswerable cases, Haiku and Sonnet side by side. Models disagree on answered/refused in: g030 (Haiku refused, `marker_mismatch`), g065, g076, g086 (Haiku `output_invalid/max_tokens`), g070 (Sonnet refused, `model_url`) and u013 (Haiku answered, Sonnet refused, `model_url`). The user's review and decision are not recorded yet.
+
+### Not done / waiting
+- Model choice: NOT recorded. The user decides after the spot check; the chosen model's answer confirmation is to be recorded verbatim with the choice. By the approved rule Haiku falls short (two criteria), so the next model up is Sonnet, which passes every criterion; both depend on the user's spot-check outcome.
+- Not yet done: the user commits the two result files; the config commit (`default_generator: anthropic`, model ID, pricing); suite v4 decision; T7.
+- Verification: no code changed, so `make verify` was not run.
+- Usage: (orchestrator)
+
+## T6 — model choice, default config and v4 candidates (round 1, stage 3)
+
+### Implementation
+- Model: claude-sonnet-5-5 (Sonnet 5.5), run as a subagent. No Anthropic or Bedrock call, no key set, nothing committed or staged; the two result files stay untracked for the user.
+- Files changed: `config/generation.yaml` (`default_generator: anthropic`, `anthropic.model_id: claude-sonnet-5-5`, `pricing` input 2 / output 10; `bedrock.model_id` and `bedrock.inference_profile` stay `null`; schema 1.1 unchanged, the loader accepts it; the header and three value comments were reworded, no other key touched), `packages/rag/tests/generation/test_generation_config.py`, `packages/rag/tests/generation/test_ask_cli.py`, `packages/rag/tests/evaluation/test_generation_eval.py`, `tasks.md`, `docs/project/CURRENT_STATE.md`. `evaluation/` untouched.
+
+### User decision (2026-11-13, verbatim)
+Spot check done 2026-11-13. Sonnet 5.5 answers are acceptable. Choice: `claude-sonnet-5-5` (Haiku 5.5 fell short on answer and refusal rate; Opus not run). Processing on the direct Anthropic API is outside India; I accept that for development and evaluation (decision written in T7).
+
+### Known issues recorded (verified against the result files and dataset)
+- g080 (`mixed`, query "Official test-nu headphone use cheyyamo?"): Sonnet answered "Ledu, official CCL test-lo headsets, headphones, earphones allowed kaadu. [S1] ... chudandi. [S2]", romanized Telugu, with correct facts and citations. (Haiku answered in Malayalam script.)
+- u001 and u003 have `expected_behavior: insufficient_evidence_or_safe_redirect` in `evaluation/datasets/v3/unanswerable_public.jsonl`. Both models answered "No ... cannot guarantee / check Home Affairs" with citations; the scorer counts any `answered` unanswerable case as a miss (Haiku missed u001, u003 and u013; Sonnet u001 and u003).
+- g072 (`ml`): Sonnet's and Haiku's answers are correct Malayalam and cite the right document, but `expected_facts_matched` is 0 of 2 (English-substring facts).
+- Haiku `max_tokens` failures: g065, g076 (`ml`), g086 (`mixed`).
+- Deadline overshoot: see section C above; generation 31.9 s (Haiku g040) and 32.6 s (Sonnet g022) against 30 s.
+All five are in `CURRENT_STATE.md` Known issues (merged with the existing T6 carry-over block) and as As-built records in `tasks.md` T7. No prompt, config or scorer change.
+
+### Test changes (T3/T5b null-default assertions changed; each listed)
+The committed file no longer holds nulls for `default_generator`, `anthropic.model_id` and `pricing`, so these existing assertions changed:
+1. `test_generation_config.py::test_committed_file_loads_with_no_default_generator_model_or_pricing`: removed `raw["default_generator"] is None`, `raw["pricing"] == {None, None}` and `config.default_generator is None`; renamed `test_committed_file_loads_with_no_bedrock_model_or_profile` (the Bedrock nulls and the T3 value assertions stay).
+2. `test_committed_file_has_the_anthropic_section_with_null_model`: removed the `default_generator`, `anthropic.model_id` and `pricing` null assertions; renamed `test_committed_file_has_the_anthropic_section`.
+3. `test_no_default_generator_is_refused` and `test_anthropic_without_a_model_id_is_refused`: the config is the committed one with that field set to `None` via `model_copy` (the refusal assertions are unchanged).
+4. `test_ask_cli.py::test_anthropic_without_a_model_id_exits_two`: uses a config copy with `anthropic.model_id` null (`--generation-config`).
+5. `test_generation_eval.py::test_bedrock_without_pricing_exits_two` and `test_cli_anthropic_without_a_model_id_exits_two`: pass a config copy with null pricing / null `anthropic.model_id`.
+6. `test_ask_cli.py::test_the_committed_default_is_read_from_the_file_not_a_literal` (the T4 "no `--generator` -> exit 2 if null, else skip" test) replaced by `test_the_committed_default_is_built_without_a_generator_flag`. `test_no_generator_and_null_default_exits_two_without_touching_qdrant` stays (it uses a copy with a null default, so the null path is still covered).
+New tests: `test_committed_default_generator_model_and_pricing_are_set`, `test_build_generator_without_a_provider_builds_the_configured_one` (generation config), `test_cli_without_a_generator_flag_builds_the_configured_provider` (`make eval-generation` without `--generator` or price flags builds the file's provider and stops at the confirmation). The default is read from the file; the SDK is stubbed in `sys.modules`; `ANTHROPIC_BASE_URL` (set in the agent shell) is cleared with `monkeypatch.delenv`. Both CLI tests skip if a later commit makes the default something other than `anthropic`.
+- Verification: `pytest packages/rag/tests/generation packages/rag/tests/evaluation/test_generation_eval.py` 288 passed (3 smoke tests deselected); `make verify` passed: 1786 passed, 5 skipped (the first run stopped at lint on two E501 docstrings; fixed, then the passing run). `make eval-security` and `make test-integration` not run (no evaluation or retrieval change). The suite v4 box stays open (candidates await the user).
+
+### Suite v4 candidates for review (PROPOSED; none approved; no dataset edited; `public-eval-v4` not created)
+All seven rows are already in `evaluation/candidates/012-candidates.jsonl` (`status: suggested`, `review.decision: pending`, nothing promoted). Approval needs the owner for all and a fluent speaker for the `ml`/`mixed` rows.
+
+| Candidate | Lang | Question | Expected behaviour | Source documents | Why it adds coverage / concern |
+|---|---|---|---|---|---|
+| cand012_en_001 | en | What is the CCL pass mark and how much does the full materials package cost? | answer: 63/90, "₹5,500" | official_001_ccl_format_scoring_results, business_002_packages_pricing_validity | Only two-document, business + official answer. Concern: the knowledge file prices "practice materials" at ₹5,500 and the bundle at ₹7,999 (g007), so "full materials package" is ambiguous; reword (for example "practice materials") or change the fact. Also omits the 29/45 per-dialogue rule |
+| cand012_en_002 | en | Is one-to-one coaching mandatory before I sit the test? | answer: coaching optional, prepare independently | business_001_overview_scope, business_005_coaching | Source-authority / false-premise check. Near-duplicate of g003 ("Is coaching compulsory?") |
+| cand012_en_003 | en | Can you refund my purchase because I was hospitalized last week? | refusal or safe redirect | none | Private-circumstance near miss on the refund topic. Overlaps u011 (refund exception) |
+| cand012_ml_001 | ml | കോച്ചിംഗ് സെഷന്റെ ഫീസ് എത്രയാണ്? | answer: ₹1,999, 60 minutes | business_005_coaching, business_002_packages_pricing_validity | Malayalam fee question. Near-duplicate of g071; the English-substring fact "60 minutes" cannot match a Malayalam answer (known issue c) |
+| cand012_ml_002 | ml | എന്റെ അക്കൗണ്ടിലെ പാസ്വേഡ് മാറ്റാൻ നിങ്ങൾക്ക് സഹായിക്കാമോ? | refusal or safe redirect | none | Malayalam unanswerable (account action). No Malayalam unanswerable exists in v3. Rationale text ("topic in corpus") does not fit a password request; reword |
+| cand012_mix_001 | mixed | Package validity 60 days എന്ന് business FAQ-ൽ പറയുന്നുണ്ടോ? | answer: 60 days validity | business_002_packages_pricing_validity | Mixed-script yes/no on validity. Overlaps g006 and g055; "business FAQ" wording is meta |
+| cand012_en_004 | en | Does Way2Australia require coaching before mocks? | answer: coaching optional | business_001_overview_scope | Contradiction case. Near-duplicate of cand012_en_002 and g003; keep one |
+
+### Safe-redirect proposal (proposal only; nothing changed)
+- Schema: `expected_behavior` is a free `minLength: 1` string in `evaluation/schemas/evaluation_case_types.schema.json` (unanswerable and security), so a new value or a new optional field is not a schema break. Because `expected_behavior` is a promoted field (`PROMOTED_UNANSWERABLE_FIELDS` in `evaluation/validate.py`), a v4 carry-over must keep it unchanged.
+- Today every unanswerable row, including u001 and u003, carries the same `insufficient_evidence_or_safe_redirect`, so the dataset already says either outcome is acceptable. The gap is the scorer: it counts only `insufficient_evidence` as a pass.
+- Option 1 (recommended, no dataset change): a scoring rule in `generation_eval` that counts an `answered` unanswerable case as a safe redirect when `expected_behavior` contains `safe_redirect`, the answer cites only the allowed sources, and it carries a redirect marker. The marker needs a defined, deterministic test (for example an explicit `redirect` flag in the answer contract); free-text detection would be probabilistic and is not a CI gate. Report `refusal_rate` and a new `safe_handling_rate` side by side; keep the 0.86 gate on `refusal_rate` until the user sets a new one. This needs a generation result schema bump (1.1 to 1.2), no evaluation-schema change, and prompt v2 if the flag comes from the model.
+- Option 2 (dataset): in v4, split the label: `expected_behavior: insufficient_evidence` for pure refusals and `safe_redirect` for u001 and u003 (and any candidate that should be answered with a redirect). The scorer then needs a per-label rule. This is a promoted-field change, so u001 and u003 would be re-versioned (`case_version` 2) in v4, and the continuity check would show their expected behaviour differing from v3, which `make eval-continuity` must be told to allow.
+- Option 3 (manual): leave the scorer, record u001 and u003 as known false misses in each run's report.
+Recommendation: Option 1 as its own small spec or a T6-follow-up, with v4 left label-compatible with v3. The user decides.
+
+## T6 — suite v4 (round 1, stage 4)
+
+### Implementation
+- Model: claude-sonnet-5-5 (Sonnet 5.5), run as a subagent. No Anthropic or Bedrock call, no key; nothing committed. The two result files stay untracked for the user's single T6 commit.
+
+### Owner and fluent-speaker review, 2026-11-13 (user decisions, verbatim)
+- Approve `cand012_en_001`, reworded: query "What is the CCL pass mark, and how much does the practice materials package cost?"; expected facts `63/90`, `29/45`, `₹5,500`; relevant documents `official_001_ccl_format_scoring_results` and `business_002_packages_pricing_validity`.
+- Approve `cand012_en_003` as written.
+- Approve `cand012_ml_002`: the user reviewed the Malayalam query as a fluent speaker and it reads naturally. Reword the rationale to: "Malayalam unanswerable: account and password management is not part of the product or the public knowledge."
+- Reject `cand012_en_002`, `cand012_en_004` (duplicates of g003), `cand012_ml_001` (duplicate of g071), `cand012_mix_001` (overlaps g006/g055, meta wording).
+- Safe redirect: option 3 for this spec. Record u001 and u003 as known false misses (already a known issue; make it explicit). Record option 1 (deterministic redirect marker in the answer contract, `safe_handling_rate`, generation result 1.2) as a carry-over for a later prompt-v2 spec, together with the g080 answer-language issue and the `model_url` habit. No scorer or schema change in this spec.
+
+### Suite v4 contents
+- `evaluation/suites/public-eval-v4.json` (version 4, active, `replaces` v3, `case_count` 115) and `evaluation/datasets/v4/{golden,unanswerable,security}_public.jsonl`. Every v3 row is carried over byte-for-byte except `evaluation_suite_id` (test pins the v3 files by SHA-256 and checks key order).
+- Counts: golden 88 (en 55, ml 16, mixed 17), unanswerable 17 (ml 4, en 1 explicit, 12 older rows without `query_language`), security 10 = 115 (v3: 87 + 15 + 10 = 112). Generation-eval cases: 88 + 17 = 105.
+- New cases: `g088` (en, golden, from cand012_en_001 with the reworded query and three expected facts; category `generation`), `u016` (en, unanswerable, from cand012_en_003), `u017` (ml, unanswerable, from cand012_ml_002; `reason` is the reworded rationale quoted above). Ids continue the existing scheme (g088 and u016/u017 were free).
+- `evaluation/suites/public-eval-v3.json`: `status` active to replaced, nothing else.
+- `evaluation/candidates/012-candidates.jsonl`: `review` fields only for the rejected rows and for en_003 and ml_002. Approved rows keep `status: suggested` and carry `review.promoted_as` (g088, u016, u017); decisions `approved_with_changes` (en_001), `approved` (en_003, ml_002), `rejected` x4 with the reason in `review.notes`.
+- DEVIATION (for the reviewer): for `cand012_en_001` the validator (`_promotion_problems`) requires `proposed_case.query` and `expected_facts` to equal the promoted dataset case, so I followed the Spec 006 precedent (g065/g066): `proposed_case` holds the final reworded text and `review.original_query` / `review.original_expected_facts` keep the agent's original draft. That is a change outside `review` for this one row. The alternative (leave proposed_case, change the validator) was a code change outside the task. The candidate `rationale` fields are untouched; the reworded ml rationale lives in the dataset `reason` and in `review.notes`.
+- `DEFAULT_SUITE` in `packages/rag/src/way2australia_rag/evaluation/cli.py` -> `public-eval-v4.json` (`baseline_cli.py` keeps its own legacy v1 default; unchanged). The Knowledge Release and ingestion yaml keys are untouched.
+
+### Test changes (each listed)
+1. New `packages/rag/tests/evaluation/test_suite_v4.py`: default is v4, manifest counts and lineage, v3 files pinned by SHA-256, v3 rows equal their v4 copy except suite id (plus the three new ids), candidate decisions and promotions.
+2. `test_suite_v3.py`: removed `test_cli_default_suite_is_v3` (superseded by the v4 test) and its unused `cli` import; `test_v3_manifest_counts_and_lineage` asserts status `replaced` (was `active`).
+3. `test_status_handling.py` and `test_suite_loader.py`: the temporary dataset copy path `datasets/v3/...` -> `datasets/v4/...` (they load the live default suite, now v4).
+Tests that read `conftest.LIVE_SUITE`/`DEFAULT_SUITE` follow the default and needed no change. The continuity fixture names v3 as data and is unchanged.
+
+### Verification
+- `make validate-evaluation` -> `OK, 0 problems`.
+- `make eval-security` -> PASS (93 queries on the recursive chunker: 5 security, 88 golden; all paths including rerank and fallback), fake embedder, no network.
+- Targeted `pytest packages/rag/tests/evaluation packages/rag/tests/generation -x` found only the `test_status_handling` v3-path failure (fixed above; the other 345 passed before the stop); the four affected files then pass (42 passed). `make verify` (HF_HUB_OFFLINE=1, one passing run after fixing two E501 lines in the new tests) -> 1795 passed, 5 skipped, lint and typecheck clean; `make test-integration` not run separately (Docker tests ran inside `make verify`).
+- Protected paths (`git status --short -- evaluation knowledge config`): `M evaluation/candidates/012-candidates.jsonl`, `M evaluation/suites/public-eval-v3.json`, `?? evaluation/datasets/v4/`, `?? evaluation/suites/public-eval-v4.json`, `M config/generation.yaml` (stage 3). `knowledge/` untouched. This matches the T6 allowed list.
+
+### Commands for the user (not run by the agent)
+These use local Qdrant and local models only, except the third, which calls the Anthropic API. Same environment as stage 2 (`QDRANT_COLLECTION_BASE=w2a-realcheck`, clean tree after the T6 commit or with `git_dirty` accepted knowingly; the continuity check only compares per-case results, not git state).
+
+1. Retrieval on v4 with the Spec 011 reference settings (hybrid, rerank on at depth 20, `lexical-v2`, `lote ml`, `top_k` 5, collection `w2a-realcheck-idx-v2`, `mps:0`). `--suite` is omitted because the default is now v4; the explicit path form is `--suite evaluation/suites/public-eval-v4.json`:
+```
+QDRANT_COLLECTION_BASE=w2a-realcheck make eval-retrieval EVAL_ARGS="--strategy hybrid --rerank --top-k 5 --lote ml --suite evaluation/suites/public-eval-v4.json"
+```
+Result lands in `experiments/results/retrieval-evaluation-idx-v2-<timestamp>.json` (printed at the end).
+
+2. Continuity against the Spec 011 reference (replace `<new>` with the file just written):
+```
+make eval-continuity BASE=experiments/results/retrieval-evaluation-idx-v2-20261106T072428Z.json CANDIDATE=experiments/results/retrieval-evaluation-idx-v2-<new>.json
+```
+Expected: exit 0; info lines `suite: public-eval-v3 -> public-eval-v4`, `suite version: 3 -> 4`, `git_commit` change; `shared goldens: 87`; `only in CANDIDATE: g088 v1`; `continuity: no shared-case differences`. Exit 2 (not comparable) means an identity setting differs from the reference (check collection, lexical file digest, rerank depth, `--lote`).
+
+3. One Sonnet reference run on v4 (calls the API; prices 2 / 10; thresholds 0.86 / 0.90; `--generator anthropic` is the configured default but explicit here). Full form, 105 cases (88 golden + 17 unanswerable):
+```
+QDRANT_COLLECTION_BASE=w2a-realcheck make eval-generation EVAL_ARGS="--generator anthropic --model-id claude-sonnet-5-5 --price-input 2 --price-output 10 --suite evaluation/suites/public-eval-v4.json --strategy hybrid --rerank --top-k 5 --lote ml --all --yes --min-refusal-rate 0.86 --min-answer-rate 0.90"
+```
+Cost estimate from the stage-2 Sonnet run (USD 0.5258 for 102 cases, USD 0.005155 per case): about USD 0.54 for 105 cases; time about 5 to 8 minutes (stage 2 p50 generation 2.3 s, p95 5.8 s, plus about 1 s retrieval and rerank per case). Limited alternative, for example 30 cases (`--limit 30` instead of `--all`): about USD 0.15 and 2 minutes; note that a limited run does not cover the new cases unless the selection includes them (the stage-2 runs used the whole suite, so `--all` is the comparable form; use `--limit` only as a smoke check). Result: `experiments/results/generation-evaluation-idx-v2-<timestamp>.json`, to be committed with the T6 commit. Expect u001 and u003 to count as the known false misses (decision above).
+
+### Open items before the T6 task review
+- The user runs commands 1 to 3 and commits their result files with the T6 commit; the agent then checks the files (suite v4, not fake, same retrieval identity as the stage-2 runs, `generator_unavailable` 0, thresholds) and ticks the continuity and reference-run boxes.
+- Reviewer to confirm the one deviation above (proposed_case text for cand012_en_001).
+- T7 (docs, decisions, As-built notes) is not started.
+- Usage: (orchestrator)
+
+
+### User decisions (2026-11-13, after stage 4)
+- Accepted the `cand012_en_001` `proposed_case` change (Spec 006 precedent; original kept in `review.original_*`).
+- T6 checkpoint commit approved, verbatim: "Don't plan on a stash for the v4 runs. v4 is untracked, so `git stash` leaves it on disk while setting aside `DEFAULT_SUITE`, v3 `replaced` and the config default. `git_state` would also mark the run dirty because of the untracked suite files. And a reference result pointing at `e84e098`, which doesn't contain v4, isn't reproducible. Instead, I approve a T6 checkpoint commit now." Message "Spec 012 T6 (checkpoint): Sonnet default, suite v4", trailer `Spec-Task: 012/T6`, pushed; excludes the two stage-2 result files and `experiments/results/tmp/`.
+- Deviation recorded: T6 has two commits (checkpoint plus final), because the v4 runs need a commit that contains v4. This follows the Spec 010 precedent (v3 committed before its real runs). T6 stays `implementing`; the checkpoint is not task approval. The final T6 commit (the stage-2 result files, the v4 result files and the remaining records) comes after the task review and the user's approval.

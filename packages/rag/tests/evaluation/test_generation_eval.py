@@ -111,6 +111,20 @@ def test_fake_cli_writes_tmp_result(
     assert len(doc["cases"]) == 3
 
 
+def _config_copy(tmp_path: Path, **changes: object) -> Path:
+    """Committed generation config with nulls put back (T6 filled them)."""
+    import yaml
+
+    raw = yaml.safe_load((REPO_ROOT / "config/generation.yaml").read_text())
+    if "pricing" in changes:
+        raw["pricing"] = changes["pricing"]
+    if "anthropic_model_id" in changes:
+        raw["anthropic"]["model_id"] = changes["anthropic_model_id"]
+    path = tmp_path / "generation-copy.yaml"
+    path.write_text(yaml.safe_dump(raw), encoding="utf-8")
+    return path
+
+
 def test_bedrock_without_pricing_exits_two(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -143,6 +157,12 @@ def test_bedrock_without_pricing_exits_two(
         "--limit",
         "2",
         "--yes",
+        "--generation-config",
+        str(
+            _config_copy(
+                tmp_path, pricing={"input_per_mtok": None, "output_per_mtok": None}
+            )
+        ),
     )
     assert code == 2
     err = capsys.readouterr().err
@@ -1121,7 +1141,61 @@ def test_cli_anthropic_without_a_model_id_exits_two(
         "1",
         "--output",
         str(tmp_path / "a.json"),
+        "--generation-config",
+        str(_config_copy(tmp_path, anthropic_model_id=None)),
     )
     assert code == 2
     assert "--model-id" in capsys.readouterr().err
     assert calls == []
+
+
+def test_cli_without_a_generator_flag_builds_the_configured_provider(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """T6: no `--generator`, no price flags: the file's default and pricing apply
+    (stub SDK; the run stops at the confirmation, so nothing is generated)."""
+    import sys
+    from types import SimpleNamespace
+
+    import yaml
+    from way2australia_rag.generation.build import build_generator as real_build
+
+    raw = yaml.safe_load((REPO_ROOT / "config/generation.yaml").read_text())
+    default = raw["default_generator"]
+    assert default is not None
+    if default != "anthropic":
+        pytest.skip("the committed default is not anthropic; the stub covers anthropic")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
+    monkeypatch.delenv("ANTHROPIC_BASE_URL", raising=False)
+    monkeypatch.delenv("ANTHROPIC_CUSTOM_HEADERS", raising=False)
+    stub = SimpleNamespace(close=lambda: None)
+    monkeypatch.setitem(
+        sys.modules, "anthropic", SimpleNamespace(Anthropic=lambda **_: stub)
+    )
+    built: list[object] = []
+
+    def spy(*args, **kwargs):  # noqa: ANN002, ANN003, ANN202
+        generator = real_build(*args, **kwargs)
+        built.append(generator)
+        return generator
+
+    monkeypatch.setattr("way2australia_rag.evaluation.cli.build_generator", spy)
+    monkeypatch.setattr("sys.stdin.isatty", lambda: False)
+    code = generation_run(
+        _factory(),
+        "--embedder",
+        "fake",
+        "--strategy",
+        "dense",
+        "--no-rerank",
+        "--limit",
+        "2",
+        "--output",
+        str(tmp_path / "a.json"),
+    )
+    assert code == 2  # no --yes and no terminal: stops at the confirmation
+    assert len(built) == 1
+    info = built[0].info  # type: ignore[attr-defined]
+    assert info.provider == default and info.model_id == raw[default]["model_id"]
+    assert info.is_fake is False
+    assert "estimated input tokens" in capsys.readouterr().out
