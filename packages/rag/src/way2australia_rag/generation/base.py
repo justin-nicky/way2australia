@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 class GeneratorInfo(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    provider: Literal["bedrock", "fake"]
+    provider: Literal["bedrock", "anthropic", "fake"]
     model_id: str
     model_id_source: Literal["config", "cli", "env"]
     endpoint: str | None
@@ -43,6 +43,8 @@ class GeneratorOutput(BaseModel):
     citations: list[str]
     usage: GeneratorUsage
     stop_reason: str | None = None
+    # The response's `model` (2026-11-10); None for the fake.
+    response_model: str | None = None
 
 
 class Generator(Protocol):

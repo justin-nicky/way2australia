@@ -6,7 +6,7 @@ UV_ENV = UV_CACHE_DIR=$(UV_CACHE_DIR) UV_PYTHON_INSTALL_DIR=$(UV_PYTHON_INSTALL_
 PYTHON_TARGETS ?= apps packages tests scripts tools
 UV_HTTP_TIMEOUT ?= 300
 
-.PHONY: setup setup-bge-m3 setup-bedrock format lint typecheck test test-unit test-integration verify skills-sync skills-check validate-knowledge validate-evaluation ingest index-lexical retrieve ask retrieval-baseline eval-retrieval eval-security eval-generation eval-compare eval-continuity
+.PHONY: setup setup-bge-m3 setup-bedrock setup-anthropic format lint typecheck test test-unit test-integration verify skills-sync skills-check validate-knowledge validate-evaluation ingest index-lexical retrieve ask retrieval-baseline eval-retrieval eval-security eval-generation eval-compare eval-continuity
 
 setup:
 	$(UV_ENV) $(UV) sync --all-packages --group dev
@@ -20,6 +20,11 @@ setup-bge-m3:
 # `make setup` syncs without the extra and therefore removes it again.
 setup-bedrock:
 	UV_HTTP_TIMEOUT=$(UV_HTTP_TIMEOUT) $(UV_ENV) $(UV) sync --all-packages --group dev --extra bge-m3 --extra reranker --extra bedrock
+
+# Adds the optional anthropic extra (Anthropic SDK, direct API generator) to the other extras.
+# `make setup` syncs without the extra and therefore removes it again.
+setup-anthropic:
+	UV_HTTP_TIMEOUT=$(UV_HTTP_TIMEOUT) $(UV_ENV) $(UV) sync --all-packages --group dev --extra bge-m3 --extra reranker --extra anthropic
 
 format:
 	$(UV_ENV) $(UV) run ruff format $(PYTHON_TARGETS)
@@ -72,7 +77,7 @@ retrieve:
 # Answer a question with citations (retrieval, context, generation, citation check).
 # Extra options go in ASK_ARGS, e.g. make ask QUERY="Is coaching compulsory?"
 # ASK_ARGS="--embedder fake --reranker fake --generator fake". Until Spec 012 T6
-# there is no default generator: pass --generator fake or --generator bedrock.
+# there is no default generator: pass --generator fake, bedrock or anthropic.
 ask:
 	@$(UV_ENV) $(UV) run python -m way2australia_rag.generation.cli --repo-root $(CURDIR) $(ASK_ARGS) "$(QUERY)"
 

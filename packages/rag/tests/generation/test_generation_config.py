@@ -214,3 +214,82 @@ def test_bedrock_override_is_recorded_in_the_identity(
     assert generator.info.model_id == "some-model"
     assert generator.info.model_id_source == "env"
     assert generator.info.is_fake is False
+
+
+# --- T5b: schema 1.1 and the anthropic section ---------------------------------------
+
+
+def test_committed_file_has_the_anthropic_section_with_null_model() -> None:
+    raw = _raw()
+    assert raw["schema_version"] == "1.1"
+    assert raw["default_generator"] is None
+    assert raw["anthropic"]["model_id"] is None
+    assert raw["bedrock"]["model_id"] is None
+    assert raw["pricing"] == {"input_per_mtok": None, "output_per_mtok": None}
+    config = load_generation_config(COMMITTED)
+    assert config.anthropic.effort == "low"
+    assert (config.anthropic.max_tokens, config.anthropic.request_timeout_s) == (
+        1024,
+        20,
+    )
+    assert (config.anthropic.retries, config.anthropic.backoff_s) == (2, 1.0)
+    assert config.anthropic.deadline_s == 30
+
+
+def test_old_schema_version_is_refused(tmp_path: Path) -> None:
+    raw = _raw()
+    raw["schema_version"] = "1.0"
+    with pytest.raises(GeneratorConfigurationError, match="schema_version"):
+        _load(tmp_path, raw)
+
+
+@pytest.mark.parametrize(
+    "key", ["endpoint", "region", "inference_profile", "temperature"]
+)
+def test_anthropic_section_has_no_extra_keys(tmp_path: Path, key: str) -> None:
+    raw = _raw()
+    raw["anthropic"][key] = "x"
+    with pytest.raises(GeneratorConfigurationError, match=f"anthropic.{key}"):
+        _load(tmp_path, raw)
+
+
+def test_anthropic_section_value_rules(tmp_path: Path) -> None:
+    for field, value in (("retries", 9), ("max_tokens", 10), ("max_tokens", 9000)):
+        raw = _raw()
+        raw["anthropic"][field] = value
+        with pytest.raises(GeneratorConfigurationError, match=f"anthropic.{field}"):
+            _load(tmp_path, raw)
+    raw = _raw()
+    raw["anthropic"]["deadline_s"] = 10
+    with pytest.raises(GeneratorConfigurationError, match="anthropic"):
+        _load(tmp_path, raw)
+
+
+def test_anthropic_may_be_the_default_generator(tmp_path: Path) -> None:
+    raw = _raw()
+    raw["default_generator"] = "anthropic"
+    raw["anthropic"]["model_id"] = "claude-sonnet-5-5"
+    assert _load(tmp_path, raw).default_generator == "anthropic"
+
+
+def test_anthropic_without_a_model_id_is_refused() -> None:
+    config = load_generation_config(COMMITTED)
+    with pytest.raises(GeneratorConfigurationError, match="--model-id"):
+        build_generator(config, "anthropic")
+
+
+def test_anthropic_override_is_recorded_in_the_identity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from types import SimpleNamespace
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
+    stub = SimpleNamespace(close=lambda: None)
+    monkeypatch.setitem(
+        sys.modules, "anthropic", SimpleNamespace(Anthropic=lambda **_: stub)
+    )
+    config = load_generation_config(COMMITTED)
+    generator = build_generator(config, "anthropic", "claude-haiku-5-5", "env")
+    assert generator.info.provider == "anthropic"
+    assert generator.info.model_id == "claude-haiku-5-5"
+    assert generator.info.model_id_source == "env"

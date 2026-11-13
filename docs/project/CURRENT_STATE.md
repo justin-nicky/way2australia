@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-11-09 (Spec 012 T5 approved; T6 next, user-owned)
+Last updated: 2026-11-13 (Spec 012 T5b approved; T6 user-owned smoke gate next; no real model call yet)
 
 ## Current phase
 
@@ -12,7 +12,7 @@ Spec 001 project foundation is complete.
 
 ## Current goal
 
-Specs **001–011** are **verified on `main`** (last: Spec 011, merged `d40d734`, 2026-11-06). Retrieval defaults: index **`idx-v2`** (recursive 128 + title, D071), **`hybrid`** with BM25 fallback (D055, D058), **`lexical-v2`** (D072), reranking on at depth 20 (D079). Setup for a default run: `make ingest`, then `make index-lexical`; reranked runs need `make setup-bge-m3` and a cached reranker. Workflow trim **D080** is in place (hooks share one shell parser, graph rebuilt once per spec, `graphify-out/cache/` local). **Spec 012** (roadmap item 10 without the HTTP route: context building, Bedrock generation, answerability, citations) is **implementing** on `spec/012`; **T1–T4 approved** (context builder, prompts and language, generator and Bedrock adapter, answer service and `make ask`). The HTTP route and serving policy go to **Spec 013**. Repository-based shared context keeps Codex, Claude Code, Cursor and Kiro interchangeable (D063). Closed history: `docs/project/HISTORY.md`.
+Specs **001–011** are **verified on `main`** (last: Spec 011, merged `d40d734`, 2026-11-06). Retrieval defaults: index **`idx-v2`** (recursive 128 + title, D071), **`hybrid`** with BM25 fallback (D055, D058), **`lexical-v2`** (D072), reranking on at depth 20 (D079). Setup for a default run: `make ingest`, then `make index-lexical`; reranked runs need `make setup-bge-m3` and a cached reranker. Workflow trim **D080** is in place (hooks share one shell parser, graph rebuilt once per spec, `graphify-out/cache/` local). **Spec 012** (roadmap item 10 without the HTTP route: context building, Bedrock generation, answerability, citations) is **implementing** on `spec/012`; **T1–T5 approved** (context builder, prompts and language, generator and Bedrock adapter, answer service and `make ask`, `make eval-generation` and security 1.6). Bedrock is blocked (all quotas 0), so a 2026-11-10 amendment (approved) adds **T5b**: a direct Anthropic API generator for development and evaluation. Bedrock stays the production target. **T6**, the user-owned real-run gate, then runs on that endpoint. No real model call has been made. The HTTP route and serving policy go to **Spec 013**. Repository-based shared context keeps Codex, Claude Code, Cursor and Kiro interchangeable (D063). Closed history: `docs/project/HISTORY.md`.
 
 ## Finalized high-level decisions
 
@@ -71,11 +71,12 @@ Implemented (detail per spec: `docs/project/HISTORY.md`, the specs under `.kiro/
 - Spec 009: `structure` and `recursive` chunkers, default `idx-v2`, `eval-compare --cross-index`.
 - Spec 010: `lote` applicability on every path, `lexical-v2`, suite `public-eval-v3`, `make eval-continuity`.
 - Spec 011: cross-encoder reranking on `hybrid` (`BAAI/bge-reranker-v2-m3`, depth 20), result 2.5, security 1.5.
+- Spec 012 T1–T5: context builder, answer prompt v1, `AnswerService`, citation validation, Bedrock adapter (no committed default; D-C), `make ask`, `make eval-generation` (result 1.0) and security result 1.6. Real runs, the default model and suite v4 are T6; docs and decisions are T7.
 
 Not yet implemented:
-- no HTTP retrieval route; context building (deduplication, budgeting, evidence ordering; moved to roadmap item 10); retrieval degradation exists only for `hybrid` (Spec 008); reranking exists on `hybrid` only (Spec 011); the model-failure path of roadmap 13 is not implemented (no generation yet);
+- no HTTP retrieval route (Spec 013); retrieval degradation exists only for `hybrid` (Spec 008); reranking exists on `hybrid` only (Spec 011);
 - the Phase 2 "compare shared cases" mode of `eval-compare` (today any difference in the case set is refused);
-- generation;
+- committed generation default, real-model comparison and suite v4 (Spec 012 T6); generation docs and decisions (T7);
 - observability;
 - CI/CD;
 - Terraform deployment.
@@ -95,12 +96,12 @@ Not yet implemented:
 | 009 — chunking experiments | verified 2026-11-04, merged `5a6deb7` |
 | 010 — multilingual retrieval | verified 2026-11-04, merged `cae06c3` |
 | 011 — multilingual reranking | verified 2026-11-06, merged `d40d734` |
-| 012 — grounded generation | implementing on `spec/012`; T1–T5 approved 2026-11-09; T6 not started (user-owned); T7 not started |
+| 012 — grounded generation | implementing on `spec/012`; T1–T5 approved 2026-11-09; 2026-11-10 amendment (T5b, direct Anthropic API) approved; T5b approved 2026-11-13; T6 (user-owned), T7 not started |
 
 ## Next step
 
-1. **Spec 012 T6 (user-owned):** D-A smoke test still required; user approves thresholds and commands before paid Bedrock runs (`w2a-dev`, global inference profiles in `ap-south-1`, export creds for `aws login`; `botocore[crt]` gap on bedrock extra). Orchestrator prepares plan only when started.
-2. **D-A smoke test (T3 approved; in progress, user-run):** the user runs the smoke test (`W2A_RUN_BEDROCK_SMOKE=1`, Sonnet 5.5 and Haiku 5.5, `ap-south-1`) and records it in `task-reviews.md` before T6 (design "Bedrock adapter").
+1. **Spec 012 T5b approved 2026-11-13; T6 (user-owned) next.** (Amendment approved 2026-11-10.) Bedrock is blocked: every quota on the account is 0, and AWS Support referred both Claude 5.5 quota requests to AWS Sales. The amendment adds R17 and task **T5b**: a separate `anthropic` generator for the direct Anthropic API (development and evaluation). It shares a Claude-only adapter with Bedrock, takes the key only from `ANTHROPIC_API_KEY`, refuses `ANTHROPIC_BASE_URL`, uses no fallbacks and checks the response model. `requirements.md` and `design.md` are approved (2026-11-10). T6 then runs on `--generator anthropic` and commits `default_generator: anthropic`. Bedrock stays the production target, and the switch back is its own spec or task. No Anthropic API or Bedrock call has been made.
+2. **D-A smoke tests (user-run):** after T5b, the direct-API smoke test (`W2A_RUN_ANTHROPIC_SMOKE=1`, `W2A_ANTHROPIC_MODEL_ID` = `claude-sonnet-5-5` / `claude-haiku-5-5`) is the T6 gate. The Bedrock smoke test (`W2A_RUN_BEDROCK_SMOKE=1`, `global.` profiles, `ap-south-1`) stays open until AWS grants access. `aws login` still needs `eval "$(aws configure export-credentials --format env)"` (`botocore[crt]` is not in the bedrock extra; document or add it in T7).
 3. **Follow-up chore (D080):** in `packages/rag/tests/evaluation/test_security_eval.py`, share one CLI gate run across `test_cli_lexical_file_is_removed_after_a_pass`, `test_cli_pass_writes_a_result_and_exits_zero` and `test_cli_clause_less_lexical_store_exits_one_naming_strategies` (about −38 s of `make verify`). Docker tests stay in `make verify` until CI runs `make test-integration`.
 4. The trial docs re-extraction of 2026-11-07 was discarded and is not to be retried (D080); the docs part of the graph stays from the earlier extraction.
 5. Open since the verify-budget chore: remove user-level verify-budget hook copies; the committed hook is `.claude/settings.json` + `tools/hooks/verify_budget.py`.

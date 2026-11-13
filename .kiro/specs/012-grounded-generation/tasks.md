@@ -2,7 +2,7 @@
 
 Status: implementing (branch spec/012, base 416fc3a)
 
-Implement the tasks in order; each depends on the ones before it. Requirements: `requirements.md` (approved 2026-11-07). Design: `design.md` (approved 2026-11-07; D-A and D-B as recommended, D-C no committed default until T6, D-D generic wording with the English-terms clause).
+Implement the tasks in order; each depends on the ones before it. T5b (2026-11-10 amendment) runs after T5 and before T6. Requirements: `requirements.md` (approved 2026-11-07; amendment approved 2026-11-10). Design: `design.md` (approved 2026-11-07; D-A and D-B as recommended, D-C no committed default until T6, D-D generic wording with the English-terms clause).
 
 Rules for every task:
 - **Protected paths.** `knowledge/` never changes. `config/` and `evaluation/` change only as each task's "Allowed protected-path changes" line says. Every task checks `git status --porcelain -- evaluation knowledge config`, and the reviewer compares the output with the allowed list.
@@ -10,7 +10,7 @@ Rules for every task:
 - **No HTTP route** (Spec 013).
 - **No committed default generator until T6 (D-C).** `default_generator`, `bedrock.model_id` and `pricing` stay `null` in T3–T5. Tests never rely on a default generator; they pass `--generator fake` or construct `FakeGenerator`.
 - **`make verify` needs no Docker, PyTorch, extras, network, AWS credentials or model files**, and passes with an empty `HF_HOME` and `HF_HUB_OFFLINE=1`. Importing any module under `generation/` must not import the Anthropic SDK or `boto3`/`botocore`. Tests unset `AWS_*` variables they could read (autouse fixture) so no test can reach AWS by accident.
-- **Agents never call Bedrock**, never run the real embedder, reranker or generator, and never write to a `w2a-realcheck-*` or `way2australia-*` collection. Real runs and smoke tests are user-owned.
+- **Agents never call Bedrock or the Anthropic API** (2026-11-10), never run the real embedder, reranker or generator, and never write to a `w2a-realcheck-*` or `way2australia-*` collection. Real runs and smoke tests are user-owned.
 - **Verify budget.** At most two `make verify` runs per agent session: iterate with targeted `uv run pytest <paths>` and `make lint typecheck`, then run `make verify` once at the end of the task.
 - **No language literal or Malayalam-specific branch** in `generation/` code (grep test). Script → language mapping comes from `config/generation.yaml`; active codes from `config/language_registry.json`.
 - **No secrets** in code, config, prompts, fixtures, results or docs. No AWS account IDs or ARNs with account IDs.
@@ -159,17 +159,52 @@ Allowed protected-path changes: `evaluation/candidates/012-candidates.jsonl` (ne
 - `make validate-evaluation`.
 - `git status --porcelain -- evaluation knowledge config` lists only the candidates file for this task.
 
+## T5b — Direct Anthropic API generator (2026-11-10 amendment)
+
+**State:** approved (2026-11-13)
+**Requirements:** R17, R5 (413), R8, R9 (result 1.1), R13
+
+Bedrock quotas are 0 (requirements "Amendment 2026-11-10"). This task adds the `anthropic` generator for development and evaluation; Bedrock stays the production target. Design: "Direct Anthropic API generator".
+
+- [x] `generation/claude.py`: `ClaudeMessagesAdapter` with the request builder, attempt loop, deadline and backoff, `classify_error` and the D-B tables, and `_parse`, moved out of `bedrock.py` with no behaviour change; a `check_response(message)` hook (no-op for Bedrock); `GeneratorOutput.response_model` from the response's `model`.
+- [x] Refactor guard: the T3 tests (`test_bedrock.py`, `test_fake.py`, `test_generation_config.py`, `test_bedrock_smoke.py`) pass with no change to their assertions; a test moves or changes an import only where the shared adapter requires it, and every such change is listed in the hand-off for the review to check.
+- [x] 413 added to the configuration-error statuses (both Claude generators), with a test on each.
+- [x] `generation/anthropic_api.py`: `AnthropicGenerator` per design. Lazy SDK import; `anthropic.Anthropic` built with the explicit key from `ANTHROPIC_API_KEY` and `max_retries=0`, with nothing else able to supply credentials (`ANTHROPIC_AUTH_TOKEN`, profile, OAuth or workload identity neutralised as the SDK docs require; URL and SDK version in the hand-off). Refusals before the client is built: missing or empty key (also with `ANTHROPIC_AUTH_TOKEN` set), `ANTHROPIC_BASE_URL` set, Bedrock-form model ID (`^[a-z]+\.`). Response-model check (exact match; missing or different → `GeneratorConfigurationError` naming both IDs). No `fallbacks` field and no beta header. `GeneratorInfo(provider="anthropic", endpoint="api", region=None, inference_profile=None, …)`. The key never appears in any message, identity or result.
+- [x] `generation/base.py`: `provider` adds `anthropic`; `GeneratorOutput.response_model`. `generation/models.py`: `AnswerIdentity.response_model`. `generation/service.py` fills it. `make ask` prints the response model on the `generator:` line.
+- [x] `generation/config.py` and `config/generation.yaml`: schema `1.1`; `default_generator` allows `anthropic`; `anthropic:` section (`model_id: null`, `effort: low`, `max_tokens: 1024`, `request_timeout_s: 20`, `retries: 2`, `backoff_s: 1.0`, `deadline_s: 30`) with the `bedrock:` value rules; `default_generator`, both `model_id`s and `pricing` stay `null`.
+- [x] `generation/build.py`: `anthropic` → `AnthropicGenerator` (model ID from `--model-id` or `anthropic.model_id`; none → exit 2 with advice). `generation/cli.py` and `evaluation/cli.py`: `--generator fake|bedrock|anthropic`; help and advice texts name all three; `Makefile` comments updated.
+- [x] `evaluation/generation_eval.py`: generation result `1.1` with `response_model` per case and `response_models` at top level; the summary prints them.
+- [x] `packages/rag/pyproject.toml`: `anthropic = ["anthropic>=2.0.0,<3"]`; `uv.lock`; `Makefile` `setup-anthropic` (`--extra bge-m3 --extra reranker --extra anthropic`) and `.PHONY`; `make setup` still removes optional extras.
+- [x] `tests/generation/conftest.py`: also clear `ANTHROPIC_*`, `W2A_ANTHROPIC*` and `W2A_RUN_ANTHROPIC_SMOKE`.
+- [x] Opt-in smoke test `tests/generation/test_anthropic_smoke.py` (`W2A_RUN_ANTHROPIC_SMOKE=1`, model from `W2A_ANTHROPIC_MODEL_ID`; skipped by default; never run by agents): the same fixed prompt and pass criteria as the Bedrock smoke test, plus the response model; a one-line summary with no key.
+- [x] Tests (`tests/generation/test_anthropic_api.py`, additions to `test_generation_config.py`, `test_ask_cli.py`, `tests/evaluation/test_generation_eval.py`): every design "Testing" T5b item: client selection; explicit key and `max_retries=0`; the `ANTHROPIC_AUTH_TOKEN`-without-key test exits 2; base URL; model-ID form; exact request keys (no `fallbacks`, no extra headers); every D-B status including 413; refusal → `model_declined`; response-model mismatch and missing; key absent from messages and identity; lazy import (recorded import attempts, as T3 F2); missing extra names `make setup-anthropic`; config schema 1.1 refusals and the committed file's nulls; result 1.1 fields.
+
+Allowed protected-path changes: `config/generation.yaml` (schema `1.1` and the new `anthropic:` section only; every T3 value unchanged).
+
+### Verification
+
+- `uv run pytest packages/rag/tests/generation packages/rag/tests/evaluation` (iteration), then `make verify` once (hub-free if it is the single run).
+- `git diff 7ccfc9a -- packages/rag/tests/generation/test_bedrock.py packages/rag/tests/generation/test_fake.py packages/rag/tests/generation/test_generation_config.py packages/rag/tests/generation/test_bedrock_smoke.py` shows no changed assertion (import or move changes only, each listed in the hand-off); new config tests go in new test functions.
+- `git status --porcelain -- evaluation knowledge config` lists only `config/generation.yaml`.
+- No real API call: no `ANTHROPIC_API_KEY` is set in the agent's session; the smoke tests skip.
+
 ## T6 — Real runs, model choice and suite v4 (user-owned gate)
 
 **State:** not started
-**Requirements:** R12, R14, R8 (default), R13
+**Requirements:** R12, R14, R17, R8 (default), R13
 
-User-owned steps (the agent prepares commands and checks files; it never calls Bedrock):
+User-owned steps (the agent prepares commands and checks files; it never calls Bedrock or the Anthropic API). 2026-11-10: the runs use the direct Anthropic API (`--generator anthropic`); the Bedrock D-A smoke test stays open until AWS grants access and is not a gate here.
 
 - [ ] Smoke gate passed for each model to compare (T3 check, recorded in `task-reviews.md`); if not, stop for a spec amendment.
+  > Superseded 2026-11-10 by the direct-API smoke gate below; tick it when that gate passes (the Bedrock smoke test stays open).
+- [ ] Direct-API smoke gate (2026-11-10): `make setup-anthropic`, then `W2A_RUN_ANTHROPIC_SMOKE=1 W2A_ANTHROPIC_MODEL_ID=<id>` for `claude-sonnet-5-5` and `claude-haiku-5-5`; pass or fail, model ID, `endpoint: api` and response model recorded verbatim in `task-reviews.md` (no key). A structured-output failure or a response-model form mismatch stops T6 for a spec amendment. The Bedrock D-A smoke test is recorded as still open.
 - [ ] **Before any real run**, the user approves and this task records verbatim in `task-reviews.md`: the refusal threshold on unanswerable cases, the minimum golden answer rate, and the "falls short" criteria (for example maximum p95 generation latency, maximum cost per answer).
 - [ ] Model access: the user confirms each model in `ap-south-1`; if a model is served only through an APAC inference profile, record it (the decision is written in T7).
+  > Superseded 2026-11-10: Bedrock access is blocked, and model access on the direct API is shown by the smoke gate. Tick it when the next box is recorded.
+- [ ] Prices and data location (2026-11-10): the user records the Anthropic list prices per 1M input and output tokens for each model (proposed: Sonnet 5.5 $2 / $10, Haiku 5.5 $0.10 / $0.50; confirmed at T6) and that processing is outside India (the decision is written in T7).
 - [ ] Runs: `make setup-bedrock`; on `w2a-realcheck-idx-v2` with suite v3, `lote` as in the v3 references, same case selection for each model: `make eval-generation EVAL_ARGS="--generator bedrock --model-id <id> --price-input <p> --price-output <p> --all --yes --min-refusal-rate <t> --min-answer-rate <t>"` for Claude Sonnet 5.5 and Claude Haiku 5.5 (Opus 5.5 only if both fall short).
+  > Superseded 2026-11-10 by the next box; tick it when those runs are recorded.
+- [ ] Runs (2026-11-10): `make setup-anthropic`; on `w2a-realcheck-idx-v2` with suite v3, `lote` as in the v3 references, same case selection for each model: `make eval-generation EVAL_ARGS="--generator anthropic --model-id <id> --price-input <p> --price-output <p> --all --yes --min-refusal-rate <t> --min-answer-rate <t>"` for `claude-sonnet-5-5` and `claude-haiku-5-5` (Opus 5.5 only if both fall short). Latency and timeout figures are recorded as direct-API figures, not Bedrock figures.
 - [ ] Each compared run has zero `generator_unavailable`, or the affected cases are re-run (`--limit`/case selection as the design allows) and the re-run recorded.
 - [ ] The agent checks each result file (suite, not fake, clean commit, retrieval identity equal across runs, prompt identity, generator identity, thresholds given) and the user commits them.
 - [ ] Model choice by the recorded criteria, or the user's verbatim decision.
@@ -177,12 +212,13 @@ User-owned steps (the agent prepares commands and checks files; it never calls B
 Agent steps after the choice:
 
 - [ ] `config/generation.yaml`: `default_generator: bedrock`, the chosen `bedrock.model_id` (and `inference_profile` if needed), `pricing` — changed together in one commit.
+  > Amended 2026-11-10: commit `default_generator: anthropic`, the chosen `anthropic.model_id` and `pricing` together; `bedrock.model_id` and `bedrock.inference_profile` stay `null`. The later switch to `bedrock` is its own spec or task.
 - [ ] CLI tests for the new default, in this task: replace the T4/T5 "no `--generator` → exit 2" tests with tests that read `default_generator` from the file (never a literal) and show `make ask` / `make eval-generation` without `--generator` build the configured provider (stub, no SDK call).
 - [ ] Suite v4 (R12), with the user: the user approves candidates (owner, and fluent speaker for `ml`/`mixed`), verbatim in `task-reviews.md`; create `evaluation/suites/public-eval-v4.json` and `evaluation/datasets/v4/` (v3 cases carried over unchanged except `evaluation_suite_id`, plus approved cases with new `case_id`s); v3 suite `status: replaced`; candidate rows keep `status: suggested` with `review.promoted_as`; `DEFAULT_SUITE` in `evaluation/cli.py` → v4. If none is approved, record that and skip v4.
 - [ ] Continuity: the user runs `make eval-retrieval` on v4 with the settings of the current v3 retrieval reference (Spec 011 depth 20, rerank on, `lote ml`: `experiments/results/retrieval-evaluation-idx-v2-20261106T072428Z.json`) and `make eval-continuity` against that file: no shared-case differences.
 - [ ] One reference run of the chosen model on v4 (`make eval-generation`, case limit at the user's choice), committed.
 
-Allowed protected-path changes: `config/generation.yaml` (`default_generator`, `bedrock.model_id`, `bedrock.inference_profile`, `pricing` only); `evaluation/suites/public-eval-v3.json` (`status` only); `evaluation/suites/public-eval-v4.json`, `evaluation/datasets/v4/**` (new); `evaluation/candidates/012-candidates.jsonl` (`review` fields only).
+Allowed protected-path changes: `config/generation.yaml` (`default_generator`, `anthropic.model_id`, `pricing` only; 2026-11-10, replacing `bedrock.model_id` and `bedrock.inference_profile`); `evaluation/suites/public-eval-v3.json` (`status` only); `evaluation/suites/public-eval-v4.json`, `evaluation/datasets/v4/**` (new); `evaluation/candidates/012-candidates.jsonl` (`review` fields only).
 
 ### Verification
 
@@ -205,6 +241,9 @@ Allowed protected-path changes: `config/generation.yaml` (`default_generator`, `
   - Record, and write into the design: citation rule order `no_citation` → `model_url` → `unknown_id` → `duplicate_id` → `marker_mismatch` decides the reported `sub_reason` when several rules break (T4 review F2).
   - Record: the T3 review F1 deadline change supersedes the design "Attempt loop" text ("`DEADLINE` is raised, whatever the last error was"): the classified sub-reason is kept and `deadline` is used only when no error caused it, and the backoff is no longer capped at the remaining time (the loop stops without sleeping when the wait leaves 1 s or less) (T4 review F3).
   - Record (T5 round 3 tests): `answer_script_mix` measures the answer text including `[Sn]` markers and English-kept names (`NAATI`, `CCL`), so Malayalam answers can report `latin+malayalam`; informational only and does not indicate answer-language compliance.
+  - Record (T5b review): `AnthropicGenerator` also refuses `ANTHROPIC_CUSTOM_HEADERS` (exit 2), beyond the design's `ANTHROPIC_BASE_URL` rule, because the SDK turns it into default request headers and could inject a beta or fallback header; the shared 4xx configuration message no longer says "Bedrock"; `response_model` is carried only where the model returned an output.
+- [ ] (2026-11-10) `DECISIONS.md`: a decision for the direct Anthropic API (development and evaluation endpoint until Bedrock access arrives; Bedrock stays the production target; data processed outside India, as with the `global.` profiles; `default_generator` moves to `bedrock` once AWS grants access and the Bedrock D-A smoke test passes, as its own spec or task with a timeout and latency re-check; key only from `ANTHROPIC_API_KEY`, base-URL refusal, no fallbacks, response-model check; shared Claude-only adapter). The D-B decision includes 413. The R14 decision states that latency and timeout figures are direct-API, not Bedrock, figures and that the Bedrock D-A smoke test is still open.
+- [ ] (2026-11-10) Docs: the AWS findings (Free plan blocks Marketplace models; all quotas 0 on a new account; quota increases go through AWS Sales; `ap-south-1` offers only the `global.` profiles for Claude 5.5) in `COMMANDS.md` setup notes and `CURRENT_STATE.md`; the `botocore[crt]` / `aws login` workaround (`eval "$(aws configure export-credentials --format env)"`) in `COMMANDS.md`, or `botocore[crt]` added to the `bedrock` extra; `TECH_STACK.md` unchanged except a note on the direct-API development endpoint; `COMMANDS.md` gains `make setup-anthropic`, `--generator anthropic` and `ANTHROPIC_API_KEY`; `CURRENT_STATE.md` records the open Bedrock smoke test and the pending switch as a carry-over.
 - [ ] Spec-wide checks (R15): `make verify` (no extras, network, credentials or Docker; hub-free), `make test-integration` (Docker Qdrant), `make eval-security`, protected-path diff.
 
 Allowed protected-path changes: none.

@@ -2976,6 +2976,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+anthropic = [
+    { name = "anthropic" },
+]
 bedrock = [
     { name = "anthropic", extra = ["bedrock"] },
 ]
@@ -2988,6 +2991,7 @@ reranker = [
 
 [package.metadata]
 requires-dist = [
+    { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=2.0.0,<3" },
     { name = "anthropic", extras = ["bedrock"], marker = "extra == 'bedrock'", specifier = ">=2.0.0,<3" },
     { name = "huggingface-hub", specifier = ">=0.26.0" },
     { name = "jsonschema", specifier = ">=4.23.0" },
@@ -3001,7 +3005,7 @@ requires-dist = [
     { name = "tokenizers", specifier = ">=0.20.0" },
     { name = "way2australia-core", editable = "packages/core" },
 ]
-provides-extras = ["bge-m3", "reranker", "bedrock"]
+provides-extras = ["bge-m3", "reranker", "bedrock", "anthropic"]
 
 [[package]]
 name = "websockets"

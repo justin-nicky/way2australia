@@ -35,6 +35,11 @@ bedrock = [
   "anthropic[bedrock]>=2.0.0,<3",
 ]
 
+# Direct Anthropic API generator (Spec 012 T5b, R17): the SDK without Bedrock dependencies.
+anthropic = [
+  "anthropic>=2.0.0,<3",
+]
+
 [tool.uv]
 package = true
 

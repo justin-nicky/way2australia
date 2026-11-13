@@ -55,14 +55,17 @@ def _parser() -> argparse.ArgumentParser:
     add_retrieval_arguments(parser, top_k_default=None)
     parser.add_argument(
         "--generator",
-        choices=("fake", "bedrock"),
+        choices=("fake", "bedrock", "anthropic"),
         default=None,
         help="generator (default: default_generator in config/generation.yaml)",
     )
     parser.add_argument(
         "--model-id",
         default=None,
-        help="Bedrock model ID (default: bedrock.model_id in the generation config)",
+        help=(
+            "model ID for bedrock or anthropic (default: bedrock.model_id or "
+            "anthropic.model_id in the generation config)"
+        ),
     )
     parser.add_argument(
         "--generation-config",
@@ -142,7 +145,13 @@ def format_response(response: AnswerResponse, generator: Generator) -> str:
         f"generator: {info.provider} (model {safe_text(info.model_id)}"
         f", endpoint {safe_text(info.endpoint or 'none')}"
         f", region/profile {safe_text(where)}"
-        f", fake={str(info.is_fake).lower()}{called})"
+        f", fake={str(info.is_fake).lower()}{called}"
+        + (
+            f", response model {safe_text(response.identity.response_model)}"
+            if response.identity.response_model
+            else ""
+        )
+        + ")"
     )
     prompt = response.identity.prompt
     lines.append(

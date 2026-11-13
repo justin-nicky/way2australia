@@ -1,4 +1,4 @@
-"""Generator factory (Spec 012 R5, D-C): `fake` and `bedrock`."""
+"""Generator factory (Spec 012 R5, D-C): `fake`, `bedrock` and `anthropic`."""
 
 from typing import Literal
 
@@ -22,7 +22,8 @@ def build_generator(
     chosen = provider or config.default_generator
     if chosen is None:
         raise GeneratorConfigurationError(
-            "no generator is configured; pass --generator fake or --generator bedrock."
+            "no generator is configured; pass --generator fake, --generator bedrock "
+            "or --generator anthropic."
         )
     if chosen == "fake":
         return FakeGenerator()
@@ -40,4 +41,15 @@ def build_generator(
         from way2australia_rag.generation.bedrock import BedrockGenerator
 
         return BedrockGenerator(config.bedrock, model_id, source)
+    if chosen == "anthropic":
+        model_id = model_id_override or config.anthropic.model_id
+        if not model_id:
+            raise GeneratorConfigurationError(
+                "the anthropic generator needs a model ID; pass --model-id <id> "
+                "(anthropic.model_id is not set in config/generation.yaml)."
+            )
+        source = model_id_override_source if model_id_override else "config"
+        from way2australia_rag.generation.anthropic_api import AnthropicGenerator
+
+        return AnthropicGenerator(config.anthropic, model_id, source)
     raise GeneratorConfigurationError(f"unknown generator provider {chosen!r}")

@@ -343,3 +343,40 @@ def test_make_retrieve_output_is_unchanged_by_the_shared_helper(
     assert lines[1].startswith("index: ")
     assert re.match(r"^hits: \d+ \(strategy=dense, top_k 3, [\d.]+ ms\)$", lines[2])
     assert lines[-1] == "rerank: off"
+
+
+def test_anthropic_without_a_model_id_exits_two(
+    indexed: Factory, capsys: pytest.CaptureFixture[str]
+) -> None:
+    code = ask(indexed, *SHARED, "--generator", "anthropic")
+    assert code == 2
+    assert "--model-id" in capsys.readouterr().err
+    assert indexed.calls == 0
+
+
+def test_help_and_advice_name_all_three_generators(
+    indexed: Factory, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    assert "anthropic" in cli._parser().format_help()
+    path = config_copy(tmp_path, default_generator=None)
+    assert ask(indexed, *SHARED, "--generation-config", str(path)) == 2
+    assert "--generator anthropic" in capsys.readouterr().err
+
+
+def test_generator_line_prints_the_response_model(
+    indexed: Factory,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Named(FakeGenerator):
+        def generate(self, prompt: Any) -> Any:
+            return output("ok [S1]", ["S1"]).model_copy(
+                update={"response_model": "claude-sonnet-5-5"}
+            )
+
+    monkeypatch.setattr(cli, "build_generator", lambda *_a, **_k: Named())
+    assert ask(indexed, *SHARED) == 0
+    line = next(
+        x for x in capsys.readouterr().out.splitlines() if x.startswith("generator:")
+    )
+    assert "response model claude-sonnet-5-5" in line

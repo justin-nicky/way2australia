@@ -652,8 +652,8 @@ def _generation(
         config = load_generation_config(gen_path, repo_root)
         if args.generator is None and config.default_generator is None:
             raise GeneratorConfigurationError(
-                "no generator is configured; pass --generator fake or "
-                "--generator bedrock."
+                "no generator is configured; pass --generator fake, "
+                "--generator bedrock or --generator anthropic."
             )
         config, pricing_applied = apply_pricing_overrides(
             config,
@@ -926,7 +926,9 @@ def main(
     )
     group.add_argument("--no-rerank", dest="rerank", action="store_const", const=False)
     generation.add_argument("--reranker", choices=("bge", "fake"), default=None)
-    generation.add_argument("--generator", choices=("fake", "bedrock"), default=None)
+    generation.add_argument(
+        "--generator", choices=("fake", "bedrock", "anthropic"), default=None
+    )
     generation.add_argument("--model-id", default=None)
     generation.add_argument(
         "--price-input", type=float, default=None, dest="price_input"

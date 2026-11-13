@@ -106,7 +106,7 @@ def test_fake_cli_writes_tmp_result(
     assert code == 0 and out.is_file()
     doc = json.loads(out.read_text(encoding="utf-8"))
     assert doc["kind"] == "generation_evaluation"
-    assert doc["schema_version"] == "1.0"
+    assert doc["schema_version"] == "1.1"
     assert doc["generator_is_fake"] is True
     assert len(doc["cases"]) == 3
 
@@ -1041,3 +1041,87 @@ def test_prompt_chars_uses_system_text_when_no_blocks() -> None:
         None,
     )
     assert chars == len(prompt.system_text)
+
+
+def test_result_1_1_records_response_models(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    class Named(FakeGenerator):
+        def generate(self, prompt: RenderedPrompt) -> GeneratorOutput:
+            return (
+                super()
+                .generate(prompt)
+                .model_copy(update={"response_model": "claude-test-1"})
+            )
+
+    monkeypatch.setattr(
+        "way2australia_rag.evaluation.cli.build_generator", lambda *_a, **_k: Named()
+    )
+    out = tmp_path / "named.json"
+    code = generation_run(
+        _factory(),
+        "--embedder", "fake", "--strategy", "dense", "--no-rerank",
+        "--generator", "fake", "--allow-fake", "--limit", "3",
+        "--output", str(out),
+    )  # fmt: skip
+    assert code == 0
+    doc = json.loads(out.read_text(encoding="utf-8"))
+    assert doc["schema_version"] == "1.1"
+    assert doc["response_models"] == ["claude-test-1"]
+    called = [c for c in doc["cases"] if c["response_model"]]
+    assert called and all(c["response_model"] == "claude-test-1" for c in called)
+    assert "response models: claude-test-1" in capsys.readouterr().out
+
+
+def test_fake_result_has_no_response_models(tmp_path: Path) -> None:
+    out = tmp_path / "fake.json"
+    assert (
+        generation_run(
+            _factory(),
+            "--embedder",
+            "fake",
+            "--strategy",
+            "dense",
+            "--no-rerank",
+            "--generator",
+            "fake",
+            "--allow-fake",
+            "--limit",
+            "2",
+            "--output",
+            str(out),
+        )  # fmt: skip
+        == 0
+    )
+    doc = json.loads(out.read_text(encoding="utf-8"))
+    assert doc["response_models"] == []
+    assert all("response_model" in c for c in doc["cases"])
+
+
+def test_cli_anthropic_without_a_model_id_exits_two(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """`--generator anthropic` is accepted; with no model ID the run stops with
+    exit 2 naming `--model-id`, before any generator call."""
+    calls: list[object] = []
+    monkeypatch.setattr(
+        "way2australia_rag.generation.anthropic_api.AnthropicGenerator.generate",
+        lambda *a, **k: calls.append(a),
+    )
+    code = generation_run(
+        _factory(),
+        "--embedder",
+        "fake",
+        "--strategy",
+        "dense",
+        "--no-rerank",
+        "--generator",
+        "anthropic",
+        "--limit",
+        "1",
+        "--output",
+        str(tmp_path / "a.json"),
+    )
+    assert code == 2
+    assert "--model-id" in capsys.readouterr().err
+    assert calls == []

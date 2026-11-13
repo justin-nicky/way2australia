@@ -118,6 +118,7 @@ class AnswerService:
             citations: list[Citation] | None = None,
             called: bool = False,
             usage: GeneratorUsage | None = None,
+            response_model: str | None = None,
             generation_ms: float = 0.0,
         ) -> AnswerResponse:
             return self._response(
@@ -132,6 +133,7 @@ class AnswerService:
                 retrieval,
                 called,
                 usage,
+                response_model,
                 {
                     **latency,
                     "generation_ms": generation_ms,
@@ -177,6 +179,7 @@ class AnswerService:
                 AnswerReason.MODEL_DECLINED,
                 called=True,
                 usage=output.usage,
+                response_model=output.response_model,
                 generation_ms=generation_ms,
             )
         try:
@@ -188,6 +191,7 @@ class AnswerService:
                 sub_reason=error.rule,
                 called=True,
                 usage=output.usage,
+                response_model=output.response_model,
                 generation_ms=generation_ms,
             )
         return respond(
@@ -197,6 +201,7 @@ class AnswerService:
             citations=citations,
             called=True,
             usage=output.usage,
+            response_model=output.response_model,
             generation_ms=generation_ms,
         )
 
@@ -213,6 +218,7 @@ class AnswerService:
         retrieval: dict[str, Any],
         called: bool,
         usage: GeneratorUsage | None,
+        response_model: str | None,
         latency: dict[str, float],
     ) -> AnswerResponse:
         message: str | None = None
@@ -254,6 +260,7 @@ class AnswerService:
                 retrieval=retrieval,
                 prompt=self._prompt.identity,
                 generator=self._generator.info if called else None,
+                response_model=response_model,
             ),
             usage=usage,
             latency_ms=latency,

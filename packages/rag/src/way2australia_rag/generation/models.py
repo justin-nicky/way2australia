@@ -52,6 +52,8 @@ class AnswerIdentity(BaseModel):
     retrieval: dict[str, Any]
     prompt: PromptIdentity
     generator: GeneratorInfo | None
+    # 2026-11-10: the response's `model`; None when not called or fake.
+    response_model: str | None = None
 
 
 class ContextStats(BaseModel):

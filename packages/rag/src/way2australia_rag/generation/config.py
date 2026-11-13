@@ -1,4 +1,4 @@
-"""Generation configuration (Spec 012 R5): schema `1.0` of `config/generation.yaml`."""
+"""Generation configuration (Spec 012 R5): schema `1.1` of `config/generation.yaml`."""
 
 from pathlib import Path
 from typing import Literal
@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_valida
 from way2australia_rag.generation.errors import GeneratorConfigurationError
 
 DEFAULT_GENERATION_CONFIG = "config/generation.yaml"
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
 
 
 class _Strict(BaseModel):
@@ -59,6 +59,25 @@ class BedrockConfig(_Strict):
         return self
 
 
+class AnthropicConfig(_Strict):
+    """Direct Anthropic API (2026-11-10): the `bedrock:` value rules, no endpoint,
+    region or inference profile."""
+
+    model_id: str | None
+    effort: Literal["low", "medium", "high"]
+    max_tokens: int = Field(ge=64, le=8192)
+    request_timeout_s: float = Field(gt=0)
+    retries: int = Field(ge=0, le=5)
+    backoff_s: float = Field(ge=0)
+    deadline_s: float = Field(gt=0)
+
+    @model_validator(mode="after")
+    def _deadline_covers_one_request(self) -> "AnthropicConfig":
+        if self.deadline_s < self.request_timeout_s:
+            raise ValueError("anthropic.deadline_s must not be below request_timeout_s")
+        return self
+
+
 class PricingConfig(_Strict):
     """USD per million tokens; null until the user fills them in (D-C)."""
 
@@ -72,14 +91,15 @@ class EstimateConfig(_Strict):
 
 
 class GenerationConfig(_Strict):
-    schema_version: Literal["1.0"]
-    default_generator: Literal["bedrock", "fake"] | None
+    schema_version: Literal["1.1"]
+    default_generator: Literal["bedrock", "anthropic", "fake"] | None
     prompt: PromptSelection
     retrieval: RetrievalSelection
     context: ContextConfig
     evidence_only: EvidenceOnlyConfig
     languages: LanguagesConfig
     bedrock: BedrockConfig
+    anthropic: AnthropicConfig
     pricing: PricingConfig
     estimate: EstimateConfig
 

@@ -48,7 +48,7 @@ from way2australia_rag.retrieval.text import safe_text
 from way2australia_rag.script_mix import script_mix
 
 GENERATION_KIND = "generation_evaluation"
-GENERATION_SCHEMA_VERSION = "1.0"
+GENERATION_SCHEMA_VERSION = "1.1"
 
 
 @dataclass(frozen=True)
@@ -352,6 +352,7 @@ def _row_from_response(
         "usage": usage.model_dump() if usage else None,
         "latency_ms": dict(response.latency_ms),
         "served_retrieval_path": response.identity.retrieval.get("strategy"),
+        "response_model": response.identity.response_model,
         "first_request": first_request,
     }
 
@@ -559,6 +560,9 @@ def format_generation_summary(document: dict[str, Any], shown: Path) -> str:
         )
         for sub, ids in gu["case_ids_by_sub_reason"].items():
             lines.append(f"  {sub}: {', '.join(ids)}")
+    models = document.get("response_models") or []
+    if models:
+        lines.append(f"response models: {', '.join(models)}")
     tok = document["tokens"]
     lines.append(
         f"tokens: in {tok['input_total']} out {tok['output_total']} "
@@ -665,6 +669,9 @@ def run_generation_evaluation(
         "case_selection": selected.selection,
         "prompt": prompt.identity.model_dump(),
         "generator": generator_info.model_dump(),
+        "response_models": sorted(
+            {str(r["response_model"]) for r in rows if r.get("response_model")}
+        ),
         "pricing_applied": pricing_applied,
         "retrieval_identity": retrieval_identity,
         "ingestion_config": ingestion_config,
