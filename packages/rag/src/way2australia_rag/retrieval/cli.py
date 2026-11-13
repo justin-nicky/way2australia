@@ -107,7 +107,7 @@ def main(
         resolved = resolve_retrieval_args(args)
         rerank = resolved.rerank
         opened = open_retrieval(
-            resolved.strategy, **resolved.open_kwargs(client_factory)
+            resolved.strategy, **resolved.open_kwargs(client_factory, args.top_k)
         )
         access = resolve_access(guest_access(resolved.settings))
         result = opened.retriever.retrieve(

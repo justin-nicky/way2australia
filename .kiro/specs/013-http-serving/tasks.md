@@ -21,16 +21,16 @@ Rules for every task:
 
 ## T1 — Retrieval opening rework and client lifecycle
 
-**State:** not started
+**State:** approved (2026-11-14)
 **Requirements:** R1, R2, R15
 
-- [ ] `retrieval/opening.py` per design "Retrieval opening rework":
+- [x] `retrieval/opening.py` per design "Retrieval opening rework":
   - one `_open_standalone` helper used by the `bm25` branch and `_open_fallback` (Spec 008 F4);
   - keyword-only `top_k: int | None = None`: with `rerank=True` and `top_k > rerank.depth`, raise `RetrievalConfigurationError` before `reranker_factory` is called (Spec 011 F3);
   - `OpenedRetrieval.client`; one `try` around `DenseIndex.open`, lexical bind, reranker load and `build_retriever` that closes the client and any opened lexical file on any exception; `close()` closes lexical then client and is idempotent.
-- [ ] `make retrieve`, `make eval-retrieval`, `make ask`, `make eval-generation` pass their effective `top_k` (or depth) to `open_retrieval`.
-- [ ] `evaluation/cli.py`: `retrieval_depth` is `rerank.depth` only when the opened stack has a loaded reranker on a dense-capable path; after an open-time fallback it is `fusion.candidate_depth` (Spec 011 F1). No result version bump (design). Update the one existing test that asserts depth 20 in that case, naming the finding in its docstring.
-- [ ] Tests (`packages/rag/tests/retrieval/test_opening_lifecycle.py` and existing files): a failure injected at each step (dense open, lexical bind, reranker load, `build_retriever`) closes the client and any lexical file (stub client with a `close` counter); `close()` twice is safe and closes once; `top_k > rerank.depth` refused with zero reranker factory and load calls; the standalone path is shared (one helper; existing `bm25` and fallback tests unchanged); `eval-retrieval` records `retrieval_depth` 50 after an open-time fallback with reranking requested.
+- [x] `make retrieve`, `make eval-retrieval`, `make ask`, `make eval-generation` pass their effective `top_k` (or depth) to `open_retrieval`.
+- [x] `evaluation/cli.py`: `retrieval_depth` is `rerank.depth` only when the opened stack has a loaded reranker on a dense-capable path; after an open-time fallback it is `fusion.candidate_depth` (Spec 011 F1). No result version bump (design). Update the one existing test that asserts depth 20 in that case, naming the finding in its docstring.
+- [x] Tests (`packages/rag/tests/retrieval/test_opening_lifecycle.py` and existing files): a failure injected at each step (dense open, lexical bind, reranker load, `build_retriever`) closes the client and any lexical file (stub client with a `close` counter); `close()` twice is safe and closes once; `top_k > rerank.depth` refused with zero reranker factory and load calls; the standalone path is shared (one helper; existing `bm25` and fallback tests unchanged); `eval-retrieval` records `retrieval_depth` 50 after an open-time fallback with reranking requested.
 
 Allowed protected-path changes: none.
 

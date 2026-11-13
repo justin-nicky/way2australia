@@ -7,7 +7,12 @@ from typing import Any
 
 import pytest
 import yaml
-from conftest import PRODUCTION_COLLECTION, PRODUCTION_INDEX_VERSION, REPO_ROOT
+from conftest import (
+    PRODUCTION_COLLECTION,
+    PRODUCTION_INDEX_VERSION,
+    REPO_ROOT,
+    KeepOpenClient,
+)
 from qdrant_client import QdrantClient, models
 from way2australia_rag.ingestion import cli as ingestion_cli
 from way2australia_rag.ingestion.config import RuntimeSettings
@@ -40,7 +45,9 @@ class Factory:
 
     def __call__(self, settings: RuntimeSettings) -> QdrantClient:
         self.calls += 1
-        return self.client
+        # `open_retrieval(...).close()` closes the client it was given (Spec 013
+        # R2); tests read `self.client` afterwards, so hand out a non-closing view.
+        return KeepOpenClient(self.client)  # type: ignore[return-value]
 
 
 def ingest(client: QdrantClient, config: Path | None = None) -> None:

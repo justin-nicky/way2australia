@@ -17,6 +17,25 @@ from way2australia_rag.ingestion.config import load_ingestion_config
 from way2australia_rag.repositories import LocalDocumentRepository
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+class KeepOpenClient:
+    """A view of an in-memory Qdrant client whose `close` does nothing.
+
+    `open_retrieval(...).close()` now closes the client it opened (Spec 013 R2).
+    A test that opens a stack twice over one in-memory client, or reads the
+    client after a CLI run, hands out this view so the shared client survives."""
+
+    def __init__(self, inner: object) -> None:
+        self._inner = inner
+
+    def close(self) -> None:
+        return None
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._inner, name)
+
+
 PRODUCTION_INGESTION = REPO_ROOT / "config/ingestion.yaml"
 HEADING_INGESTION_FIXTURE = (
     Path(__file__).resolve().parent / "ingestion/fixtures/heading-idx-v1-ingestion.yaml"

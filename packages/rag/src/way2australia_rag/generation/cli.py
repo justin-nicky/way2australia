@@ -199,7 +199,7 @@ def main(
             args.top_k = config.retrieval.top_k
         resolved = resolve_retrieval_args(args)
         opened = open_retrieval(
-            resolved.strategy, **resolved.open_kwargs(client_factory)
+            resolved.strategy, **resolved.open_kwargs(client_factory, args.top_k)
         )
         access = resolve_access(guest_access(resolved.settings))
         service = AnswerService(

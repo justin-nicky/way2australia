@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 import yaml
-from conftest import REPO_ROOT
+from conftest import REPO_ROOT, KeepOpenClient
 from lexical_support import COLLECTION, VERSION, repository
 from lexical_support import identity as lexical_identity_input
 from qdrant_client import QdrantClient
@@ -422,7 +422,8 @@ def test_open_hybrid_paths_without_tokenizer(
     )
 
     def client_factory(_settings: object) -> QdrantClient:
-        return client
+        # `close()` closes the client (Spec 013 R2); the test opens it twice.
+        return KeepOpenClient(client)  # type: ignore[return-value]
 
     with tokenizer_patch:
         opened = open_retrieval(
