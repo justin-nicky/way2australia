@@ -105,6 +105,7 @@ Not yet implemented:
 3. **Follow-up chore (D080):** in `packages/rag/tests/evaluation/test_security_eval.py`, share one CLI gate run across `test_cli_lexical_file_is_removed_after_a_pass`, `test_cli_pass_writes_a_result_and_exits_zero` and `test_cli_clause_less_lexical_store_exits_one_naming_strategies` (about −38 s of `make verify`). Docker tests stay in `make verify` until CI runs `make test-integration`.
 4. The trial docs re-extraction of 2026-11-07 was discarded and is not to be retried (D080); the docs part of the graph stays from the earlier extraction.
 5. Open since the verify-budget chore: remove user-level verify-budget hook copies; the committed hook is `.claude/settings.json` + `tools/hooks/verify_budget.py`.
+6. Open chore: the post-merge `/graphify . --update` docs re-extraction was refused by the shrink guard again on 2026-11-13 (1443 vs 1927 doc nodes; same outcome as the 2026-11-07 trial, D080). Decide whether to drop the post-merge reminder from `spec-orchestrator` or limit it to new docs.
 
 ## Ingestion operating notes
 
