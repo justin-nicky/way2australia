@@ -54,6 +54,7 @@ from way2australia_rag.lexical.store import (
     LexicalIndex,
     LexicalIndexBindingError,
 )
+from way2australia_rag.lexical.tokenizer import TOKENIZERS
 from way2australia_rag.repositories import (
     GUEST_PUBLIC_POLICY,
     LocalDocumentRepository,
@@ -299,6 +300,7 @@ def test_open_retrieval_bm25_without_tokenizer(
             chunker=chunker.identity,
             hash_contract=HASH_CONTRACT,
         ),
+        tokenizer=TOKENIZERS[load_retrieval_config(RETRIEVAL).lexical.tokenizer],
     )
     monkeypatch.setenv("QDRANT_COLLECTION_BASE", "way2australia")
     monkeypatch.setenv("W2A_LEXICAL_INDEX_DIR", str(directory))
@@ -411,6 +413,7 @@ def test_open_hybrid_paths_without_tokenizer(
             chunker=chunker.identity,
             hash_contract=HASH_CONTRACT,
         ),
+        tokenizer=TOKENIZERS[load_retrieval_config(RETRIEVAL).lexical.tokenizer],
     )
     monkeypatch.setenv("QDRANT_COLLECTION_BASE", base)
     monkeypatch.setenv("W2A_LEXICAL_INDEX_DIR", str(tmp_path))

@@ -51,3 +51,51 @@
 > I approve T1. Commit it with Spec-Task: 013/T1 and push spec/013.
 >
 > Process note for the record: T1 had two implementers writing at the same time (Grok 4.7 in Cursor and a parallel Claude Code session). The review covered the combined diff, so T1 stands. From T2 on, exactly one implementer session works on a task. Then start T2.
+
+## T2 — round 1
+
+### Implementation
+- Model: Grok 4.7 (Cursor; BEST_MINUS_ONE). Matches the configured Cursor tier.
+- Files changed:
+  - `packages/rag/src/way2australia_rag/lexical/store.py` (`check_same_thread=False` with `mode=ro` and `query_only`; one `threading.Lock` around every connection use including idempotent `close`; `check_tokenizer`)
+  - `packages/rag/src/way2australia_rag/lexical/freshness.py` (`run_sync`; `verify_fresh` uses it)
+  - `packages/rag/src/way2australia_rag/retrieval/opening.py` (`_open_standalone` takes `tokenizer` and calls `check_tokenizer`)
+  - `packages/rag/src/way2australia_rag/retrieval/strategy.py` (`open_bound_lexical` takes keyword-only `tokenizer` and calls `check_tokenizer` before `bind_to`)
+  - Tests: new `packages/rag/tests/lexical/test_lexical_runtime.py`; `test_lexical_standalone.py` (freshness inside a running loop, twice); builders that open through the real retrieval config now record its tokenizer (`test_opening.py`, `test_bm25.py`, `test_retrieval_integration.py`, `test_config_schema_11.py`, `test_ask_cli.py`, `lexical_support.build_production`)
+  - `.kiro/specs/013-http-serving/tasks.md` (boxes, State), this file
+- Verification run: `python3 -m uv run pytest packages/rag/tests/lexical packages/rag/tests/retrieval packages/rag/tests/ingestion/test_config_schema_11.py packages/rag/tests/generation/test_ask_cli.py` → 571 passed (`uv` is not on PATH; the Makefile invokes `python3 -m uv`). `make verify` → pass (1811 passed, 5 skipped; ruff, format, pyright 0 errors, skills-check, validate-knowledge, validate-evaluation). `git status --porcelain -- evaluation knowledge config` → empty (allowed: none). `make test-integration` not required by T2, not run.
+- Notes:
+  - `check_tokenizer` compares the recorded tokenizer name with `lexical.tokenizer`. Open already rejects an unknown name/version pair. The message uses the existing rebuild advice (`make index-lexical`, no path) plus the recorded and wanted names. The label is the file name, as in every other lexical error; the tests assert the temp directory is absent and the message contains no `/`.
+  - One lock per `LexicalIndex`. `close` is idempotent, so the sqlite connection is closed once even when `close` runs again. A mismatch closes that connection once; on the hybrid path the Qdrant client is closed once as well.
+  - `run_sync` uses `asyncio.run` when no loop is running, and `asyncio.run` on a joined thread (`lexical-freshness`) when one is. `LocalDocumentRepository` was not changed. On Python 3.12 an uncontended `asyncio.Lock.acquire` does not bind the lock to a loop, so two sequential `verify_fresh` calls on the same repository succeed; that was checked before relying on it.
+  - Existing tests that open a file through `config/retrieval.yaml` (`lexical-v2`) now build that file with the configured tokenizer. Assertions are unchanged. `build_production` gained an optional lexical tokenizer; its chunker tokenizer is still `FakeTokenizer`.
+  - `docs/project/CURRENT_STATE.md` was already modified when this session started (T2 implementing, round 1, and the single-implementer sentence). This session did not edit it.
+  - No FastAPI, Starlette, uvicorn, or httpx behaviour relied on.
+  - Not run: `make test-integration` (not required); no real API, model, or collection was touched.
+- Usage: n/a (Cursor) · 204 tool uses · 25:00
+
+### Review
+- Model: Grok 4.7 (Cursor; matches the BEST tier `Grok 4.7`). Fresh session; the implementer used the same configured model.
+- Verdict: PASS
+- Commands: `UV_CACHE_DIR="$(pwd)/.uv-cache" UV_PYTHON_INSTALL_DIR="$(pwd)/.uv-python" python3 -m uv run pytest packages/rag/tests/lexical packages/rag/tests/retrieval` → pass (536 passed); `HF_HUB_OFFLINE=1 HF_HOME="$(mktemp -d)" make verify` → pass (ruff check clean, ruff format 237 files already formatted, pyright 0 errors, skills-check match, validate-knowledge OK, validate-evaluation OK, 1811 passed, 5 skipped, 1816 collected). `git status --porcelain -- evaluation knowledge config` → empty (allowed: none). `make test-integration` not required by T2, not run.
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R15] Existing opens that go through `config/retrieval.yaml` now build the lexical file with `TOKENIZERS[retrieval.lexical.tokenizer]` (`tests/lexical_support.py` `build_production`, `tests/retrieval/test_opening.py`, `test_bm25.py`, `test_retrieval_integration.py`, `tests/ingestion/test_config_schema_11.py`, `tests/generation/test_ask_cli.py`). Assertions are unchanged → none required.
+- Summary for user (PASS only):
+  - Changed: one read-only SQLite connection per lexical file (`check_same_thread=False`, still `mode=ro` and `query_only`) is guarded by one lock on `LexicalIndex`, including an idempotent `close`. Standalone open and `open_bound_lexical` both refuse a file whose recorded tokenizer is not `lexical.tokenizer` from `config/retrieval.yaml`, with `make index-lexical` in the message and no path, and close that connection once. `verify_fresh` reaches the repository through `run_sync`: `asyncio.run` when this thread has no loop, and `asyncio.run` on a short-lived joined thread when a loop is already running.
+  - Verified by: tokenizer refusal on the standalone and bound paths (connection and, on hybrid, the Qdrant client closed once), 8-thread BM25 matching serial results, close overlapping a query, `verify_fresh` twice from inside `asyncio.run`; targeted pytest (536 passed) and `make verify` (1811 passed, 5 skipped).
+  - Worth your attention: on Python 3.12 an uncontended `asyncio.Lock.acquire` does not bind `LocalDocumentRepository`'s lock to a loop, so two sequential `verify_fresh` calls on one repository succeed. The design uses that lock only for those sequential runs (startup, or one dense re-open). Overlapping freshness checks on the same repository are outside this task.
+  - Reading order (follow the flow: entry point → core logic → models/errors/config → tests):
+    1. `packages/rag/src/way2australia_rag/retrieval/opening.py` → `_open_standalone`, `open_retrieval`: passes `retrieval_config.lexical.tokenizer` and closes on a mismatch
+    2. `packages/rag/src/way2australia_rag/retrieval/strategy.py` → `open_bound_lexical`: `check_tokenizer` before `bind_to`, then close
+    3. `packages/rag/src/way2australia_rag/lexical/store.py` → `_read_only_connection`, `LexicalIndex.check_tokenizer`, `_fetchall` / `_fetchone`, `close`
+    4. `packages/rag/src/way2australia_rag/lexical/freshness.py` → `run_sync`, `verify_fresh`
+    5. `packages/rag/tests/lexical/test_lexical_runtime.py`: refusal, eight threads, close-during-query
+    6. `packages/rag/tests/lexical/test_lexical_standalone.py` → `test_verify_fresh_inside_a_running_loop_twice`
+    7. Supporting edits: test builders record the configured tokenizer (`lexical_support.build_production` and the open-path fixtures); `tasks.md` boxes
+  - Learning notes: /Users/justin/learning/way2australia/specs/013-http-serving/T2.md
+- Usage: n/a (Cursor) · 74 tool uses · n/a (Cursor)
+
+### User decision
+- 2026-11-15 — approved:
+
+> T2 approved. Commit it with the Spec-Task: 013/T2 trailer and push spec/013, recording the approval in the T2 user-decision block. dont start T3 yet.

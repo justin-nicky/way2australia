@@ -117,9 +117,13 @@ def _open_standalone(
     provider: str,
     repository: DocumentRepository | None,
     configured_chunker: ChunkerIdentity,
+    tokenizer: str,
 ) -> tuple[LexicalIndex, IndexIdentity, DocumentCounter]:
     """The one standalone-lexical open, shared by the `bm25` branch and the
-    open-time fallback (Spec 008 F4): configured identity, no client, no model."""
+    open-time fallback (Spec 008 F4): configured identity, no client, no model.
+
+    `tokenizer` is `lexical.tokenizer` from the retrieval config (Spec 010 T5).
+    """
     repository = repository or LocalDocumentRepository(
         LocalRepositoryConfig(repo_root=repo_root)
     )
@@ -127,6 +131,11 @@ def _open_standalone(
     lexical = open_standalone_lexical(
         settings, repo_root, expected, configured_chunker, repository
     )
+    try:
+        lexical.check_tokenizer(tokenizer)
+    except BaseException:
+        lexical.close()
+        raise
 
     def lexical_count(access: ResolvedAccess, lote: ResolvedLote | None = None) -> int:
         return _lexical_document_count(lexical, access, lote)
@@ -222,6 +231,7 @@ def open_retrieval(
             provider=provider,
             repository=repository,
             configured_chunker=configured_chunker,
+            tokenizer=retrieval_config.lexical.tokenizer,
         )
         try:
             retriever = build_retriever(
@@ -263,7 +273,12 @@ def open_retrieval(
             )
             identity = IndexIdentity.from_dense(index)
             if strategy == Strategy.HYBRID:
-                lexical = open_bound_lexical(settings, repo_root, index)
+                lexical = open_bound_lexical(
+                    settings,
+                    repo_root,
+                    index,
+                    tokenizer=retrieval_config.lexical.tokenizer,
+                )
         except RetrievalUnavailableError as error:
             if strategy != Strategy.HYBRID:
                 raise
@@ -366,6 +381,7 @@ def _open_fallback(
         provider=provider,
         repository=repository,
         configured_chunker=configured_chunker,
+        tokenizer=retrieval_config.lexical.tokenizer,
     )
     try:
         retriever = FallbackRetriever(None, BM25Retriever(expected, lexical), reason)

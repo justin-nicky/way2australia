@@ -220,13 +220,19 @@ def needs_lexical(strategy: Strategy) -> bool:
 
 
 def open_bound_lexical(
-    settings: RuntimeSettings, repo_root: Path, dense_index: DenseIndex
+    settings: RuntimeSettings,
+    repo_root: Path,
+    dense_index: DenseIndex,
+    *,
+    tokenizer: str,
 ) -> LexicalIndex:
     """Open the lexical file for the bound dense index and verify it belongs to it.
 
     The path is `<lexical_index_dir>/<collection>.sqlite` (the `make index-lexical`
-    default). A missing, foreign or stale file raises `LexicalIndexBindingError`
-    with rebuild advice, before any query."""
+    default). A missing, foreign, stale or wrong-tokenizer file raises
+    `LexicalIndexBindingError` with rebuild advice, before any query.
+    `tokenizer` is `lexical.tokenizer` from the retrieval config (Spec 010 T5).
+    """
     directory = settings.lexical_index_dir or default_lexical_dir(repo_root)
     if not directory.is_absolute():
         directory = repo_root / directory
@@ -236,6 +242,7 @@ def open_bound_lexical(
         dense_index.index_version,
     )
     try:
+        lexical.check_tokenizer(tokenizer)
         lexical.bind_to(dense_index)
     except BaseException:
         lexical.close()

@@ -205,6 +205,29 @@ def test_missing_file_is_refused_with_advice(tmp_path: Path) -> None:
         open_it(copy_repository(tmp_path), tmp_path / "nowhere")
 
 
+def test_verify_fresh_inside_a_running_loop_twice(built: tuple[Path, Path]) -> None:
+    """Spec 013 R3: synchronous `verify_fresh` from a running loop, twice in a row.
+
+    The second call reuses the same repository, whose asyncio lock must still
+    work after the first `run_sync`.
+    """
+    root, directory = built
+    lexical = LexicalIndex.open(
+        lexical_index_path(directory, COLLECTION), COLLECTION, VERSION
+    )
+    repository = repo_at(root)
+    chunker = HeadingChunker().identity
+
+    async def scenario() -> None:
+        verify_fresh(lexical, repository, chunker)
+        verify_fresh(lexical, repository, chunker)
+
+    try:
+        asyncio.run(scenario())
+    finally:
+        lexical.close()
+
+
 def test_freshness_passes_on_a_matching_copy(built: tuple[Path, Path]) -> None:
     root, directory = built
     lexical = open_it(root, directory)

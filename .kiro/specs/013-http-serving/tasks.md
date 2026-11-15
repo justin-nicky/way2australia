@@ -41,13 +41,13 @@ Allowed protected-path changes: none.
 
 ## T2 — Lexical store: tokenizer check, shared connection, loop-safe freshness
 
-**State:** not started
+**State:** approved (2026-11-15)
 **Requirements:** R3, R7, R2
 
-- [ ] `lexical/store.py`: `_read_only_connection` with `check_same_thread=False` (still `mode=ro`, `query_only`); one `threading.Lock` per `LexicalIndex` guarding every connection use including `close`; `check_tokenizer(expected)` raising `LexicalIndexBindingError` with advice naming `make index-lexical` (no path).
-- [ ] Call `check_tokenizer` with `lexical.tokenizer` from `config/retrieval.yaml` in the standalone helper (T1) and in `open_bound_lexical`, so every CLI and the server refuse a mismatched file (Spec 010 T5).
-- [ ] `lexical/freshness.py`: `run_sync(coro_factory)` (no running loop: `asyncio.run`; running loop: `asyncio.run` on a short-lived thread, joined); `verify_fresh` uses it.
-- [ ] Tests (`packages/rag/tests/lexical/`): tokenizer mismatch refused (a `lexical-v1` file under a `lexical-v2` config) on the standalone and bound paths, message names `make index-lexical` and no path; BM25 queries from 8 threads on one `LexicalIndex` return the same results as serial calls; close while another thread queries is safe (lock); `verify_fresh` inside a running event loop (an `asyncio.run` test that calls it synchronously) and twice in sequence; the connection is closed exactly once.
+- [x] `lexical/store.py`: `_read_only_connection` with `check_same_thread=False` (still `mode=ro`, `query_only`); one `threading.Lock` per `LexicalIndex` guarding every connection use including `close`; `check_tokenizer(expected)` raising `LexicalIndexBindingError` with advice naming `make index-lexical` (no path).
+- [x] Call `check_tokenizer` with `lexical.tokenizer` from `config/retrieval.yaml` in the standalone helper (T1) and in `open_bound_lexical`, so every CLI and the server refuse a mismatched file (Spec 010 T5).
+- [x] `lexical/freshness.py`: `run_sync(coro_factory)` (no running loop: `asyncio.run`; running loop: `asyncio.run` on a short-lived thread, joined); `verify_fresh` uses it.
+- [x] Tests (`packages/rag/tests/lexical/`): tokenizer mismatch refused (a `lexical-v1` file under a `lexical-v2` config) on the standalone and bound paths, message names `make index-lexical` and no path; BM25 queries from 8 threads on one `LexicalIndex` return the same results as serial calls; close while another thread queries is safe (lock); `verify_fresh` inside a running event loop (an `asyncio.run` test that calls it synchronously) and twice in sequence; the connection is closed exactly once.
 
 Allowed protected-path changes: none.
 

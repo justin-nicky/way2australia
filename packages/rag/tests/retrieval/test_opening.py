@@ -24,6 +24,7 @@ from way2australia_rag.lexical.build import (
     production_entries,
 )
 from way2australia_rag.lexical.store import DenseIdentity, LexicalIdentityInput
+from way2australia_rag.lexical.tokenizer import TOKENIZERS
 from way2australia_rag.repositories import (
     LocalDocumentRepository,
     LocalRepositoryConfig,
@@ -61,6 +62,7 @@ def fake_lexical(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         production_entries(repository, chunker, FakeTokenizer(), None)
     )
     directory = tmp_path / "lex"
+    retrieval = load_retrieval_config(REPO_ROOT / "config/retrieval.yaml")
     build_lexical_index(
         entries,
         lexical_index_path(directory, collection),
@@ -76,6 +78,7 @@ def fake_lexical(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
             chunker=chunker.identity,
             hash_contract=HASH_CONTRACT,
         ),
+        tokenizer=TOKENIZERS[retrieval.lexical.tokenizer],
     )
     for name in ("QDRANT_URL", "QDRANT_API_KEY", "W2A_TENANT_ID"):
         monkeypatch.delenv(name, raising=False)
