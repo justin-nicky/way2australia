@@ -99,3 +99,50 @@
 - 2026-11-15 — approved:
 
 > T2 approved. Commit it with the Spec-Task: 013/T2 trailer and push spec/013, recording the approval in the T2 user-decision block. dont start T3 yet.
+
+## T3 — round 1
+
+### Implementation
+- Model: Grok 4.7 (Cursor; BEST_MINUS_ONE). Matches the configured Cursor tier.
+- Files changed:
+  - `packages/rag/src/way2australia_rag/retrieval/breaker.py` (new: `BreakerState`, `Admission`, `CircuitBreaker`; one `threading.Lock`)
+  - `packages/rag/src/way2australia_rag/retrieval/fallback.py` (keyword-only `breaker=None`, `on_probe=None`)
+  - `packages/rag/src/way2australia_rag/retrieval/strategy.py` (keyword-only `breaker=None` on `build_retriever`, passed into both hybrid `FallbackRetriever`s)
+  - `packages/rag/src/way2australia_rag/retrieval/opening.py` (keyword-only `breaker=None` on `open_retrieval`, passed to `build_retriever` and `_open_fallback`)
+  - `packages/rag/tests/retrieval/test_breaker.py` (15 tests)
+  - `.kiro/specs/013-http-serving/tasks.md` (boxes, State), this file
+- Verification run: `uv run pytest packages/rag/tests/retrieval` → 437 passed, 2 skipped. `make lint typecheck` → ruff clean, 239 files formatted, pyright 0 errors. `make eval-security` (`HF_HUB_OFFLINE=1`) → PASS in 34243 ms (heading, structure, recursive; eight paths each). `git status --porcelain -- evaluation knowledge config` → empty (allowed: none). `make verify` did not finish: the one run that executed stopped at `skills-check` before pytest, because a gitignored `__pycache__` under `agent-skills/workflow-reviewer/scripts/` was part of the mirror tree (skill file bytes otherwise match; Claude's extra frontmatter is the injector). That bytecode was removed. A second `make verify` was blocked by the session verify budget. `make test-integration` not required, not run.
+- Notes:
+  - `breaker is None` keeps the previous control flow (D058): every query tries the primary; only `RetrievalUnavailableError` falls back. CLIs pass no breaker.
+  - One lock. Closed admits `DENSE`. `failure_threshold` consecutive `record_failure(DENSE)` calls open until `clock() + cooldown_s`. The first `admit` at or after that instant gets `PROBE` and the state becomes half-open; every other caller gets `SKIP` until the probe reports, including if the clock jumps during the probe. Probe success closes and resets the count. Probe failure stores the new reason, counts, and opens a cool-down from that instant. `release` changes state only for a half-open `PROBE`: new cool-down, same `last_reason`, count unchanged. `release(DENSE)` does not count. A constructor `open_reason` starts the breaker open with that reason and a cool-down from construction.
+  - `SKIP` does not call the primary. BM25 is served with `fallback_reason = last_reason` and `dense_attempt` under 0.5 s. Eligible outages call `record_failure` then BM25. Success calls `record_success`. Any other exception on a `PROBE` calls `release` and propagates; the same exception on `DENSE` propagates and is not counted (D062).
+  - `on_probe` is `Callable[[], Retriever | None]`, for T5's BM25-only stack (no primary). The hook owns `record_failure` and `release`. A returned retriever is called with the same access, `top_k`, and `lote`; if the breaker is still half-open, this class records success first so the continuation is admitted `DENSE`. `None` serves BM25 with `last_reason` (a hook that left the probe half-open is `release`d). An exception from the hook releases if still half-open, then propagates. With no hook, a probe releases and serves BM25 so the breaker cannot stick half-open.
+  - `build_retriever` gained the keyword because that is where the hybrid `FallbackRetriever`s are constructed (plain and reranked). Default `None` leaves existing callers unchanged. `open_retrieval` passes the same breaker into both, and into the open-time fallback.
+  - No FastAPI, Starlette, uvicorn, or httpx behaviour relied on. The status-error test raises `UnexpectedResponse`, the existing D062 type.
+  - Not run to completion: `make verify` (see above). No real API, model, or collection was touched.
+- Usage: n/a (Cursor) · 140 tool uses · n/a
+- Verify budget: 3 make verify attempts in transcript; budget is 2 per session.
+
+### Review
+- Model: Grok 4.7 (Cursor; matches the BEST tier `Grok 4.7`). Fresh session. The implementer used the same configured model (Cursor BEST_MINUS_ONE is also Grok 4.7).
+- Verdict: PASS
+- Commands: `UV_CACHE_DIR=/home/box/work/way2australia/.uv-cache UV_PYTHON_INSTALL_DIR=/home/box/work/way2australia/.uv-python HF_HUB_OFFLINE=1 uv run pytest packages/rag/tests/retrieval` → pass (437 passed, 2 skipped, 439 collected). `make verify` → pass (ruff check clean, ruff format 239 files already formatted, pyright 0 errors, skills-check match, validate-knowledge OK, validate-evaluation OK, 1809 passed, 22 skipped, 1831 collected). `HF_HUB_OFFLINE=1 make eval-security` → PASS in 34338 ms (heading, structure, recursive; eight paths each). `git status --porcelain -- evaluation knowledge config` → empty (allowed: none). `make test-integration` not required by T3, not run.
+- Findings: none
+- Summary for user (PASS only):
+  - Changed: Hybrid retrieval can take a circuit breaker (`retrieval/breaker.py`). Closed tries dense on every request; after the configured run of eligible outages it opens and BM25 serves; when the cool-down ends, one caller probes. `FallbackRetriever` keeps today's behaviour when no breaker is passed. `open_retrieval` and `build_retriever` thread an optional breaker into every hybrid fallback, including the open-time one. CLIs pass nothing.
+  - Verified by: 15 breaker tests (fake clock, one probe among 8 threads, skip path, HTTP status not counted, access and `lote` spy, `open_retrieval` wiring). Retrieval pytest 437 passed, 2 skipped. `make verify` 1809 passed, 22 skipped. `make eval-security` with the fake embedder passed. `evaluation/`, `knowledge/` and `config/` are unchanged.
+  - Worth your attention: T5's `on_probe` hook owns `record_failure` and `release`. If it returns a retriever while the probe is still half-open, `FallbackRetriever` records success before that retriever runs, so the continuation is admitted as dense. `open_retrieval` does not take the hook; a probe with no primary and no hook releases and serves BM25. T5 builds that retriever itself. A Qdrant HTTP status error still propagates and is not counted; on a probe it also starts a new cool-down.
+  - Reading order (follow the flow: entry point → core logic → models/errors/config → tests):
+    1. `packages/rag/src/way2australia_rag/retrieval/opening.py` → `open_retrieval`, `_open_fallback`: optional breaker passed through; CLIs omit it
+    2. `packages/rag/src/way2australia_rag/retrieval/strategy.py` → `build_retriever`: breaker attached to both hybrid `FallbackRetriever`s
+    3. `packages/rag/src/way2australia_rag/retrieval/fallback.py` → `FallbackRetriever.retrieve`: skip, count, probe, and the `on_probe` hook
+    4. `packages/rag/src/way2australia_rag/retrieval/breaker.py` → `CircuitBreaker.admit`: one lock; closed, open, one probe
+    5. `packages/rag/tests/retrieval/test_breaker.py`: clock, concurrency, fallback, opening
+    6. Supporting edits: `tasks.md` checkboxes
+- Usage: n/a (Cursor) · 58 tool uses · n/a
+
+### User decision
+- 2026-11-16 — approved:
+
+> approve
+> via: Control Tower trial 2; decided by: Justin

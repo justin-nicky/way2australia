@@ -39,6 +39,7 @@ from way2australia_rag.retrieval.applicability import (
 )
 from way2australia_rag.retrieval.base import Retriever, Strategy
 from way2australia_rag.retrieval.bm25 import BM25Retriever
+from way2australia_rag.retrieval.breaker import CircuitBreaker
 from way2australia_rag.retrieval.errors import (
     FallbackReason,
     RetrievalConfigurationError,
@@ -201,6 +202,7 @@ def open_retrieval(
     reranker_factory: RerankerFactory = build_reranker,
     reranker_provider: str | None = None,
     top_k: int | None = None,
+    breaker: CircuitBreaker | None = None,
 ) -> OpenedRetrieval:
     """Open the stack for `strategy` (`dense`, `bm25` or `hybrid`).
 
@@ -212,7 +214,9 @@ def open_retrieval(
     `top_k` is the largest result size the caller will ask for: with `rerank`
     and `top_k > rerank.depth` the open is refused before any model is built
     (Spec 011 F3). Every failure after the Qdrant client exists closes the client
-    and any opened lexical file (Spec 013 R2)."""
+    and any opened lexical file (Spec 013 R2). `breaker`, when set, is attached
+    to every `FallbackRetriever` this open builds, including the open-time
+    fallback. CLIs omit it (D058)."""
     strategy = Strategy(strategy)
     if rerank and strategy != Strategy.HYBRID:
         raise RetrievalConfigurationError(
@@ -235,7 +239,13 @@ def open_retrieval(
         )
         try:
             retriever = build_retriever(
-                strategy, expected, None, None, lexical, retrieval_config
+                strategy,
+                expected,
+                None,
+                None,
+                lexical,
+                retrieval_config,
+                breaker=breaker,
             )
         except BaseException:
             lexical.close()
@@ -294,6 +304,7 @@ def open_retrieval(
                 embedder=embedder,
                 repository=repository,
                 configured_chunker=configured_chunker,
+                breaker=breaker,
             )
 
         def dense_count(
@@ -315,6 +326,7 @@ def open_retrieval(
             retrieval_config,
             reranker,
             open_skip,
+            breaker=breaker,
         )
     except BaseException:
         # Close what this call opened; nothing leaks from a failed open.
@@ -373,6 +385,7 @@ def _open_fallback(
     embedder: Embedder,
     repository: DocumentRepository | None,
     configured_chunker: ChunkerIdentity,
+    breaker: CircuitBreaker | None,
 ) -> OpenedRetrieval:
     lexical, expected, lexical_count = _open_standalone(
         settings=settings,
@@ -384,7 +397,9 @@ def _open_fallback(
         tokenizer=retrieval_config.lexical.tokenizer,
     )
     try:
-        retriever = FallbackRetriever(None, BM25Retriever(expected, lexical), reason)
+        retriever = FallbackRetriever(
+            None, BM25Retriever(expected, lexical), reason, breaker=breaker
+        )
     except BaseException:
         lexical.close()
         raise

@@ -58,13 +58,13 @@ Allowed protected-path changes: none.
 
 ## T3 — Circuit breaker
 
-**State:** not started
+**State:** approved (2026-11-16)
 **Requirements:** R4, R15
 
-- [ ] `retrieval/breaker.py`: `BreakerState`, `Admission` (`DENSE`, `PROBE`, `SKIP`), `CircuitBreaker(failure_threshold, cooldown_s, clock, open_reason)` with `admit`, `record_success`, `record_failure`, `release`, `state`, `last_reason`, all under one lock, per design "Circuit breaker".
-- [ ] `retrieval/fallback.py`: keyword-only `breaker=None` and `on_probe=None` (holder hook used by T5 for a BM25-only stack). With `breaker=None` behaviour is exactly today's (D058). `SKIP` serves BM25 with `fallback_reason = breaker.last_reason`; `RetrievalUnavailableError` → `record_failure`; success → `record_success`; any other exception during a probe → `release`, then propagates (D062).
-- [ ] `retrieval/opening.py`: keyword-only `breaker: CircuitBreaker | None = None`, passed to every `FallbackRetriever` it builds (including the open-time fallback); CLIs pass nothing.
-- [ ] Tests (`packages/rag/tests/retrieval/test_breaker.py`): with a fake clock — threshold reached opens; success while closed resets the count; cool-down then exactly one `PROBE` among 8 concurrent `admit` calls (threads, barrier); probe success closes; probe failure re-opens with a new cool-down; `release` re-opens without counting; a breaker created open admits a probe only after the cool-down. `FallbackRetriever` with a breaker: skip path serves BM25 with the last reason and calls no primary; a Qdrant HTTP status error propagates and is not counted; access and `lote` reach BM25 unchanged (spy). All existing `FallbackRetriever` tests pass unchanged.
+- [x] `retrieval/breaker.py`: `BreakerState`, `Admission` (`DENSE`, `PROBE`, `SKIP`), `CircuitBreaker(failure_threshold, cooldown_s, clock, open_reason)` with `admit`, `record_success`, `record_failure`, `release`, `state`, `last_reason`, all under one lock, per design "Circuit breaker".
+- [x] `retrieval/fallback.py`: keyword-only `breaker=None` and `on_probe=None` (holder hook used by T5 for a BM25-only stack). With `breaker=None` behaviour is exactly today's (D058). `SKIP` serves BM25 with `fallback_reason = breaker.last_reason`; `RetrievalUnavailableError` → `record_failure`; success → `record_success`; any other exception during a probe → `release`, then propagates (D062).
+- [x] `retrieval/opening.py`: keyword-only `breaker: CircuitBreaker | None = None`, passed to every `FallbackRetriever` it builds (including the open-time fallback); CLIs pass nothing.
+- [x] Tests (`packages/rag/tests/retrieval/test_breaker.py`): with a fake clock — threshold reached opens; success while closed resets the count; cool-down then exactly one `PROBE` among 8 concurrent `admit` calls (threads, barrier); probe success closes; probe failure re-opens with a new cool-down; `release` re-opens without counting; a breaker created open admits a probe only after the cool-down. `FallbackRetriever` with a breaker: skip path serves BM25 with the last reason and calls no primary; a Qdrant HTTP status error propagates and is not counted; access and `lote` reach BM25 unchanged (spy). All existing `FallbackRetriever` tests pass unchanged.
 
 Allowed protected-path changes: none.
 

@@ -26,6 +26,7 @@ from way2australia_rag.rerank.base import Reranker
 from way2australia_rag.rerank.errors import RerankSkipReason
 from way2australia_rag.retrieval.base import MAX_TOP_K, Retriever, Strategy
 from way2australia_rag.retrieval.bm25 import BM25Retriever
+from way2australia_rag.retrieval.breaker import CircuitBreaker
 from way2australia_rag.retrieval.errors import RetrievalConfigurationError
 from way2australia_rag.retrieval.fallback import FallbackRetriever
 from way2australia_rag.retrieval.fusion import FusionConfig
@@ -170,11 +171,14 @@ def build_retriever(
     config: RetrievalConfig,
     reranker: Reranker | None = None,
     rerank_open_skip: RerankSkipReason | None = None,
+    *,
+    breaker: CircuitBreaker | None = None,
 ) -> Retriever:
     """Map a strategy to its retriever. `dense` and `hybrid` need `dense_index`
     and `embedder`; `bm25` and `hybrid` need `lexical`. A `reranker` (hybrid only)
     puts the reranking stage between `HybridRetriever` and `FallbackRetriever`;
-    without one the composition is exactly the pre-Spec 011 one."""
+    without one the composition is exactly the pre-Spec 011 one. `breaker` is
+    attached to the hybrid `FallbackRetriever` only; CLIs omit it."""
     try:
         chosen = Strategy(strategy)
     except ValueError:
@@ -211,8 +215,8 @@ def build_retriever(
         staged = RerankingRetriever(
             hybrid, reranker, config.rerank.depth, rerank_open_skip
         )
-        return FallbackRetriever(staged, bm25, None)
-    return FallbackRetriever(hybrid, bm25, None)
+        return FallbackRetriever(staged, bm25, None, breaker=breaker)
+    return FallbackRetriever(hybrid, bm25, None, breaker=breaker)
 
 
 def needs_lexical(strategy: Strategy) -> bool:
