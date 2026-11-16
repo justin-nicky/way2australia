@@ -76,15 +76,15 @@ Allowed protected-path changes: none.
 
 ## T4 — Hard generation cap and per-request budget
 
-**State:** not started
+**State:** approved (2026-11-16)
 **Requirements:** R6, R15
 
-- [ ] `generation/base.py`: `Generator.generate(prompt, *, deadline_s: float | None = None)` and a `deadline_s` property; `FakeGenerator` returns `None` and accepts the argument; the Claude generators return their configured `deadline_s`.
-- [ ] `generation/claude.py`: the adapter's own deadline is `min(config.deadline_s, deadline_s)` when given; no other change to the attempt loop or classification.
-- [ ] `generation/deadline.py`: `AbandonedWork`, `run_with_cap(fn, cap_s, *, on_abandoned, clock)` on a daemon thread per design; a late exception from abandoned work is logged by class only; a done callback added after the work ended runs at once.
-- [ ] `generation/service.py`: keyword-only `budget_s`, `min_generation_s`, `on_abandoned`; cap per design; below `min_generation_s` with a budget, no generator call and `evidence_only` / `generator_unavailable` / `deadline`; the generator call goes through `run_with_cap`. CLIs keep calling `answer` without a budget.
-- [ ] `config/generation.yaml`: comment fixes for `deadline_s`, `backoff_s`, `bedrock.model_id` in both provider blocks (Spec 012 F2); no value changes; schema version unchanged.
-- [ ] Tests (`packages/rag/tests/generation/test_deadline.py`, `test_service.py`): a `BlockingGenerator` (waits on an event, `deadline_s` 0.3) returns `evidence_only` / `deadline` within 0.3 s + 0.5 s; `on_abandoned` is called once; its done callback runs only after the event is set; budget leaving less than `min_generation_s` → no call; the adapter with a fake client and fake clock starts no attempt after the per-call deadline; `make ask`'s path (CLI `main` with a blocking fake generator injected) applies the cap; a CLI process does not hang on an abandoned daemon thread (subprocess test with a 5 s timeout, or an equivalent thread-daemon assertion if a subprocess is too slow for the budget).
+- [x] `generation/base.py`: `Generator.generate(prompt, *, deadline_s: float | None = None)` and a `deadline_s` property; `FakeGenerator` returns `None` and accepts the argument; the Claude generators return their configured `deadline_s`.
+- [x] `generation/claude.py`: the adapter's own deadline is `min(config.deadline_s, deadline_s)` when given; no other change to the attempt loop or classification.
+- [x] `generation/deadline.py`: `AbandonedWork`, `run_with_cap(fn, cap_s, *, on_abandoned, clock)` on a daemon thread per design; a late exception from abandoned work is logged by class only; a done callback added after the work ended runs at once.
+- [x] `generation/service.py`: keyword-only `budget_s`, `min_generation_s`, `on_abandoned`; cap per design; below `min_generation_s` with a budget, no generator call and `evidence_only` / `generator_unavailable` / `deadline`; the generator call goes through `run_with_cap`. CLIs keep calling `answer` without a budget.
+- [x] `config/generation.yaml`: comment fixes for `deadline_s`, `backoff_s`, `bedrock.model_id` in both provider blocks (Spec 012 F2); no value changes; schema version unchanged.
+- [x] Tests (`packages/rag/tests/generation/test_deadline.py`, `test_service.py`): a `BlockingGenerator` (waits on an event, `deadline_s` 0.3) returns `evidence_only` / `deadline` within 0.3 s + 0.5 s; `on_abandoned` is called once; its done callback runs only after the event is set; budget leaving less than `min_generation_s` → no call; the adapter with a fake client and fake clock starts no attempt after the per-call deadline; `make ask`'s path (CLI `main` with a blocking fake generator injected) applies the cap; a CLI process does not hang on an abandoned daemon thread (subprocess test with a 5 s timeout, or an equivalent thread-daemon assertion if a subprocess is too slow for the budget).
 
 Allowed protected-path changes: comments only in `config/generation.yaml` (the reviewer checks `git diff config/generation.yaml` shows comment lines only).
 

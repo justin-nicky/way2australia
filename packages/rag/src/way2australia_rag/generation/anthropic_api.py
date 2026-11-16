@@ -125,8 +125,14 @@ class AnthropicGenerator:
                 f"{self._model_id!r}; no answer is used."
             )
 
-    def generate(self, prompt: RenderedPrompt) -> GeneratorOutput:
-        return self._adapter.generate(prompt)
+    @property
+    def deadline_s(self) -> float:
+        return self.info.deadline_s
+
+    def generate(
+        self, prompt: RenderedPrompt, *, deadline_s: float | None = None
+    ) -> GeneratorOutput:
+        return self._adapter.generate(prompt, deadline_s=deadline_s)
 
     def close(self) -> None:
         self._adapter.close()

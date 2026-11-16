@@ -12,22 +12,22 @@ languages:
 bedrock:
   endpoint: runtime                 # runtime | mantle (D-A)
   region: ap-south-1
-  model_id: null                    # null until T6 commits the chosen model's Bedrock ID
+  model_id: null                    # null until the Bedrock switch (its own spec)
   inference_profile: null           # set only if the model is not served in-region
   effort: low                       # low | medium | high
   max_tokens: 1024
   request_timeout_s: 20
   retries: 2                        # attempts = retries + 1
-  backoff_s: 1.0                    # delay = backoff_s * 2**attempt, capped by the deadline
-  deadline_s: 30                    # total per request, all attempts and backoff
+  backoff_s: 1.0                    # delay = backoff_s * 2**attempt; an attempt is skipped when the wait leaves no usable time before the deadline
+  deadline_s: 30                    # hard wall-clock cap per request, all attempts and backoff
 anthropic:                          # direct Anthropic API; development and evaluation (R17)
   model_id: claude-sonnet-5-5       # T6 choice (2026-11-13); bare ID
   effort: low                       # low | medium | high
   max_tokens: 1024
   request_timeout_s: 20
   retries: 2                        # attempts = retries + 1
-  backoff_s: 1.0                    # delay = backoff_s * 2**attempt, capped by the deadline
-  deadline_s: 30                    # total per request, all attempts and backoff
+  backoff_s: 1.0                    # delay = backoff_s * 2**attempt; an attempt is skipped when the wait leaves no usable time before the deadline
+  deadline_s: 30                    # hard wall-clock cap per request, all attempts and backoff
 pricing:                            # USD per million tokens; Sonnet 5.5 list prices (T6)
   input_per_mtok: 2
   output_per_mtok: 10

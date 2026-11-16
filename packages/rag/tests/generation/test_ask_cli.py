@@ -186,7 +186,7 @@ def test_the_committed_default_is_built_without_a_generator_flag(
     monkeypatch.setattr(
         AnthropicGenerator,
         "generate",
-        lambda self, prompt: output("ok [S1]", ["S1"]),
+        lambda self, prompt, *, deadline_s=None: output("ok [S1]", ["S1"]),
     )
     assert ask(indexed, *SHARED) == 0
     line = next(

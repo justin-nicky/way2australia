@@ -170,10 +170,16 @@ class ClaudeMessagesAdapter:
             },
         }
 
-    def generate(self, prompt: RenderedPrompt) -> GeneratorOutput:
+    def generate(
+        self, prompt: RenderedPrompt, *, deadline_s: float | None = None
+    ) -> GeneratorOutput:
         config = self._config
+        # A per-call cap only tightens the configured deadline (Spec 013 R6).
+        limit = config.deadline_s
+        if deadline_s is not None:
+            limit = min(limit, deadline_s)
         request = self._request(prompt)
-        deadline = self._clock() + config.deadline_s
+        deadline = self._clock() + limit
         attempts = 0
         last_outage: UnavailableReason | None = None
         for attempt in range(config.retries + 1):

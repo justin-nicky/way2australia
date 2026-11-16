@@ -8,9 +8,13 @@ access code and never supplies citation metadata.
 Only `GeneratorUnavailableError`, `GeneratorDeclinedError` and
 `GeneratorOutputError` are caught. Configuration errors, `RetrievalAuthorizationError`
 and `LanguageApplicabilityError` propagate (fail closed).
+
+A wall-clock cap (Spec 013 R6) bounds the generator call. With no budget and no
+generator deadline, the call is not capped.
 """
 
 import time
+from collections.abc import Callable
 from typing import Any
 
 from way2australia_rag.generation.base import Generator, GeneratorUsage
@@ -20,10 +24,12 @@ from way2australia_rag.generation.citations import (
 )
 from way2australia_rag.generation.config import GenerationConfig
 from way2australia_rag.generation.context import ContextBuilder, EvidenceBlock
+from way2australia_rag.generation.deadline import AbandonedWork, run_with_cap
 from way2australia_rag.generation.errors import (
     GeneratorDeclinedError,
     GeneratorOutputError,
     GeneratorUnavailableError,
+    UnavailableReason,
 )
 from way2australia_rag.generation.language import (
     FALLBACK_MESSAGE_LANGUAGE,
@@ -92,6 +98,10 @@ class AnswerService:
         access: ResolvedAccess,
         top_k: int | None = None,
         lote: ResolvedLote | None = None,
+        *,
+        budget_s: float | None = None,
+        min_generation_s: float = 0.0,
+        on_abandoned: Callable[[AbandonedWork], None] | None = None,
     ) -> AnswerResponse:
         started = time.perf_counter()
         result = self._retriever.retrieve(
@@ -145,10 +155,27 @@ class AnswerService:
         if not blocks:
             return respond(AnswerStatus.INSUFFICIENT_EVIDENCE, AnswerReason.NO_EVIDENCE)
 
+        # `built - started` is retrieval plus context. No extra clock read: the
+        # generation-eval latency fixture counts every `perf_counter` call.
+        cap = self._cap(budget_s, built - started)
+        if budget_s is not None and cap is not None and cap < min_generation_s:
+            return respond(
+                AnswerStatus.EVIDENCE_ONLY,
+                AnswerReason.GENERATOR_UNAVAILABLE,
+                sub_reason=UnavailableReason.DEADLINE.value,
+            )
+
         rendered = render_prompt(self._prompt, blocks, query)
         gen_start = time.perf_counter()
         try:
-            output = self._generator.generate(rendered)
+            if cap is None:
+                output = self._generator.generate(rendered)
+            else:
+                output = run_with_cap(
+                    lambda: self._generator.generate(rendered, deadline_s=cap),
+                    cap,
+                    on_abandoned=on_abandoned,
+                )
         except GeneratorUnavailableError as error:
             return respond(
                 AnswerStatus.EVIDENCE_ONLY,
@@ -204,6 +231,19 @@ class AnswerService:
             response_model=output.response_model,
             generation_ms=generation_ms,
         )
+
+    def _cap(self, budget_s: float | None, elapsed_s: float) -> float | None:
+        """The generator deadline, tightened by any remaining request budget.
+
+        No budget and no deadline (the fake) returns None: the call is not capped.
+        """
+        configured = self._generator.deadline_s
+        if budget_s is None:
+            return configured
+        remaining = budget_s - elapsed_s
+        if configured is None:
+            return remaining
+        return min(configured, remaining)
 
     def _response(
         self,

@@ -905,7 +905,9 @@ def generation_poisoned_evidence(
             return None
 
     class _PoisonGenerator(FakeGenerator):
-        def generate(self, prompt: RenderedPrompt) -> GeneratorOutput:
+        def generate(
+            self, prompt: RenderedPrompt, *, deadline_s: float | None = None
+        ) -> GeneratorOutput:
             self.calls += 1
             return GeneratorOutput(
                 answerable=True,

@@ -50,6 +50,13 @@ class GeneratorOutput(BaseModel):
 class Generator(Protocol):
     info: GeneratorInfo
 
-    def generate(self, prompt: "RenderedPrompt") -> GeneratorOutput: ...
+    @property
+    def deadline_s(self) -> float | None:
+        """Configured wall-clock cap, or None when this generator has none."""
+        ...
+
+    def generate(
+        self, prompt: "RenderedPrompt", *, deadline_s: float | None = None
+    ) -> GeneratorOutput: ...
 
     def close(self) -> None: ...

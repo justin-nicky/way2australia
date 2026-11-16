@@ -146,3 +146,59 @@
 
 > approve
 > via: Control Tower trial 2; decided by: Justin
+
+## T4 — round 1
+
+### Implementation
+- Model: Grok 4.7 (Cursor; BEST_MINUS_ONE, matches the configured Cursor tier)
+- Files changed:
+  - `packages/rag/src/way2australia_rag/generation/base.py` (`Generator.generate` keyword-only `deadline_s`; `deadline_s` property)
+  - `packages/rag/src/way2australia_rag/generation/fake.py` (`deadline_s` is `None`; `generate` accepts the argument)
+  - `packages/rag/src/way2australia_rag/generation/claude.py` (per-call deadline is `min(config.deadline_s, deadline_s)` when given; attempt loop and classification unchanged)
+  - `packages/rag/src/way2australia_rag/generation/bedrock.py`, `anthropic_api.py` (`deadline_s` property returns the configured value; `generate` forwards `deadline_s`)
+  - `packages/rag/src/way2australia_rag/generation/deadline.py` (new: `AbandonedWork`, `run_with_cap` on a daemon thread)
+  - `packages/rag/src/way2australia_rag/generation/service.py` (keyword-only `budget_s`, `min_generation_s`, `on_abandoned`; cap; skip below the minimum)
+  - `config/generation.yaml` (comment text only: `deadline_s`, `backoff_s` in both provider blocks, `bedrock.model_id`; schema `1.1` unchanged)
+  - Tests: `packages/rag/tests/generation/test_deadline.py` (new), `test_service.py`; signature-only updates so callers that are invoked with `deadline_s` still type-check and run: `test_ask_cli.py` (the committed-default stub), `test_generation_eval.py` (`_ScriptedGenerator.deadline_s`), `evaluation/security_eval.py` (`_PoisonGenerator.generate`)
+  - `.kiro/specs/013-http-serving/tasks.md` (boxes, State), this file
+- Verification run:
+  - `uv run pytest packages/rag/tests/generation` → 266 passed, 2 skipped
+  - `make verify` (`HF_HUB_OFFLINE=1`, empty `HF_HOME`) → pass (1823 passed, 22 skipped; ruff, pyright 0 errors, skills-check, validate-knowledge, validate-evaluation). Qdrant was down, so the Docker integration tests skipped. An earlier `make verify` in this session stopped at `skills-check` before pytest: a stray `__pycache__` under `agent-skills/workflow-reviewer/scripts/` was counted as source. Removed that cache; the completed run above is the result.
+  - `make ask` equivalent (`python -m way2australia_rag.generation.cli` with `--generator fake --embedder fake --reranker fake`, throwaway base `w2a-t013-cap`, lexical file deleted afterwards): `status: answered`, fake generator called, `generation_ms 0.0`. Qdrant was down, so retrieval fell back to BM25 (`qdrant_unavailable`). The Spec 012 fake run on hybrid was also `answered`.
+  - `make eval-generation` equivalent (`--generator fake --allow-fake --embedder fake --reranker fake --limit 10`, same throwaway base, result file deleted afterwards): exit 0; 8 golden, 2 unanswerable; answer rate 1.0; refusal rate 0.0; `citation_invalid` 0; `evidence_only` 0; `output_invalid` 0. Same fake statuses as before (the fake answers when retrieval returns a hit). Same BM25 fallback because Qdrant was down.
+  - `git status --porcelain -- evaluation knowledge config` → `M config/generation.yaml` only. `git diff config/generation.yaml` is comment text on those lines; values and `schema_version` are unchanged.
+- Notes:
+  - With no budget and no generator deadline (the fake), `answer` calls `generate` directly. `run_with_cap` needs a finite cap, and the design says no cap applies in that case. That keeps the generation-eval step clock exact: the budget elapsed is `built - started`, with no extra `perf_counter` read.
+  - A budget always yields a cap (`deadline_s` or the remainder, whichever is smaller). Below `min_generation_s` the generator is not called (`called` false, so `identity.generator` is null) and the response is `evidence_only` / `generator_unavailable` / `deadline`.
+  - CLIs still call `answer` without a budget. Their cap is the generator's `deadline_s`. The fake's is `None`, so `make ask` and `make eval-generation` with `--generator fake` are uncapped, as before.
+  - Abandoned exceptions are logged at WARNING as `abandoned generation work raised <ClassName>`, with no message and no traceback. A done callback registered after the thread has finished runs in `add_done_callback`.
+  - The worker is a daemon `threading.Thread`. A subprocess that abandons `run_with_cap` and then exits is limited by a 5 s timeout and returns 0; the in-process test also asserts `thread.daemon`. The CLI path is covered in-process (`cli.main` with `BlockingGenerator`), because a full CLI subprocess would rebuild the index inside that timeout.
+  - No new httpx, FastAPI, Starlette or uvicorn behaviour. The adapter's per-phase timeout is unchanged. The cap wait is `threading.Event.wait` (`https://docs.python.org/3/library/threading.html#threading.Event.wait`); daemon threads are not joined at shutdown (`https://docs.python.org/3/library/threading.html#threading.Thread.daemon`).
+  - Not run: real Anthropic or Bedrock calls; `make ask` / `make eval-generation` against a live Qdrant hybrid index (Qdrant connection refused). `make test-integration` is not required by T4.
+- Usage: n/a (Cursor) · 187 tool uses · n/a
+
+### Review
+- Model: Grok 4.7 (Cursor; matches the BEST tier). Fresh session. The implementer used the same configured model (Cursor BEST_MINUS_ONE is also Grok 4.7).
+- Verdict: PASS
+- Commands: `uv run pytest packages/rag/tests/generation` → pass (266 passed, 2 skipped). `make verify` → first run stopped at `skills-check` before pytest because a gitignored `__pycache__` under `agent-skills/workflow-reviewer/scripts/` was in the skill tree (not T4 work); that bytecode was removed. Second `make verify` → pass (ruff clean, 241 files formatted, pyright 0 errors, skills-check match, validate-knowledge OK, validate-evaluation OK, 1823 passed, 22 skipped, 1845 collected). `W2A_LEXICAL_INDEX_DIR=<temp> make ask QUERY="Is coaching compulsory?" ASK_ARGS="--generator fake --embedder fake --reranker fake"` → exit 0, `status: answered`, `generation_ms 0.0` (default lexical file absent, so the index was built in that temp dir with `--embedder fake`; Qdrant down, BM25 fallback `qdrant_unavailable`). `W2A_LEXICAL_INDEX_DIR=<temp> make eval-generation EVAL_ARGS="--generator fake --allow-fake --embedder fake --reranker fake --limit 10"` → exit 0; 8 golden, 2 unanswerable; answer rate 1.0; refusal rate 0.0; `citation_invalid` 0; `evidence_only` 0; `output_invalid` 0. `git status --porcelain -- evaluation knowledge config` → `M config/generation.yaml` only; `git diff` on that file is comment text, values and schema `1.1` unchanged. `make test-integration` not required by T4, not run.
+- Findings: none
+- Summary for user (PASS only):
+  - Changed: `AnswerService.answer` takes a keyword-only budget and waits at most the generator's deadline, tightened by whatever budget remains after retrieval and context. Past that, or when the remainder is below `min_generation_s`, the response is `evidence_only` / `generator_unavailable` / `deadline` (the generator is not called in the second case). The wait is `run_with_cap` on a daemon thread. The Claude adapter uses `min(config.deadline_s, deadline_s)` so it does not start another attempt after the cap. `FakeGenerator.deadline_s` is `None`, so fake CLI runs are not capped. Comments in `config/generation.yaml` for `deadline_s`, `backoff_s`, and `bedrock.model_id` now say that; values are unchanged.
+  - Verified by: generation pytest 266 passed, 2 skipped. `make verify` 1823 passed, 22 skipped. Fake `make ask` returned `answered`. Fake `make eval-generation` (limit 10) had answer rate 1.0 and `evidence_only` 0. Protected paths: only comment edits in `config/generation.yaml`.
+  - Worth your attention: with no budget and no generator deadline, `answer` calls `generate` directly, so `--generator fake` stays uncapped. A real generator's `deadline_s` is the cap on `make ask` and `make eval-generation`. An abandoned call keeps running on a daemon thread; an in-flight read can outlive the cap, and there is still no guaranteed upper bound. The concurrency slot handoff is T7. The hang check is a 5 s subprocess of `run_with_cap`, plus in-process `cli.main` with a blocking generator, because a full CLI subprocess would rebuild the index inside that timeout.
+  - Reading order (follow the flow: entry point → core logic → models/errors/config → tests):
+    1. `packages/rag/src/way2australia_rag/generation/service.py` → `AnswerService.answer`, `_cap`: budget, skip below the minimum, `run_with_cap`
+    2. `packages/rag/src/way2australia_rag/generation/deadline.py` → `run_with_cap`, `AbandonedWork`: daemon thread, class-only log, late callback
+    3. `packages/rag/src/way2australia_rag/generation/claude.py` → `ClaudeMessagesAdapter.generate`: per-call deadline tightens the configured one
+    4. `packages/rag/src/way2australia_rag/generation/base.py` → `Generator.generate`, `deadline_s`
+    5. `packages/rag/src/way2australia_rag/generation/anthropic_api.py`, `bedrock.py` → `deadline_s` returns the configured value; `generate` forwards the cap
+    6. `packages/rag/src/way2australia_rag/generation/fake.py` → `FakeGenerator.deadline_s` is `None`
+    7. `config/generation.yaml`: comment text for `deadline_s`, `backoff_s`, `bedrock.model_id`
+    8. Supporting edits: `packages/rag/tests/generation/test_deadline.py`, `test_service.py`; signature-only updates in `test_ask_cli.py`, `packages/rag/tests/evaluation/test_generation_eval.py`, `packages/rag/src/way2australia_rag/evaluation/security_eval.py`; `tasks.md`, `CURRENT_STATE.md`
+- Usage: n/a (Cursor) · 109 tool uses · n/a
+
+### User decision
+- 2026-11-16 — approved:
+
+> approved
+> via: Control Tower gate way2australia-013-T4-r1-task_pass; decided by: Justin

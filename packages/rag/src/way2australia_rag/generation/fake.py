@@ -80,7 +80,14 @@ class FakeGenerator:
         self.calls = 0
         self.closed = False
 
-    def generate(self, prompt: RenderedPrompt) -> GeneratorOutput:
+    @property
+    def deadline_s(self) -> None:
+        """The fake has no wall-clock cap (Spec 013 R6). `info.deadline_s` stays set."""
+        return None
+
+    def generate(
+        self, prompt: RenderedPrompt, *, deadline_s: float | None = None
+    ) -> GeneratorOutput:
         self.calls += 1
         if self.record:
             self.prompts.append(prompt)
