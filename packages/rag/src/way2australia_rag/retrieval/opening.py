@@ -175,6 +175,12 @@ class OpenedRetrieval:
     # The Qdrant client this stack opened (None on a standalone `bm25` stack or
     # after an open-time fallback). `close()` owns it (Spec 013 R2).
     client: object | None = None
+    # Why the open fell back to BM25 (`_open_fallback`); None when dense opened.
+    # The server reads it to start a BM25-only stack with its breaker open (R5).
+    fallback_reason: FallbackReason | None = None
+    # The sticky open-stage reranker skip, when the load failed for an eligible
+    # reason (D077); None when reranking is off, loaded, or not attempted.
+    rerank_open_skip: RerankSkipReason | None = None
 
     def close(self) -> None:
         """Close the lexical file, then the client. Idempotent."""
@@ -347,6 +353,7 @@ def open_retrieval(
         reranker,
         load_ms,
         client,
+        rerank_open_skip=open_skip,
     )
 
 
@@ -411,4 +418,5 @@ def _open_fallback(
         embedder,
         None,
         lexical,
+        fallback_reason=reason,
     )

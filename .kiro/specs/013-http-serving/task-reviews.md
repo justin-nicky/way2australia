@@ -202,3 +202,67 @@
 
 > approved
 > via: Control Tower gate way2australia-013-T4-r1-task_pass; decided by: Justin
+
+## T5 — round 1
+
+### Implementation
+- Model: Claude Sonnet 5.5 (Claude Code; BEST_MINUS_ONE, matches the configured Claude Code tier)
+- Files changed:
+  - `config/serving.yaml` (new, schema 1.0, design values)
+  - `packages/rag/src/way2australia_rag/serving/` (new package): `config.py` (strict loader, `check_budget` cross-file check), `locks.py` (`LockedEmbedder`, `LockedReranker`), `readiness.py` (`Readiness`, `ReadinessSnapshot`, reasons), `stack.py` (`ServingStack`, `StackHolder`, `ServingInputs`, `open_serving_stack`, `try_reopen_dense`)
+  - `packages/rag/src/way2australia_rag/retrieval/opening.py`: two additive `OpenedRetrieval` fields with defaults, `fallback_reason` (set by `_open_fallback`) and `rerank_open_skip` (set after the reranker load), so the holder can start a BM25-only stack with the breaker open and report a sticky reranker skip. No behaviour change for the CLIs.
+  - Tests (new, `packages/rag/tests/serving/`): `test_serving_config.py`, `test_readiness_and_locks.py`, `test_stack.py`
+  - `.kiro/specs/013-http-serving/tasks.md` (boxes, State), this file
+- Verification run:
+  - `uv run pytest packages/rag/tests/serving packages/rag/tests/retrieval` → 472 passed, 2 skipped
+  - `make verify` (`HF_HUB_OFFLINE=1`) → pytest 1860 passed, 20 skipped (the output I kept was its tail, ending at the pytest summary; ruff and pyright were also run separately: ruff clean, pyright 0 errors). Qdrant was not running, so the Docker integration tests skipped.
+  - `git status --porcelain -- evaluation knowledge config` → `?? config/serving.yaml` only.
+- Notes:
+  - **Reranker skip is sticky inside `LockedReranker`**: an eligible load failure is stored and re-raised on every later `load`, so a re-opened stack keeps the open-time skip (D077, R5) without a new `open_retrieval` parameter. The holder preloads the reranker at start, so a BM25-only start still has it loaded for the re-open.
+  - **BM25-only start**: an embedder outage (checked before Qdrant) opens `bm25` through `open_retrieval`; a Qdrant outage comes back from `open_retrieval` as an open-time fallback with `fallback_reason`. In both cases the holder builds `FallbackRetriever(None, BM25, reason, breaker=<created open>, on_probe=holder hook)`. The first `open_retrieval` call receives a closed breaker that is replaced in that case.
+  - **Strategies other than `hybrid`**: `bm25` has no breaker use and no probe; `dense` with Qdrant down fails the start (no fallback exists for it, as in the CLIs).
+  - **Generator ownership**: a generator passed in `ServingInputs.generator` belongs to the holder, which closes it at shutdown and on a failed open. T6's lifespan must not close it a second time after a failed `open_serving_stack` (`Generator.close` is idempotent for the fake; the Claude adapters were not re-checked).
+  - **Deviation from the task wording**: the lock-overlap test uses events (a gated embedder, a reranker call made while the embedder is inside), not 0.2 s sleeps. It proves the two locks are separate and that two embeds serialize, with no timing tolerance.
+  - **Not done here, by design**: phase transitions (`set_ready`, `set_failed`) and the shutdown callback belong to T6; `abandoned_generation` is tested through a provider callback only, the `SlotPool` is T7.
+  - No FastAPI, Starlette, uvicorn or httpx behaviour is used in this task.
+  - Not run: real embedder, reranker, generator, Bedrock or Anthropic; a live Qdrant; `make test-integration` (not required by T5).
+- Usage: (orchestrator)
+
+### Review
+- Model: claude-opus-5-5 (Claude Code; matches the BEST tier `Opus`; different model from the implementer)
+- Verdict: PASS
+- Commands: `uv run pytest packages/rag/tests/serving packages/rag/tests/retrieval` (via `python3 -m uv`, as the Makefile does) → pass (472 passed, 2 skipped: the two Qdrant integration tests); `HF_HUB_OFFLINE=1 make verify` → **exit 0** (ruff clean, pyright 0 errors, skills/knowledge/evaluation checks pass, 1860 passed, 20 skipped); with local Qdrant started for this review (`docker compose up -d qdrant`; Docker Desktop and the container were both stopped before and were stopped again afterwards): the same pytest run → pass (474 passed, 0 skipped), and `pytest -m integration packages/rag/tests/serving packages/rag/tests/retrieval` → pass (2 collected, 2 passed: `test_seed_corpus_retrieval_under_guest_access`, `test_hybrid_with_the_fake_reranker_through_open_retrieval`); `git status --porcelain -- evaluation knowledge config` → `?? config/serving.yaml` only (allowed: new `config/serving.yaml`). `make test-integration` not required by T5, not run in full.
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R1] Every serving test passes `generator_provider="fake"` as an explicit override, so no test proves that `default_generator` from `config/generation.yaml` decides the generator when no override is given (`resolve_serving_choices` does fall back to it; the code is right, the proof is missing). Strategy and `rerank.enabled` are proven from config → add one test with `generator_provider=None` and a `default_generator` changed in the config copy (T6 or T9 may add it).
+  - F2 [MINOR, SPEC_DEFECT, R2] Generator ownership is written only in this round's Implementation notes, not in T6's task text: the holder owns a generator passed in `ServingInputs.generator` and closes it at shutdown and on a failed `open_serving_stack`; the lifespan must not close it again, but must close it itself if phase 1 fails after `build_generator` and before the holder exists. T6's boxes say only "shutdown closes the holder". A double close is harmless today (`FakeGenerator.close` sets a flag; the Claude adapter's `close` calls the SDK client's `close`, which is safe to repeat), but a missing close on a phase 1 failure would leak → the orchestrator puts both rules in the T6 brief (or a dated change-log line on T6); no T5 change needed.
+  - F3 [MINOR, IMPLEMENTATION, R5] No test runs the re-open against a Qdrant server: the open and re-open tests in `tests/serving/test_stack.py` are not marked `integration` and never skip; they use an in-memory `QdrantClient` for "up" and a real HTTP client on a closed port for "down" (so outage classification is real, the swap target is in-memory). The two Docker-backed tests in `tests/retrieval/` cover `open_retrieval` on hybrid with the fake reranker, not the holder → none required (`make verify` must not need Docker); the user-run smoke check (T8) is the live check.
+  - F4 [MINOR, IMPLEMENTATION, R5] The probe request leases the old stack and then continues on the new stack's retriever (`_probe` returns `self._current.opened.retriever`) without a lease on the new stack. Nothing retires the new stack while serving (it has no `on_probe`), so only a shutdown that lands during that one request could close it under the request → none required for T5; T6's shutdown order (stop accepting requests, then `holder.close()`) covers it.
+  - Verified deviations: the lock-overlap test uses events instead of 0.2 s sleeps; it proves the separate locks and embed serialization with no timing tolerance (accepted, matches the "threads in tests" rule). The re-open's bound lexical checks are identity, tokenizer and `bind_to` (chunk identities against the live collection), the same checks as a start with Qdrant up (R5); document freshness of the file was checked in phase 1. Sticky reranker skip lives in `LockedReranker` (eligible failure re-raised, asked once; non-eligible not sticky), tested. The two new `OpenedRetrieval` fields are additive with defaults; CLI behaviour unchanged (full suite passes).
+- Summary for user (PASS only):
+  - Changed: new `config/serving.yaml` (design values) and `packages/rag/.../serving/`: strict config loader with the 30 + 3 + 2 ≤ 40 budget check, separate embedder and reranker locks, a readiness model (phases, reason codes, breaker state read live, abandoned count from a callback), and `StackHolder`/`open_serving_stack` (config decides strategy, reranking, generator; BM25-only start with the breaker open when Qdrant or the embedder is down; probe re-open with the startup checks, atomic swap, drain then close; everything closed on a failed start and at shutdown). `OpenedRetrieval` gains `fallback_reason` and `rerank_open_skip`.
+  - Verified by: 3 new test files (config, readiness and locks, stack and re-open), targeted pytest, `make verify` exit 0 (1860 passed), and both Qdrant integration tests passing against a live local Qdrant.
+  - Worth your attention: (1) T6 needs the generator-ownership rule in its brief (F2). (2) The re-open path is tested against in-memory Qdrant, not a server; the live check is the T8 smoke run (F3). (3) `dense` strategy with Qdrant down fails the start (no fallback exists for it, as in the CLIs).
+  - Reading order (follow the flow: entry point → core logic → models/errors/config → tests):
+    1. `packages/rag/src/way2australia_rag/serving/stack.py` → `open_serving_stack`, `StackHolder.start`: config resolution, model warm-up, BM25-only start
+    2. same file → `StackHolder.try_reopen_dense`, `_probe`, `_swap`, `_release`, `close`: re-open, swap, drain, shutdown
+    3. `packages/rag/src/way2australia_rag/retrieval/fallback.py` → `_probe_without_primary` (T3, unchanged here): how the probe hook is called
+    4. `packages/rag/src/way2australia_rag/retrieval/opening.py` → `OpenedRetrieval.fallback_reason`, `rerank_open_skip`
+    5. `packages/rag/src/way2australia_rag/serving/locks.py` → `LockedEmbedder`, `LockedReranker.load` (sticky skip)
+    6. `packages/rag/src/way2australia_rag/serving/readiness.py` → `Readiness.snapshot`
+    7. `config/serving.yaml` and `packages/rag/src/way2australia_rag/serving/config.py` → `load_serving_config`, `check_budget`
+    8. `packages/rag/tests/serving/test_stack.py`, then `test_readiness_and_locks.py`, `test_serving_config.py`
+    9. Supporting edits: `tasks.md` boxes and State
+  - Learning notes: /Users/justin/learning/way2australia/specs/013-http-serving/T5.md
+- Usage: (orchestrator)
+
+### User decision
+- 2026-11-21 — approved:
+
+> T5 approved. Commit it with the Spec-Task: 013/T5 trailer and push spec/013, recording the approval in the T5 user-decision block.
+>
+> Add a dated change-log line to T6 in tasks.md (from T5 review F2 and F1):
+> 1. Generator ownership: StackHolder closes the generator at shutdown and when open_serving_stack fails, so the lifespan must not close it again; if phase 1 fails after build_generator but before the holder exists, the lifespan closes it itself. Add a test for that failure path.
+> 2. Add a test that, with no generator passed in, the server uses config default_generator (T5 F1).
+> Keep F3 (real-Qdrant re-open, covered by the T8 smoke run) and F4 (covered by T6's shutdown order) as notes.
+>
+> Dont start T6 yet

@@ -1,0 +1,15 @@
+# Serving policy for the HTTP server (Spec 013, R5-R10). Server only: no CLI reads it.
+schema_version: "1.0"
+request:
+  max_query_chars: 1000        # characters, after stripping; 1..4000
+  max_body_bytes: 16384        # whole JSON body; 1024..1048576
+concurrency:
+  max_in_flight: 4             # answer slots, including abandoned generation work; 1..64
+  retry_after_busy_s: 1        # Retry-After on 503 busy; 1..300
+  retry_after_not_ready_s: 5   # Retry-After on 503 not_ready; 1..300
+budget:
+  request_s: 40                # per-request budget (retrieval + context + generation)
+  min_generation_s: 2          # below this remaining, the generator is not called
+breaker:
+  failure_threshold: 3         # consecutive fallback-eligible dense outages; 1..20
+  cooldown_s: 30               # fixed; 1..600
