@@ -236,6 +236,36 @@ def test_hybrid_with_rerank_off_serves_without_a_reranker(
         holder.close()
 
 
+def test_generator_follows_default_generator_from_configuration(
+    fake_lexical: Path,  # noqa: F811
+) -> None:
+    """No generator and no override are passed in: the stack builds the one the
+    generation config names (T5 review F1)."""
+    committed = generation_config()
+    assert committed.default_generator != "fake"
+    inputs = make_inputs(
+        SwitchFactory(down()),
+        strategy=Strategy.BM25,
+        rerank=False,
+        generator_provider=None,
+    )
+    assert inputs.generator is None and inputs.generator_provider is None
+    inputs = ServingInputs(
+        **{
+            **inputs.__dict__,
+            "generation_config": committed.model_copy(
+                update={"default_generator": "fake"}
+            ),
+        }
+    )
+    holder = open_serving_stack(inputs)
+    try:
+        assert holder.choices.generator_provider == "fake"
+        assert isinstance(holder.generator, FakeGenerator)
+    finally:
+        holder.close()
+
+
 # --- start with dense down (R5) -------------------------------------------------
 
 

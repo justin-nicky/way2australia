@@ -266,3 +266,53 @@
 > Keep F3 (real-Qdrant re-open, covered by the T8 smoke run) and F4 (covered by T6's shutdown order) as notes.
 >
 > Dont start T6 yet
+
+## T6 — round 1
+
+### Implementation
+- Model: Claude Sonnet 5.5 (Claude Code; BEST_MINUS_ONE, matches the configured Claude Code tier)
+- Files changed:
+  - `apps/api/pyproject.toml` (workspace dependency `way2australia-rag`), `uv.lock`
+  - `apps/api/src/way2australia_api/config.py` (`repo_root`, `serving_config`, `api_fake` from `W2A_API_FAKE`)
+  - `apps/api/src/way2australia_api/lifespan.py` (new: `run_phase_one`, `StartupError`, `_Loader` background thread, `make_lifespan`, default `on_fatal` = SIGTERM)
+  - `apps/api/src/way2australia_api/api/ready.py` (new: `GET /ready`), `main.py` (`create_app(settings, *, stack_factory=None, on_fatal=None)`, lifespan, `/ready` router, readiness on `app.state`)
+  - `Makefile` (`api` target, `API_HOST`/`API_PORT`)
+  - Tests: `apps/api/tests/conftest.py`, `support.py`, `test_serving_startup.py` (new, 14 tests); `packages/rag/tests/serving/test_stack.py` (one new test: generator follows `default_generator`)
+  - `.kiro/specs/013-http-serving/tasks.md` (boxes, State), this file
+- Verification run: `uv run pytest apps/api packages/rag/tests/serving` → 57 passed. `ruff check`, `ruff format`, `pyright apps packages/rag/tests/serving` → clean. `HF_HUB_OFFLINE=1 make verify` (once) → exit 0, 1876 passed, 20 skipped (Qdrant not running: Docker integration tests skipped). `make -n api` prints the `$(UV_ENV) $(UV) run uvicorn ...` recipe. `git status --porcelain -- evaluation knowledge config` → empty. `make test-integration` not required by T6, not run.
+- Notes:
+  - Phase 1 maps every failure to `StartupError("startup failed: <Class>[: <message>]")`. The message text is kept only for the families that are path- and secret-free by contract (retrieval, ingestion, generator configuration, prompt, serving configuration); any other exception is reported by class name only. The lifespan closes the generator only when phase 1 fails after `build_generator`; on success the generator is in `ServingInputs.generator` and the holder owns it (tests count one close on a phase 1 failure after build, on a phase 2 failure and on a normal shutdown).
+  - Phase 1 skips the lexical check only when the configured strategy is `dense`. The checked handle is closed; phase 2 opens its own.
+  - Shutdown while the loader is still running: the loader sees a `closing` flag and closes the holder it finishes building (test). After a normal start, shutdown closes the holder (stack, lexical, client, embedder, reranker, generator). uvicorn stops accepting requests before the lifespan ends, which is T5 review F4's shutdown order.
+  - `on_fatal` default signals SIGTERM to the process (graceful uvicorn exit); the process exit code is then uvicorn's, not necessarily non-zero. Noted for the T8 smoke check.
+  - A real `uvicorn` start with `W2A_API_FAKE=1` and the real (bge-m3) lexical file stops with the identity-mismatch message and no path. The full fake start needs `make ingest` and `make index-lexical` with the fake embedder and `QDRANT_COLLECTION_BASE`, which is user-run and not exercised here.
+  - T5 review F3 (re-open tested against in-memory Qdrant only) stays a T8 smoke item. `COMMANDS.md` is not updated here (T9).
+- Usage: 189K tokens · 48 tool uses · 8:44
+
+### Review
+- Model: claude-opus-5-5 (Claude Code; BEST tier `Opus`, matches; different model from the implementer)
+- Verdict: PASS
+- Commands: `uv run pytest apps/api packages/rag/tests/serving` (via `.venv/bin/python -m pytest`) → pass (57 passed); `HF_HUB_OFFLINE=1 make verify` (once) → exit 0 (1876 passed, 20 skipped: Docker integration tests, no local Qdrant); `make -n api` → `$(UV_ENV) $(UV) run uvicorn way2australia_api.main:app --host 127.0.0.1 --port 8000`; `git status --porcelain -- evaluation knowledge config` → empty. `make test-integration` not required by T6, not run.
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R2] Shutdown while the loader is still in `open_serving_stack`: `_Loader.close()` sets `closing` and the lifespan returns without joining the daemon loader thread, so the late holder is closed only if the process outlives the load (the test keeps the process alive). In a real uvicorn exit the thread is killed mid-load and the OS reclaims the resources. → Optional: join the loader with a bounded timeout in the lifespan's `finally`, or note the window in the design As-built notes (T9).
+  - F2 [MINOR, IMPLEMENTATION, R8] `test_unknown_prompt_stops_startup_and_closes_the_generator` asserts that no generator was built (the prompt is read first), so its name promises a close it does not check; the close-once path is covered by the tokenizer and missing-lexical tests. → Rename when the file is next touched.
+  - Implementer note checked: the default `on_fatal` sends SIGTERM; uvicorn 0.54 `Server.capture_signals` re-raises the captured signal after a graceful shutdown, so a phase 2 failure ends the process by SIGTERM (non-zero status), as the design's "process exits" needs. T5 F4 shutdown order holds: uvicorn drains requests before the lifespan `finally` calls `holder.close()`.
+- Summary for user (PASS only):
+  - Changed: the API now starts the serving stack in two phases (`lifespan.py`): phase 1 synchronous checks (configs with the budget cross-check, prompt, generator, `lote` codes, standalone lexical identity, chunker, tokenizer, freshness) that stop startup with a path- and key-free `StartupError`; phase 2 opens the stack on a background thread. `GET /ready` (new) reports `starting` / `failed` (503) or `ok` / `degraded` (200) with reasons, breaker state and `fake`. `W2A_API_FAKE` selects fake models and logs a warning. `make api` added (`API_HOST`/`API_PORT`). `apps/api` depends on `way2australia-rag`.
+  - Verified by: 14 new startup tests (`apps/api/tests/test_serving_startup.py`) and one new `default_generator` test in `test_stack.py`; targeted pytest 57 passed; `make verify` 1876 passed.
+  - Worth your attention: generator ownership follows the 2026-11-21 box (lifespan closes it only on a phase 1 failure after build; holder otherwise; counted once in every test). A phase 2 failure exits by SIGTERM. Shutdown during load closes the late stack only if the process stays alive (F1). The fake start against a real lexical file was not run end to end (needs user-run fake `make ingest` / `make index-lexical`; T8).
+  - Reading order (follow the flow: entry point → core logic → models/errors/config → tests):
+    1. `Makefile` → `api`: how the server is started.
+    2. `apps/api/src/way2australia_api/main.py` → `create_app`: wires the lifespan, `Readiness` and the `/ready` router; test seams `stack_factory`, `on_fatal`.
+    3. `apps/api/src/way2australia_api/lifespan.py` → `run_phase_one`, `_check_lexical`, `_Loader._run` / `close`, `make_lifespan`: the two phases, generator ownership, shutdown.
+    4. `apps/api/src/way2australia_api/api/ready.py` → `get_ready`: maps the readiness snapshot to status and body.
+    5. `apps/api/src/way2australia_api/config.py` → `Settings`: `repo_root`, `serving_config`, `api_fake` (`W2A_API_FAKE`).
+    6. `apps/api/tests/support.py`, `conftest.py`: in-memory indexed client, down client, counting fakes, fake-identity lexical file.
+    7. `apps/api/tests/test_serving_startup.py`: phase 1 failures, readiness transitions, phase 2 failure, fake mode, shutdown counters.
+    8. Supporting edits: `packages/rag/tests/serving/test_stack.py` (`default_generator` test), `apps/api/pyproject.toml`, `uv.lock`.
+- Usage: 148K tokens · 37 tool uses · 11:04
+
+### User decision
+- 2026-11-21 — approved:
+
+> T6 approved. Record it, commit once with the Spec-Task: 013/T6 trailer and push spec/013. Carry F1 (lifespan does not join a loader still opening at shutdown; late holder is closed by the loader, process exit frees the rest) into T9's As-built notes, and F2 (rename test_unknown_prompt_stops_startup_and_closes_the_generator) to the next time that test file is touched. Then start T7 with exactly one implementer session.

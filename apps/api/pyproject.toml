@@ -11,7 +11,11 @@ dependencies = [
   "pydantic>=2.10.0",
   "pydantic-settings>=2.7.0",
   "python-dotenv>=1.0.0",
+  "way2australia-rag",
 ]
 
 [tool.uv]
 package = true
+
+[tool.uv.sources]
+way2australia-rag = { workspace = true }

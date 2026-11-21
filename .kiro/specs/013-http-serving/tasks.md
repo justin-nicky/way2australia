@@ -114,18 +114,18 @@ Allowed protected-path changes: new `config/serving.yaml`.
 
 ## T6 — API startup, readiness endpoint, fake mode and `make api`
 
-**State:** not started
+**State:** approved (2026-11-21)
 **Requirements:** R8, R16, R2
 
-- [ ] `apps/api/pyproject.toml`: workspace dependency on `way2australia-rag`; `uv lock` updated.
-- [ ] `config.py`: `repo_root`, `serving_config`, `api_fake` (`W2A_API_FAKE`).
-- [ ] `lifespan.py`: phase 1 synchronous (configs and cross-file checks, prompt, `build_generator`, active `lote` codes, standalone lexical identity, chunker, tokenizer and freshness; any failure stops startup with a safe message); phase 2 background thread (`open_serving_stack`; readiness `ready` with degraded reasons, or `failed` plus the shutdown callback, which signals the process to exit); shutdown closes the holder. `create_app(settings, *, stack_factory=None, on_fatal=None)` for tests.
-- [ ] `api/ready.py`: `GET /ready` per design (503 `starting` / `failed`; 200 `ok` / `degraded` with reasons, breaker state, `abandoned_in_flight` when present, `fake`); `GET /health` unchanged.
-- [ ] Fake mode: fake embedder, reranker and generator; startup warning log; readiness `fake: true`.
-- [ ] `Makefile`: `api` target whose recipe is `$(UV_ENV) $(UV) run uvicorn way2australia_api.main:app …` like the other targets, never a bare `uv run` (`uv` is not on the user's PATH); host and port variables, default `127.0.0.1:8000`; `make api` is not part of `make verify`.
-- [ ] Tests (`apps/api/tests/`): phase 1 failures stop startup (invalid serving config, unknown prompt, tokenizer mismatch, missing lexical file) with messages free of paths and keys; readiness `starting` while a stack factory blocks on an event, then `ok`; `degraded` for a breaker-open start and for a reranker skip; `failed` plus `on_fatal` called on a phase 2 non-eligible error, with everything opened closed; `/health` response unchanged; fake mode readiness `fake: true` and the warning logged; shutdown closes every connection (counters).
-- [ ] Generator ownership (added 2026-11-21, T5 review F2): the generator built in phase 1 is passed to the holder through `ServingInputs.generator`; `StackHolder` closes it at shutdown and when `open_serving_stack` fails, so the lifespan never closes it a second time. If phase 1 fails after `build_generator` and before the holder exists, the lifespan closes the generator itself. Test: a phase 1 failure after `build_generator` (for example a tokenizer mismatch) closes the generator exactly once; a phase 2 failure and a normal shutdown also close it exactly once (counter).
-- [ ] Generator from configuration (added 2026-11-21, T5 review F1): a test in `packages/rag/tests/serving/` opens the stack with no generator and no generator override passed in, and asserts the generator follows `default_generator` from the generation config (set in the config copy to a value different from the committed one, for example `fake`).
+- [x] `apps/api/pyproject.toml`: workspace dependency on `way2australia-rag`; `uv lock` updated.
+- [x] `config.py`: `repo_root`, `serving_config`, `api_fake` (`W2A_API_FAKE`).
+- [x] `lifespan.py`: phase 1 synchronous (configs and cross-file checks, prompt, `build_generator`, active `lote` codes, standalone lexical identity, chunker, tokenizer and freshness; any failure stops startup with a safe message); phase 2 background thread (`open_serving_stack`; readiness `ready` with degraded reasons, or `failed` plus the shutdown callback, which signals the process to exit); shutdown closes the holder. `create_app(settings, *, stack_factory=None, on_fatal=None)` for tests.
+- [x] `api/ready.py`: `GET /ready` per design (503 `starting` / `failed`; 200 `ok` / `degraded` with reasons, breaker state, `abandoned_in_flight` when present, `fake`); `GET /health` unchanged.
+- [x] Fake mode: fake embedder, reranker and generator; startup warning log; readiness `fake: true`.
+- [x] `Makefile`: `api` target whose recipe is `$(UV_ENV) $(UV) run uvicorn way2australia_api.main:app …` like the other targets, never a bare `uv run` (`uv` is not on the user's PATH); host and port variables, default `127.0.0.1:8000`; `make api` is not part of `make verify`.
+- [x] Tests (`apps/api/tests/`): phase 1 failures stop startup (invalid serving config, unknown prompt, tokenizer mismatch, missing lexical file) with messages free of paths and keys; readiness `starting` while a stack factory blocks on an event, then `ok`; `degraded` for a breaker-open start and for a reranker skip; `failed` plus `on_fatal` called on a phase 2 non-eligible error, with everything opened closed; `/health` response unchanged; fake mode readiness `fake: true` and the warning logged; shutdown closes every connection (counters).
+- [x] Generator ownership (added 2026-11-21, T5 review F2): the generator built in phase 1 is passed to the holder through `ServingInputs.generator`; `StackHolder` closes it at shutdown and when `open_serving_stack` fails, so the lifespan never closes it a second time. If phase 1 fails after `build_generator` and before the holder exists, the lifespan closes the generator itself. Test: a phase 1 failure after `build_generator` (for example a tokenizer mismatch) closes the generator exactly once; a phase 2 failure and a normal shutdown also close it exactly once (counter).
+- [x] Generator from configuration (added 2026-11-21, T5 review F1): a test in `packages/rag/tests/serving/` opens the stack with no generator and no generator override passed in, and asserts the generator follows `default_generator` from the generation config (set in the config copy to a value different from the committed one, for example `fake`).
 
 Notes from the T5 review (no box): F3, the dense re-open is tested against in-memory Qdrant only; the live check is the user-run smoke check in T8. F4, the probe request finishes on the new stack without a lease on it; T6's shutdown order (stop accepting requests, then `holder.close()`) covers it.
 
@@ -137,6 +137,8 @@ Allowed protected-path changes: none.
 - `git status --porcelain -- evaluation knowledge config` is empty.
 
 ## T7 — Answer route, public contract, limits, errors and logging
+
+> Carry-over (T6 review F2, user 2026-11-21): when `apps/api/tests/test_serving_startup.py` is next touched, rename `test_unknown_prompt_stops_startup_and_closes_the_generator` (it asserts no generator was built).
 
 **State:** not started
 **Requirements:** R9, R10, R11, R12, R13, R16
@@ -185,6 +187,7 @@ Allowed protected-path changes: none.
 - [ ] `COMMANDS.md`: `make api`, `W2A_API_FAKE`, `GET /health`, `GET /ready`, `POST /v1/answer` (request, contract 1.0, status codes), `config/serving.yaml`, the tokenizer refusal, the hard cap's effect on `make ask` / `make eval-generation`, the `retrieval_depth` correction, the smoke-check steps (if not already added by T8).
 - [ ] `DECISIONS.md`: concurrency model A with two model locks and the shared SQLite connection; circuit breaker; server start with Qdrant down, dense re-admission and embedder retry; hard cap, abandoned work and budget; public contract 1.0 and reason mapping; request ID and logging (D-L: no raw query, no hash); readiness semantics; `retrieval_depth` correction without a version bump; tokenizer check in the CLIs.
 - [ ] `design.md` as-built notes for any departure; `CURRENT_STATE.md` reflects the implemented reality and the deferred items (streaming, usage on raised outcomes, `fallback_stage`, reranker reload and device, rate limiting, internal endpoint, Bedrock switch, prompt v2).
+- [ ] As-built note (T6 review F1, user 2026-11-21): the lifespan does not join a loader thread still opening the stack at shutdown; a late-built holder is closed by the loader, and process exit frees the rest.
 - [ ] Spec-wide checks: `make verify`, `make eval-security` (fakes).
 
 Allowed protected-path changes: none.
