@@ -316,3 +316,87 @@
 - 2026-11-21 — approved:
 
 > T6 approved. Record it, commit once with the Spec-Task: 013/T6 trailer and push spec/013. Carry F1 (lifespan does not join a loader still opening at shutdown; late holder is closed by the loader, process exit frees the rest) into T9's As-built notes, and F2 (rename test_unknown_prompt_stops_startup_and_closes_the_generator) to the next time that test file is touched. Then start T7 with exactly one implementer session.
+
+## T7 — round 1
+
+### Implementation
+- Model: claude-sonnet-5-5 (Claude Code subagent; BEST_MINUS_ONE tier, mismatch with MODEL_PREFERENCES not checked, no user to ask)
+- Files changed: new `apps/api/src/way2australia_api/{contract,slots,middleware,errors,logs}.py`, `api/answer.py`; edited `main.py` (middleware order, handlers, router, logging setup) and `lifespan.py` (slot pool, runtime settings, `top_k` on app state, abandoned provider registered on readiness); new `apps/api/tests/test_answer_route.py` (44 tests). `test_serving_startup.py` not touched, so the T6 F2 rename carry-over stays open.
+- Verification: `pytest apps/api packages/rag/tests/serving` 101 passed; `ruff check`, `ruff format --check`, `pyright apps/api` clean. **`make verify` did not complete**: the first run failed on a pyright error in the new test file (fixed); the second run was refused by the verify-budget hook (budget 2, one slot was spent by a `make -n test` dry run). The full suite and the protected-path check (`git status --porcelain -- evaluation knowledge config`, empty at last look) are left to the reviewer. No integration tests required.
+- Notes:
+  - Query-length and empty checks and `lote` resolution run in the route (422 built with the shared error helper); extra fields and type errors come from the pydantic model through the validation handler. The `lote` message lists active codes and does not echo the value.
+  - The route catches any exception and returns the 500 body itself (so the fake header and request ID are present); the global `Exception` handler is a backstop.
+  - `X-W2A-Fake` follows `settings.api_fake` (every answer-path response incl. 413, 422, 503, 500).
+  - The 413 middleware reads the limit from `app.state.serving_config` (set in phase 1).
+  - Logger `way2australia_api.answer` gets a stderr handler only when the root has none (uvicorn), so tests capture via propagation.
+- Usage: 156K tokens · 22 tool uses · 11:26
+- Verify budget note: the full `make verify` did not complete in this round (one pyright failure fixed, second run refused by the budget hook); the task reviewer runs it.
+
+### Review
+- Model: claude-opus-5-5 (Claude Code subagent; BEST tier, matches `MODEL_PREFERENCES.md`)
+- Verdict: FAIL
+- Commands: `HF_HUB_OFFLINE=1 make verify` → pass (ruff check clean, 262 files formatted, pyright 0 errors; pytest 1920 passed, 20 skipped of 1940 collected, 200 s; `apps/api/tests/test_answer_route.py` all passed); `git status --porcelain -- evaluation knowledge config` → empty. No integration run required by the task. The iteration run (`uv run pytest apps/api`) was not repeated separately; `make verify` covers it.
+- Findings:
+  - F1 [MAJOR, IMPLEMENTATION, R12] The server's 500 log line records the error class but not the request ID. R12 AC2 and the design ("Middleware and errors": "the log records the error class and request ID") require both. `api/answer.py:98` logs `"answer failed: %s"` with the class only, and so does the backstop `errors.py:57` (`"request failed: %s"`). No answer log line is written on the 500 path, so the request ID the client receives can't be matched to any server log line. → Log the request ID with the class in both places (still no `exc_info` and no message). Add a test that the 500 log record for an injected error holds the response's `X-Request-ID` and the class name.
+  - F2 [MINOR, IMPLEMENTATION, R16] `X-W2A-Fake` follows `settings.api_fake` only. The design says the header goes on "when the stack is fake (any of embedder, reranker or generator is fake)". A real-mode server whose configuration selects a fake provider (for example `default_generator: fake`, which the T6 configuration test exercises) would serve fake answers with no header, and readiness would show `fake: false`. → Derive the flag from the opened components (or refuse fake providers outside `W2A_API_FAKE` at phase 1), or record that `api_fake` is the only switch as a decision.
+  - F3 [MINOR, IMPLEMENTATION, R16] The fake header is asserted on 200 and 422 only. The code also adds it to 413 (`BodySizeMiddleware._too_large`), 503 and 500 (`error_response`), but no test checks those. → Extend `test_fake_header_present_in_fake_mode_and_absent_otherwise` to the 413, 503 and 500 responses.
+  - F4 [MINOR, IMPLEMENTATION, R10/R12] `holder.acquire()` raises `ServingNotReadyError` once the holder is closed (shutdown race). That error is caught by the route's broad `except` and becomes a 500 `internal_error` instead of a 503 `not_ready`. → Map `ServingNotReadyError` to the not-ready 503 (optional; shutdown only).
+  - F5 [MINOR, IMPLEMENTATION, R12] Only an authorization error is injected at the route. Configuration and applicability errors take the same path but have no route test, while R12 says "tests cover each class". → Parametrize the 500 test over `RetrievalAuthorizationError`, a configuration error and an applicability error.
+- Implementer decisions checked:
+  - Query and `lote` validation in the route matches design "Lote and query validation runs in the route after body parsing" and "Data flow". The model-level comment in the contract sketch is superseded. The `lote` 422 lists active codes and does not echo the value.
+  - The route-built 500 is sound. It keeps the request ID and fake header, and it avoids Starlette's `ServerErrorMiddleware` re-raise, which would make uvicorn log a traceback with the exception message (R12/R13). The global handler is only a backstop for middleware failures. On that path the uvicorn traceback would still be logged, which is acceptable for a backstop.
+  - The fake header reaches 413, 422, 503 and 500 through the path check in `fake_headers`. See F2 and F3.
+  - Contract, maps, pin test, slots (idempotent release, transfer, late-callback safety via `AbandonedWork.add_done_callback`), middleware order (request ID outermost), 413 with and without `Content-Length`, 422 without `input`/`ctx`, server-resolved guest access, `top_k` from config, and the log fields all match the design. `test_serving_startup.py` was not touched, so the T6 F2 rename carry-over stays open.
+- Usage: 141K tokens · 24 tool uses · 4:39
+
+## T7 — round 2
+
+### Implementation
+- Model: claude-sonnet-5-5 (Claude Code subagent; BEST_MINUS_ONE tier, mismatch with MODEL_PREFERENCES not checked, no user to ask)
+- Files changed: `apps/api/src/way2australia_api/api/answer.py`, `errors.py`, `lifespan.py`; `apps/api/tests/test_answer_route.py`, `test_serving_startup.py` (rename only).
+- Findings fixed:
+  - F1: both 500 log lines (route and backstop handler) now record `request_id` and the error class (no `exc_info`, no message). Test `test_internal_errors_are_500_with_request_id_only` checks the single ERROR record holds the response's `X-Request-ID` and the class name, with no sentinel text and no `exc_info`.
+  - F2: the design's fake-mode section only says `api_fake` selects fakes and that the header and readiness show fake "when the stack is fake"; it does not say how a config-selected fake behaves. Chose to refuse: phase 1 (`_refuse_fake_providers`) stops startup with a `RetrievalConfigurationError` ("configuration selects a fake embedder/reranker/generator; fake providers need W2A_API_FAKE") when not in `api_fake` and the ingestion embedder provider, an enabled reranker provider or `default_generator` is `fake`. So `settings.api_fake` is the only way to get a fake stack and the header/readiness flag cannot lie. The check runs before the generator is built. Test `test_fake_provider_outside_fake_mode_is_refused_at_startup`.
+  - F3: `test_fake_header_present_in_fake_mode_and_absent_otherwise` now also asserts `X-W2A-Fake: true` on 413, busy 503 and 500.
+  - F4: the route maps `ServingNotReadyError` from `holder.acquire()` to 503 `not_ready` with the not-ready `Retry-After`; test `test_shutdown_race_is_503_not_ready` (slot released).
+  - F5: the 500 test is parametrized over `RetrievalAuthorizationError`, `RetrievalConfigurationError` and `LanguageApplicabilityError`.
+  - T6 F2 carry-over: `test_unknown_prompt_stops_startup_and_closes_the_generator` renamed to `test_unknown_prompt_stops_startup_before_a_generator_is_built`.
+- Verification: `pytest apps/api packages/rag/tests/serving` 105 passed; ruff check/format and pyright `apps/api` clean; `make verify` once (result in the hand-off). `git status --porcelain -- evaluation knowledge config` empty.
+- Usage: 120K tokens · 24 tool uses · 6:50
+
+### Review
+- Model: claude-opus-5-5 (Claude Code subagent; BEST tier, matches `MODEL_PREFERENCES.md`; different model from the implementer)
+- Verdict: PASS
+- Commands: `HF_HUB_OFFLINE=1 make verify` (once) → exit 0 (ruff check clean, 262 files already formatted, pyright 0 errors; pytest 1924 passed, 20 skipped: Docker integration tests, no local Qdrant; 200 s). `git status --porcelain -- evaluation knowledge config` → empty. The iteration run `uv run pytest apps/api` is covered by `make verify` and was not repeated. No integration run required by T7.
+- Round 1 findings checked:
+  - F1 fixed: `api/answer.py` and the backstop `errors.py::_internal_handler` log `request_id=… error=<Class>` with no message and no `exc_info`; `test_internal_errors_are_500_with_request_id_only` asserts exactly one ERROR record holding the response's `X-Request-ID` and the class, no sentinel, `exc_info is None`.
+  - F2 fixed by refusal: `lifespan._refuse_fake_providers` runs in phase 1 before `build_generator` when `api_fake` is false and refuses a `fake` embedder, an enabled `fake` reranker or `default_generator: fake` with a `RetrievalConfigurationError` (its message survives `_safe_message`, path- and key-free). This fits R16 ("a fake mode … exists only through explicit server settings") and the design error table (invalid config → phase 1 fails); it makes the design's "when the stack is fake" condition equal to `api_fake`, so the header and readiness flag cannot under-report. No spec decision is needed, but the choice should be written down (F1 below). Committed config (`bge_m3`, `bge`, `anthropic`) is unaffected.
+  - F3 fixed: the fake-header test now covers 200, 422, 413, busy 503 and 500, and the absent case.
+  - F4 fixed: `ServingNotReadyError` from `holder.acquire()` → 503 `not_ready` with `Retry-After: 5`, slot released (`test_shutdown_race_is_503_not_ready`).
+  - F5 fixed: the 500 test is parametrized over authorization, configuration and applicability errors.
+  - T6 F2 carry-over done: the test is renamed to `test_unknown_prompt_stops_startup_before_a_generator_is_built`.
+  - No regressions found: round 2 changes are confined to the logging lines, the new `except ServingNotReadyError` branch (placed before the broad `except`, `finally` still releases the slot), the phase 1 check and tests.
+- Findings:
+  - F1 [MINOR, IMPLEMENTATION, R16] The refusal of config-selected fake providers outside `W2A_API_FAKE` is a behaviour the design does not state (design "Settings and fake mode" / "Middleware and errors" describe the header "when the stack is fake"). → Record it in T9's design As-built notes (and the fake-mode entry in `COMMANDS.md`/`DECISIONS.md`).
+  - F2 [MINOR, IMPLEMENTATION, R16] `test_fake_provider_outside_fake_mode_is_refused_at_startup` covers only the generator branch; the embedder and enabled-reranker branches (and "disabled fake reranker is allowed") have no test, and `_refuse_fake_providers` types `generation` as `Any` rather than `GenerationConfig`. → Parametrize the test over the three providers and tighten the type when the file is next touched.
+- Summary for user (PASS only):
+  - Changed: `POST /v1/answer` is in place (`api/answer.py`) with public contract 1.0 (`contract.py`), the slot pool (`slots.py`), request-ID and body-size middleware (`middleware.py`), 422/500/503 bodies (`errors.py`) and the one-line JSON answer log (`logs.py`); the lifespan adds the slot pool, runtime settings, config `top_k` and the abandoned-work readiness provider, and now refuses a config-selected fake provider unless `W2A_API_FAKE` is set.
+  - Verified by: `apps/api/tests/test_answer_route.py` (contract pin, mappings, 422/413/503/500, slots, capped generator, request ID, fake header, no sensitive text in logs or bodies); `make verify` 1924 passed, 20 skipped.
+  - Worth your attention: fake providers now only run under `W2A_API_FAKE` (round 2 choice; to be written into the design at T9, F1). Shutdown-race requests get 503 `not_ready`. The refusal test covers the generator only (F2).
+  - Reading order (follow the flow: entry point → core logic → models/errors/config → tests):
+    1. `apps/api/src/way2australia_api/main.py` → `create_app`: middleware order, error handlers, answer router.
+    2. `apps/api/src/way2australia_api/middleware.py` → `RequestIdMiddleware`, `BodySizeMiddleware`, `fake_headers`.
+    3. `apps/api/src/way2australia_api/api/answer.py` → `post_answer`: readiness, slot, validation, access, `service.answer`, contract, log, release.
+    4. `apps/api/src/way2australia_api/slots.py` → `SlotPool`, `Slot.transfer`/`release`.
+    5. `apps/api/src/way2australia_api/contract.py` → `AnswerRequest`, `AnswerContract`, `to_contract` and the `_STATUS`/`_REASON` maps.
+    6. `apps/api/src/way2australia_api/errors.py` → `error_response`, validation and backstop handlers.
+    7. `apps/api/src/way2australia_api/logs.py` → `build_log_record`, `configure_logging`.
+    8. `apps/api/src/way2australia_api/lifespan.py` → `_refuse_fake_providers`, slot pool and app state in `make_lifespan`.
+    9. `apps/api/tests/test_answer_route.py`: route, contract, limits, errors, logging tests.
+    10. Supporting edits: `apps/api/tests/test_serving_startup.py` (rename), `tasks.md`, `CURRENT_STATE.md`.
+- Usage: 126K tokens · 28 tool uses · 6:09
+
+### User decision
+- 2026-11-22 — approved:
+
+> T7 approved. Record it, commit once with the Spec-Task: 013/T7 trailer and push spec/013. Carry round-2 F1 (fake-provider refusal at startup) into T9: the design As-built notes, COMMANDS.md, and a DECISIONS.md entry. Carry F2 (tests for the embedder, enabled-reranker and disabled-fake-reranker branches of _refuse_fake_providers, and a real type instead of Any for generation) to the next time lifespan.py or its tests are touched. dont start T8 yet, give me the command to run the orchestrator in a different session.

@@ -140,16 +140,16 @@ Allowed protected-path changes: none.
 
 > Carry-over (T6 review F2, user 2026-11-21): when `apps/api/tests/test_serving_startup.py` is next touched, rename `test_unknown_prompt_stops_startup_and_closes_the_generator` (it asserts no generator was built).
 
-**State:** not started
+**State:** approved (2026-11-22)
 **Requirements:** R9, R10, R11, R12, R13, R16
 
-- [ ] `contract.py`: `AnswerRequest` (extra forbidden), `PublicStatus`, `PublicReason`, `PublicCitation`, `PublicEvidence`, `AnswerContract` 1.0, `to_contract` with explicit `_STATUS` and `_REASON` maps, per design.
-- [ ] `slots.py`: `SlotPool`, `Slot` with idempotent `release` and `transfer(work)`; `abandoned_in_flight` registered as the readiness provider.
-- [ ] `middleware.py`: server-generated request ID (`X-Request-ID` on every response; incoming ID ignored); body-size limit for `POST /v1/answer` (413 before parsing, with and without `Content-Length`).
-- [ ] `errors.py`: 422 handler without `input`/`ctx` echo; 500 handler with request ID only; 503 bodies with `Retry-After`.
-- [ ] `api/answer.py`: `POST /v1/answer` as a sync `def`, per design "Data flow": readiness check, slot, query and `lote` validation, server-resolved guest access, `holder.acquire()`, `service.answer(..., top_k from config, budget_s, min_generation_s, on_abandoned=slot.transfer)`, `to_contract`, log line, release; `X-W2A-Fake: true` on every answer response in fake mode.
-- [ ] `logs.py`: one JSON line per answer request with the design fields and none of the forbidden ones; `httpx` and `anthropic` loggers at WARNING.
-- [ ] Tests (`apps/api/tests/`): contract pin (exact field names, types, nesting, both enum member sets, `contract_version`); enum coverage (every `AnswerStatus` and `AnswerReason` member mapped); one mapping test per status and per internal reason; 422 for empty, whitespace-only, too long, extra field (`role`, `tenant_id`, `scope`, `top_k`), bad `lote` (`*`, empty, unknown) with no query echo in the body; 413 with and without `Content-Length` and no service call; busy 503 with `Retry-After: 1`; not-ready 503 with `Retry-After: 5`; 500 for an injected authorization error, body holding only `request_id` and `error`; slot released on success and on error; with a `BlockingGenerator`, the response is `evidence_only` / `generator_unavailable` within the cap plus 0.5 s, the slot stays held, `/ready` shows `abandoned_generation` and `abandoned_in_flight: 1`, and both clear when the generator ends; a client `X-Request-ID` is not echoed; sentinel strings in the query, `ANTHROPIC_API_KEY`, `QDRANT_URL` and a fake client exception message never appear in captured logs or bodies; `X-W2A-Fake: true` present in fake mode and absent otherwise; the OpenAPI schema lists `AnswerContract` with `contract_version`.
+- [x] `contract.py`: `AnswerRequest` (extra forbidden), `PublicStatus`, `PublicReason`, `PublicCitation`, `PublicEvidence`, `AnswerContract` 1.0, `to_contract` with explicit `_STATUS` and `_REASON` maps, per design.
+- [x] `slots.py`: `SlotPool`, `Slot` with idempotent `release` and `transfer(work)`; `abandoned_in_flight` registered as the readiness provider.
+- [x] `middleware.py`: server-generated request ID (`X-Request-ID` on every response; incoming ID ignored); body-size limit for `POST /v1/answer` (413 before parsing, with and without `Content-Length`).
+- [x] `errors.py`: 422 handler without `input`/`ctx` echo; 500 handler with request ID only; 503 bodies with `Retry-After`.
+- [x] `api/answer.py`: `POST /v1/answer` as a sync `def`, per design "Data flow": readiness check, slot, query and `lote` validation, server-resolved guest access, `holder.acquire()`, `service.answer(..., top_k from config, budget_s, min_generation_s, on_abandoned=slot.transfer)`, `to_contract`, log line, release; `X-W2A-Fake: true` on every answer response in fake mode.
+- [x] `logs.py`: one JSON line per answer request with the design fields and none of the forbidden ones; `httpx` and `anthropic` loggers at WARNING.
+- [x] Tests (`apps/api/tests/`): contract pin (exact field names, types, nesting, both enum member sets, `contract_version`); enum coverage (every `AnswerStatus` and `AnswerReason` member mapped); one mapping test per status and per internal reason; 422 for empty, whitespace-only, too long, extra field (`role`, `tenant_id`, `scope`, `top_k`), bad `lote` (`*`, empty, unknown) with no query echo in the body; 413 with and without `Content-Length` and no service call; busy 503 with `Retry-After: 1`; not-ready 503 with `Retry-After: 5`; 500 for an injected authorization error, body holding only `request_id` and `error`; slot released on success and on error; with a `BlockingGenerator`, the response is `evidence_only` / `generator_unavailable` within the cap plus 0.5 s, the slot stays held, `/ready` shows `abandoned_generation` and `abandoned_in_flight: 1`, and both clear when the generator ends; a client `X-Request-ID` is not echoed; sentinel strings in the query, `ANTHROPIC_API_KEY`, `QDRANT_URL` and a fake client exception message never appear in captured logs or bodies; `X-W2A-Fake: true` present in fake mode and absent otherwise; the OpenAPI schema lists `AnswerContract` with `contract_version`.
 
 Allowed protected-path changes: none.
 
@@ -159,6 +159,8 @@ Allowed protected-path changes: none.
 - `git status --porcelain -- evaluation knowledge config` is empty.
 
 ## T8 — Route-level security and concurrency, real smoke check
+
+> Carry-over (T7 review round 2 F2, user 2026-11-22): the next time `lifespan.py` or its tests are touched, add tests for the embedder, enabled-reranker and disabled-fake-reranker branches of `_refuse_fake_providers` and give its `generation` parameter the `GenerationConfig` type instead of `Any`.
 
 **State:** not started
 **Requirements:** R14, R7, R16, R17
@@ -187,6 +189,7 @@ Allowed protected-path changes: none.
 - [ ] `COMMANDS.md`: `make api`, `W2A_API_FAKE`, `GET /health`, `GET /ready`, `POST /v1/answer` (request, contract 1.0, status codes), `config/serving.yaml`, the tokenizer refusal, the hard cap's effect on `make ask` / `make eval-generation`, the `retrieval_depth` correction, the smoke-check steps (if not already added by T8).
 - [ ] `DECISIONS.md`: concurrency model A with two model locks and the shared SQLite connection; circuit breaker; server start with Qdrant down, dense re-admission and embedder retry; hard cap, abandoned work and budget; public contract 1.0 and reason mapping; request ID and logging (D-L: no raw query, no hash); readiness semantics; `retrieval_depth` correction without a version bump; tokenizer check in the CLIs.
 - [ ] `design.md` as-built notes for any departure; `CURRENT_STATE.md` reflects the implemented reality and the deferred items (streaming, usage on raised outcomes, `fallback_stage`, reranker reload and device, rate limiting, internal endpoint, Bedrock switch, prompt v2).
+- [ ] As-built note, DECISIONS.md entry and `COMMANDS.md` fake-mode entry (T7 review round 2 F1, user 2026-11-22): startup refuses a config-selected fake provider (ingestion embedder, enabled reranker or `default_generator`) unless `W2A_API_FAKE` is set (`_refuse_fake_providers` in `lifespan.py`), so `X-W2A-Fake` and readiness `fake` follow `api_fake` only.
 - [ ] As-built note (T6 review F1, user 2026-11-21): the lifespan does not join a loader thread still opening the stack at shutdown; a late-built holder is closed by the loader, and process exit frees the rest.
 - [ ] Spec-wide checks: `make verify`, `make eval-security` (fakes).
 

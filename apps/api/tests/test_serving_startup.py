@@ -68,7 +68,7 @@ def test_invalid_serving_config_stops_startup(
     assert generators == []  # failed before the generator was built
 
 
-def test_unknown_prompt_stops_startup_and_closes_the_generator(
+def test_unknown_prompt_stops_startup_before_a_generator_is_built(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     generators: list[CountingGenerator],

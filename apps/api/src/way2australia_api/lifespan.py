@@ -20,6 +20,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock, Thread
+from typing import Any
 
 from fastapi import FastAPI
 from way2australia_rag.generation.base import Generator
@@ -68,6 +69,7 @@ from way2australia_rag.serving.stack import (
 )
 
 from way2australia_api.config import Settings
+from way2australia_api.slots import SlotPool
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +136,8 @@ def run_phase_one(settings: Settings) -> PhaseOne:
         generation = load_generation_config(
             repo_root / DEFAULT_GENERATION_CONFIG, repo_root
         )
+        if not fake:
+            _refuse_fake_providers(ingestion, retrieval, generation)
         generator_provider = "fake" if fake else None
         serving = load_serving_config(
             _resolve(repo_root, settings.serving_config),
@@ -168,6 +172,33 @@ def run_phase_one(settings: Settings) -> PhaseOne:
         if generator is not None:
             _close_generator(generator)
         raise StartupError(_safe_message(error)) from None
+
+
+def _refuse_fake_providers(
+    ingestion: IngestionConfig,
+    retrieval: RetrievalConfig,
+    generation: Any,
+) -> None:
+    """Fake providers only run under `W2A_API_FAKE`, so `X-W2A-Fake` and the
+    readiness `fake` flag always tell the truth (R16)."""
+    chosen = [
+        name
+        for name, value in (
+            ("embedder", ingestion.embedder.provider),
+            (
+                "reranker",
+                retrieval.rerank.provider if retrieval.rerank.enabled else None,
+            ),
+            ("generator", generation.default_generator),
+        )
+        if value == "fake"
+    ]
+    if chosen:
+        raise RetrievalConfigurationError(
+            "configuration selects a fake "
+            + ", ".join(chosen)
+            + "; fake providers need W2A_API_FAKE"
+        )
 
 
 def _check_lexical(
@@ -257,6 +288,11 @@ def make_lifespan(
         phase_one = run_phase_one(settings)
         app.state.serving_config = phase_one.inputs.serving_config
         app.state.lote_codes = phase_one.lote_codes
+        app.state.runtime_settings = phase_one.inputs.settings
+        app.state.top_k = phase_one.inputs.generation_config.retrieval.top_k
+        pool = SlotPool(phase_one.inputs.serving_config.concurrency.max_in_flight)
+        app.state.slots = pool
+        readiness.set_abandoned_provider(lambda: pool.abandoned_in_flight)
         if settings.api_fake:
             logger.warning(FAKE_WARNING)
         loader = _Loader(phase_one.inputs, readiness, factory, fatal)

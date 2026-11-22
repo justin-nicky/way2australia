@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-11-21 (Spec 013 T6 approved; T7 starting, on `spec/013`)
+Last updated: 2026-11-22 (Spec 013 T7 approved; T8 not started, on `spec/013`)
 
 ## Current phase
 
@@ -12,7 +12,7 @@ Spec 001 project foundation is complete.
 
 ## Current goal
 
-Specs **001–012** are **verified on `main`** (last: Spec 012, merged `467b8c8`, 2026-11-13). Retrieval defaults: index **`idx-v2`** (recursive 128 + title, D071), **`hybrid`** with BM25 fallback (D055, D058), **`lexical-v2`** (D072), reranking on at depth 20 (D079). Setup for a default run: `make ingest`, then `make index-lexical`; reranked runs need `make setup-bge-m3` and a cached reranker. Workflow trim **D080** is in place. **Spec 012** (roadmap item 10 without the HTTP route: context building, generation, answerability, citations) is **verified and merged** (`467b8c8`, 2026-11-13): every task (T1–T7, including T5b) approved 2026-11-13; the required retrospective (`.kiro/specs/012-grounded-generation/review.md`, round 1) **passed** with four MINOR carry-overs. Generation: default generator `anthropic` (direct Anthropic API, development and evaluation) with `claude-sonnet-5-5` (D086, D090); Bedrock stays the production target but is blocked (all quotas 0; its smoke test is open). Default suite `public-eval-v4` (D091). `make ask` and `make eval-generation` exist; real runs call the API and are user-run. The HTTP route and serving policy are **Spec 013** (`.kiro/specs/013-http-serving/`): requirements, design and tasks approved 2026-11-13; implementing on `spec/013` (base `1e27909`); T1 approved (2026-11-14); T2 approved (2026-11-15); T3 approved (2026-11-16); T4 approved (2026-11-16); T5 approved (2026-11-21); T6 approved (2026-11-21); T7–T9 not started. Repository-based shared context keeps Codex, Claude Code, Cursor and Kiro interchangeable (D063). Closed history: `docs/project/HISTORY.md`.
+Specs **001–012** are **verified on `main`** (last: Spec 012, merged `467b8c8`, 2026-11-13). Retrieval defaults: index **`idx-v2`** (recursive 128 + title, D071), **`hybrid`** with BM25 fallback (D055, D058), **`lexical-v2`** (D072), reranking on at depth 20 (D079). Setup for a default run: `make ingest`, then `make index-lexical`; reranked runs need `make setup-bge-m3` and a cached reranker. Workflow trim **D080** is in place. **Spec 012** (roadmap item 10 without the HTTP route: context building, generation, answerability, citations) is **verified and merged** (`467b8c8`, 2026-11-13): every task (T1–T7, including T5b) approved 2026-11-13; the required retrospective (`.kiro/specs/012-grounded-generation/review.md`, round 1) **passed** with four MINOR carry-overs. Generation: default generator `anthropic` (direct Anthropic API, development and evaluation) with `claude-sonnet-5-5` (D086, D090); Bedrock stays the production target but is blocked (all quotas 0; its smoke test is open). Default suite `public-eval-v4` (D091). `make ask` and `make eval-generation` exist; real runs call the API and are user-run. The HTTP route and serving policy are **Spec 013** (`.kiro/specs/013-http-serving/`): requirements, design and tasks approved 2026-11-13; implementing on `spec/013` (base `1e27909`); T1 approved (2026-11-14); T2 approved (2026-11-15); T3 approved (2026-11-16); T4 approved (2026-11-16); T5 approved (2026-11-21); T6 approved (2026-11-21); T7 approved (2026-11-22); T8–T9 not started. Repository-based shared context keeps Codex, Claude Code, Cursor and Kiro interchangeable (D063). Closed history: `docs/project/HISTORY.md`.
 
 ## Finalized high-level decisions
 
@@ -98,7 +98,7 @@ Not yet implemented:
 | 010 — multilingual retrieval | verified 2026-11-04, merged `cae06c3` |
 | 011 — multilingual reranking | verified 2026-11-06, merged `d40d734` |
 | 012 — grounded generation | verified 2026-11-13, merged `467b8c8` (T1–T7 including T5b approved; retrospective round 1 PASS; the branch also carries `7ccfc9a`, Cursor model preferences, with no `Spec-Task` trailer) |
-| 013 — HTTP route and serving policy | implementing (branch `spec/013`, base `1e27909`); spec approved 2026-11-13; T1 approved (2026-11-14); T2 approved (2026-11-15); T3 approved (2026-11-16); T4 approved (2026-11-16); T5 approved (2026-11-21); T6 approved (2026-11-21); T7–T9 not started |
+| 013 — HTTP route and serving policy | implementing (branch `spec/013`, base `1e27909`); spec approved 2026-11-13; T1 approved (2026-11-14); T2 approved (2026-11-15); T3 approved (2026-11-16); T4 approved (2026-11-16); T5 approved (2026-11-21); T6 approved (2026-11-21); T7 approved (2026-11-22); T8–T9 not started |
 
 ## Next step
 
