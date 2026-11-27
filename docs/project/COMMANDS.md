@@ -2,7 +2,7 @@
 
 This file defines the intended stable command surface for humans and coding agents.
 
-The commands below are the target interface. Implemented today: `setup`, `format`, `lint`, `typecheck`, `test`, `test-unit`, `test-integration`, `verify`, `skills-sync`, `skills-check`, `validate-knowledge`, `setup-bge-m3`, `ingest`, `index-lexical`, `retrieve`, `retrieval-baseline` (legacy), `validate-evaluation`, `eval-retrieval`, `eval-security`, `eval-compare`, `eval-continuity`, `setup-bedrock`, `setup-anthropic`, `ask`, `eval-generation`. The other targets are created by the spec that needs them.
+The commands below are the target interface. Implemented today: `setup`, `format`, `lint`, `typecheck`, `test`, `test-unit`, `test-integration`, `verify`, `skills-sync`, `skills-check`, `validate-knowledge`, `setup-bge-m3`, `ingest`, `index-lexical`, `retrieve`, `retrieval-baseline` (legacy), `validate-evaluation`, `eval-retrieval`, `eval-security`, `eval-compare`, `eval-continuity`, `setup-bedrock`, `setup-anthropic`, `ask`, `eval-generation`, `api`. The other targets are created by the spec that needs them.
 
 ## Environment
 
@@ -245,6 +245,54 @@ Experiment results should record:
 - metrics;
 - stage latency;
 - token/cost data where available.
+
+## HTTP API smoke check (Spec 013 T8, user-run)
+
+Agents do not run this. It uses the real embedder, the real reranker, the real generator and a running Qdrant. Record the run under T8 in `.kiro/specs/013-http-serving/task-reviews.md`: readiness timestamps, warm-up time, and for each query the HTTP status, the public `status` and `reason`, and `latency_ms.total` from the answer log line.
+
+Prerequisites, from the repository root, with `W2A_API_FAKE` unset:
+
+```bash
+make setup-bge-m3
+make setup-anthropic          # needs ANTHROPIC_API_KEY in the environment
+docker compose up -d qdrant
+make ingest                   # real BGE-M3 index, not --embedder fake
+make index-lexical
+```
+
+`make api` serves `http://127.0.0.1:8000` (`API_HOST`, `API_PORT`). A configuration error at startup asks uvicorn to exit with SIGTERM; the process exit code is then uvicorn's.
+
+1. Start `make api`. Note the time. Poll readiness until it leaves `starting`:
+
+```bash
+curl -sS -D - http://127.0.0.1:8000/ready
+```
+
+`starting` is HTTP 503. Warm-up time is the interval from process start until the first HTTP 200 whose body is `"status": "ok"` (models load during `starting`; this interval is the warm-up, separate from per-request latency). Record both timestamps.
+
+2. One answerable query and one unanswerable query. The answerable line is a public coaching question; the unanswerable line is suite case `u016` (a refund question the public corpus does not answer).
+
+```bash
+curl -sS -D - http://127.0.0.1:8000/v1/answer \
+  -H 'content-type: application/json' \
+  -d '{"query":"Is coaching compulsory?"}'
+curl -sS -D - http://127.0.0.1:8000/v1/answer \
+  -H 'content-type: application/json' \
+  -d '{"query":"Can you refund my purchase because I was hospitalized last week?"}'
+```
+
+Record the HTTP status, the JSON `status` and `reason`, and per-request latency from the server log. Each answer adds one JSON line with `"event": "answer"` (no query text). Use `latency_ms.total` from that line.
+
+3. Optional breaker check. `config/serving.yaml` sets `breaker.failure_threshold` (3) and `breaker.cooldown_s` (30). Stop Qdrant, then send that many answer requests so the dense leg records eligible outages. `/ready` stays HTTP 200 and becomes `"status": "degraded"` with `dense_circuit_open` in `degraded_reasons` (answers still return; BM25 serves). Start Qdrant, wait out the cool-down, and send one more answer. That request is the probe. `/ready` then returns `"status": "ok"` and `"breaker": "closed"`.
+
+```bash
+docker compose stop qdrant
+# repeat the answerable curl `failure_threshold` times, then:
+curl -sS http://127.0.0.1:8000/ready
+docker compose start qdrant
+# wait breaker.cooldown_s seconds, send one answer, then:
+curl -sS http://127.0.0.1:8000/ready
+```
 
 ## Docker
 

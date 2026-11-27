@@ -162,13 +162,13 @@ Allowed protected-path changes: none.
 
 > Carry-over (T7 review round 2 F2, user 2026-11-22): the next time `lifespan.py` or its tests are touched, add tests for the embedder, enabled-reranker and disabled-fake-reranker branches of `_refuse_fake_providers` and give its `generation` parameter the `GenerationConfig` type instead of `Any`.
 
-**State:** not started
+**State:** approved (2026-11-27)
 **Requirements:** R14, R7, R16, R17
 
-- [ ] Route-level authorization test (`apps/api/tests/test_route_security.py`): build a stack from the security corpus builders (`evaluation/security_corpus.py`, `security_index.py`; in-memory Qdrant, temporary lexical file, fakes) with forbidden rows (staff scope, other tenant, injection variant); through `POST /v1/answer` on hybrid, on breaker-open BM25 and on the reranked path, queries aimed at forbidden rows never return a forbidden `document_id` in citations or evidence; bodies with access-like fields are 422.
-- [ ] Concurrency test (`apps/api/tests/test_concurrency.py`): 16 concurrent requests (threads over `TestClient`, `max_in_flight` raised for the test) on BM25 and on hybrid with fakes: no error, each result equal to the same request sent alone; a dense re-open swap during the run leaves no request failed and closes the old stack after drain.
-- [ ] `make eval-security` passes with the reworked opening (fakes, as in `COMMANDS.md`).
-- [ ] User-run real smoke check, documented in `COMMANDS.md` by this task and recorded by the user in `task-reviews.md`: `make api` with the real stack; `/ready` from `starting` to `ok` (timestamps, warm-up time); one answerable and one unanswerable query (status, public reason, per-request latency from the log line); optionally stop Qdrant to see `degraded` / `dense_circuit_open`, then start it and see recovery after the cool-down. The agent prepares the steps and does not run them.
+- [x] Route-level authorization test (`apps/api/tests/test_route_security.py`): build a stack from the security corpus builders (`evaluation/security_corpus.py`, `security_index.py`; in-memory Qdrant, temporary lexical file, fakes) with forbidden rows (staff scope, other tenant, injection variant); through `POST /v1/answer` on hybrid, on breaker-open BM25 and on the reranked path, queries aimed at forbidden rows never return a forbidden `document_id` in citations or evidence; bodies with access-like fields are 422.
+- [x] Concurrency test (`apps/api/tests/test_concurrency.py`): 16 concurrent requests (threads over `TestClient`, `max_in_flight` raised for the test) on BM25 and on hybrid with fakes: no error, each result equal to the same request sent alone; a dense re-open swap during the run leaves no request failed and closes the old stack after drain.
+- [x] `make eval-security` passes with the reworked opening (fakes, as in `COMMANDS.md`).
+- [x] User-run real smoke check, documented in `COMMANDS.md` by this task and recorded by the user in `task-reviews.md`: `make api` with the real stack; `/ready` from `starting` to `ok` (timestamps, warm-up time); one answerable and one unanswerable query (status, public reason, per-request latency from the log line); optionally stop Qdrant to see `degraded` / `dense_circuit_open`, then start it and see recovery after the cool-down. The agent prepares the steps and does not run them.
 
 Allowed protected-path changes: none.
 
@@ -190,6 +190,7 @@ Allowed protected-path changes: none.
 - [ ] `DECISIONS.md`: concurrency model A with two model locks and the shared SQLite connection; circuit breaker; server start with Qdrant down, dense re-admission and embedder retry; hard cap, abandoned work and budget; public contract 1.0 and reason mapping; request ID and logging (D-L: no raw query, no hash); readiness semantics; `retrieval_depth` correction without a version bump; tokenizer check in the CLIs.
 - [ ] `design.md` as-built notes for any departure; `CURRENT_STATE.md` reflects the implemented reality and the deferred items (streaming, usage on raised outcomes, `fallback_stage`, reranker reload and device, rate limiting, internal endpoint, Bedrock switch, prompt v2).
 - [ ] As-built note, DECISIONS.md entry and `COMMANDS.md` fake-mode entry (T7 review round 2 F1, user 2026-11-22): startup refuses a config-selected fake provider (ingestion embedder, enabled reranker or `default_generator`) unless `W2A_API_FAKE` is set (`_refuse_fake_providers` in `lifespan.py`), so `X-W2A-Fake` and readiness `fake` follow `api_fake` only.
+- [ ] As-built note and known issue (T8 smoke check, user 2026-11-27): a server idle about 2 days answered its first request with retrieval 40117.8 ms, consuming the 40 s budget so generation was skipped (`evidence_only` / `generator_unavailable`, `deadline`); a fresh start gave 1.7 s retrieval. Embedder and reranker have no inference timeout (D077) and `/ready` does not warm the models. Candidate follow-up: a warm-up inference before ready and/or a retrieval-time share of the budget.
 - [ ] As-built note (T6 review F1, user 2026-11-21): the lifespan does not join a loader thread still opening the stack at shutdown; a late-built holder is closed by the loader, and process exit frees the rest.
 - [ ] Spec-wide checks: `make verify`, `make eval-security` (fakes).
 

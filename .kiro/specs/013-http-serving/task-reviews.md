@@ -400,3 +400,61 @@
 - 2026-11-22 — approved:
 
 > T7 approved. Record it, commit once with the Spec-Task: 013/T7 trailer and push spec/013. Carry round-2 F1 (fake-provider refusal at startup) into T9: the design As-built notes, COMMANDS.md, and a DECISIONS.md entry. Carry F2 (tests for the embedder, enabled-reranker and disabled-fake-reranker branches of _refuse_fake_providers, and a real type instead of Any for generation) to the next time lifespan.py or its tests are touched. dont start T8 yet, give me the command to run the orchestrator in a different session.
+
+## T8 — round 1
+
+### Implementation
+- Model: Grok 4.7 (Cursor; BEST_MINUS_ONE). Matches the configured Cursor tier.
+- Files changed:
+  - `apps/api/tests/test_route_security.py` (route authorization over a throwaway security index)
+  - `apps/api/tests/test_concurrency.py` (16 concurrent `TestClient` threads; dense re-open under that load)
+  - `docs/project/COMMANDS.md` (user-run real smoke steps; `api` listed as implemented)
+  - `.kiro/specs/013-http-serving/tasks.md` (boxes, State), this file
+- Verification run: `uv run pytest apps/api` → 73 passed. `make eval-security` → PASS in 19971 ms (`experiments/results/tmp/security-evaluation-20261122T173514Z.json`; heading, structure and recursive chunkers, 93 queries, lote modes none and ml). `make verify` → pass outside the sandbox (ruff clean, 264 files formatted, pyright 0 errors, skills-check match, validate-knowledge OK, validate-evaluation OK, 1928 passed, 20 skipped, 1948 collected). A sandboxed `make verify` failed 7 git-init tests (`git init` could not create `.git/hooks`: Operation not permitted); those tests pass outside the sandbox and are the ones in the 1928. `git status --porcelain -- evaluation knowledge config` → empty (allowed: none). `make test-integration` is not a separate T8 command; integration tests run inside `make verify`.
+- Notes:
+  - The route test builds one security index (`build_security_repository`, `build_security_index`, in-memory Qdrant, temp lexical file, fake embedder) and opens three serving stacks against it. Phase 1 still checks the ordinary fake lexical file. Phase 2 retargets `collection_base`, `index_version` (`sec-v1`) and the lexical tokenizer (`lexical-v1`, the builder's default). A wrapper ignores `close` so the stack shutdown does not destroy the shared client.
+  - Breaker-open BM25 is the same hybrid stack after `record_failure` reaches `failure_threshold`. An open-time BM25 start would call `verify_fresh`, which refuses this file because the synthetic forbidden rows are not repository documents. The answer log is the path check: hybrid with `rerank: off`, then `served_strategy` `bm25` and `fallback_reason` `qdrant_unavailable`, then hybrid with `rerank: applied`. Before any request, a filter-free dense search shows a forbidden document among the nearest hits, so an empty result would not hide a missing corpus. `role`, `tenant_id` and `scope` are 422 on each stack.
+  - Concurrency raises `max_in_flight` to 16. BM25 is the Qdrant-down stack; hybrid is the indexed in-memory client. Bodies match a solo request except `request_id`. The re-open test holds `FallbackRetriever.retrieve` until all 16 calls have entered, then points the client factory at the up client and moves the breaker clock past the cool-down. All 16 return 200, the holder is dense, the breaker is closed, and the pre-swap stack's lexical handle is closed.
+  - These tests pass `on_fatal` as a no-op so a failed phase-2 open does not SIGTERM the pytest process.
+  - Real smoke check (R16): not run. It needs the real stack (`make api`, models, Qdrant, `ANTHROPIC_API_KEY`). Steps are in `COMMANDS.md` under "HTTP API smoke check". No user run is recorded in this file yet.
+  - `lifespan.py` and its tests were not touched, so the T7 round-2 F2 carry-over (embedder, enabled-reranker and disabled-fake-reranker tests for `_refuse_fake_providers`, and a `GenerationConfig` type for `generation`) stays on the task.
+  - `docs/project/CURRENT_STATE.md` was already modified when this session started (orchestrator handoff: T7 approved, T8 not started). This session did not edit it.
+  - No library code changed. No FastAPI, Starlette, uvicorn or httpx behaviour was relied on beyond threads calling one `TestClient`, which the design names.
+- Usage: not measured · 219 tool uses · n/a
+
+### Review
+- Model: Grok 4.7 (Cursor; BEST). Same configured model as the implementer; Cursor BEST and BEST_MINUS_ONE are both Grok 4.7.
+- Verdict: PASS
+- Commands: `python3 -m uv run pytest apps/api` → pass (73 passed); `make eval-security` → pass (19484 ms; heading, structure and recursive chunkers; 93 queries; lote modes none and ml; `experiments/results/tmp/security-evaluation-20261122T175217Z.json`); `make verify` → pass, first attempt outside the sandbox (ruff clean, 264 files formatted, pyright 0 errors, skills-check match, validate-knowledge OK, validate-evaluation OK, 1928 passed, 20 skipped, 1948 collected). `git status --porcelain -- evaluation knowledge config` → empty (allowed: none). `make test-integration` is not a T8 command.
+- Findings: none
+- Summary for user (PASS only):
+  - Changed: route-level authorization over a throwaway security index (`apps/api/tests/test_route_security.py`) and 16-thread concurrency plus a dense re-open under that load (`apps/api/tests/test_concurrency.py`). `COMMANDS.md` now has the user-run real smoke steps and lists `api` as implemented. No library code changed.
+  - Verified by: `pytest apps/api` (73 passed), `make eval-security` PASS, `make verify` exit 0 (1928 passed, 20 skipped, 1948 collected).
+  - Worth your attention: the real smoke check is not run. It needs `make api` with the real embedder, reranker, generator, Qdrant and `ANTHROPIC_API_KEY`. Steps are under "HTTP API smoke check" in `COMMANDS.md`. Breaker-open BM25 is tripped on an already-open hybrid stack, because an open-time BM25 start would refuse this synthetic lexical file. The re-open under load uses in-memory Qdrant; the live check is that optional smoke step. `CURRENT_STATE.md` still lists the T8 tests under "Not yet implemented"; T9 reconciles that file.
+  - Reading order (follow the flow: entry point → core logic → models/errors/config → tests):
+    1. `docs/project/COMMANDS.md` → "HTTP API smoke check": the user-run `make api` steps (readiness, one answerable and one unanswerable query, optional breaker)
+    2. `apps/api/tests/test_route_security.py` → `test_route_hides_forbidden_documents_on_every_serving_path`: `POST /v1/answer` on hybrid, breaker-open BM25 and the reranked path
+    3. `apps/api/tests/test_concurrency.py` → `test_concurrent_requests_match_the_same_request_alone`, `test_reopen_during_concurrent_requests_drains_the_old_stack`: 16 threads, then the swap and drain
+    4. Supporting edits: `tasks.md` boxes and state
+- Usage: not measured · 124 tool uses · n/a
+
+### User decision
+- 2026-11-22 — not approved yet:
+
+> Not approved yet. The smoke-check box in T8 is ticked but the smoke run was not done; untick it until I record the run. I'm running the HTTP API smoke check now per COMMANDS.md and will paste the results to record under T8 in task-reviews.md. Wait for that before asking for approval.
+
+The smoke-check box is unticked. Approval waits until this run is recorded here.
+### User-run smoke check (recorded 2026-11-27)
+- Stack: real (BGE-M3, `bge-reranker-v2-m3`, Qdrant, `anthropic` / `claude-sonnet-5-5`), `W2A_API_FAKE` unset; steps per `COMMANDS.md` "HTTP API smoke check".
+- Startup without `ANTHROPIC_API_KEY` (2026-11-25): phase 1 refused cleanly with "GeneratorConfigurationError: ANTHROPIC_API_KEY is not set…", no path or secret in the message; the process exited (`make api` Error 3).
+- Startup 14:45:54; first `/ready` poll 14:46:40 → 200 `{"status":"ok","degraded_reasons":[],"breaker":"closed","fake":false}`. Warm-up ≤ 46 s (upper bound; models loaded by 14:46:00).
+- Answerable, "Is coaching compulsory?" → HTTP 200, status `answered`, reason `null`; `latency_ms` total 4241.8 (retrieval 1726.0, generation 2515.1); hybrid, rerank applied.
+- Unanswerable, u016 refund question → HTTP 200, status `insufficient_evidence`, internal reason `citation_invalid` / sub_reason `model_url`; total 3878.4 (retrieval 1659.2, generation 2218.9). Same outcome as the Spec 012 v4 reference run (known `model_url` carry-over for prompt v2).
+- Log lines carry `query_chars` only, no query text.
+- Breaker check: not run (optional).
+- Finding for T9 (As-built notes / known issues): on 2026-11-25 a server left idle about 2 days answered its first request with retrieval 40117.8 ms, which consumed the 40 s request budget, so generation was skipped (`evidence_only` / `generator_unavailable`, sub_reason `deadline`; nothing billed). Right after a fresh start retrieval was 1.7 s, so the cause is idle swap/sleep, not startup. Embedder and reranker have no inference timeout (D077) and `/ready` does not warm the models. Candidate follow-up: a warm-up inference before ready, and/or a retrieval-time share of the budget.
+
+### User decision
+- 2026-11-27 — approved:
+
+> T8 approved. Record it, commit once with the Spec-Task: 013/T8 trailer and push spec/013. Leave the spec-implementer SKILL.md change (all four copies) out of the T8 commit; I'll commit it separately as a chore. Then start T9 with exactly one implementer session, and use a stronger reviewer model than the implementer for T9's review (Opus in Claude Code, or the strongest model available in Cursor).
