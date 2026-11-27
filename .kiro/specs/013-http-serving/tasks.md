@@ -1,6 +1,6 @@
 # 013 — HTTP Route and Serving Policy Tasks
 
-Status: implementing (branch spec/013, base 1e27909)
+Status: all tasks approved (2026-11-27)
 
 Implement the tasks in order; each depends on the ones before it. Requirements: `requirements.md` (approved 2026-11-13; R8 amended at design approval, see its change log). Design: `design.md` (approved 2026-11-13).
 
@@ -181,18 +181,18 @@ Allowed protected-path changes: none.
 
 ## T9 — Documentation, decisions and handoff
 
-**State:** not started
+**State:** approved (2026-11-27)
 **Requirements:** R18, R17, Definition of Done
 
-- [ ] `ROADMAP.md`: item 10 status (library verified on `main` `467b8c8`; route done by Spec 013); item 13 records the circuit breaker and server-start policy.
-- [ ] `ARCHITECTURE.md`: query flow (route, limits, slots, breaker), `apps/api` responsibilities, serving lifecycle (two-phase startup, stack holder, re-open, shutdown), concurrency model and locks.
-- [ ] `COMMANDS.md`: `make api`, `W2A_API_FAKE`, `GET /health`, `GET /ready`, `POST /v1/answer` (request, contract 1.0, status codes), `config/serving.yaml`, the tokenizer refusal, the hard cap's effect on `make ask` / `make eval-generation`, the `retrieval_depth` correction, the smoke-check steps (if not already added by T8).
-- [ ] `DECISIONS.md`: concurrency model A with two model locks and the shared SQLite connection; circuit breaker; server start with Qdrant down, dense re-admission and embedder retry; hard cap, abandoned work and budget; public contract 1.0 and reason mapping; request ID and logging (D-L: no raw query, no hash); readiness semantics; `retrieval_depth` correction without a version bump; tokenizer check in the CLIs.
-- [ ] `design.md` as-built notes for any departure; `CURRENT_STATE.md` reflects the implemented reality and the deferred items (streaming, usage on raised outcomes, `fallback_stage`, reranker reload and device, rate limiting, internal endpoint, Bedrock switch, prompt v2).
-- [ ] As-built note, DECISIONS.md entry and `COMMANDS.md` fake-mode entry (T7 review round 2 F1, user 2026-11-22): startup refuses a config-selected fake provider (ingestion embedder, enabled reranker or `default_generator`) unless `W2A_API_FAKE` is set (`_refuse_fake_providers` in `lifespan.py`), so `X-W2A-Fake` and readiness `fake` follow `api_fake` only.
-- [ ] As-built note and known issue (T8 smoke check, user 2026-11-27): a server idle about 2 days answered its first request with retrieval 40117.8 ms, consuming the 40 s budget so generation was skipped (`evidence_only` / `generator_unavailable`, `deadline`); a fresh start gave 1.7 s retrieval. Embedder and reranker have no inference timeout (D077) and `/ready` does not warm the models. Candidate follow-up: a warm-up inference before ready and/or a retrieval-time share of the budget.
-- [ ] As-built note (T6 review F1, user 2026-11-21): the lifespan does not join a loader thread still opening the stack at shutdown; a late-built holder is closed by the loader, and process exit frees the rest.
-- [ ] Spec-wide checks: `make verify`, `make eval-security` (fakes).
+- [x] `ROADMAP.md`: item 10 status (library verified on `main` `467b8c8`; route done by Spec 013); item 13 records the circuit breaker and server-start policy.
+- [x] `ARCHITECTURE.md`: query flow (route, limits, slots, breaker), `apps/api` responsibilities, serving lifecycle (two-phase startup, stack holder, re-open, shutdown), concurrency model and locks.
+- [x] `COMMANDS.md`: `make api`, `W2A_API_FAKE`, `GET /health`, `GET /ready`, `POST /v1/answer` (request, contract 1.0, status codes), `config/serving.yaml`, the tokenizer refusal, the hard cap's effect on `make ask` / `make eval-generation`, the `retrieval_depth` correction, the smoke-check steps (if not already added by T8).
+- [x] `DECISIONS.md`: concurrency model A with two model locks and the shared SQLite connection; circuit breaker; server start with Qdrant down, dense re-admission and embedder retry; hard cap, abandoned work and budget; public contract 1.0 and reason mapping; request ID and logging (D-L: no raw query, no hash); readiness semantics; `retrieval_depth` correction without a version bump; tokenizer check in the CLIs.
+- [x] `design.md` as-built notes for any departure; `CURRENT_STATE.md` reflects the implemented reality and the deferred items (streaming, usage on raised outcomes, `fallback_stage`, reranker reload and device, rate limiting, internal endpoint, Bedrock switch, prompt v2).
+- [x] As-built note, DECISIONS.md entry and `COMMANDS.md` fake-mode entry (T7 review round 2 F1, user 2026-11-22): startup refuses a config-selected fake provider (ingestion embedder, enabled reranker or `default_generator`) unless `W2A_API_FAKE` is set (`_refuse_fake_providers` in `lifespan.py`), so `X-W2A-Fake` and readiness `fake` follow `api_fake` only.
+- [x] As-built note and known issue (T8 smoke check, user 2026-11-27): a server idle about 2 days answered its first request with retrieval 40117.8 ms, consuming the 40 s budget so generation was skipped (`evidence_only` / `generator_unavailable`, `deadline`); a fresh start gave 1.7 s retrieval. Embedder and reranker have no inference timeout (D077) and `/ready` does not warm the models. Candidate follow-up: a warm-up inference before ready and/or a retrieval-time share of the budget.
+- [x] As-built note (T6 review F1, user 2026-11-21): the lifespan does not join a loader thread still opening the stack at shutdown; a late-built holder is closed by the loader, and process exit frees the rest.
+- [x] Spec-wide checks: `make verify`, `make eval-security` (fakes).
 
 Allowed protected-path changes: none.
 

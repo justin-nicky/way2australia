@@ -81,7 +81,7 @@ Approximately one focused week.
 - deduplication, context budgeting, evidence ordering — done by Spec 012 (D081): exact-text dedup, `max_blocks`/`max_chars` budget, rank order, source IDs; neighbour merge deferred (needs overlap boundaries in the payload)
 
 ### 10. Grounded generation + citations
-**Status (Spec 012):** implemented on `spec/012` except the HTTP route and serving policy, which move to Spec 013. Delivered: context builder, versioned prompt `answer` v1, `AnswerService`, answerability (pre-gate, model assessment, backend enforcement), citation validation, Claude generators (Bedrock target, direct Anthropic API for development and evaluation; D084, D086), `make ask`, `make eval-generation`, security 1.6, suite v4, default `claude-sonnet-5-5` (D081–D091). Not done: route, streaming, tracing, faithfulness checks, Bedrock access.
+**Status:** the library is verified on `main` (Spec 012, merged `467b8c8`): context builder, versioned prompt `answer` v1, `AnswerService`, answerability (pre-gate, model assessment, backend enforcement), citation validation, Claude generators (Bedrock target, direct Anthropic API for development and evaluation; D084, D086), `make ask`, `make eval-generation`, security 1.6, suite v4, default `claude-sonnet-5-5` (D081–D091). The HTTP route and serving policy are done by Spec 013 (on `spec/013`, D092–D101): `POST /v1/answer` with public contract 1.0, `GET /ready`, `make api`, two-phase startup, slots, model locks, a hard generation cap inside a per-request budget, request-ID logging without query text. Not done: streaming, tracing, faithfulness checks, Bedrock access (the Bedrock switch and prompt v2 are their own specs).
 - Bedrock Runtime
 - versioned prompts
 - answerability
@@ -108,9 +108,9 @@ Approximately one focused week.
 - Qdrant failure → SQLite FTS5
 - model failure → evidence-only response where appropriate
 
-Reranker failure path done by Spec 011 (D077): an eligible reranker outage serves the plain hybrid hits, marked as skipped, and never becomes a BM25 fallback; a binding per-request timeout stays with Spec 013.
+Reranker failure path done by Spec 011 (D077): an eligible reranker outage serves the plain hybrid hits, marked as skipped, and never becomes a BM25 fallback. Spec 013 added a per-request budget that bounds generation, not reranker inference.
 
-Done early by Spec 008 (D056), ahead of item 7: retrieval degradation. `hybrid` serves BM25 from the local SQLite FTS5 file when Qdrant or the embedding model is unreachable (dense → BM25 and Qdrant failure → SQLite FTS5), and an explicit `bm25` needs neither Qdrant nor the `bge-m3` extra. The model failure path is done by Spec 012 (D085): an eligible generator outage gives `evidence_only` / `generator_unavailable`. Still open in this item: the serving concerns Spec 008 deferred to the HTTP route: a circuit breaker, a startup policy for a missing or stale lexical file, and Qdrant 5xx eligibility (D062).
+Done early by Spec 008 (D056), ahead of item 7: retrieval degradation. `hybrid` serves BM25 from the local SQLite FTS5 file when Qdrant or the embedding model is unreachable (dense → BM25 and Qdrant failure → SQLite FTS5), and an explicit `bm25` needs neither Qdrant nor the `bge-m3` extra. The model failure path is done by Spec 012 (D085): an eligible generator outage gives `evidence_only` / `generator_unavailable`. Done by Spec 013 for the server (D093, D094, D100): a minimal circuit breaker (`failure_threshold` 3 consecutive eligible dense outages, fixed `cooldown_s` 30, one probe; the CLIs keep D058); a server start with Qdrant or the embedding model down serves BM25 with the breaker open, and the probe re-opens dense after the startup binding checks and swaps the stack; a missing, stale, foreign or mismatched-tokenizer lexical file stops startup (and every CLI refuses a mismatched tokenizer). Still open in this item: Qdrant 5xx eligibility (D062 stays) and a retrieval-time limit (the embedder and reranker have no inference timeout, D077).
 
 ### 14. AWS deployment
 - Docker

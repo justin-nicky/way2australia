@@ -31,14 +31,15 @@ Future agent folders are intentionally not created in the current phase.
 ## Responsibility boundaries
 
 ### `apps/api`
-FastAPI application layer:
-- routes;
-- request/response models;
-- middleware;
-- dependency wiring;
-- application startup.
+FastAPI application layer (HTTP concerns only; Spec 013):
+- routes: `GET /health` (liveness), `GET /ready` (readiness), `POST /v1/answer`;
+- request and response models: `AnswerRequest` and the public `AnswerContract` 1.0 with its own enums and the one `to_contract` mapping (D096);
+- middleware: server request ID, body-size limit (D097);
+- error handlers and error bodies (422 without input echo, 500 with request ID only, 503 with `Retry-After`);
+- the answer slot pool (concurrency cap) and the answer log line;
+- settings (`repo_root`, `serving_config`, `W2A_API_FAKE`) and the two-phase startup lifespan that wires the serving stack.
 
-Routes should stay thin.
+Routes stay thin: the answer route validates, takes a slot, resolves guest access on the server, leases the stack and calls `AnswerService`. Serving lifecycle code that a later worker could reuse (config, locks, readiness, stack holder) lives in `packages/rag/.../serving/`, not in `apps/api`.
 
 ### `apps/web`
 Next.js/TypeScript frontend:
@@ -185,7 +186,7 @@ run summary
 
 ## Retrieval (Phase 1 dense baseline, Spec 005; hybrid added by Spec 007; fallback by Spec 008; reranking by Spec 011)
 
-Library code in `packages/rag/src/way2australia_rag/retrieval/` plus `languages.py` at the package root and the shared access types in `packages/core`. No HTTP route yet. Developer CLIs run it: `make retrieve` (all strategies), `make index-lexical` and the legacy dense-only `make retrieval-baseline`.
+Library code in `packages/rag/src/way2australia_rag/retrieval/` plus `languages.py` at the package root and the shared access types in `packages/core`. The HTTP server runs it through `serving/` (Spec 013, see "HTTP serving"). Developer CLIs run it: `make retrieve` (all strategies), `make index-lexical` and the legacy dense-only `make retrieval-baseline`.
 
 | Module | Role |
 |---|---|
@@ -253,7 +254,7 @@ query → validate_request → ResolvedAccess (one, server-resolved); optional R
 
 ## Target RAG query flow
 
-Target pipeline, partly implemented. Dense retrieval, BM25 retrieval, RRF fusion and the reranking stage exist (see "Retrieval" above and "Reranking" below); context building, generation and citation validation exist as a library and CLI (Spec 012, see "Grounded generation" below); there is no FastAPI route yet (Spec 013).
+Target pipeline, partly implemented. Dense retrieval, BM25 retrieval, RRF fusion and the reranking stage exist (see "Retrieval" above and "Reranking" below); context building, generation and citation validation exist as a library and CLI (Spec 012, see "Grounded generation" below); the FastAPI route, validation and limits exist (Spec 013, see "HTTP serving" below). Query transformation does not exist.
 
 ```text
 User
@@ -291,7 +292,7 @@ citation validation (fail closed → insufficient_evidence / citation_invalid)
 response (answered | insufficient_evidence | evidence_only)
 ```
 
-Everything from the context builder on is implemented by Spec 012 as `AnswerService`; the FastAPI route, validation and limits belong to Spec 013.
+Everything from the context builder on is implemented by Spec 012 as `AnswerService`; the FastAPI route, validation, limits, slots, circuit breaker and hard generation cap by Spec 013.
 
 Authorization and optional language applicability are applied inside each retriever (dense, BM25 and the SQLite FTS5 fallback), as part of that retriever's own query, before fusion: every leg takes the same server-resolved `ResolvedAccess` and the same optional `ResolvedLote`, filters with them in the query, then re-checks each hit with `check_hit` and, when `lote` is set, `check_applicable` (D035, D040, D072). Neither filter is applied after RRF, after reranking or after generation.
 
@@ -311,7 +312,7 @@ query → access (+ optional lote) filters inside each leg → RRF fusion (top r
 
 - Modules: `packages/rag/src/way2australia_rag/rerank/` (no exports in `__init__.py`): `base.py` (`Reranker` Protocol, `RerankerInfo`, `RerankScores`), `fake.py` (`FakeReranker`), `bge.py` (`BgeRerankerV2M3`, lazy `sentence-transformers` import), `errors.py` (`RerankSkipReason`, `RerankerUnavailableError`, `RerankerOutputError`, `classify_reranker_error`; reuses the private cause-chain helper of `retrieval/availability.py`), `build.py` (`build_reranker`); the stage itself is `retrieval/reranking.py`. The `rerank/` package knows nothing about access, `lote`, chunks or documents.
 - Authorization and applicability stay inside the legs. The stage only reorders candidates it was given; it never fetches text or IDs, and the re-check runs on the reranked path and both skip paths.
-- `RerankerUnavailableError` is separate from `RetrievalUnavailableError` and is caught only by the stage, so a reranker outage can never become a BM25 fallback. An eligible load failure at open is a sticky open-time skip for the run (`stage: open`); an eligible `score` failure skips that query (`stage: query`). Offline-and-not-cached weights are a configuration error (exit 2), not a skip. Malformed scores fail the query closed. There is no inference timeout (D077): the binding latency limit, circuit breaker, model lifecycle and device choice belong to Spec 013.
+- `RerankerUnavailableError` is separate from `RetrievalUnavailableError` and is caught only by the stage, so a reranker outage can never become a BM25 fallback. An eligible load failure at open is a sticky open-time skip for the run (`stage: open`); an eligible `score` failure skips that query (`stage: query`). Offline-and-not-cached weights are a configuration error (exit 2), not a skip. Malformed scores fail the query closed. There is no inference timeout (D077). Spec 013 added the server's model lifecycle (one locked reranker shared across stack generations, loaded at startup, D092, D094) and a per-request budget that bounds generation only; a reranker timeout, reload and device choice are deployment items (14).
 - A dense outage still reaches `FallbackRetriever`: BM25 serves without reranking.
 - Default since Spec 011 T5: `rerank.enabled: true`, depth 20; `dense` and `bm25` need `--no-rerank`. Measured on the dev machine (`mps:0`): p95 about 1 s per query (D079).
 - Context building (deduplication, budgeting, evidence ordering) was done by Spec 012 (D081).
@@ -335,7 +336,7 @@ open_retrieval(hybrid)
 
 - Eligible failures (`RetrievalUnavailableError`, D057): Qdrant connect or network error (`qdrant_unavailable`), Qdrant timeout (`qdrant_timeout`), and an embedding model load or download failure whose explicit `__cause__` chain holds a network or timeout error (`model_unavailable`). Nothing else falls back: HTTP status errors including 5xx (D062), a missing collection, a settings mismatch, a missing or stale lexical file, a missing `bge-m3` extra, a model load failure without a network cause, authorization errors and SQLite errors all exit 2. `fusion.py` and `hybrid.py` are unchanged; the wrapper sits outside fusion.
 - Explicit `dense` and `bm25` never fall back. `dense` with Qdrant down exits 2 with `RetrievalUnavailableError`. `bm25` is standalone.
-- Policy (D058): per query, no state, no circuit breaker; worst case about `query_timeout_s` per query when Qdrant hangs, retried on every query. That retry applies only after a successful open: when the open itself fails, the opened retriever has no primary, and every query of that run is served by BM25 with the open-time reason (no per-query dense attempt, so `leg_latency_ms.dense_attempt` is about 0 ms) until the stack is opened again. The CLIs open once per run. A circuit breaker, a startup and reopen policy (including a missing or stale lexical file) and an async freshness check belong with the HTTP route spec.
+- Policy (D058): per query, no state, no circuit breaker; worst case about `query_timeout_s` per query when Qdrant hangs, retried on every query. That retry applies only after a successful open: when the open itself fails, the opened retriever has no primary, and every query of that run is served by BM25 with the open-time reason (no per-query dense attempt, so `leg_latency_ms.dense_attempt` is about 0 ms) until the stack is opened again. The CLIs open once per run and pass no breaker. The HTTP server adds a circuit breaker, a BM25-only start with a dense re-open, a lexical startup policy and a loop-safe freshness check (Spec 013, D093, D094, D098, D100; see "HTTP serving").
 - Freshness (D060): the standalone path proves the lexical file matches the repository and configuration, not the live Qdrant collection. It rereads every eligible document at each open; revisit for a large corpus.
 - Marking and evaluation (D061): `make retrieve` prints `strategy: bm25 (requested: hybrid; fallback: <reason>)` and a stderr warning only on fallback; `make eval-retrieval` writes result 2.2 (served strategies, fallback counts, latency by served path), and `make eval-compare` compares by the served strategy and refuses a file that mixes strategies. `make eval-security` gates five paths, two of them fallback paths (security result 1.2).
 
@@ -344,7 +345,7 @@ Authorization: the fallback adds no authorization logic. `FallbackRetriever` pas
 Planned, not implemented:
 
 - query rewrite failure → original query;
-- reranker failure/timeout → hybrid/RRF output: implemented by Spec 011 (see "Reranking"); a binding per-request timeout belongs to Spec 013 (D077);
+- reranker failure/timeout → hybrid/RRF output: implemented by Spec 011 (see "Reranking"); no reranker inference timeout (D077), and the Spec 013 budget bounds generation only;
 - Langfuse unavailable → serving continues;
 - model (generation) failure → `evidence_only` response: implemented by Spec 012 (D085, see "Grounded generation");
 - weak evidence → insufficient-evidence response: implemented by Spec 012 (D083).
@@ -370,7 +371,41 @@ Library code in `packages/rag/src/way2australia_rag/generation/`, entry points `
 
 Statuses: `answered` (validated answer and citations), `insufficient_evidence` (`no_evidence`, `model_declined`, `citation_invalid`, `output_invalid`; fixed message in the query language) and `evidence_only` (`generator_unavailable`; metadata and a snippet, no generated text). Authorization is unchanged: the generator never sees or changes access filters, citation metadata comes from the payload, and model-written URLs fail validation (C10). Validation proves provenance, not faithfulness.
 
-Not implemented: the HTTP route, async boundary and lifecycle (Spec 013), tracing (item 11), streaming, neighbour merge.
+`AnswerService.answer` also takes keyword-only `budget_s`, `min_generation_s` and `on_abandoned` (Spec 013, D095): the generator call runs through `run_with_cap` on a daemon thread, so `deadline_s` is a hard wall-clock cap for the CLIs and the server. Not implemented: tracing (item 11), streaming, neighbour merge.
+
+## HTTP serving (Spec 013)
+
+One process opens one serving stack and answers guest questions over HTTP (D092–D101). `make api` runs `uvicorn way2australia_api.main:app`.
+
+```text
+POST /v1/answer
+  → RequestIdMiddleware (server uuid4, X-Request-ID; incoming ID ignored)
+  → BodySizeMiddleware (413 above max_body_bytes, before parsing)
+  → pydantic AnswerRequest (extra fields forbidden → 422, no echo)
+  → route (sync def on FastAPI's threadpool)
+      readiness != ready            → 503 not_ready (Retry-After 5)
+      SlotPool.try_acquire() None   → 503 busy (Retry-After 1)
+      query length / empty, lote    → 422 (no echo)
+      access = resolve_access(guest_access(settings))      (server tenant; never from the body)
+      with holder.acquire() as stack:                      (ref-counted lease)
+          stack.service.answer(query, access, top_k=generation.retrieval.top_k, lote,
+                               budget_s=40, min_generation_s=2, on_abandoned=slot.transfer)
+              FallbackRetriever(primary?, BM25, reason, breaker, on_probe)
+                admit(): DENSE | PROBE | SKIP   (PROBE on a BM25-only stack → holder.try_reopen_dense())
+                dense leg (LockedEmbedder) + BM25 (locked SQLite) → RRF → rerank (LockedReranker)
+              context → pre-gate → run_with_cap(generate, cap) → citation validation
+      to_contract(response, request_id) → answer log line (no query text) → slot.release()
+  → 200 AnswerContract 1.0 (+ X-W2A-Fake: true in fake mode)
+```
+
+- **Packages.** `packages/rag/.../serving/`: `config.py` (`config/serving.yaml` schema 1.0, strict, with the budget cross-check), `locks.py` (`LockedEmbedder`, `LockedReranker`, separate locks; sticky reranker skip), `readiness.py` (phases and degraded reasons), `stack.py` (`ServingStack`, `StackHolder`, `open_serving_stack`, `try_reopen_dense`). `packages/rag/.../retrieval/breaker.py` (`CircuitBreaker`) and `generation/deadline.py` (`run_with_cap`, `AbandonedWork`). `apps/api/.../`: `lifespan.py`, `contract.py`, `slots.py`, `middleware.py`, `errors.py`, `logs.py`, `api/answer.py`, `api/ready.py`, `api/health.py`.
+- **Two-phase startup (D098).** Phase 1, synchronous in the lifespan: configs and the budget check, the fake-provider refusal (D101), prompt, `build_generator`, active `lote` codes, standalone lexical identity, chunker, tokenizer and freshness. A failure stops the process with a path- and key-free message. Phase 2, on a background thread: build and warm the embedder (one `embed_query`), load the reranker, open Qdrant; readiness `starting` (503) until it finishes, then `ready` (200, `ok` or `degraded`), or `failed` plus SIGTERM on a non-eligible error (everything opened is closed).
+- **Stack holder (D094).** Configuration decides strategy, `rerank.enabled` and `default_generator`. The embedder, reranker, generator and breaker are shared across stack generations and closed at shutdown. With Qdrant or the embedding model down at startup, the stack is BM25-only with the breaker created open; the probe request re-opens dense (embedder retry first when it failed), runs the binding checks and swaps the stack; a mismatch is refused (`dense_reopen_refused`). In-flight requests finish on the stack they leased; a retired stack closes after its last lease.
+- **Concurrency (D092).** Answer slots (`max_in_flight` 4) cap work, including abandoned generation; embedder and reranker each behind their own lock; one shared read-only SQLite connection per lexical file behind a lock.
+- **Time (D095).** Generation runs under a hard wall-clock cap: the generator deadline tightened by the remaining request budget, skipped below `min_generation_s`. An abandoned call keeps its slot until its thread ends; readiness shows `abandoned_generation`. Retrieval has no time limit of its own (D077).
+- **Breaker (D093).** Server only: 3 consecutive eligible dense outages open it for 30 s; BM25 serves; one probe then closes or re-opens it. D058 and D062 are unchanged for the CLIs and for HTTP status errors.
+- **Shutdown.** uvicorn stops accepting requests, then the lifespan closes the holder: current stack, retired stacks (up to 5 s for leases), embedder, reranker, generator. A loader still opening is not joined; it closes the holder it finishes building, or process exit frees it.
+- **Authorization.** Unchanged inside the legs (D035, D040, D072); the breaker and re-open change which leg serves, never the access or applicability arguments. A route-level test (`apps/api/tests/test_route_security.py`) proves no forbidden `document_id` is returned on hybrid, breaker-open BM25 and reranked paths.
 
 ## Primary stack
 
