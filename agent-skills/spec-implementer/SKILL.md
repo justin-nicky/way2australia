@@ -57,6 +57,7 @@ Never silently make code and spec agree after the fact.
 1. Inspect existing code before creating abstractions. Before writing code, check whether existing project code, the standard library or an already-selected dependency covers it; reuse before you write. This never removes validation, authorization or tests the task requires.
 2. Implement the minimum complete solution; add or update tests with the behavior.
 3. While iterating, run only **targeted** `pytest` on the tests for files you touched (plus any test the task's verification block names). After the **last** edit for the round, run the task's verification block once, then **`make verify` once** and **`make test-integration` once** (when the task requires it).
+   **Cursor only:** run `make verify` and `make test-integration` **outside the sandbox from the start** (request full permissions on the first run); the sandbox cannot create the git hooks, so a sandboxed first run fails and forces a second full run.
 4. Tick the task's checkboxes only after verification. Never reword checkbox text; never edit `tasks.meta.json`.
 5. On round > 1, implement only the latest round's findings or user feedback.
 
