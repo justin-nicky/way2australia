@@ -1,6 +1,6 @@
 # 013 — HTTP Route and Serving Policy Tasks
 
-Status: all tasks approved (2026-11-27)
+Status: verified (2026-11-28, merged 63bcfce) (branch spec/013, base 1e27909)
 
 Implement the tasks in order; each depends on the ones before it. Requirements: `requirements.md` (approved 2026-11-13; R8 amended at design approval, see its change log). Design: `design.md` (approved 2026-11-13).
 
