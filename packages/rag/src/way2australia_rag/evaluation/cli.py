@@ -366,6 +366,15 @@ def _retrieval(
             require_real_reranker(built)
             return built
 
+        # Depth this run will ask of the retriever when the dense path is up.
+        # `args.top_k` is the metric cutoff, not that depth (design: eval-retrieval
+        # passes its effective depth). After an open-time fallback the recorded
+        # depth is corrected below.
+        open_depth = (
+            retrieval_config.rerank.depth
+            if rerank
+            else retrieval_config.fusion.candidate_depth
+        )
         opened = open_retrieval(
             strategy,
             settings=settings,
@@ -377,6 +386,7 @@ def _retrieval(
             embedder_factory=real_embedder_factory,
             rerank=rerank,
             reranker_factory=real_reranker_factory,
+            top_k=open_depth,
         )
         identity = opened.identity
         # 6. the one server-resolved access
@@ -399,10 +409,13 @@ def _retrieval(
             suite=suite,
             release_id=release_id,
             top_k=args.top_k,
-            # The stage returns at most `rerank.depth` chunks.
+            # The stage returns at most `rerank.depth` chunks, but only when a
+            # reranker was loaded on a dense-capable path. After an open-time
+            # fallback the served path is plain BM25 at candidate depth
+            # (Spec 011 F1).
             retrieval_depth=(
                 retrieval_config.rerank.depth
-                if rerank
+                if rerank and opened.reranker is not None
                 else retrieval_config.fusion.candidate_depth
             ),
             chunks_per_document=opened.chunks_per_document(),
@@ -707,6 +720,7 @@ def _generation(
             rerank=rerank,
             reranker_factory=reranker_factory,
             reranker_provider=reranker_provider,
+            top_k=top_k,
         )
         access = resolve_access(guest_access(settings))
         builder = ContextBuilder(config.context)

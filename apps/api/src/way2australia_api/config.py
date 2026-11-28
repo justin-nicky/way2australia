@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal, cast
 
 from fastapi import Request
@@ -15,6 +16,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
+        populate_by_name=True,
     )
 
     app_env: AppEnvironment = "development"
@@ -22,6 +24,12 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = Field(default=8000, ge=1, le=65535)
     log_level: LogLevel = "INFO"
+    # Serving (Spec 013 R16). `repo_root` is where config/, knowledge/ and the
+    # lexical file live; `serving_config` is relative to it unless absolute.
+    repo_root: Path = Field(default_factory=Path.cwd)
+    serving_config: Path = Path("config/serving.yaml")
+    # Fake embedder, reranker and generator (no model, no network, no key).
+    api_fake: bool = Field(default=False, validation_alias="W2A_API_FAKE")
 
 
 @lru_cache

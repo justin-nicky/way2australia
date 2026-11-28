@@ -6,6 +6,7 @@ This file records the currently selected implementation stack and intentional no
 
 - Language: Python
 - API framework: FastAPI
+- ASGI server: `uvicorn`, from the existing `fastapi[standard]` dependency of `apps/api` (no new dependency); `make api` runs it (Spec 013). `apps/api` depends on the workspace package `way2australia-rag` for the serving stack (`serving/`), retrieval and generation (Spec 013 T6)
 - Data validation/settings: Pydantic / Pydantic Settings
 - Manifest schema validation: `jsonschema` (JSON Schema validation of the document manifest, `packages/rag`)
 - Evaluation schema references: `referencing` (JSON Schema `$ref` registry for the evaluation suite and case schemas, direct dependency of `packages/rag`, Spec 006)

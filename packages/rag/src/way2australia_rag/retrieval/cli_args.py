@@ -108,7 +108,9 @@ class ResolvedRetrievalArgs:
     rerank: bool
     reranker_provider: str | None
 
-    def open_kwargs(self, client_factory: ClientFactory | None) -> dict[str, Any]:
+    def open_kwargs(
+        self, client_factory: ClientFactory | None, top_k: int | None = None
+    ) -> dict[str, Any]:
         return {
             "settings": self.settings,
             "ingestion_config": self.config,
@@ -118,6 +120,7 @@ class ResolvedRetrievalArgs:
             "client_factory": client_factory,
             "rerank": self.rerank,
             "reranker_provider": self.reranker_provider,
+            "top_k": top_k,
         }
 
 

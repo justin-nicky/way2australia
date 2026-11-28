@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 import yaml
-from conftest import REPO_ROOT
+from conftest import REPO_ROOT, KeepOpenClient
 from lexical_support import COLLECTION, VERSION, repository
 from lexical_support import identity as lexical_identity_input
 from qdrant_client import QdrantClient
@@ -54,6 +54,7 @@ from way2australia_rag.lexical.store import (
     LexicalIndex,
     LexicalIndexBindingError,
 )
+from way2australia_rag.lexical.tokenizer import TOKENIZERS
 from way2australia_rag.repositories import (
     GUEST_PUBLIC_POLICY,
     LocalDocumentRepository,
@@ -299,6 +300,7 @@ def test_open_retrieval_bm25_without_tokenizer(
             chunker=chunker.identity,
             hash_contract=HASH_CONTRACT,
         ),
+        tokenizer=TOKENIZERS[load_retrieval_config(RETRIEVAL).lexical.tokenizer],
     )
     monkeypatch.setenv("QDRANT_COLLECTION_BASE", "way2australia")
     monkeypatch.setenv("W2A_LEXICAL_INDEX_DIR", str(directory))
@@ -411,6 +413,7 @@ def test_open_hybrid_paths_without_tokenizer(
             chunker=chunker.identity,
             hash_contract=HASH_CONTRACT,
         ),
+        tokenizer=TOKENIZERS[load_retrieval_config(RETRIEVAL).lexical.tokenizer],
     )
     monkeypatch.setenv("QDRANT_COLLECTION_BASE", base)
     monkeypatch.setenv("W2A_LEXICAL_INDEX_DIR", str(tmp_path))
@@ -422,7 +425,8 @@ def test_open_hybrid_paths_without_tokenizer(
     )
 
     def client_factory(_settings: object) -> QdrantClient:
-        return client
+        # `close()` closes the client (Spec 013 R2); the test opens it twice.
+        return KeepOpenClient(client)  # type: ignore[return-value]
 
     with tokenizer_patch:
         opened = open_retrieval(

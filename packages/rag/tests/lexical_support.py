@@ -22,6 +22,7 @@ from way2australia_rag.lexical.store import (
     LexicalIdentityInput,
     LexicalIndex,
 )
+from way2australia_rag.lexical.tokenizer import LexicalTokenizer
 from way2australia_rag.repositories import (
     GUEST_PUBLIC_POLICY,
     LocalDocumentRepository,
@@ -112,13 +113,19 @@ HEADING_INGESTION_FIXTURE = (
 
 
 def build_production(
-    target: Path, *, config_path: Path | None = None, **over: Any
+    target: Path,
+    *,
+    config_path: Path | None = None,
+    tokenizer: LexicalTokenizer | None = None,
+    **over: Any,
 ) -> None:
     cfg_path = config_path or HEADING_INGESTION_FIXTURE
     config = load_ingestion_config(cfg_path)
-    tokenizer = FakeTokenizer()
-    chunker = build_chunker(config, tokenizer)
-    entries = asyncio.run(production_entries(repository(), chunker, tokenizer, None))
+    chunk_tokenizer = FakeTokenizer()
+    chunker = build_chunker(config, chunk_tokenizer)
+    entries = asyncio.run(
+        production_entries(repository(), chunker, chunk_tokenizer, None)
+    )
     base = identity(**over)
     build_lexical_index(
         entries,
@@ -130,6 +137,7 @@ def build_production(
             chunker=chunker.identity,
             hash_contract=base.hash_contract,
         ),
+        tokenizer=tokenizer,
     )
 
 

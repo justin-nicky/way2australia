@@ -273,6 +273,61 @@ def test_output_cannot_change_citation_metadata_or_inject_text() -> None:
     assert response.citations == []
 
 
+class _WithDeadline(FakeGenerator):
+    """A fake that reports a configured cap, so a budget can tighten it."""
+
+    seen_deadline: float | None = None
+
+    @property
+    def deadline_s(self) -> float:
+        return 30.0
+
+    def generate(self, prompt: Any, *, deadline_s: float | None = None) -> Any:
+        self.seen_deadline = deadline_s
+        return super().generate(prompt, deadline_s=deadline_s)
+
+
+def test_a_budget_below_min_generation_does_not_call_the_generator() -> None:
+    generator = _WithDeadline()
+    response = service(generator).answer(
+        "Is coaching compulsory?",
+        ACCESS,
+        budget_s=1.0,
+        min_generation_s=2.0,
+    )
+    assert generator.calls == 0
+    assert response.status == AnswerStatus.EVIDENCE_ONLY
+    assert response.reason == AnswerReason.GENERATOR_UNAVAILABLE
+    assert response.sub_reason == "deadline"
+    assert response.identity.generator is None
+    assert [item.source_id for item in response.evidence] == ["S1", "S2"]
+
+
+def test_a_budget_with_no_generator_deadline_also_skips_the_call() -> None:
+    generator = FakeGenerator()
+    response = service(generator).answer(
+        "q", ACCESS, budget_s=0.5, min_generation_s=2.0
+    )
+    assert generator.calls == 0
+    assert response.sub_reason == "deadline"
+    assert response.identity.generator is None
+
+
+def test_a_budget_that_leaves_room_passes_the_tighter_cap() -> None:
+    generator = _WithDeadline()
+    response = service(generator).answer(
+        "Is coaching compulsory?",
+        ACCESS,
+        budget_s=10.0,
+        min_generation_s=2.0,
+    )
+    assert generator.calls == 1
+    assert response.status == AnswerStatus.ANSWERED
+    assert generator.seen_deadline is not None
+    assert generator.seen_deadline <= 10.0
+    assert generator.seen_deadline == pytest.approx(10.0, abs=1.0)
+
+
 def test_a_prompt_records_only_issued_evidence() -> None:
     generator = FakeGenerator(record=True)
     service(generator).answer("Is coaching compulsory?", ACCESS)

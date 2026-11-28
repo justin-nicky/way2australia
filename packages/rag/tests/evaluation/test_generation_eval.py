@@ -515,13 +515,17 @@ class _Plan:
 class _ScriptedGenerator:
     """One mode per question. OK answers are fixed so facts and citations are known."""
 
+    deadline_s: float | None = None
+
     def __init__(self, plan: dict[str, _Plan], clock: _StepClock) -> None:
         self._plan = plan
         self._clock = clock
         self.info = default_fake_info()
         self.calls = 0
 
-    def generate(self, prompt: RenderedPrompt) -> GeneratorOutput:
+    def generate(
+        self, prompt: RenderedPrompt, *, deadline_s: float | None = None
+    ) -> GeneratorOutput:
         self.calls += 1
         query = _question_text(prompt.user)
         spec = self._plan[query]

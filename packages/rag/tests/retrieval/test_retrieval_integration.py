@@ -32,6 +32,7 @@ from way2australia_rag.lexical.build import (
     production_entries,
 )
 from way2australia_rag.lexical.store import DenseIdentity, LexicalIdentityInput
+from way2australia_rag.lexical.tokenizer import TOKENIZERS
 from way2australia_rag.repositories import (
     GUEST_PUBLIC_POLICY,
     LocalDocumentRepository,
@@ -142,6 +143,7 @@ def test_hybrid_with_the_fake_reranker_through_open_retrieval(
         assert not report.failures
         model_id, revision = embedder_identity(config, "fake")
         directory = tmp_path / "lex"
+        retrieval = load_retrieval_config(REPO_ROOT / "config/retrieval.yaml")
         build_lexical_index(
             asyncio.run(production_entries(repository, chunker, tokenizer, None)),
             lexical_index_path(directory, collection),
@@ -157,6 +159,7 @@ def test_hybrid_with_the_fake_reranker_through_open_retrieval(
                 chunker=chunker.identity,
                 hash_contract=HASH_CONTRACT,
             ),
+            tokenizer=TOKENIZERS[retrieval.lexical.tokenizer],
         )
         for name in ("QDRANT_API_KEY", "W2A_TENANT_ID"):
             monkeypatch.delenv(name, raising=False)
@@ -169,7 +172,7 @@ def test_hybrid_with_the_fake_reranker_through_open_retrieval(
             Strategy.HYBRID,
             settings=load_runtime_settings(RetrievalConfigurationError),
             ingestion_config=config,
-            retrieval_config=load_retrieval_config(REPO_ROOT / "config/retrieval.yaml"),
+            retrieval_config=retrieval,
             provider="fake",
             repo_root=Path(REPO_ROOT),
             rerank=True,

@@ -911,3 +911,45 @@ def test_eval_cli_bm25_needs_neither_qdrant_nor_the_embedder(
     assert doc["index_settings"] is None and doc["device"] is None
     assert doc["document_count"] == manifest_document_count()
     assert doc["embedder_is_fake"] is False
+
+
+def test_eval_cli_open_time_fallback_with_rerank_records_the_candidate_depth(
+    tmp_path: Path, lexical_env: Path
+) -> None:
+    """Spec 011 F1 (corrected in Spec 013 T1): reranking was requested but the
+    dense side was down at open, so nothing was reranked and the served path is
+    plain BM25 at candidate depth; `retrieval_depth` is 50, not `rerank.depth`."""
+    from retrieval.test_fallback import client_at, closed_port
+
+    eval_world(lexical_env, "bm25")  # the configured standalone lexical file
+    built: list[_RealStubReranker] = []
+
+    def reranker_factory(config: Any, provider: str | None) -> _RealStubReranker:
+        built.append(_RealStubReranker())
+        return built[-1]
+
+    out = tmp_path / "r.json"
+    code = cli.main(
+        [
+            "retrieval",
+            "--repo-root",
+            str(REPO_ROOT),
+            "--strategy",
+            "hybrid",
+            "--rerank",
+            "--output",
+            str(out),
+        ],
+        client_factory=client_at(closed_port()),
+        embedder_factory=lambda config, provider: RealStub(),
+        reranker_factory=reranker_factory,
+    )
+    assert code == 0
+    doc = json.loads(out.read_text(encoding="utf-8"))
+    assert doc["rerank_requested"] is True and doc["rerank"] is None
+    assert built and built[0].load_calls == 0  # built, never loaded
+    assert doc["retrieval_depth"] == RETRIEVAL_CONFIG.fusion.candidate_depth == 50
+    assert doc["retrieval_depth"] != RETRIEVAL_CONFIG.rerank.depth
+    assert {c["served_path"] for c in doc["cases"]} == {
+        "bm25+fallback:qdrant_unavailable"
+    }

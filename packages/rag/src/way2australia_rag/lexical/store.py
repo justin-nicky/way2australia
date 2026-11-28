@@ -5,6 +5,7 @@
 import hashlib
 import json
 import sqlite3
+import threading
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any, Literal, NamedTuple
@@ -167,8 +168,14 @@ class LexicalRow(BaseModel):
 
 
 def _read_only_connection(path: Path) -> sqlite3.Connection:
+    """One read-only connection that any worker thread may use.
+
+    `mode=ro` and `query_only` stay on. `check_same_thread=False` is what lets
+    a connection opened at startup serve FastAPI's threadpool; `LexicalIndex`
+    holds the lock that keeps those uses one at a time (Spec 013 R7).
+    """
     uri = f"file:{quote(str(path))}?mode=ro"
-    connection = sqlite3.connect(uri, uri=True)
+    connection = sqlite3.connect(uri, uri=True, check_same_thread=False)
     connection.execute("PRAGMA query_only = ON")
     return connection
 
@@ -180,6 +187,8 @@ class LexicalIndex:
         self, connection: sqlite3.Connection, settings: LexicalSettings, label: str
     ) -> None:
         self._connection = connection
+        self._lock = threading.Lock()
+        self._closed = False
         self.settings = settings
         self.label = label
 
@@ -275,6 +284,28 @@ class LexicalIndex:
         return tokenizer_named(
             self.settings.tokenizer_name, self.settings.tokenizer_version
         )
+
+    def check_tokenizer(self, expected: str) -> None:
+        """Refuse a file whose recorded tokenizer is not `expected`.
+
+        `expected` is `lexical.tokenizer` from the retrieval config. The message
+        names `make index-lexical` and carries no path.
+        """
+        recorded = self.settings.tokenizer_name
+        if recorded == expected:
+            return
+        raise LexicalIndexBindingError(
+            f"lexical index '{self.label}' tokenizer: recorded {recorded!r}, "
+            f"wanted {expected!r}. {REBUILD_ADVICE}"
+        )
+
+    def _fetchall(self, sql: str, params: tuple[Any, ...] = ()) -> list[Any]:
+        with self._lock:
+            return self._connection.execute(sql, params).fetchall()
+
+    def _fetchone(self, sql: str, params: tuple[Any, ...] = ()) -> Any:
+        with self._lock:
+            return self._connection.execute(sql, params).fetchone()
 
     def bind_to(self, dense: DenseIndex) -> None:
         s = self.settings
@@ -373,28 +404,28 @@ class LexicalIndex:
             )
 
     def document_count(self, where_sql: str, params: tuple[Any, ...]) -> int:
-        row = self._connection.execute(
+        row = self._fetchone(
             f"SELECT COUNT(DISTINCT c.document_id) FROM chunks c WHERE {where_sql}",  # noqa: S608
             params,
-        ).fetchone()
+        )
         return int(row[0])
 
     def document_versions(self) -> set[tuple[str, int, str]]:
-        rows = self._connection.execute(
+        rows = self._fetchall(
             "SELECT DISTINCT document_id, document_version, content_hash FROM chunks"
-        ).fetchall()
+        )
         return {(str(a), int(b), str(c)) for a, b, c in rows}
 
     def chunks_per_document(self) -> dict[str, int]:
-        rows = self._connection.execute(
+        rows = self._fetchall(
             "SELECT document_id, COUNT(*) FROM chunks GROUP BY document_id"
-        ).fetchall()
+        )
         return {str(document_id): int(count) for document_id, count in rows}
 
     def chunk_identities(self) -> set[ChunkIdentity]:
-        rows = self._connection.execute(
+        rows = self._fetchall(
             "SELECT point_id, document_id, document_version, content_hash FROM chunks"
-        ).fetchall()
+        )
         return {(str(a), str(b), int(c), str(e)) for a, b, c, e in rows}
 
     def search(
@@ -405,9 +436,7 @@ class LexicalIndex:
         limit: int,
     ) -> list[LexicalRow]:
         sql = SEARCH_SQL.format(where=where_sql)
-        rows = self._connection.execute(
-            sql, (match_expression, *params, limit)
-        ).fetchall()
+        rows = self._fetchall(sql, (match_expression, *params, limit))
         return [
             LexicalRow(point_id=str(p), payload_json=str(j), score=float(s))
             for p, j, s in rows
@@ -418,7 +447,12 @@ class LexicalIndex:
         return self.settings.schema_version == SETTINGS_SCHEMA_VERSION
 
     def close(self) -> None:
-        self._connection.close()
+        """Close the connection once. Safe to call again, and from any thread."""
+        with self._lock:
+            if self._closed:
+                return
+            self._closed = True
+            self._connection.close()
 
 
 def _differences(triples: Iterable[tuple[str, Any, Any]]) -> str:

@@ -23,6 +23,7 @@ from way2australia_rag.lexical.build import (
     production_entries,
 )
 from way2australia_rag.lexical.store import DenseIdentity, LexicalIdentityInput
+from way2australia_rag.lexical.tokenizer import TOKENIZERS
 from way2australia_rag.repositories import (
     LocalDocumentRepository,
     LocalRepositoryConfig,
@@ -32,6 +33,7 @@ from way2australia_rag.retrieval import cli as retrieve_cli
 from way2australia_rag.retrieval import opening as opening_mod
 from way2australia_rag.retrieval.errors import RetrievalError
 from way2australia_rag.retrieval.opening import OpenedRetrieval
+from way2australia_rag.retrieval.strategy import load_retrieval_config
 
 from .support import REPO_ROOT, output
 
@@ -86,6 +88,7 @@ def hybrid_indexed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Factory:
         production_entries(repository, chunker, FakeTokenizer(), None)
     )
     lexical_dir = tmp_path / "lex"
+    retrieval = load_retrieval_config(REPO_ROOT / "config/retrieval.yaml")
     build_lexical_index(
         entries,
         lexical_index_path(lexical_dir, collection),
@@ -101,6 +104,7 @@ def hybrid_indexed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Factory:
             chunker=chunker.identity,
             hash_contract=HASH_CONTRACT,
         ),
+        tokenizer=TOKENIZERS[retrieval.lexical.tokenizer],
     )
     for name in ("QDRANT_URL", "QDRANT_API_KEY", "QDRANT_TENANT_ID", "W2A_TENANT_ID"):
         monkeypatch.delenv(name, raising=False)
@@ -182,7 +186,7 @@ def test_the_committed_default_is_built_without_a_generator_flag(
     monkeypatch.setattr(
         AnthropicGenerator,
         "generate",
-        lambda self, prompt: output("ok [S1]", ["S1"]),
+        lambda self, prompt, *, deadline_s=None: output("ok [S1]", ["S1"]),
     )
     assert ask(indexed, *SHARED) == 0
     line = next(

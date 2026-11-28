@@ -1,6 +1,9 @@
-"""Per-document freshness of a lexical file (Spec 009 R6)."""
+"""Per-document freshness of a lexical file (Spec 009 R6, Spec 013 R3)."""
 
 import asyncio
+import threading
+from collections.abc import Callable, Coroutine
+from typing import Any, TypeVar
 
 from way2australia_rag.ingestion.chunking import ChunkerIdentity
 from way2australia_rag.lexical.store import (
@@ -10,6 +13,37 @@ from way2australia_rag.lexical.store import (
 )
 from way2australia_rag.repositories import GUEST_PUBLIC_POLICY, DocumentRepository
 from way2australia_rag.repositories.eligibility import list_eligible_documents
+
+T = TypeVar("T")
+
+
+def run_sync(coro_factory: Callable[[], Coroutine[Any, Any, T]]) -> T:
+    """Run `coro_factory()` to completion where this thread has no loop to share.
+
+    With no running loop, `asyncio.run`. Inside a running loop, `asyncio.run` on
+    a short-lived thread that is joined before this returns. The factory is
+    called on that loop, so the coroutine is created where it runs.
+    """
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro_factory())
+
+    outcome: dict[str, T] = {}
+    failure: list[BaseException] = []
+
+    def _target() -> None:
+        try:
+            outcome["value"] = asyncio.run(coro_factory())
+        except BaseException as exc:  # noqa: BLE001 - re-raised on the caller
+            failure.append(exc)
+
+    thread = threading.Thread(target=_target, name="lexical-freshness")
+    thread.start()
+    thread.join()
+    if failure:
+        raise failure[0]
+    return outcome["value"]
 
 
 def verify_fresh(
@@ -27,7 +61,10 @@ def verify_fresh(
             f"{REBUILD_ADVICE}"
         )
 
-    expected = asyncio.run(_eligible_document_versions(repository))
+    def versions() -> Coroutine[Any, Any, set[tuple[str, int, str]]]:
+        return _eligible_document_versions(repository)
+
+    expected = run_sync(versions)
     recorded = lexical.document_versions()
     if expected == recorded:
         return

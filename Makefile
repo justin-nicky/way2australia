@@ -5,8 +5,10 @@ UV_PYTHON_INSTALL_DIR ?= $(CURDIR)/.uv-python
 UV_ENV = UV_CACHE_DIR=$(UV_CACHE_DIR) UV_PYTHON_INSTALL_DIR=$(UV_PYTHON_INSTALL_DIR)
 PYTHON_TARGETS ?= apps packages tests scripts tools
 UV_HTTP_TIMEOUT ?= 300
+API_HOST ?= 127.0.0.1
+API_PORT ?= 8000
 
-.PHONY: setup setup-bge-m3 setup-bedrock setup-anthropic format lint typecheck test test-unit test-integration verify skills-sync skills-check validate-knowledge validate-evaluation ingest index-lexical retrieve ask retrieval-baseline eval-retrieval eval-security eval-generation eval-compare eval-continuity
+.PHONY: setup setup-bge-m3 setup-bedrock setup-anthropic format lint typecheck test test-unit test-integration verify skills-sync skills-check validate-knowledge validate-evaluation ingest index-lexical retrieve ask api retrieval-baseline eval-retrieval eval-security eval-generation eval-compare eval-continuity
 
 setup:
 	$(UV_ENV) $(UV) sync --all-packages --group dev
@@ -80,6 +82,14 @@ retrieve:
 # generator is default_generator in config/generation.yaml; --generator overrides it.
 ask:
 	@$(UV_ENV) $(UV) run python -m way2australia_rag.generation.cli --repo-root $(CURDIR) $(ASK_ARGS) "$(QUERY)"
+
+# Serve the HTTP API (Spec 013). Not part of `make verify`. Needs `make ingest` and
+# `make index-lexical`; a real run needs `make setup-bge-m3` and a generator key.
+# Fake mode (no model, no network, no key): make api W2A_API_FAKE=1, after
+# `make ingest` and `make index-lexical` were run with the fake embedder and
+# QDRANT_COLLECTION_BASE (see COMMANDS.md). Host and port: API_HOST, API_PORT.
+api:
+	$(UV_ENV) $(UV) run uvicorn way2australia_api.main:app --host $(API_HOST) --port $(API_PORT)
 
 # Run the golden cases through dense retrieval and write a JSON result. Extra
 # options go in BASELINE_ARGS, e.g. make retrieval-baseline BASELINE_ARGS="--embedder fake --allow-fake".

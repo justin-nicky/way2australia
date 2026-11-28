@@ -385,7 +385,12 @@ def test_standalone_path_returns_the_hits_of_the_spec_007_construction(
     directory = tmp_path / "lex"
     directory.mkdir()
     target = directory / f"{BASE}-{VERSION}.sqlite"
-    build_production(target, config_path=HEADING_INGESTION_FIXTURE)
+    retrieval = load_retrieval_config(REPO_ROOT / "config/retrieval.yaml")
+    build_production(
+        target,
+        config_path=HEADING_INGESTION_FIXTURE,
+        tokenizer=TOKENIZERS[retrieval.lexical.tokenizer],
+    )
     monkeypatch.setenv("QDRANT_COLLECTION_BASE", BASE)
     monkeypatch.setenv("W2A_LEXICAL_INDEX_DIR", str(directory))
     from way2australia_rag.ingestion.config import load_runtime_settings
@@ -398,7 +403,7 @@ def test_standalone_path_returns_the_hits_of_the_spec_007_construction(
         Strategy.BM25,
         settings=settings,
         ingestion_config=config,
-        retrieval_config=load_retrieval_config(REPO_ROOT / "config/retrieval.yaml"),
+        retrieval_config=retrieval,
         provider="fake",
         repo_root=REPO_ROOT,
     )
